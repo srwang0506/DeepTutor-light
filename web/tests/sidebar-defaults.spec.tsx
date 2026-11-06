@@ -12,7 +12,7 @@ import {
 
 beforeEach(() => localStorage.clear());
 
-it("new profiles see five primary entries and two folded features", () => {
+it("new profiles keep personal learning and research destinations discoverable", () => {
   expect(readNavLayout()).toBeNull();
   const resolved = resolveNavLayout(
     PRIMARY_NAV_HREFS,
@@ -20,14 +20,14 @@ it("new profiles see five primary entries and two folded features", () => {
     DEFAULT_COLLAPSED_NAV
   );
   expect(resolved.visible).toEqual([
-    "/chat",
-    "/partners",
-    "/learning",
-    "/space",
-    "/calendar",
-    "/kanban",
+    "/today",
+    "/learning/reading",
+    "/learning/practice",
+    "/library",
+    "/projects",
+    "/research",
   ]);
-  expect(resolved.collapsed).toEqual(["/co-writer", "/agents"]);
+  expect(resolved.collapsed).toEqual([]);
   expect(resolved.customized).toBe(false);
   expect(SECONDARY_NAV.map(item => item.href)).toEqual(["/settings"]);
 });

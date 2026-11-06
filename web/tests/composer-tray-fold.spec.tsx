@@ -32,6 +32,18 @@ function drag(target: HTMLElement, from: number, to: number) {
 
 beforeEach(() => {
   localStorage.clear()
+  // These interaction cases exercise an explicitly expanded tool tray. The
+  // personal workbench intentionally starts with the tools folded away.
+  localStorage.setItem(KEY, 'open')
+})
+
+it('keeps tools folded for a new learner until the lip is opened', () => {
+  localStorage.removeItem(KEY)
+  const { tray } = renderTray()
+  expect(tray).toHaveAttribute('data-folded')
+  fireEvent.click(screen.getByRole('button', { name: 'Expand' }))
+  expect(tray).not.toHaveAttribute('data-folded')
+  expect(localStorage.getItem(KEY)).toBe('open')
 })
 
 it('offers Visualize once even when the full catalog includes the legacy animator', () => {

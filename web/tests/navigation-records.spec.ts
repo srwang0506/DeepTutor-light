@@ -3,11 +3,13 @@ import { allLearningActivity, type LearningSources } from '@/lib/learning-dashbo
 import { categoryForPath, partnerSessionHref, isNavigationTargetActive } from '@/lib/navigation'
 
 it('keeps old feature URLs in their new categories', () => {
-  for (const path of ['/chat/old-session', '/co-writer/old-document', '/kanban'])
+  for (const path of ['/chat/old-session', '/kanban'])
     expect(categoryForPath(path)).toBe('home')
-  for (const path of ['/learning/books/old-book', '/learning/reading/old-material'])
+  for (const path of ['/co-writer/old-document', '/projects', '/studio/evidence'])
+    expect(categoryForPath(path)).toBe('research')
+  for (const path of ['/learning/books/old-book', '/notebooks/old-notebook'])
     expect(categoryForPath(path)).toBe('learning')
-  for (const path of ['/space', '/space/chat-history', '/knowledge-bases/old-kb', '/notebooks/old-notebook'])
+  for (const path of ['/space', '/space/chat-history', '/knowledge-bases/old-kb', '/learning/reading/old-material', '/library'])
     expect(categoryForPath(path)).toBe('resources')
   // The account's own places, the same in every workspace.
   for (const path of ['/personalization', '/agents', '/space/mcp', '/space/skills', '/space/personas', '/memory/l1'])

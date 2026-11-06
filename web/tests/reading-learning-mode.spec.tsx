@@ -148,13 +148,16 @@ describe('reading fullscreen learning', () => {
     await user.click(screen.getByRole('button', { name: 'Fullscreen learning' }))
     expect(root).toHaveAttribute('data-learning', 'true')
     expect(screen.getByTestId('reading-navigator')).toHaveAttribute('data-open', 'true')
-    expect(screen.queryByTestId('reading-companion')).not.toBeInTheDocument()
+    // Keep the conversation mounted, but hide its panel while reading. This
+    // preserves chat/editor state across a fullscreen transition.
+    expect(screen.getByTestId('reading-companion').parentElement).toHaveClass('hidden')
     await waitFor(() => expect(sidebar.inert).toBe(true))
 
     await user.click(screen.getByRole('button', { name: 'Exit learning mode' }))
     expect(root).not.toHaveAttribute('data-learning')
     expect(screen.getByTestId('reading-navigator')).toHaveAttribute('data-open', 'false')
     expect(screen.getByTestId('reading-companion')).toBeInTheDocument()
+    expect(screen.getByTestId('reading-companion').parentElement).toHaveClass('contents')
     expect(sidebar.inert).not.toBe(true)
     expect(sidebar.hasAttribute('inert')).toBe(false)
     expect(sessionStorage.getItem(LEARNING_KEY)).toBeNull()
@@ -210,11 +213,12 @@ describe('reading fullscreen learning', () => {
     render(<ReadingWorkspacePage />)
     await waitFor(() => expect(screen.getByRole('main')).toHaveAttribute('data-learning', 'true'))
     expect(screen.getByTestId('reading-navigator')).toHaveAttribute('data-open', 'true')
-    expect(screen.queryByTestId('reading-companion')).not.toBeInTheDocument()
+    expect(screen.getByTestId('reading-companion').parentElement).toHaveClass('hidden')
 
     await user.click(screen.getByRole('button', { name: 'Exit learning mode' }))
     expect(screen.getByRole('main')).not.toHaveAttribute('data-learning')
     expect(screen.getByTestId('reading-companion')).toBeInTheDocument()
+    expect(screen.getByTestId('reading-companion').parentElement).toHaveClass('contents')
     expect(sessionStorage.getItem(LEARNING_KEY)).toBeNull()
   })
 })

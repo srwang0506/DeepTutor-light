@@ -352,9 +352,7 @@ describe('ChatWorkspace smoke', () => {
 
     // Empty home: greeting heading, starter suggestions, idle composer.
     const heading = screen.getByRole('heading', { level: 1 })
-    expect(heading.textContent).toMatch(
-      /What would you like to learn|Good morning|Good afternoon|Good evening|It's late|Morning —|Afternoon —|Evening —|Burning the midnight/
-    )
+    expect(heading).toHaveTextContent('A little more understanding, every day.')
     expect(screen.getByTestId('starter-suggestions')).toBeInTheDocument()
     expect(screen.getByTestId('composer')).toHaveAttribute('data-streaming', 'false')
     expect(screen.queryByTestId('message-list')).toBeNull()
