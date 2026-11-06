@@ -262,7 +262,13 @@ class CoWriterStorage:
         if data is None:
             return None
         try:
-            return CoWriterDocument.model_validate(data)
+            document = CoWriterDocument.model_validate(data)
+            from deeptutor.notes.card_identity import normalize_cards
+
+            document.blocks = normalize_cards(
+                document.blocks, progress=_read_json(self.doc_root(doc_id) / "review.json") or {}
+            )
+            return document
         except Exception as exc:
             logger.warning(f"Failed to validate Co-Writer document {doc_id}: {exc}")
             return None
@@ -374,6 +380,14 @@ class CoWriterStorage:
     # ── Internal ─────────────────────────────────────────────────────────
 
     def _write(self, document: CoWriterDocument) -> None:
+        from deeptutor.notes.card_identity import normalize_cards
+
+        previous = _read_json(self.manifest_path(document.id)) or {}
+        document.blocks = normalize_cards(
+            document.blocks,
+            previous.get("blocks"),
+            _read_json(self.doc_root(document.id) / "review.json") or {},
+        )
         self.ensure_doc_root(document.id)
         _atomic_write_json(self.manifest_path(document.id), document.model_dump(mode="json"))
 

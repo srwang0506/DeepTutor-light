@@ -661,6 +661,8 @@ _LEARNER_KB_READ_ROUTES = frozenset(
 
 _PERSONAL_PAGE_ROUTES = frozenset(
     {
+        ("GET", "/api/dashboard/study-preferences"),
+        ("PATCH", "/api/dashboard/study-preferences"),
         ("GET", "/api/settings/display"),
         ("GET", "/api/settings/page-customization"),
         ("PUT", "/api/settings/page-customization/chat"),

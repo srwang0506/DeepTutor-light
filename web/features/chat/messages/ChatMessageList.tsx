@@ -1,5 +1,6 @@
 "use client";
 
+import ProjectMemoryReferences from '@/components/projects/ProjectMemoryReferences';
 import dynamic from "next/dynamic";
 import { UsageFooter } from "./UsageFooter";
 import { cumulativeMessageUsage, messageUsage } from "./usage-summary";
@@ -1128,6 +1129,7 @@ export const AssistantMessage = memo(function AssistantMessage({
 
   return (
     <>
+      <ProjectMemoryReferences events={events} />
       {/* Activity block pinned to the TOP: the status header
           ("DeepTutor Exploring… · 8s" → "DeepTutor responded. · 10s") with
           the exploring trace nested beneath it — expanded while DeepTutor is

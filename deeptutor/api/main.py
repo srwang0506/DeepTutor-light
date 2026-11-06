@@ -106,7 +106,7 @@ def _build_cors_settings() -> dict[str, object]:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def _application_lifespan(app: FastAPI):
     """
     Application lifecycle management
     Gracefully handle startup and shutdown events, avoid CancelledError
@@ -160,7 +160,11 @@ async def lifespan(app: FastAPI):
     try:
         if module_enabled("mastery"):
             from deeptutor.learning.assessment import reconcile_linked_assessments
+            from deeptutor.learning.mastery_projection import reconcile_mastery_projections
+            from deeptutor.services.session import get_sqlite_session_store
 
+            await reconcile_mastery_projections()
+            await get_sqlite_session_store().reconcile_quiz_projections()
             recovered, failed = await reconcile_linked_assessments()
             if recovered or failed:
                 logger.info("Linked assessment recovery: recovered=%s failed=%s", recovered, failed)
@@ -297,8 +301,20 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"v1 memory migration failed: {e}")
 
+    from deeptutor.studio import builds as studio_builds
+
+    await asyncio.to_thread(studio_builds.start)
+    from deeptutor.studio import subscriptions as studio_subscriptions
+
+    studio_subscription_task = asyncio.create_task(studio_subscriptions.background())
     app.state.ready = True
     yield
+    studio_subscription_task.cancel()
+    try:
+        await studio_subscription_task
+    except asyncio.CancelledError:
+        pass
+    await asyncio.to_thread(studio_builds.shutdown)
 
     # Execute on shutdown
     app.state.ready = False
@@ -357,6 +373,26 @@ async def lifespan(app: FastAPI):
         logger.info("EventBus stopped")
     except Exception as e:
         logger.warning(f"Failed to stop EventBus: {e}")
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # The simple deployment opts into one writer and coordinated offline backups.
+    # Existing multi-worker deployments keep their original coordinator.
+    from contextlib import nullcontext
+    import os
+
+    from deeptutor.runtime.backup import runtime_lock
+    from deeptutor.runtime.home import get_runtime_home
+
+    guard = (
+        runtime_lock(get_runtime_home())
+        if os.environ.get("DEEPTUTOR_STUDY_RUNTIME") == "1"
+        else nullcontext()
+    )
+    with guard:
+        async with _application_lifespan(app):
+            yield
 
 
 from deeptutor.services.workspace.activity import WorkspaceActivityMiddleware

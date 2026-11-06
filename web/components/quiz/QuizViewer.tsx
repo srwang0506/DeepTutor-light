@@ -56,6 +56,8 @@ import { recordQuizResults } from "@/lib/session-api";
 import { apiUrl } from "@/lib/api";
 import Tooltip from "@/shared/ui/Tooltip";
 
+import StudyQuizViewer from "./StudyQuizViewer";
+
 import { randomUuid } from "@/lib/random-uuid";
 
 /** Resolve a possibly-relative AttachmentStore URL to an absolute one so
@@ -188,7 +190,12 @@ function isAnswerCorrect(question: QuizQuestion, answer: AnswerState): boolean {
   return userAnswer.toLowerCase() === correct.toLowerCase();
 }
 
-export default function QuizViewer({
+export default function QuizViewer(props: QuizViewerProps) {
+  if (props.sessionId && props.turnId) return <StudyQuizViewer questions={props.questions} sessionId={props.sessionId} turnId={props.turnId} />;
+  return <LegacyQuizViewer {...props} />;
+}
+
+function LegacyQuizViewer({
   questions,
   sessionId,
   turnId,
@@ -536,7 +543,7 @@ export default function QuizViewer({
   );
 
   const handleSubmit = () => {
-    if (ans.submitted || !q) return;
+    if (ans.submitted || !q || q.answerable === false) return;
     const newAnswer = { ...(answers[idx] ?? EMPTY_ANSWER), submitted: true };
     updateAnswer({ submitted: true });
     void upsertSingleQuestion(q, newAnswer, idx);

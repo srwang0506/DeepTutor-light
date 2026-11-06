@@ -116,7 +116,7 @@ _current_run: ContextVar[Run | None] = ContextVar("memory_run", default=None)
 
 
 class RunManager:
-    """Process-wide singleton — one manager owns every consolidator run.
+    """One manager per owner and project memory root.
 
     The instance is created on first call to :func:`get_run_manager`.
     """
@@ -323,19 +323,21 @@ class RunManager:
                 return
 
 
-_manager: RunManager | None = None
+_managers: dict[tuple[str, str], RunManager] = {}
 
 
 def get_run_manager() -> RunManager:
-    global _manager
-    if _manager is None:
-        _manager = RunManager()
-    return _manager
+    from deeptutor.multi_user.context import get_current_user
+    from deeptutor.services.memory.paths import memory_root
+
+    key = (get_current_user().scope.user_id, str(memory_root()))
+    if key not in _managers:
+        _managers[key] = RunManager()
+    return _managers[key]
 
 
 def reset_run_manager_for_tests() -> None:
-    global _manager
-    _manager = None
+    _managers.clear()
 
 
 def current_run() -> Run | None:

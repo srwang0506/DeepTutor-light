@@ -1,5 +1,9 @@
 "use client";
 
+import Link from "next/link";
+
+import { StudyWorkspaceShell } from "@/components/study/StudyWorkspaceShell";
+
 import { COMMAND_CONFIRMATION_FAILED } from "@/features/chat/transport/command-delivery";
 
 import { ResourceReuseContext, useResourceReusePolicy } from "@/components/chat/home/ResourceReuse";
@@ -595,6 +599,7 @@ export default function ChatWorkspace() {
   // mount; ``ChatMessageList`` reads it via ``handlePrefillComposer`` so an
   // ``AskUserOptions`` chip click can drop text into the composer textarea.
   const prefillInputRef = useRef<((text: string) => void) | null>(null);
+  const pendingComposerPrompt = useRef("");
   const focusComposerRef = useRef<(() => void) | null>(null);
   const handlePrefillComposer = useCallback((text: string) => {
     prefillInputRef.current?.(text);
@@ -610,13 +615,17 @@ export default function ChatWorkspace() {
   // ref and drop the message silently — the user arrives from Settings at an
   // empty box with no idea the button did anything.
   useEffect(() => {
-    const pending = consumePendingPrompt();
+    // Strict Mode can cancel the first timer after consuming sessionStorage.
+    // Hold the hand-off until the composer has actually accepted it.
+    const pending = pendingComposerPrompt.current || consumePendingPrompt(`chat:${requestedWorkspaceId || ""}`) || consumePendingPrompt();
+    pendingComposerPrompt.current = pending;
     if (!pending) return;
     let attempts = 0;
     let timer: ReturnType<typeof setTimeout>;
     const attempt = () => {
       if (prefillInputRef.current) {
         handlePrefillComposer(pending);
+        pendingComposerPrompt.current = "";
         return;
       }
       if (attempts++ >= 20) return; // ~2s, then give up quietly
@@ -624,7 +633,7 @@ export default function ChatWorkspace() {
     };
     timer = setTimeout(attempt, 0);
     return () => clearTimeout(timer);
-  }, [handlePrefillComposer]);
+  }, [handlePrefillComposer, requestedWorkspaceId]);
 
   // A clickable node inside an inlined visualization SVG (data-prompt) — and the
   // html widget's sendPrompt bridge — dispatch this window event; mirror it into
@@ -757,10 +766,10 @@ export default function ChatWorkspace() {
   useEffect(() => {
     const prev = lastCapabilityNeedsConfigRef.current;
     lastCapabilityNeedsConfigRef.current = capabilityNeedsConfig;
-    if (!prev && capabilityNeedsConfig) {
+    if (!prev && capabilityNeedsConfig && !capabilityConfigConfirmed) {
       ensureActivityPanelOpen();
     }
-  }, [capabilityNeedsConfig, ensureActivityPanelOpen]);
+  }, [capabilityNeedsConfig, capabilityConfigConfirmed, ensureActivityPanelOpen]);
   // Adopt UI preferences the assistant changed mid-conversation: the browser
   // otherwise keeps serving its own cached language/theme and the user is told
   // "done" while nothing visibly changes.
@@ -793,7 +802,7 @@ export default function ChatWorkspace() {
   // Time-of-day greeting: seeded once on mount from the user's local clock so
   // the heading stays stable while they're on the page. State (not useMemo)
   // because the random pick would otherwise mismatch SSR ↔ client hydration.
-  const [welcomeGreeting, setWelcomeGreeting] = useState<string>(
+  const [, setWelcomeGreeting] = useState<string>(
     "What would you like to learn?",
   );
   useEffect(() => {
@@ -1482,7 +1491,12 @@ export default function ChatWorkspace() {
     if (intent.capability !== null && isCapabilityCatalogLoading) return;
     launchIntentAppliedRef.current = true;
     if (intent.capability !== null) handleSelectCapability(intent.capability);
-    else if (intent.tools.length) {
+    const researchMode = new URLSearchParams(window.location.search).get("research_mode");
+    if (intent.capability === "deep_research" && (researchMode === "comparison" || researchMode === "citation_audit" || researchMode === "experiment_plan")) {
+      setResearchConfig({ mode: researchMode, depth: "standard" });
+      setCapabilityConfigConfirmed(true);
+    }
+    if (intent.capability === null && intent.tools.length) {
       const valid = intent.tools.filter((t): t is ToolName =>
         ALL_TOOLS.some((d) => d.name === t),
       );
@@ -2141,6 +2155,9 @@ export default function ChatWorkspace() {
         {
           bookReferences: bookReferencesPayload,
           readingReferences: readingReferencesPayload,
+          ...(["deep_solve", "deep_question"].includes(state.activeCapability || "")
+            ? { capability: state.activeCapability || "chat" }
+            : {}),
           ...(retrying && !state.isStreaming
             ? { parentMessageId: retrying.parentMessageId }
             : {}),
@@ -2173,6 +2190,7 @@ export default function ChatWorkspace() {
         sendMessage(...send);
         setRetryingTurn(null);
       }
+      if (["deep_solve", "deep_question"].includes(state.activeCapability || "")) setCapability(null);
       setKBs(retainedKnowledgeBases(state.knowledgeBases, agentNameSet, resourceReuse.policy));
       if (!resourceReuse.policy.persona) setPersonaSelection("");
       setResourceSelection({skills: resourceReuse.policy.skills ? state.resourceSelection.skills : [], mcp: resourceReuse.policy.mcp ? state.resourceSelection.mcp : []});
@@ -2192,7 +2210,7 @@ export default function ChatWorkspace() {
       if (!resourceReuse.policy.memory) setSelectedMemoryFiles([]);
     },
     [
-      draftTaskIds, state.sessionId, resourceReuse, state.knowledgeBases, state.resourceSelection, agentNameSet, setKBs, setPersonaSelection, setResourceSelection,
+      draftTaskIds, state.sessionId, state.activeCapability, setCapability, resourceReuse, state.knowledgeBases, state.resourceSelection, agentNameSet, setKBs, setPersonaSelection, setResourceSelection,
       attachments,
       bookReferencesPayload,
       readingReferencesPayload,
@@ -2567,7 +2585,7 @@ export default function ChatWorkspace() {
           messages={state.messages}
           viewerPanelRef={viewerPanelRef}
         />
-        <div className="relative h-full overflow-hidden">
+        <StudyWorkspaceShell className="relative h-full overflow-hidden">
           <div
             // When the preview drawer is open AND the viewport is wide enough,
             // push the chat content to the left by the drawer's width so the two
@@ -2703,7 +2721,7 @@ export default function ChatWorkspace() {
                 />
               </PageBarSlot>
             </div>
-            <div className="flex w-full flex-1 min-h-0 flex-col">
+            <div className={`flex w-full flex-1 min-h-0 flex-col ${!hasMessages ? "overflow-y-auto" : ""}`}>
               {sessionLoading || sessionLoadFailed ? (
                 <div className="flex w-full flex-1 min-h-0 justify-center px-6">
                   <div className="h-full w-full max-w-[960px]">
@@ -2715,21 +2733,15 @@ export default function ChatWorkspace() {
                   </div>
                 </div>
               ) : !hasMessages ? (
-                // Clipped rather than pushed under the header when a short
-                // window leaves the greeting no room.
-                <div className="flex w-full flex-1 min-h-0 items-end justify-center overflow-hidden pb-14 animate-fade-in px-6">
-                  <div className="w-full max-w-[960px] flex items-center justify-center gap-4">
-                    <img
-                      src="/brand/black-logo.png"
-                      alt="DeepTutor"
-                      width={40}
-                      height={40}
-                      className="h-10 w-10 select-none dark:invert"
-                      draggable={false}
-                    />
-                    <h1 className="font-serif text-[40px] font-medium leading-[1.1] tracking-[-0.015em] text-[var(--foreground)]">
-                      {t(welcomeGreeting)}
-                    </h1>
+                <div className="flex w-full flex-1 shrink-0 min-h-[340px] items-center justify-center py-8 sm:py-12 animate-fade-in px-6">
+                  <div className="study-welcome w-full max-w-[800px] text-center">
+                    <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--primary)]">{t("DeepTutor Light")}</p>
+                    <h1 className="font-serif text-3xl font-medium leading-tight tracking-tight sm:text-5xl">{t("A little more understanding, every day.")}</h1>
+                    <p className="mx-auto mt-5 max-w-lg text-sm leading-7 text-[var(--muted-foreground)]">{t("Bring your materials. Ask a question. Make what you learn your own.")}</p>
+                    <div className="mt-6 flex justify-center gap-3 text-xs">
+                      <Link href={scopedUrl("/learning/reading")} className="rounded-full border border-[var(--border)] px-4 py-2.5 hover:bg-[var(--accent)]">{t("Open materials")}</Link>
+                      <Link href={scopedUrl("/learning/practice")} className="rounded-full border border-[var(--border)] px-4 py-2.5 hover:bg-[var(--accent)]">{t("Continue practice")}</Link>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -3119,7 +3131,7 @@ export default function ChatWorkspace() {
               onAutoOpen={() => setViewerOpen(true)}
             />
           </div>
-        </div>
+        </StudyWorkspaceShell>
       </GeogebraTabProvider>
     </QuizFollowupProvider>
     </ResourceReuseContext.Provider>

@@ -11,6 +11,7 @@ import type { QuizJudgeHandlers } from "@/lib/quiz-judge";
 initI18n("en");
 
 const mocks = vi.hoisted(() => ({
+  apiFetch: vi.fn(),
   lookupNotebookEntry: vi.fn(),
   updateNotebookEntry: vi.fn(),
   upsertNotebookEntry: vi.fn(),
@@ -24,6 +25,10 @@ const mocks = vi.hoisted(() => ({
   judgeHandle: { close: vi.fn(), cancel: vi.fn() },
   judgeHandlers: null as QuizJudgeHandlers | null,
 }));
+
+vi.mock("@/features/chat/ChatStateAdapter", () => ({ useChatStateAdapter: () => ({ sendMessage: vi.fn(), state: { isStreaming: false, enabledTools: [] } }) }));
+vi.mock("@/lib/workspace-drafts", () => ({ readWorkspaceDraft: async () => undefined, saveWorkspaceDraft: async () => {} }));
+vi.mock("@/lib/api", () => ({ apiUrl: (url: string) => url, apiFetch: mocks.apiFetch }));
 
 vi.mock("@/lib/notebook-api", () => ({
   lookupNotebookEntry: mocks.lookupNotebookEntry,
@@ -228,61 +233,18 @@ describe("QuizViewer smoke", () => {
     expect(screen.getByText("What is the capital of France?")).toBeInTheDocument();
   });
 
-  it("persists each submit and records results once every question is answered (mock API)", async () => {
+  it("uses server grading for saved turns, including historical questions without a version", async () => {
+    mocks.apiFetch.mockResolvedValue({ok: true, json: async () => ({ attempt_id: "attempt", state: "committed", result: "correct", assessment_committed: true, feedback: "Verified" })});
     const user = userEvent.setup();
-    renderViewer([choiceQuestion, conceptQuestion], {
-      sessionId: "session-1",
-      turnId: "turn-1",
-    });
-
-    // Turn-scoped notebook lookups hydrate prior answers (#487/#677).
-    await waitFor(() => {
-      expect(mocks.lookupNotebookEntry).toHaveBeenCalledWith(
-        "session-1",
-        "q_1",
-        "turn-1",
-      );
-    });
-
-    await user.click(screen.getByRole("button", { name: /Paris/ }));
-    await user.click(screen.getByRole("button", { name: /Check Answer/ }));
-    await waitFor(() => {
-      expect(mocks.upsertNotebookEntry).toHaveBeenCalledWith(
-        expect.objectContaining({
-          session_id: "session-1",
-          turn_id: "turn-1",
-          question_id: "q_1",
-          user_answer: "B",
-          is_correct: true,
-        }),
-      );
-    });
-
-    await user.click(screen.getByRole("button", { name: "Next" }));
-    await user.click(screen.getByRole("button", { name: "False" }));
-    await user.click(screen.getByRole("button", { name: /Check Answer/ }));
-
-    await waitFor(() => {
-      expect(mocks.recordQuizResults).toHaveBeenCalledTimes(1);
-    });
-    const [sessionId, results, turnId] = mocks.recordQuizResults.mock.calls[0];
-    expect(sessionId).toBe("session-1");
-    expect(turnId).toBe("turn-1");
-    expect(results).toEqual([
-      expect.objectContaining({
-        question_id: "q_1",
-        question_type: "choice",
-        user_answer: "B",
-        correct_answer: "B",
-        is_correct: true,
-      }),
-      expect.objectContaining({
-        question_id: "q_2",
-        question_type: "concept",
-        user_answer: "false",
-        is_correct: true,
-      }),
-    ]);
+    renderViewer([choiceQuestion], { sessionId: "session-1", turnId: "turn-1" });
+    await waitFor(() => expect(screen.getByRole("radio", {name: /Paris/})).toBeEnabled());
+    await user.click(screen.getByRole("radio", {name: /Paris/}));
+    await user.click(screen.getByRole("button", {name: "Submit answer"}));
+    expect(await screen.findByText("Correct")).toBeVisible();
+    const payload = JSON.parse(mocks.apiFetch.mock.calls[0][1].body);
+    expect(payload).toMatchObject({session_id: "session-1", turn_id: "turn-1", question_id: "q_1", question_version: "", answer: "B"});
+    expect(payload.correct_answer).toBeUndefined();
+    expect(mocks.recordQuizResults).not.toHaveBeenCalled();
   });
 
   it("stays local-only without a turn id: no notebook or result-report calls", async () => {

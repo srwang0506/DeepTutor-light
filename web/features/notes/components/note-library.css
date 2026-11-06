@@ -394,3 +394,8 @@
   text-align: center;
   color: #dc2626;
 }
+
+.dt-notes-card-change { margin: 18px 24px; padding: 18px; background: color-mix(in srgb, var(--primary) 6%, var(--background)); border: 1px solid var(--border); border-radius: 14px; font-size: 13px; line-height: 1.7; }
+.dt-notes-card-change > div:not(.dt-notes-review-actions) { margin: 12px 0; padding: 12px; border-left: 2px solid var(--border); }
+.dt-notes-card-change small { color: var(--muted-foreground); }
+.dt-notes-card-change p { white-space: pre-wrap; overflow-wrap: anywhere; }

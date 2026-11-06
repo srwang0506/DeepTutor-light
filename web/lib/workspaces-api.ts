@@ -31,6 +31,9 @@ export function getWorkspaceResources(workspaceId = ''): Promise<WorkspaceResour
 }
 
 export interface ChatWorkspaceRegistration {
+  description?: string
+  color?: string
+  memory_policy?: ProjectMemoryPolicy
   instructions?: string
   resources?: WorkspaceResources
   workspace_id: string
@@ -81,7 +84,7 @@ export function listWorkspaces(force = false): Promise<ChatWorkspaceRegistration
 }
 
 export async function saveWorkspace(
-  input: { name?: string; path?: string; archived?: boolean; resources?: WorkspaceResources; instructions?: string },
+  input: { description?: string; color?: string; memory_policy?: ProjectMemoryPolicy; name?: string; path?: string; archived?: boolean; resources?: WorkspaceResources; instructions?: string },
   workspaceId?: string
 ): Promise<ChatWorkspaceRegistration> {
   const result = await request<{ workspace: ChatWorkspaceRegistration }>(
@@ -209,4 +212,29 @@ export async function moveKnowledgeBase(sourceId: string, targetWorkspaceId: str
   invalidateClientCache('knowledge:')
   notifySessionsChanged()
   return result
+}
+
+export interface ProjectMemoryPolicy { sources: string[]; discoverable: boolean }
+export interface ProjectRecallHit {
+  key: string; title: string; text: string; kind: 'memory' | 'chat' | 'task'
+  url: string; updated_at: number; workspace_id: string; workspace_name: string
+  external: boolean; citation: string
+}
+export interface ProjectRecallResult {
+  hits: ProjectRecallHit[]; sources: { id: string; name: string }[]
+  unavailable_sources: string[]; truncated: boolean
+}
+export interface ProjectOverview {
+  workspace: ChatWorkspaceRegistration
+  sessions: { id: string; title: string; updated_at: number }[]
+  tasks: { id: string; title: string; status: string }[]
+  counts: { sessions: number; tasks: number; open_tasks: number; memory_documents: number }
+  sources: { id: string; name: string }[]
+  unavailable_sources: string[]
+}
+export function getProjectOverview(workspaceId: string): Promise<ProjectOverview> {
+  return request(`/api/settings/workspace/projects/overview?workspace_id=${encodeURIComponent(workspaceId)}`)
+}
+export function recallProjectMemory(workspaceId: string, query: string): Promise<ProjectRecallResult> {
+  return request(`/api/settings/workspace/projects/recall?${new URLSearchParams({ workspace_id: workspaceId, query })}`)
 }

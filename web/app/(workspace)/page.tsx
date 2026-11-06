@@ -6,5 +6,5 @@ import { redirect } from "next/navigation";
  * fallback — it stays so links to `/` still resolve to a real page.
  */
 export default function WorkspaceRootPage() {
-  redirect("/chat");
+  redirect("/today");
 }

@@ -1707,10 +1707,13 @@ class AgenticLoopPipeline:
             return
         if not window or window <= 0:
             return
-        budget = int(window * CONTEXT_WINDOW_GUARD_RATIO)
+        budget = max(1, int(window * CONTEXT_WINDOW_GUARD_RATIO))
         # Each message is counted once; the running total moves as tool results are snipped.
         counts = [self._request_message_tokens(msg) for msg in messages]
         total = sum(counts) + self._tool_schema_tokens(tool_schemas)
+        # Reserve remaining capacity for output; oversized configured output
+        # limits must not erase the entire input budget on small-context models.
+        self._context_output_limit = max(1, window - min(total, budget) - 128)
         if total <= budget:
             return
         marker = self._tool_result_snip_marker()
@@ -1726,13 +1729,14 @@ class AgenticLoopPipeline:
             if total <= budget:
                 break
         if total > budget:
-            logger.warning(
-                "Context-window guard: request is about %d tokens against a %d-token budget "
-                "(window %d) and no tool results are left to trim; sending it as-is",
-                total,
-                budget,
-                window,
+            # Refuse an impossible provider request. The durable turn records a
+            # retryable failure and retains its input, rather than spending calls
+            # on the same overflowing prompt until the round budget is exhausted.
+            raise ValueError(
+                "Context budget exhausted after trimming old tool output; "
+                "the input was saved. Narrow the material scope or start a new branch."
             )
+        self._context_output_limit = max(1, window - total - 128)
         if snipped:
             await stream.progress(
                 self._t("notices.context_window_guard"),
@@ -1802,7 +1806,7 @@ class AgenticLoopPipeline:
         return build_completion_kwargs(
             temperature=self._chat_temperature,
             model=self.model,
-            max_tokens=max_tokens,
+            max_tokens=min(max_tokens, getattr(self, "_context_output_limit", max_tokens)),
             binding=self.binding,
             reasoning_effort=self.reasoning_effort,
         )

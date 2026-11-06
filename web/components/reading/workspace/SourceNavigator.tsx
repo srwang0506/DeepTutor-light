@@ -211,7 +211,7 @@ export function SourceNavigator({
     <aside
       className={`dt-reading-navigator min-h-0 min-w-0 flex-col bg-[var(--background)] ${
         open
-          ? "absolute inset-y-0 left-0 z-30 flex w-[min(300px,88vw)] shadow-[18px_0_42px_rgba(0,0,0,.12)] lg:static lg:row-start-2 lg:w-auto lg:shadow-none"
+          ? "absolute inset-y-0 left-0 z-30 flex w-[min(300px,88vw)] shadow-[18px_0_42px_rgba(0,0,0,.12)] "
           : "hidden"
       }`}
     >

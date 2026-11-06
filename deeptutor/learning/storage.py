@@ -283,6 +283,35 @@ class LearningTransaction:
                 now,
             ),
         )
+        if interaction.status == InteractionStatus.GRADED or any(
+            result.get("final") for result in interaction.result.get("results", [])
+        ):
+            question_ids = {
+                q.question_id for q in (interaction.question.questions or [interaction.question])
+            }
+            evidence = {
+                e.question_id: e.model_dump(mode="json")
+                for e in self.progress.learning_evidence
+                if e.question_id in question_ids
+            }
+            payload = json.dumps(
+                {
+                    "interaction": interaction.model_dump(mode="json"),
+                    "title": self.progress.name,
+                    "evidence": evidence,
+                },
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+            self._conn.execute(
+                "INSERT INTO mastery_projection_outbox VALUES (?, ?, ?, ?) ON CONFLICT(interaction_id) DO UPDATE SET payload_json=excluded.payload_json, digest=excluded.digest",
+                (
+                    interaction.interaction_id,
+                    payload,
+                    hashlib.sha256(payload.encode()).hexdigest(),
+                    now,
+                ),
+            )
         self.touch()
 
     def abandon_active_interactions(self) -> int:
@@ -452,6 +481,12 @@ class LearningStore:
                     """
                     PRAGMA journal_mode = WAL;
 
+                    CREATE TABLE IF NOT EXISTS mastery_projection_outbox (
+                        interaction_id TEXT PRIMARY KEY,
+                        payload_json TEXT NOT NULL,
+                        digest TEXT NOT NULL,
+                        created_at REAL NOT NULL
+                    );
                     CREATE TABLE IF NOT EXISTS mastery_paths (
                         path_id TEXT PRIMARY KEY,
                         state_json TEXT NOT NULL,
@@ -1313,6 +1348,22 @@ class LearningStore:
             if conn.execute("SELECT 1 FROM mastery_paths WHERE path_id = ?", (path_id,)).fetchone():
                 return True
         return self._path(path_id).exists()
+
+    def pending_projections(self, limit=100):
+        with self._connect() as conn:
+            return [
+                dict(row)
+                for row in conn.execute(
+                    "SELECT * FROM mastery_projection_outbox ORDER BY created_at LIMIT ?", (limit,)
+                )
+            ]
+
+    def acknowledge_projection(self, interaction_id, digest):
+        with self._connect() as conn:
+            conn.execute(
+                "DELETE FROM mastery_projection_outbox WHERE interaction_id=? AND digest=?",
+                (interaction_id, digest),
+            )
 
     def list_all(self) -> list[str]:
         with self._connect() as conn:

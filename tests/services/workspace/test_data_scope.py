@@ -22,7 +22,7 @@ def account(tmp_path, monkeypatch):
         yield ContentWorkspaceService()
 
 
-def test_feature_paths_and_cache_identity_are_isolated_but_settings_and_memory_are_global(account):
+def test_feature_paths_memory_and_cache_are_isolated_but_settings_are_global(account):
     from deeptutor.book.storage import get_book_storage
     from deeptutor.learning.storage import LearningStore
     from deeptutor.reading.store import ReadingStore
@@ -35,7 +35,7 @@ def test_feature_paths_and_cache_identity_are_isolated_but_settings_and_memory_a
         with workspace_context(wid):
             paths = get_path_service()
             assert paths.get_settings_dir() == base.get_settings_dir()
-            assert paths.get_memory_dir() == base.get_memory_dir()
+            assert (paths.get_memory_dir() == base.get_memory_dir()) == (wid == "")
             assert account._catalog_file() == base.get_runtime_state_dir() / "workspaces.sqlite3"
             seen.append(
                 (

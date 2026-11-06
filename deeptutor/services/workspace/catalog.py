@@ -294,6 +294,10 @@ class WorkspaceCatalogMixin:
                     "status": status["status"],
                     "error": status.get("error", ""),
                     "instructions": row.get("instructions") or "",
+                    "description": row.get("description", ""),
+                    "color": row.get("color", "#477965"),
+                    "memory_policy": row.get("memory_policy")
+                    or {"sources": [], "discoverable": True},
                     "resources": row.get("resources")
                     or {"skills": None, "mcp": None, "knowledge_bases": None},
                 }
@@ -307,11 +311,23 @@ class WorkspaceCatalogMixin:
         *,
         resources: dict | None = None,
         instructions: str | None = None,
+        description: str | None = None,
+        color: str | None = None,
+        memory_policy: dict | None = None,
     ) -> dict[str, Any]:
         self.assert_available()
         name = name.strip()
         if not name or len(name) > 100:
             raise WorkspaceError("A workspace name must contain 1 to 100 characters.")
+        from deeptutor.services.workspace.project_policy import validate_project_fields
+
+        project_fields = validate_project_fields(
+            self,
+            description=description,
+            color=color,
+            memory_policy=memory_policy,
+            workspace_id=locals().get("workspace_id"),
+        )
         if instructions is not None:
             instructions = self._validate_instructions(instructions)
         if resources is not None:
@@ -335,6 +351,7 @@ class WorkspaceCatalogMixin:
                     archived=False,
                     resources=resources,
                     instructions=instructions,
+                    **project_fields,
                 )
         binding = WorkspaceBinding(workspace_id, root, name)
         self._ensure_ready(binding)
@@ -350,6 +367,7 @@ class WorkspaceCatalogMixin:
                 "created_at": _utc_now(),
                 "resources": resources or {},
                 "instructions": instructions or "",
+                **project_fields,
             }
         )
         if saved["kind"] != "workspace":
@@ -366,10 +384,22 @@ class WorkspaceCatalogMixin:
         archived: bool | None = None,
         resources: dict | None = None,
         instructions: str | None = None,
+        description: str | None = None,
+        color: str | None = None,
+        memory_policy: dict | None = None,
     ) -> dict[str, Any]:
         self.assert_available()
         if name is not None and (not name.strip() or len(name.strip()) > 100):
             raise WorkspaceError("A workspace name must contain 1 to 100 characters.")
+        from deeptutor.services.workspace.project_policy import validate_project_fields
+
+        project_fields = validate_project_fields(
+            self,
+            description=description,
+            color=color,
+            memory_policy=memory_policy,
+            workspace_id=locals().get("workspace_id"),
+        )
         if instructions is not None:
             instructions = self._validate_instructions(instructions)
         if resources is not None:
@@ -393,6 +423,7 @@ class WorkspaceCatalogMixin:
                 raise WorkspaceError("Workspace not found.")
             if row["kind"] == "general" and (name is not None or archived is not None):
                 raise WorkspaceError("The default workspace cannot be renamed or archived.")
+            row.update(project_fields)
             if resources is not None:
                 row["resources"] = resources
             if instructions is not None:

@@ -1136,7 +1136,9 @@ class ReadingStore:
         if not directory.is_dir():
             return None
         for candidate in sorted(directory.iterdir()):
-            if candidate.is_file():
+            # exFAT volumes can contain macOS AppleDouble sidecars (._file).
+            # They sort before the actual PDF/EPUB and are never viewer input.
+            if not candidate.name.startswith(".") and candidate.is_file():
                 return candidate
         return None
 

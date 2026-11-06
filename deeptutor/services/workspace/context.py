@@ -102,7 +102,7 @@ def workspace_context(workspace_id: str | WorkspaceScope | None = None) -> Itera
 
 
 class WorkspacePathService(PathService):
-    """Data paths are workspace-local; credentials, memory and catalog stay global."""
+    """Data and memory are workspace-local; credentials and catalog stay account-owned."""
 
     def __init__(self, account: PathService, scope: WorkspaceScope):
         private_root = scope.content_root / ".deeptutor" / "data"
@@ -130,17 +130,6 @@ class WorkspacePathService(PathService):
         # Coordination/configuration state is account-owned. Individual
         # feature stores and session DBs use the private workspace data tree.
         return self.account.get_runtime_state_dir()
-
-    def get_memory_dir(self) -> Path:
-        return self.account.get_memory_dir()
-
-    def get_workspace_feature_dir(self, feature):
-        if feature == "memory":
-            return self.account.get_workspace_feature_dir(feature)
-        return super().get_workspace_feature_dir(feature)
-
-    def migrate_legacy_memory_markdown(self) -> bool:
-        return self.account.migrate_legacy_memory_markdown()
 
 
 def scoped_path_service(account: PathService) -> PathService:

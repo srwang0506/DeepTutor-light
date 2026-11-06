@@ -36,9 +36,11 @@
   "dependencies": {
     "@blocknote/core": "0.56.0",
     "@blocknote/react": "0.56.0",
+    "@codemirror/legacy-modes": "6.5.1",
     "@recogito/text-annotator": "4.2.5",
     "chart.js": "^4.5.1",
     "clsx": "^2.1.1",
+    "codemirror": "6.0.2",
     "cytoscape": "^3.33.1",
     "date-fns": "^4.4.0",
     "docx-preview": "^0.3.7",

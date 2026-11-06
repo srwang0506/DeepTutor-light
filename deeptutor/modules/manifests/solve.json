@@ -25,7 +25,8 @@
           "rag",
           "exec",
           "geogebra_analysis",
-          "reason"
+          "reason",
+          "solve_verify"
         ],
         "cli_aliases": [
           "solve"
@@ -51,6 +52,10 @@
     "solve_replan": {
       "class_path": "deeptutor.capabilities.solve.tools:SolveReplanTool",
       "order": 62
+    },
+    "solve_verify": {
+      "class_path": "deeptutor.capabilities.solve.tools:SolveVerifyTool",
+      "order": 63
     }
   },
   "routes": [],

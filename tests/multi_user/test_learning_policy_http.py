@@ -113,6 +113,18 @@ def _seed_learner(seed_user):
     return seed_user("student")
 
 
+def test_reading_only_learner_can_adjust_own_today_preferences(learner_client, as_user):
+    client, learner, current_user, _ = learner_client
+    with as_user(current_user.id, username="student"):
+        _save_learner_grant(learner["id"], "", allowed_surfaces=["reading"])
+    root = "/api/dashboard/study-preferences"
+    state = client.get(root)
+    assert state.status_code == 200
+    result = client.patch(root, json={"expected_revision": state.json()["revision"], "minutes": 15})
+    assert result.status_code == 200 and result.json()["minutes"] == 15
+    assert client.post("/api/dashboard/suggestions/refresh").status_code == 403
+
+
 def test_reading_upload_material_and_listing_follow_the_policy(learner_client, as_user):
     client, learner, current_user, tmp_path = learner_client
     with as_user(current_user.id, username="student"):

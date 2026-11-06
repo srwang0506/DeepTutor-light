@@ -50,7 +50,7 @@ const SURFACES = [
 const L3_VISIBLE = ["recent", "profile", "scope"] as const;
 
 export default function MemoryHub() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [overview, setOverview] = useState<OverviewResponse | null>(null);
   const [l1Total, setL1Total] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -90,8 +90,8 @@ export default function MemoryHub() {
     <div className="space-y-9">
       <PageHeader
         icon={Brain}
-        title={t("Memory")}
-        description={t("Everything DeepTutor remembers about you, organised across three layers. Click into any layer to inspect or curate it.")}
+        title={i18n.language.startsWith("zh") ? "本项目记忆" : "Project memory"}
+        description={i18n.language.startsWith("zh") ? "这里的记忆只属于当前项目。可检查、编辑或删除；外部来源在项目主页中管理。" : "Memory belongs to the current project. Inspect, edit or delete it here; manage external sources from the project home."}
         action={
         <div className="flex items-center gap-3 text-[12px] text-[var(--muted-foreground)]">
           <button
@@ -163,7 +163,7 @@ export default function MemoryHub() {
 }
 
 function GraphCallout() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   return (
     <Link
       href="/memory/graph"

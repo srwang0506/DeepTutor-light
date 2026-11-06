@@ -33,6 +33,8 @@ const MODE_OPTIONS: Array<{ value: Exclude<ResearchMode, "">; label: string }> =
     { value: "notes", label: "Study Notes" },
     { value: "report", label: "Report" },
     { value: "comparison", label: "Comparison" },
+    { value: "citation_audit", label: "Citation audit" },
+    { value: "experiment_plan", label: "Experiment plan" },
     { value: "learning_path", label: "Learning Path" },
   ];
 

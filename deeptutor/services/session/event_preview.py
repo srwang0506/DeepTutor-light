@@ -61,13 +61,21 @@ def _is_semantic(event: dict[str, Any]) -> bool:
     event_type = str(event.get("type") or "")
     if event_type in _SEMANTIC_EVENT_TYPES:
         return True
-    return _carries_card(event) or _carries_learner_words(event)
+    return (
+        _carries_card(event)
+        or _carries_learner_words(event)
+        or bool(event.get("metadata", {}).get("project_memory_sources"))
+    )
 
 
 def _is_critical(event: dict[str, Any]) -> bool:
     if str(event.get("type") or "") in _TERMINAL_EVENT_TYPES | {"result"}:
         return True
-    return _carries_card(event) or _carries_learner_words(event)
+    return (
+        _carries_card(event)
+        or _carries_learner_words(event)
+        or bool(event.get("metadata", {}).get("project_memory_sources"))
+    )
 
 
 def _truncate_legacy_payloads(event: dict[str, Any]) -> dict[str, Any]:

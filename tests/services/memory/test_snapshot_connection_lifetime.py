@@ -19,7 +19,7 @@ def test_snapshot_reader_closes_connection(tmp_path: Path, monkeypatch, reader: 
     SQLiteSessionStore(database)
     monkeypatch.setattr(
         adapters,
-        "get_account_path_service",
+        "get_path_service",
         lambda: SimpleNamespace(get_chat_history_db=lambda: database),
     )
     monkeypatch.setattr(

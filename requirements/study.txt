@@ -1,0 +1,6 @@
+# Source install for the simplified interface with the full research ecosystem.
+-r full.txt
+
+# Personal research studio
+bibtexparser==1.4.3
+matplotlib==3.10.8

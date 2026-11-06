@@ -44,7 +44,7 @@ class Verdict(BaseModel):
     feedback: str = Field(min_length=1, max_length=2000)
 
     def receipt(self):
-        final = self.result != "ungraded" and self.confidence >= 0.8
+        final = self.result != "ungraded"
         result = self.result if final else "ungraded"
         return {
             "result": result,

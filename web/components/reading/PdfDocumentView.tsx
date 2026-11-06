@@ -62,6 +62,8 @@ export interface JumpRequest {
 
 export interface PdfDocumentViewProps {
   materialId: string;
+  /** Immutable originals from the personal catalog use the same PDF renderer. */
+  sourceUrl?: string;
   unitCount: number;
   annotations: AnnotationItem[];
   jump: JumpRequest | null;
@@ -82,6 +84,7 @@ export interface PdfDocumentViewProps {
  */
 export function PdfDocumentView({
   materialId,
+  sourceUrl,
   unitCount,
   annotations,
   jump,
@@ -122,6 +125,7 @@ export function PdfDocumentView({
   } | null>(null);
 
   const doc = loaded?.materialId === materialId ? loaded.doc : null;
+  const effectiveUnitCount = doc?.numPages || unitCount;
   const fallbackRatio =
     loaded?.materialId === materialId ? loaded.ratio : 1.414; // A4 until measured
   const error = loadError?.materialId === materialId ? loadError.message : null;
@@ -138,7 +142,7 @@ export function PdfDocumentView({
       try {
         const pdfjs = await loadPdfjs();
         const loadingTask = pdfjs.getDocument({
-          url: rawMaterialUrl(materialId),
+          url: sourceUrl || rawMaterialUrl(materialId),
           // PDF.js loads OpenJPEG/JBIG2/QCMS from these assets when a PDF uses
           // JPEG2000 or other formats that are not decoded in pure JS.
           wasmUrl: pdfjsWasmUrl(),
@@ -185,7 +189,7 @@ export function PdfDocumentView({
       // document leaks a worker port for the life of the session.
       void task?.destroy();
     };
-  }, [materialId, t]);
+  }, [materialId, sourceUrl, t]);
 
   // -- width ---------------------------------------------------------------
 
@@ -301,7 +305,7 @@ export function PdfDocumentView({
       root.removeEventListener("scroll", onScroll);
       if (frame) window.cancelAnimationFrame(frame);
     };
-  }, [doc, unitCount, pageWidth]);
+  }, [doc, effectiveUnitCount, pageWidth]);
 
   useEffect(() => {
     onVisibleLocatorChange?.(visibleLocator);
@@ -352,7 +356,7 @@ export function PdfDocumentView({
 
   useEffect(() => {
     if (!jump || !doc) return;
-    const locator = Math.min(Math.max(1, jump.locator), unitCount);
+    const locator = Math.min(Math.max(1, jump.locator), effectiveUnitCount);
     const nonce = jump.nonce;
     const quote = jump.quote;
     let cancelled = false;
@@ -414,7 +418,7 @@ export function PdfDocumentView({
       cancelled = true;
       if (timer) window.clearTimeout(timer);
     };
-  }, [jump, doc, unitCount, scrollToLocator]);
+  }, [jump, doc, effectiveUnitCount, scrollToLocator]);
 
   // Tagged with the nonce that produced it, so the previous jump's highlight is
   // superseded by derivation — no timer, and no way for a stale highlight to
@@ -514,7 +518,7 @@ export function PdfDocumentView({
         </div>
       ) : (
         <div className="flex flex-col items-center" style={{ gap: PAGE_GAP }}>
-          {Array.from({ length: unitCount }, (_, index) => index + 1).map(
+          {Array.from({ length: effectiveUnitCount }, (_, index) => index + 1).map(
             (locator) => (
               <PdfPage
                 key={locator}

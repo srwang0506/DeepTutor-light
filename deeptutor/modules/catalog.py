@@ -25,6 +25,8 @@ class ModuleUnavailable(ValueError):
 def manifests() -> dict[str, dict[str, Any]]:
     result = {}
     for path in sorted(Path(__file__).with_name("manifests").glob("*.json")):
+        if path.name.startswith("._"):
+            continue  # macOS metadata sidecars on exFAT are not module manifests.
         row = json.loads(path.read_text(encoding="utf-8"))
         if row["schema_version"] != 1 or row["id"] != path.stem:
             raise ValueError(f"Invalid module manifest: {path.name}")

@@ -1,7 +1,7 @@
 /** Product grouping only. Existing URLs and persisted records remain authoritative. */
 import type { SessionSummary } from '@/lib/session-api'
 import { sessionRoute } from '@/lib/mastery-session'
-export type NavigationCategory = 'home' | 'learning' | 'resources' | 'partners' | 'personalization'
+export type NavigationCategory = 'home' | 'research' | 'learning' | 'resources' | 'partners' | 'personalization'
 /** Account-level places: the same in every workspace. */
 export const PERSONALIZATION_ROOTS = [
   '/personalization',
@@ -14,6 +14,11 @@ export const PERSONALIZATION_ROOTS = [
 ] as const
 const under = (pathname: string, root: string) => pathname === root || pathname.startsWith(`${root}/`)
 export function categoryForPath(pathname: string): NavigationCategory {
+  if (['/studio','/project','/projects','/co-writer'].some(root=>under(pathname,root))) return 'research'
+  if (under(pathname, '/library')) return 'resources'
+  if (under(pathname, '/research')) return 'research'
+  if (under(pathname, '/learning/reading') || under(pathname, '/knowledge-bases')) return 'resources'
+  if (under(pathname, '/space/questions') || under(pathname, '/notebooks')) return 'learning'
   if (under(pathname, '/partners')) return 'partners'
   if (PERSONALIZATION_ROOTS.some(root => under(pathname, root))) return 'personalization'
   if (
@@ -26,7 +31,7 @@ export function categoryForPath(pathname: string): NavigationCategory {
   return 'home'
 }
 export function isLearningSession(session: SessionSummary): boolean {
-  return categoryForPath(sessionRoute(session).split('?')[0]) === 'learning'
+  return under(sessionRoute(session).split('?')[0], '/learning')
 }
 export function partnerSessionHref(session: {
   kind: 'partner' | 'group'

@@ -22,12 +22,9 @@ from pathlib import Path
 import sqlite3
 from typing import Any
 
-from deeptutor.multi_user.paths import get_account_path_service
 from deeptutor.services.memory.paths import Surface
 from deeptutor.services.memory.snapshot.entity import Entity, EntityStamp
 from deeptutor.services.path_service import get_path_service
-from deeptutor.services.workspace.context import WorkspacePathService, WorkspaceScope
-from deeptutor.services.workspace.models import WorkspaceError
 
 logger = logging.getLogger(__name__)
 
@@ -65,46 +62,12 @@ def _iso(ts: float | int | str | None) -> str:
 
 
 def _iter_chat_dbs() -> list[tuple[str, Path]]:
-    """``(qualifier, chat-history db)`` pairs across the account's workspaces.
+    """Consolidation writes only facts from the current project.
 
-    The default workspace comes first with an empty qualifier so existing
-    snapshots keep their bare session ids — renumbering them would churn every
-    account-level snapshot (#1799). Each additional registered workspace
-    contributes its own chat db under a ``ws:<workspace_id>:`` qualifier, which
-    is what makes custom-workspace conversations visible to account-level
-    Memory without id collisions against the default workspace.
-
-    The account's own data root supplies the default entry; binding data roots
-    are derived the same way :class:`WorkspacePathService` derives them
-    (``<content_root>/.deeptutor/data``), with the same symlink refusal — a
-    redirected store is skipped rather than raised, so one broken binding
-    cannot blank an account-wide scan.
+    Cross-project retrieval is a separate, explicitly selected, read-only path.
+    A bare session identity is safe because snapshots now live in each project.
     """
-    account = get_account_path_service()
-    pairs: list[tuple[str, Path]] = [("", account.get_chat_history_db())]
-    try:
-        from deeptutor.services.workspace import get_content_workspace_service
-
-        bindings = get_content_workspace_service().registered_bindings()
-    except Exception:
-        logger.warning(
-            "workspace binding enumeration failed; default workspace only", exc_info=True
-        )
-        return pairs
-    for binding in bindings:
-        try:
-            paths = WorkspacePathService(
-                account,
-                WorkspaceScope(binding.workspace_id, account.workspace_root, binding.root),
-            )
-        except WorkspaceError:
-            logger.warning(
-                "workspace %s skipped from memory aggregation: redirected data store",
-                binding.workspace_id,
-            )
-            continue
-        pairs.append((f"ws:{binding.workspace_id}:", paths.get_chat_history_db()))
-    return pairs
+    return [("", get_path_service().get_chat_history_db())]
 
 
 # ── Adapters ─────────────────────────────────────────────────────────
@@ -377,6 +340,12 @@ def read_partner_entities() -> list[Entity]:
     neither side scans another user's relationship-state directory.
     """
     from deeptutor.multi_user.context import get_current_user
+    from deeptutor.services.workspace.context import current_workspace_id
+
+    # IM interactions have account ownership, not a project assignment.
+    if current_workspace_id():
+        return []
+
     from deeptutor.multi_user.partner_access import assigned_partner_ids
     from deeptutor.multi_user.paths import get_admin_path_service
 

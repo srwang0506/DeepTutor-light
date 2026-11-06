@@ -20,6 +20,7 @@ from deeptutor.services.workspace import (
     get_content_workspace_service,
 )
 from deeptutor.services.workspace.models import MAX_WORKSPACE_INSTRUCTIONS_CHARS
+from deeptutor.services.workspace.project_policy import MemoryPolicy
 from deeptutor.services.workspace.resources import WorkspaceResources
 
 settings_router = APIRouter()
@@ -42,14 +43,20 @@ class WorkspacePathPayload(BaseModel):
     path: str | None = None
 
 
-class CreateWorkspacePayload(BaseModel):
+class ProjectFields(BaseModel):
+    description: str | None = Field(default=None, max_length=600)
+    color: str | None = Field(default=None, pattern=r"^#[0-9a-fA-F]{6}$")
+    memory_policy: MemoryPolicy | None = None
+
+
+class CreateWorkspacePayload(ProjectFields):
     instructions: str | None = Field(default=None, max_length=MAX_WORKSPACE_INSTRUCTIONS_CHARS)
     resources: WorkspaceResources | None = None
     name: str = Field(min_length=1, max_length=100)
     path: str | None = None
 
 
-class UpdateWorkspacePayload(BaseModel):
+class UpdateWorkspacePayload(ProjectFields):
     instructions: str | None = Field(default=None, max_length=MAX_WORKSPACE_INSTRUCTIONS_CHARS)
     resources: WorkspaceResources | None = None
     name: str | None = Field(default=None, min_length=1, max_length=100)
@@ -262,6 +269,9 @@ async def create_workspace(payload: CreateWorkspacePayload) -> dict:
             payload.path,
             resources=payload.resources.model_dump() if payload.resources else None,
             instructions=payload.instructions,
+            description=payload.description,
+            color=payload.color,
+            memory_policy=payload.memory_policy.model_dump() if payload.memory_policy else None,
         )
     except WorkspaceError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -277,7 +287,10 @@ async def update_registered_workspace(workspace_id: str, payload: UpdateWorkspac
         # Instruction edits are atomic metadata updates. A running turn owns
         # its admitted snapshot, so these edits can coexist with its data lease.
         changes = payload.model_dump(exclude_unset=True)
-        with data_activity(exclusive=set(changes) != {"instructions"}):
+        with data_activity(
+            exclusive=not set(changes)
+            <= {"instructions", "description", "color", "memory_policy", "name"}
+        ):
             assert_no_pending_recovery(reject_unreadable=True)
             workspace = get_content_workspace_service().update_workspace(workspace_id, **changes)
     except WorkspaceError as exc:
@@ -382,3 +395,25 @@ async def read_workspace_item(
 
 
 __all__ = ["files_router", "settings_router"]
+
+
+@settings_router.get("/projects/overview")
+async def project_overview(workspace_id: str = "") -> dict:
+    from deeptutor.services.workspace.project_recall import project_overview as overview
+
+    try:
+        return await asyncio.to_thread(overview, workspace_id)
+    except (WorkspaceError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@settings_router.get("/projects/recall")
+async def project_recall(workspace_id: str = "", query: str = "") -> dict:
+    from deeptutor.services.workspace.project_recall import search_project_memory
+
+    if len(query) > 2000:
+        raise HTTPException(status_code=422, detail="Search is limited to 2000 characters.")
+    try:
+        return await asyncio.to_thread(search_project_memory, query, workspace_id=workspace_id)
+    except (WorkspaceError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

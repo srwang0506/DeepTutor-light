@@ -1099,6 +1099,7 @@ async def export_document_flashcards(doc_id: str) -> Response:
 class ReviewCardRequest(BaseModel):
     card_id: str = Field(min_length=1, max_length=200)
     remembered: bool
+    expected_content_hash: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
 
 
 @router.post("/documents/{doc_id}/review")
@@ -1107,10 +1108,36 @@ async def grade_note_card(doc_id: str, request: ReviewCardRequest):
 
     try:
         return grade_card(
-            get_co_writer_storage(), _validate_doc_id(doc_id), request.card_id, request.remembered
+            get_co_writer_storage(),
+            _validate_doc_id(doc_id),
+            request.card_id,
+            request.remembered,
+            request.expected_content_hash,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+class ReviewScheduleRequest(BaseModel):
+    card_id: str = Field(min_length=1, max_length=200)
+    expected_content_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    action: Literal["keep", "reset"]
+
+
+@router.post("/documents/{doc_id}/review/schedule")
+async def resolve_note_card_schedule(doc_id: str, request: ReviewScheduleRequest):
+    from deeptutor.notes.review import resolve_card_change
+
+    try:
+        return resolve_card_change(
+            get_co_writer_storage(),
+            _validate_doc_id(doc_id),
+            request.card_id,
+            request.expected_content_hash,
+            request.action,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 class CreateSuggestionRequest(BaseModel):

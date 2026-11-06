@@ -43,6 +43,11 @@ export const DEFAULT_QUIZ_CONFIG: DeepQuestionFormConfig = {
 };
 
 export interface QuizQuestion {
+  generation_status?: "ready" | "failed";
+  answerable?: boolean;
+  issues?: string[];
+  question_version?: string;
+  source_scope?: Record<string, unknown>;
   question_id: string;
   question: string;
   question_type: NormalizedQuizQuestionType;
@@ -95,8 +100,17 @@ function decodeQuizOptions(
   return out;
 }
 
-function buildQuizQuestionFromQa(qa: Record<string, unknown>): QuizQuestion {
+export function buildQuizQuestionFromQa(qa: Record<string, unknown>): QuizQuestion {
+  const metadata = qa.metadata && typeof qa.metadata === "object"
+    ? qa.metadata as Record<string, unknown> : {};
+  const issues = Array.isArray(metadata.issues) ? metadata.issues.map(String) : [];
+  const failed = qa.generation_status === "failed" || qa.answerable === false || issues.length > 0;
   return {
+    generation_status: failed ? "failed" : "ready",
+    answerable: !failed,
+    issues,
+    question_version: typeof qa.question_version === "string" ? qa.question_version : undefined,
+    source_scope: metadata.source_scope as Record<string, unknown> | undefined,
     question_id: String(qa.question_id ?? ""),
     question: decodeQuizText(qa.question as string | undefined | null),
     question_type: normalizeQuizQuestionType(qa.question_type),
@@ -142,7 +156,7 @@ export function extractStreamingQuizQuestions(
     const meta = (event.metadata ?? {}) as Record<string, unknown>;
     if (meta.call_kind !== "quiz_question_emitted") continue;
     const qa = meta.qa_pair as Record<string, unknown> | undefined;
-    if (!qa || typeof qa !== "object" || !qa.question) continue;
+    if (!qa || typeof qa !== "object" || (!qa.question && !qa.question_id)) continue;
     const idx = Number(meta.question_index);
     const question = buildQuizQuestionFromQa(qa);
     const key = question.question_id || String(idx);
@@ -198,8 +212,8 @@ export function extractQuizQuestions(
 
   const parsed: Array<QuizQuestion | null> = results.map((item) => {
     const qa = (item.qa_pair ?? item) as Record<string, unknown>;
-    if (!qa.question) return null;
-    return buildQuizQuestionFromQa(qa);
+    if (!qa.question && !qa.question_id) return null;
+    return buildQuizQuestionFromQa({ ...qa, metadata: { ...(item.metadata as object ?? {}), ...(qa.metadata as object ?? {}) } });
   });
 
   return parsed.filter(

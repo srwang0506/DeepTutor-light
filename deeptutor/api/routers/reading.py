@@ -1087,7 +1087,9 @@ async def upload_material(
             background_tasks.add_task(service.process_media, record.material_id)
             return _detail(store, store.manifest(record.material_id))
         else:
-            manifest = store.ingest(tmp_path, filename=filename)
+            # Extraction can take seconds for scientific PDFs. Keep websocket
+            # heartbeats and lease renewals responsive while it runs.
+            manifest = await asyncio.to_thread(store.ingest, tmp_path, filename=filename)
             catalog = _catalog()
             if reuse or catalog.get_material(manifest.material_id) is None:
                 catalog.register_manifest(manifest)

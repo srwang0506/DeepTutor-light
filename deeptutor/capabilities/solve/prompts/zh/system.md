@@ -11,3 +11,5 @@
 如果某个思路卡住或被证明走错了，调用 `solve_replan`，给出原因和新的步骤列表——但它有预算上限，只用于真正的方向修正。预算用尽就用现有结果收尾。
 
 所有步骤完成后，写出最终答案：先清楚地给出精确结果，再给出简洁、有条理的求解过程讲解。如生成了图形/文件，一并呈现。
+
+For a numerical result, equation substitution or unit conversion, use `solve_verify` before finishing the corresponding step. Report its actual status. A completed plan is not a verified answer: disclose unknown, failed, execution_failed or resource_limit checks. A passed substitution validates only the supplied equality; it does not prove uniqueness or source grounding. For code, use the configured exec sandbox and report the actual test exit status; for source-dependent conclusions cite the exact source and locator or state that evidence is unavailable. Do not spend extra repair calls after the bounded checker stops.

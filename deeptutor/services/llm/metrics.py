@@ -6,6 +6,7 @@ one collector; different turns/users get different ContextVar bindings.
 
 from __future__ import annotations
 
+import asyncio
 from contextvars import ContextVar
 import logging
 import time
@@ -72,7 +73,14 @@ measurement_active: ContextVar[bool] = ContextVar("llm_measurement_active", defa
 
 
 class CallMeasurement:
-    def __init__(self, *, model: str = "", provider: str = "", messages: Any = None):
+    def __init__(
+        self,
+        *,
+        model: str = "",
+        provider: str = "",
+        messages: Any = None,
+        max_tokens: int | None = None,
+    ):
         self.enabled = not measurement_active.get()
         self.collector = current_usage.get() if self.enabled else None
         self.call_id = uuid.uuid4().hex
@@ -94,6 +102,15 @@ class CallMeasurement:
         self.estimated_prompt_tokens = estimate_prompt_tokens(messages) if self.enabled else 0
         self.usage: Any = None
         self.finished = False
+        from .task_budget import current_budget
+
+        self.budget = current_budget.get() if self.enabled else None
+        self.reservation = 0
+        self.output_limit = max_tokens
+        if self.budget:
+            self.reservation, self.output_limit = self.budget.admit(
+                self.estimated_prompt_tokens, max_tokens
+            )
 
     def delta(self, value: Any) -> None:
         if not value:
@@ -164,6 +181,8 @@ class CallMeasurement:
         }
         if self.collector is not None:
             self.collector.calls.append(record)
+        if self.budget:
+            self.budget.finish(self.reservation, counts["total_tokens"])
         if self.ledger is not None:
             from .usage_ledger import record_call
 
@@ -183,8 +202,13 @@ class CallMeasurement:
 async def measure_provider_call(call: Any, *, provider: str = "", **kwargs: Any) -> Any:
     """Measure each provider attempt, before callbacks are buffered by the factory."""
     meter = CallMeasurement(
-        model=kwargs.get("model") or "", provider=provider, messages=kwargs.get("messages")
+        model=kwargs.get("model") or "",
+        provider=provider,
+        messages=kwargs.get("messages"),
+        max_tokens=kwargs.get("max_tokens"),
     )
+    if meter.budget:
+        kwargs["max_tokens"] = meter.output_limit
     for key in ("on_content_delta", "on_reasoning_delta", "on_tool_args_delta"):
         callback = kwargs.get(key)
         if callback is not None:
@@ -199,7 +223,8 @@ async def measure_provider_call(call: Any, *, provider: str = "", **kwargs: Any)
             kwargs[key] = wrap(callback)
     token = measurement_active.set(True)
     try:
-        response = await call(**kwargs)
+        async with asyncio.timeout(meter.budget.remaining_seconds if meter.budget else None):
+            response = await call(**kwargs)
         meter.finish(
             response, status="failed" if response.finish_reason == "error" else "completed"
         )
@@ -227,7 +252,10 @@ class MeasuredStream:
         try:
             if self.iterator is None:
                 self.iterator = self.stream.__aiter__()
-            chunk = await self.iterator.__anext__()
+            async with asyncio.timeout(
+                self.meter.budget.remaining_seconds if self.meter.budget else None
+            ):
+                chunk = await self.iterator.__anext__()
             self.meter.chunk(chunk)
             return chunk
         except StopAsyncIteration:
@@ -259,12 +287,19 @@ def instrument_client(client: Any, *, model: str = "", provider: str = "") -> An
     create = client.chat.completions.create
 
     async def measured_create(**kwargs: Any) -> Any:
+        output_key = "max_completion_tokens" if "max_completion_tokens" in kwargs else "max_tokens"
         meter = CallMeasurement(
-            model=kwargs.get("model") or model, provider=provider, messages=kwargs.get("messages")
+            model=kwargs.get("model") or model,
+            provider=provider,
+            messages=kwargs.get("messages"),
+            max_tokens=kwargs.get(output_key),
         )
+        if meter.budget:
+            kwargs[output_key] = meter.output_limit
         token = measurement_active.set(True)
         try:
-            result = await create(**kwargs)
+            async with asyncio.timeout(meter.budget.remaining_seconds if meter.budget else None):
+                result = await create(**kwargs)
             if kwargs.get("stream"):
                 return MeasuredStream(result, meter)
             meter.finish(result)

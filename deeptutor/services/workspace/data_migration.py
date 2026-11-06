@@ -31,6 +31,8 @@ logger = logging.getLogger(__name__)
 
 FEATURES = {
     "chat": "Conversations",
+    "memory": "Project memory",
+    "personal_study": "Personal study plan",
     "book": "Books",
     "learning": "Mastery Path",
     "reading": "Immersive Reading",
@@ -78,6 +80,8 @@ def _feature_path(paths, feature: str) -> Path:
         return paths.get_knowledge_bases_root()
     if feature == "parse_cache":
         return paths.get_parse_cache_root()
+    if feature == "memory":
+        return paths.get_memory_dir()
     if feature == "learning_journal":
         return paths.get_learning_journal_dir()
     if feature == "files":

@@ -28,6 +28,7 @@ SOLVE_TOOL_NAMES: tuple[str, ...] = (
     "solve_plan",
     "solve_finish_step",
     "solve_replan",
+    "solve_verify",
 )
 
 
@@ -311,3 +312,56 @@ __all__ = [
     "SolvePlanTool",
     "SolveReplanTool",
 ]
+
+
+class SolveVerifyTool(BaseTool):
+    def get_definition(self):
+        return ToolDefinition(
+            name="solve_verify",
+            description="Check a numeric equality, SI-unit conversion or equation substitution with a bounded deterministic checker. Give actual left and right expressions, not a claimed status. Up to two checks per step. Unknown is not a failed answer. This checks only this equality, not the whole solution.",
+            parameters=[
+                ToolParameter(name="step_id", type="string", description="Current solve step id"),
+                ToolParameter(
+                    name="left", type="string", description="Left expression, e.g. 2*x+1 or 100 cm"
+                ),
+                ToolParameter(
+                    name="right", type="string", description="Expected expression, e.g. 5 or 1 m"
+                ),
+                ToolParameter(
+                    name="variables",
+                    type="object",
+                    description="Optional substitutions, e.g. {x: '2'}",
+                    required=False,
+                ),
+            ],
+        )
+
+    async def execute(self, **kwargs):
+        from deeptutor.learning.verification import verify_equality
+
+        sid = _resolve_session_id(kwargs)
+        if not sid:
+            return _no_session_result()
+        session = get_session(sid)
+        step = next((step for step in session.steps if step.id == kwargs.get("step_id")), None)
+        if step is None:
+            return ToolResult(content="Choose a step from solve_plan first.", success=False)
+        count = session.verification_calls.get(step.id, 0)
+        if count >= 2:
+            return _json_result(
+                {
+                    "status": "resource_limit",
+                    "reason": "Two checks already used for this step",
+                    "previous": step.verification,
+                },
+                meta_key="verification",
+            )
+        session.verification_calls[step.id] = count + 1
+        variables = kwargs.get("variables")
+        if variables is not None and not isinstance(variables, dict):
+            return ToolResult(content="variables must be an object", success=False)
+        result = verify_equality(
+            str(kwargs.get("left", "")), str(kwargs.get("right", "")), variables
+        )
+        step.verification = result
+        return _json_result(result, meta_key="verification")

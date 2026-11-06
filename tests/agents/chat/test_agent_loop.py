@@ -4299,6 +4299,14 @@ async def test_request_guard_budgets_projected_images_and_preserves_tool_history
     monkeypatch.setattr(pipeline, "_build_openai_client", lambda: client)
     monkeypatch.setattr(pipeline, "_build_loop_messages", lambda *_args, **_kwargs: messages)
 
+    if distinct:
+        # Sixteen distinct projected images alone exceed this input budget.
+        # The hard guard must refuse the request even after trimming tools.
+        with pytest.raises(ValueError, match="Context budget exhausted"):
+            await _run(pipeline, UnifiedContext(session_id="s", user_message="again"))
+        assert client.calls == []
+        assert messages[: len(original)] == original
+        return
     await _run(pipeline, UnifiedContext(session_id="s", user_message="again"))
 
     wire_tools = [

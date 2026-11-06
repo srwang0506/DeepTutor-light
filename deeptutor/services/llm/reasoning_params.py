@@ -165,6 +165,30 @@ def thinking_off_effort_for(provider: str | None, model: str | None) -> str:
     still an obvious prompt to check this one.
     """
     provider_name = (provider or "").strip().lower()
+    if provider_name in {"openai_codex", "openai-codex"}:
+        from deeptutor.services.config import get_model_catalog_service
+
+        slug = (model or "").split("/")[-1]
+        catalog = get_model_catalog_service().load()
+        for profile in catalog.get("services", {}).get("llm", {}).get("profiles", []):
+            for item in profile.get("models", []):
+                if item.get("model") == slug and item.get("codex_supported_reasoning_levels"):
+                    levels = item["codex_supported_reasoning_levels"]
+                    for level in (
+                        "none",
+                        "minimal",
+                        "low",
+                        "medium",
+                        "high",
+                        "xhigh",
+                        "max",
+                        "ultra",
+                    ):
+                        if level in levels:
+                            return level
+        # Old catalogs do not carry capability metadata; low is the shared
+        # supported fallback, while none fails on reasoning-only Codex models.
+        return "low"
     if _matches(model or "", _MINIMAL_NOT_OFF_PATTERNS.get(provider_name, ())):
         return "minimal"
     return "none"

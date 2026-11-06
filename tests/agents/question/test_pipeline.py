@@ -1366,3 +1366,71 @@ def test_a_clean_quiz_is_still_reported_successful() -> None:
     assert summary["completed"] == 2
     assert summary["failed"] == 0
     assert summary["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_failed_generation_is_durable_before_publish_and_does_not_hide_next_question(
+    monkeypatch, tmp_path
+):
+    from deeptutor.core.context import UnifiedContext
+    from deeptutor.runtime.stream_bus import StreamBus
+    from deeptutor.services.session.sqlite_store import SQLiteSessionStore
+
+    store = SQLiteSessionStore(db_path=tmp_path / "quiz.db")
+    await store.create_session(title="Quiz", session_id="s")
+    await store.begin_turn("s", turn_id="t")
+    monkeypatch.setattr("deeptutor.services.session.get_sqlite_session_store", lambda: store)
+    pipeline = _make_pipeline()
+    monkeypatch.setattr(
+        "deeptutor.agents.question.pipeline.build_openai_client", lambda _: object()
+    )
+    monkeypatch.setattr(pipeline, "_prepare_pageindex_tools", AsyncMock())
+    monkeypatch.setattr(pipeline, "_explore", AsyncMock(return_value=("", "source evidence")))
+    plan = QuizPlan(
+        analysis="Two tasks",
+        templates=[
+            QuizTemplate(
+                question_id="q1", topic="First", question_type="short_answer", difficulty="easy"
+            ),
+            QuizTemplate(
+                question_id="q2", topic="Second", question_type="short_answer", difficulty="easy"
+            ),
+        ],
+    )
+    monkeypatch.setattr(pipeline, "_plan", AsyncMock(return_value=plan))
+    monkeypatch.setattr(
+        pipeline,
+        "_quiz_one",
+        AsyncMock(
+            side_effect=[
+                RuntimeError("provider failed"),
+                QuizPair(
+                    question_id="q2",
+                    question="2+2?",
+                    question_type="short_answer",
+                    correct_answer="4",
+                    explanation="Addition",
+                ),
+            ]
+        ),
+    )
+    original_emit = pipeline._emit_quiz_question
+
+    async def check_before_emit(**kwargs):
+        qa = kwargs["qa_pair"]
+        contract = await store.get_quiz_question("s", "t", qa.question_id)
+        assert contract["question_version"] == qa.metadata["question_version"]
+        await original_emit(**kwargs)
+
+    monkeypatch.setattr(pipeline, "_emit_quiz_question", check_before_emit)
+    context = UnifiedContext(user_message="Quiz me", session_id="s")
+    context.runtime.turn_id = "t"
+    bus = StreamBus()
+    payload = await pipeline.run(
+        context=context, user_message="Quiz me", num_questions=2, stream=bus
+    )
+    assert payload["summary"]["failed"] == 1
+    assert payload["summary"]["completed"] == 1
+    assert not (await store.get_quiz_question("s", "t", "q1"))["answerable"]
+    assert (await store.get_quiz_question("s", "t", "q2"))["answerable"]
+    await bus.close()

@@ -1,5 +1,7 @@
 "use client";
 
+import { StudyWorkspaceShell } from "@/components/study/StudyWorkspaceShell";
+
 import { scopedUrl } from "@/lib/workspace-scope";
 import { MASTERY_HOME, masterySessionsRoute, masteryTopicRoute } from "@/lib/learning-routes";
 
@@ -575,7 +577,7 @@ export function MasteryStudy({
   const total = topic.map.counts.total;
 
   return (
-    <main className="mastery-shell flex h-full min-h-0 flex-col overflow-hidden">
+    <StudyWorkspaceShell className="mastery-shell flex h-full min-h-0 flex-col overflow-hidden">
       {/* One line, not two: the topic and the waypoint the tutor is on read
           as a single "where am I" statement, and the ring + count are one
           unit rather than a ring on the left and its own number on the
@@ -911,6 +913,6 @@ export function MasteryStudy({
         onAutoOpen={() => setViewerOpen(true)}
       />
       <ChatViewerBridges viewerPanelRef={viewerPanelRef} />
-    </main>
+    </StudyWorkspaceShell>
   );
 }

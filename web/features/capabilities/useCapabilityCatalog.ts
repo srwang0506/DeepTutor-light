@@ -48,7 +48,10 @@ export function useCapabilityCatalog() {
   }, []);
 
   const capabilities = useMemo(
-    () => mergeCapabilityPresentations(descriptors),
+    () => mergeCapabilityPresentations(descriptors).map(item => ({
+      ...item,
+      label: item.value === "" ? "Direct answer" : item.value === "deep_solve" ? "Explain" : item.value === "deep_question" ? "Practice" : item.label,
+    })),
     [descriptors],
   );
   const visibleCapabilities = useMemo(

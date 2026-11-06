@@ -278,7 +278,7 @@ async def test_single_uncertain_answer_revises_without_reopening_lifecycle(servi
 
     async def judge(config, items):
         return {
-            "q1": semantic.Verdict(result="correct", confidence=0.3, feedback="Please clarify.")
+            "q1": semantic.Verdict(result="ungraded", confidence=0.3, feedback="Please clarify.")
         }
 
     monkeypatch.setattr(semantic, "judge_answers", judge)

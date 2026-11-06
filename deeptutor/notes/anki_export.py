@@ -157,7 +157,7 @@ def render_anki_export(cards: Sequence[Mapping[str, Any]]) -> str:
         back = markdown_to_anki_html(str(card.get("back", "")))
         deck = _anki_field(deck_name(title))
         tags = _anki_field(note_tags(title))
-        guid = _anki_field(str(card.get("card_id", "")))
+        guid = _anki_field(str(card.get("legacy_guid") or card.get("card_id", "")))
         lines.append("\t".join((front, back, deck, tags, guid)))
     return "\n".join(lines) + "\n"
 

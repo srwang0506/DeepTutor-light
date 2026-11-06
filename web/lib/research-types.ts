@@ -3,7 +3,9 @@ export type ResearchMode =
   | "notes"
   | "report"
   | "comparison"
-  | "learning_path";
+  | "learning_path"
+  | "citation_audit"
+  | "experiment_plan";
 export type ResearchDepth = "" | "quick" | "standard" | "deep" | "manual";
 
 export interface OutlineItem {
@@ -40,7 +42,9 @@ export function normalizeResearchConfig(
       raw?.mode === "notes" ||
       raw?.mode === "report" ||
       raw?.mode === "comparison" ||
-      raw?.mode === "learning_path"
+      raw?.mode === "learning_path" ||
+      raw?.mode === "citation_audit" ||
+      raw?.mode === "experiment_plan"
         ? raw.mode
         : empty.mode,
     depth:
@@ -101,6 +105,8 @@ const RESEARCH_MODE_LABELS: Record<string, string> = {
   notes: "Study Notes",
   report: "Report",
   comparison: "Comparison",
+  citation_audit: "Citation audit",
+  experiment_plan: "Experiment plan",
   learning_path: "Learning Path",
 };
 

@@ -65,6 +65,7 @@ export function pageSections({
       label: t('navigation.home'),
       icon: HomeShelfIcon,
       pages: [
+        { href: '/today', label: t('Study today'), icon: HomeShelfIcon },
         { href: '/chat', label: t('Chat'), icon: MessageCircle },
         { href: '/calendar', label: t('Calendar'), icon: CalendarDays, account: true },
         { href: '/kanban', label: t('Task Board'), icon: Columns3 },
@@ -161,6 +162,8 @@ const EVERY_PAGE = pageSections({ t: key => key, zh: false, allowedSurfaces: nul
 export function switchDestination(pathname: string): string {
   // The account's own pages are the same on both sides of a switch.
   if (['partners', 'personalization'].includes(categoryForPath(pathname))) return pathname
+  if (['/studio/evidence','/studio/experiments','/studio/writing','/studio/connections','/project','/projects','/library'].includes(pathname)) return pathname
+  if (pathname.startsWith('/library/')) return '/library'
   if (EVERY_PAGE.some(section => section.pages.some(page => page.href === pathname))) return pathname
   const owner = ownerOf(pathname, EVERY_PAGE, true)
   if (owner) return owner.page.href

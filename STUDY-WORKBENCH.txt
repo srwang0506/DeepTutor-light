@@ -1,0 +1,45 @@
+DeepTutor Light — 学习与科研工作台
+
+本 fork 保留 DeepTutor 模块化单体和全部原有能力。日常导航收敛为学习、资料、练习与记录、科研与生态；高级工具默认折叠。科研新增文献对照、引用核验和实验规划工作流，继续使用原始文献、代码审计、写作、伙伴、技能与 MCP 工具。
+
+本地推荐启动（macOS / Linux）
+1. 安装 Python 3.12、Node 24。建立 .venv：python3.12 -m venv .venv
+2. .venv/bin/python -m pip install -r requirements/study.lock.txt
+3. npm --prefix web ci --legacy-peer-deps
+4. DEEPTUTOR_NEXT_DIST_DIR=.next-study NEXT_PUBLIC_API_BASE=http://127.0.0.1:8001 npm --prefix web run build
+5. .venv/bin/python scripts/study.py doctor --home ./study-data
+6. .venv/bin/python scripts/study.py run --codex-login --local-embedding --home ./study-data
+7. 打开 http://127.0.0.1:3782/today。Ctrl+C 停止。
+
+个人学习主线
+默认首页是“今日学习”：选择今天可用的时间，继续当前项目里的待答问题、到期复习、学习目标与近期阅读。每项安排说明依据并回到原记录；“明天再学”只调整今日展示，不改变原有评分与复习日期。个人科研继续保留完整入口。班级管理、教师授课和机构运营不进入本 fork 当前的产品路线；个人学习的后续深化与验收标准见 PERSONAL-LEARNING.txt。
+
+--codex-login 仅为本机部署管理员复用当前 Codex 登录。凭据按需读取，不复制 refresh token；续期通过 Codex app-server account/read，由 Codex 管理。其他账户不能借用此登录。退出或换号仍在 Codex 完成。启动会刷新可用模型目录；API Key 不是这条启动路径的前提。
+
+数据与恢复
+所有持久数据都在 --home 指定目录的 data/ 下。更换源码目录不会移动资料；保留同一个 --home 即可继续。
+停止后端、CLI 和其他写入者，然后执行：
+  .venv/bin/python -m deeptutor.runtime.backup backup ./study-data /path/to/new-backup
+  .venv/bin/python -m deeptutor.runtime.backup verify /path/to/new-backup
+  .venv/bin/python -m deeptutor.runtime.backup restore /path/to/new-backup /path/to/new-runtime
+恢复命令只接受不存在的目标目录，不覆盖现有数据。备份使用 SQLite backup API（包含已提交 WAL）、完整文件副本、逐文件 SHA-256 和数据库完整性校验。资料版本、附件、会话与评分事件一起保留。浏览器草稿属于当前浏览器；未发送的草稿还未进入服务器备份。
+
+评分与提交边界
+题目发布前保存服务器版本；提交冻结题目、来源、回答、attempt ID。客户端不能提供权威答案或成绩。确定性规则先行；无法判断、模型失败或来源权限改变时保持未评分。重复请求复用同一提交；取消仅能阻止尚未提交的评分。已提交成绩与讲解、记录页同步分离；恢复队列修复后者。图片答案有大小/格式/范围限制，保存到原会话附件中。
+Mastery 仍然由 LearningStore 提交，普通 Quiz 由 SessionStore 提交。两者通过有持久记录的投影恢复流程连接，不改变原数据所有权。
+
+预算和验证
+使用现有调用/usage 记录；每轮限制调用数、累计 tokens、时间和并发，并为并行调用预留额度。输入 tokens 为估计值，实际 usage 返回后校正。超限停止新调用；正在等待的模型调用有期限。模型未报告 usage 时只显示估算。解题数值/单位验证是有界的确定性检查，最多两次/步骤；验证某条等式不等于证明整个解答。代码执行继续使用现有沙箱与限制。
+
+检索与能力状态
+默认解析使用原有 text_only；中文 BM25 已补中文切分，显式题号/公式优先定位，并保留同一来源页面的上下文。原有向量检索、混合融合、版本化导入和来源标识继续保留。默认不新增未经评测的 rerank 调用。
+Codex OAuth 不提供 embedding。本机已配置 Ollama 0.40.15 + embeddinggemma（768 维），两个知识库已完成索引，并执行了中文/英文混合检索验收。--local-embedding 复用已运行的 Ollama，或启动 .local-runtime/ollama 下的本地服务；只关闭由本次启动管理的进程。模型文件不进入 Git。OCR/复杂公式解析、额外媒体工具按需配置，不能把缺少模型/解析器的状态当作可用。
+
+容器路径
+compose.study.yml 提供生产前端 + 单后端 + 持久卷，不依赖新的消息队列或微服务。Python 依赖和 npm 依赖固定版本。当前机器没有 Docker，镜像构建尚未执行；生产发布前须验证镜像，并将基础镜像参数固定到审核后的 digest。本机 Codex 登录桥优先使用上述本地启动方式，容器未挂载用户的 Codex 凭据。
+
+验收边界
+已使用你的 Codex 登录运行 50 道真实资料问答（30 道 MIT 6.006 算法讲义、20 道 HO-RCNN/QPIC/GEN-VLKT 原始论文），另验收出题评分、深度解题、文献对照、引用核验与实验规划。逐题答案、延迟、估算用量及已发现问题见交付验收记录。这是两类主题的小样本，不能推出相对原版的质量提升或成本下降。Docker、真实 GPU 训练实验和依赖额外服务的媒体/OCR 能力没有完成实机验收。
+
+离线与迁移
+上下文 tokenizer 随源码附带经过 SHA-256 校验的词表，冷启动不联网下载词表。备份恢复到新目录时会调整结构化的本地来源/索引路径，原始备份与文字记录不被改写。外置盘版包含生产前端、Python 环境、Ollama 引擎/模型和验收资料；Codex 凭据继续只存在原登录位置。

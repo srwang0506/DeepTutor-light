@@ -1,0 +1,104 @@
+.dt-note-cards {
+  margin: 12px 0;
+  padding: 20px;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--primary) 3%, var(--background));
+  border-radius: 18px;
+}
+.dt-note-cards header,
+.dt-note-cards footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.dt-note-cards header {
+  margin-bottom: 16px;
+}
+.dt-note-cards header > span {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  font-weight: 650;
+  color: var(--primary);
+}
+.dt-note-cards header > small {
+  flex: 1;
+  text-align: right;
+  color: var(--muted-foreground);
+}
+.dt-note-cards button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.dt-note-cards button:hover {
+  background: color-mix(in srgb, var(--primary) 7%, transparent);
+}
+.dt-note-cards button:disabled {
+  opacity: 0.35;
+}
+.dt-note-cards .dt-note-card-face {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-height: 180px;
+  width: 100%;
+  padding: 24px;
+  border: 1px solid var(--border);
+  background: var(--background);
+  border-radius: 12px;
+}
+.dt-note-card-face small {
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
+.dt-note-card-face span {
+  font-size: 17px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.dt-note-cards footer {
+  margin-top: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.dt-note-card-editor label {
+  display: block;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.dt-note-card-editor textarea {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 14px;
+  margin-top: 6px;
+  resize: vertical;
+}
+.dt-note-card-editor p,
+.dt-note-card-caption {
+  font-size: 11px;
+  color: var(--muted-foreground);
+  line-height: 1.7;
+  margin-top: 12px;
+  text-align: center;
+}
+.dt-note-cards .is-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 8px 14px;
+}
+.dt-note-cards .dt-note-card-empty {
+  display: flex;
+  width: 100%;
+  min-height: 100px;
+  border: 1px dashed var(--border);
+}

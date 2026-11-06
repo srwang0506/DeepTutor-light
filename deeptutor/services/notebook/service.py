@@ -145,7 +145,7 @@ class NotebookManager:
         """Reconstruct index rows by scanning the notebook files on disk."""
         entries: list[dict] = []
         for path in sorted(self.base_dir.glob("*.json")):
-            if path == self.index_file:
+            if path == self.index_file or path.name.startswith("._"):
                 continue
             try:
                 with open(path, encoding="utf-8") as f:
@@ -299,7 +299,9 @@ class NotebookManager:
             rows = {str(row.get("id")): row for row in index.get("notebooks", []) if row.get("id")}
 
             on_disk = {
-                path.stem for path in self.base_dir.glob("*.json") if path != self.index_file
+                path.stem
+                for path in self.base_dir.glob("*.json")
+                if path != self.index_file and not path.name.startswith("._")
             }
             # Drop rows whose file is gone; adopt files the index never learned
             # about. Only the unknown files are parsed — indexed ones are taken

@@ -817,33 +817,8 @@ async def delete_turn_by_message(session_id: str, message_id: int):
 
 @router.post("/{session_id}/quiz-results")
 async def record_quiz_results(session_id: str, payload: QuizResultsRequest):
-    if not payload.answers:
-        raise HTTPException(status_code=400, detail="Quiz results are required")
-    store = get_sqlite_session_store()
-    session = await store.get_session(session_id)
-    if session is None:
-        raise HTTPException(status_code=404, detail="Session not found")
-    content = _format_quiz_results_message(payload.answers)
-    await store.add_message(
-        session_id=session_id,
-        role="user",
-        content=content,
-        capability="deep_question",
+    # Historical results remain readable. New grades use server contracts.
+    raise HTTPException(
+        status_code=409,
+        detail="Submit answers through /api/quiz/submit; client-authored grades are no longer accepted.",
     )
-    notebook_count = 0
-    try:
-        notebook_count = await store.upsert_notebook_entries(
-            session_id,
-            [{**item.model_dump(), "turn_id": payload.turn_id} for item in payload.answers],
-        )
-    except Exception:
-        logger.warning(
-            "Failed to upsert notebook entries for session %s", session_id, exc_info=True
-        )
-    return {
-        "recorded": True,
-        "session_id": session_id,
-        "answer_count": len(payload.answers),
-        "notebook_count": notebook_count,
-        "content": content,
-    }

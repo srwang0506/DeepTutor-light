@@ -27,7 +27,7 @@ const FOLD_KEY = "deeptutor.composer-tray";
 const FOLD_EVENT = "deeptutor:composer-tray";
 
 function readFolded(): boolean {
-  return typeof window !== "undefined" && browserStorage.readRaw("local", FOLD_KEY) === "folded";
+  return typeof window === "undefined" || browserStorage.readRaw("local", FOLD_KEY) !== "open";
 }
 
 function writeFolded(folded: boolean): void {
@@ -89,7 +89,7 @@ interface Drag {
  * preference.
  */
 export function useTrayFold(summoned: boolean) {
-  const folded = useSyncExternalStore(subscribe, readFolded, () => false);
+  const folded = useSyncExternalStore(subscribe, readFolded, () => true);
   const away = folded && !summoned;
   const reveal = useMotionValue(away ? 0 : 1);
   const reduced = useReducedMotion();

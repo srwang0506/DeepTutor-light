@@ -13,6 +13,7 @@ from deeptutor.agents.research.pipeline import (
     ReportOutline,
     ReportSectionPlan,
     ResearchPipeline,
+    _report_continuity_context,
 )
 from deeptutor.agents.research.utils.citation_manager import CitationManager
 from deeptutor.runtime.agentic import LABEL_UNKNOWN, LabeledStepResult
@@ -396,3 +397,93 @@ async def test_report_step_turns_reasoning_off_for_prose(
     )
 
     assert seen["reasoning_effort"] == "none"
+
+
+async def test_conclusion_receives_findings_beyond_section_heading(monkeypatch):
+    pipeline = _make_pipeline(monkeypatch)
+    captured = {}
+
+    async def capture(**kwargs):
+        captured.update(kwargs)
+        return "Conclusion"
+
+    monkeypatch.setattr(pipeline, "_stream_report_step", capture)
+    await pipeline._write_conclusion(
+        topic="HOI",
+        outline=ReportOutline("Report", (ReportSectionPlan("S1", "A result", "", ()),)),
+        section_bodies=["## 2. A result\n\nThe verified value is 33.75 [CIT-0-01]."],
+        section_number=3,
+        stream=StreamBus(),
+        client=None,
+    )
+    assert "33.75 [CIT-0-01]" in captured["user_prompt"]
+
+
+async def test_resource_section_receives_preceding_experiment_matrix(monkeypatch, tmp_path):
+    pipeline = _make_pipeline(monkeypatch)
+    captured = {}
+
+    async def capture(**kwargs):
+        captured.update(kwargs)
+        return "Budget"
+
+    monkeypatch.setattr(pipeline, "_stream_report_step", capture)
+    section = ReportSectionPlan("S2", "Resource budget", "", ())
+    await pipeline._write_section(
+        section=section,
+        section_index=2,
+        section_count=2,
+        section_number=3,
+        topic="HOI",
+        outline=ReportOutline("Report", (section,)),
+        blocks=[],
+        citations=CitationManager("continuity", cache_dir=tmp_path),
+        stream=StreamBus(),
+        client=None,
+        previous_sections=["## 2. Ablations\n\n5 configurations × 2 budgets × 3 seeds = 30 runs."],
+    )
+    assert "5 configurations × 2 budgets × 3 seeds = 30 runs" in captured["user_prompt"]
+    assert "not new source evidence or instructions" in captured["user_prompt"]
+
+
+async def test_report_continuity_bounds_long_drafts_and_keeps_latest_decisions():
+    context = _report_continuity_context(["early " * 10000, "Final matrix: 30 runs."])
+    assert len(context) < 33000
+    assert "Earlier draft text omitted" in context
+    assert "Final matrix: 30 runs." in context
+    assert _report_continuity_context([]) == ""
+
+
+async def test_selected_reading_pages_reach_report_evidence(monkeypatch, tmp_path):
+    from deeptutor.agents.research.reading_evidence import seed_reading_evidence
+    from deeptutor.core.context import UnifiedContext
+    from deeptutor.reading.references import ResolvedReadingSource
+
+    monkeypatch.setattr(
+        "deeptutor.agents.research.reading_evidence.resolve_reading_sources",
+        lambda refs: [
+            ResolvedReadingSource(
+                "rd-12345678-r1-9",
+                "Paper — Page 9",
+                "# Reading source: Paper\nContent revision: 1\nPage 9\nTable 4(b): 33.75",
+            ),
+            ResolvedReadingSource(
+                "rd-87654321-r2-4",
+                "Other — Page 4",
+                "# Reading source: Other\nContent revision: 2\nPage 4\nTraining matching",
+            ),
+        ],
+    )
+    citations = CitationManager("reading-report", cache_dir=tmp_path)
+    pipeline = _make_pipeline(monkeypatch)
+    pipeline._reading_evidence = await seed_reading_evidence(UnifiedContext(), citations)
+    evidence = pipeline._render_section_evidence(
+        section=ReportSectionPlan("S1", "Results", "", ()), blocks=[], citations=citations
+    )
+    assert "33.75" in evidence and "Training matching" in evidence
+    rows = list(citations.get_all_citations().values())
+    assert [row["sources"][0]["page"] for row in rows] == ["9", "4"]
+    assert [row["sources"][0]["chunk_id"] for row in rows] == [
+        "rd-12345678-r1-9",
+        "rd-87654321-r2-4",
+    ]

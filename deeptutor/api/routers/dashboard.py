@@ -8,15 +8,40 @@ any single segment, so every literal path must be declared above it or it will
 never be reached.
 """
 
+import asyncio
 import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
 
+from deeptutor.services.personal_study import (
+    StudyPreferences,
+    StudyPreferencesConflict,
+    StudyPreferencesPatch,
+    StudyPreferencesStore,
+)
 from deeptutor.services.session import get_session_store
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+@router.get("/study-preferences", response_model=StudyPreferences)
+async def get_study_preferences(timezone: str = "UTC"):
+    try:
+        return await asyncio.to_thread(StudyPreferencesStore().read, timezone)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@router.patch("/study-preferences", response_model=StudyPreferences)
+async def update_study_preferences(payload: StudyPreferencesPatch, timezone: str = "UTC"):
+    try:
+        return await asyncio.to_thread(StudyPreferencesStore().update, payload, timezone)
+    except StudyPreferencesConflict as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
 
 
 async def _workspace_rows(reader) -> list[dict[str, Any]]:

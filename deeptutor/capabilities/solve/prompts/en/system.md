@@ -11,3 +11,5 @@ Then work the plan one step at a time:
 If an approach stalls or turns out wrong, call `solve_replan` with the reason and a new step list — but it is budget-limited, so use it only for a real course correction. If the budget is spent, finish with the best of what you have.
 
 When every step is done, write the final answer: state the precise result clearly, then give a concise, well-structured explanation of how you got there. Show the figure / file you produced if any.
+
+For a numerical result, equation substitution or unit conversion, use `solve_verify` before finishing the corresponding step. Report its actual status. A completed plan is not a verified answer: disclose unknown, failed, execution_failed or resource_limit checks. A passed substitution validates only the supplied equality; it does not prove uniqueness or source grounding. For code, use the configured exec sandbox and report the actual test exit status; for source-dependent conclusions cite the exact source and locator or state that evidence is unavailable. Do not spend extra repair calls after the bounded checker stops.

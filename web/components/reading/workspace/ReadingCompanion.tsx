@@ -365,7 +365,7 @@ export function ReadingCompanion({
   );
 
   return (
-    <aside className="dt-reading-companion absolute inset-y-0 right-0 z-30 flex w-[min(420px,100%)] min-h-0 min-w-0 flex-col bg-[var(--card)] shadow-[-18px_0_42px_rgba(0,0,0,.12)] dark:bg-[var(--background)] xl:static xl:row-span-2 xl:row-start-1 xl:w-auto xl:shadow-none xl:[grid-column:-2/-1]">
+    <aside className="dt-reading-companion absolute inset-y-0 right-0 z-30 flex w-full min-h-0 min-w-0 flex-col bg-[var(--card)] shadow-[-18px_0_42px_rgba(0,0,0,.12)] dark:bg-[var(--background)] xl:static xl:row-span-2 xl:row-start-1 xl:w-auto xl:shadow-none xl:[grid-column:-2/-1]">
       {head}
       {/* Its own header on its own sheet: what the companion is doing and
           its three controls sit with it, not across the page in the bar.

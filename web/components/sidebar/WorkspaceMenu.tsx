@@ -3,7 +3,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useId, useState, type ReactNode } from 'react'
-import { Check, ChevronDown, Settings, Settings2 } from 'lucide-react'
+import { Check, ChevronDown, Settings, Settings2, FolderOpen, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useMenuPopover } from '@/shared/ui/useMenuPopover'
 import Tooltip from '@/shared/ui/Tooltip'
@@ -36,10 +36,14 @@ export function WorkspaceGlyph({ name, general, size = 22 }: { name: string; gen
 
 /** The workspaces as menu items, the current one checked. */
 export function WorkspaceChoiceList({ onChoose }: { onChoose?: () => void }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const zh = i18n?.language?.startsWith('zh') ?? false
   const { active, choices, choose } = useWorkspaceChoices()
   return (
     <>
+      <Link role="menuitem" href="/project" prefetch={false} onClick={onChoose} className="dt-menu-item"><FolderOpen size={16} /><span>{zh ? '当前项目主页' : 'Current project'}</span></Link>
+      <Link role="menuitem" href="/projects" prefetch={false} onClick={onChoose} className="dt-menu-item"><Plus size={16} /><span>{zh ? '所有项目 · 新建项目' : 'All projects · New project'}</span></Link>
+      <div className="dt-menu-divider" />
       <div className="dt-menu-label">{t('Workspace')}</div>
       {choices.map(row => (
         <button

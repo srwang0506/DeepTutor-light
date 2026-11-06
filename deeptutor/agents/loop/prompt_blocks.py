@@ -28,6 +28,7 @@ RUNTIME_BLOCK_NAMES = frozenset(
     {
         "runtime_context",
         "memory",
+        "project_memory",
         "learning_journal",
         "learner_profile",
         "sources",
@@ -158,6 +159,9 @@ class LoopPromptAssembler:
         partner_policy = self._partner_turn_policy(context)
         if partner_policy:
             blocks.append(PromptBlock("partner_turn_policy", partner_policy))
+        project_memory = context.extension_state.get("project_recall", {}).get("prompt", "")
+        if project_memory:
+            blocks.append(PromptBlock("project_memory", project_memory))
         if context.memory_context:
             blocks.append(PromptBlock("memory", context.memory_context))
         # Carried-over learning state sits with memory rather than behind a

@@ -25,6 +25,7 @@ to :mod:`deeptutor.runtime.agentic` and the shared tool-composition policy.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import Awaitable
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -586,18 +587,56 @@ class QuestionPipeline:
         qa_pairs: list[QuizPair] = []
         async with stream.stage(STAGE_QUIZZING, source=SOURCE):
             for index, template in enumerate(plan.templates):
-                qa_pair = await self._quiz_one(
-                    template=template,
-                    question_number=index + 1,
-                    total_questions=len(plan.templates),
-                    exploration_trace=exploration_trace,
-                    plan=plan,
-                    previous_pairs=qa_pairs,
-                    image_attachments=image_attachments,
-                    context=context,
-                    stream=stream,
-                    client=client,
-                )
+                try:
+                    qa_pair = await self._quiz_one(
+                        template=template,
+                        question_number=index + 1,
+                        total_questions=len(plan.templates),
+                        exploration_trace=exploration_trace,
+                        plan=plan,
+                        previous_pairs=qa_pairs,
+                        image_attachments=image_attachments,
+                        context=context,
+                        stream=stream,
+                        client=client,
+                    )
+                except asyncio.CancelledError:
+                    raise
+                except Exception as exc:
+                    logger.warning(
+                        "Question %s failed: %s", template.question_id, type(exc).__name__
+                    )
+                    qa_pair = QuizPair(
+                        question_id=template.question_id,
+                        question=template.topic,
+                        question_type=template.question_type,
+                        correct_answer="",
+                        explanation="",
+                        topic=template.topic,
+                        difficulty=template.difficulty,
+                        metadata={"issues": ["generation_unavailable"]},
+                    )
+                qa_pair.metadata["source_scope"] = {
+                    **{
+                        key: context.metadata.get(key)
+                        for key in (
+                            "reading_material_id",
+                            "reading_material_revision",
+                            "reading_viewport",
+                        )
+                        if context.metadata.get(key) is not None
+                    },
+                    "knowledge_bases": list(context.knowledge_bases),
+                }
+                # A card is only published after its server contract is durable.
+                from deeptutor.services.session import get_sqlite_session_store
+
+                turn_id = context.runtime.turn_id or str(context.metadata.get("turn_id") or "")
+                if context.session_id and turn_id:
+                    stored = await get_sqlite_session_store().register_quiz_question(
+                        context.session_id, turn_id, self._qa_pair_to_dict(qa_pair)
+                    )
+                    qa_pair.metadata["question_version"] = stored["question_version"]
                 await self._emit_quiz_question(
                     stream=stream,
                     qa_pair=qa_pair,
@@ -1966,6 +2005,10 @@ class QuestionPipeline:
             "explanation": qa.explanation,
             "difficulty": qa.difficulty,
             "concentration": qa.topic,
+            "metadata": {k: v for k, v in qa.metadata.items() if k != "question_version"},
+            "question_version": qa.metadata.get("question_version", ""),
+            "generation_status": "failed" if qa.metadata.get("issues") else "ready",
+            "answerable": not bool(qa.metadata.get("issues")),
         }
 
     @staticmethod

@@ -423,8 +423,9 @@ def test_linked_evidence_retries_after_restart_in_event_order(
         attempt_id="book-old",
         created_at=1_000_000.0,
     )
-    with pytest.raises(RecordAssessmentError):
-        asyncio.run(record_assessment(old))
+    committed = asyncio.run(record_assessment(old))
+    assert committed.assessment_committed is True
+    assert committed.projection_status == "pending"
     assert len(asyncio.run(store.list_assessment_attempts("session-1"))) == 1
     assert initial_store.load("path-1").learning_evidence == []
 

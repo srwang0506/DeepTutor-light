@@ -104,19 +104,16 @@ def test_estimate_counts_tool_call_arguments_like_history_planning() -> None:
 
 
 @pytest.mark.asyncio
-async def test_guard_warns_and_proceeds_when_nothing_is_left_to_trim(caplog) -> None:
+async def test_guard_stops_when_nothing_is_left_to_trim(caplog) -> None:
     pipeline = _pipeline()
     messages: list[dict[str, Any]] = [{"role": "user", "content": _text(BUDGET + 1000)}]
     before = copy.deepcopy(messages)
     caplog.clear()
 
-    with caplog.at_level(logging.WARNING, logger="deeptutor.agents.loop.pipeline"):
+    with pytest.raises(ValueError, match="Context budget exhausted"):
         await pipeline._guard_context_window(messages, StreamBus())
 
     assert messages == before
-    assert any(
-        "no tool results are left to trim" in record.getMessage() for record in caplog.records
-    )
 
 
 @pytest.mark.asyncio

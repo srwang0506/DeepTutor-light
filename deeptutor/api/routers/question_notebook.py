@@ -281,6 +281,26 @@ async def upsert_single_entry(payload: UpsertEntryRequest):
         payload.question_id,
         turn_id=payload.turn_id,
     )
+    if payload.source == "deep_question" and payload.session_id and payload.turn_id:
+        contract = await store.get_quiz_question(
+            payload.session_id, payload.turn_id, payload.question_id
+        )
+        if contract is not None:
+            raise HTTPException(
+                409,
+                "Use /api/quiz/submit to answer this saved question, or update its bookmark separately.",
+            )
+    if existing and existing.get("result") in {"correct", "partial", "incorrect"}:
+        raise HTTPException(409, "A saved assessment cannot be replaced by a client import.")
+    # Manual imports are references, not independently graded evidence.
+    payload = payload.model_copy(
+        update={
+            "result": "ungraded",
+            "is_correct": False,
+            "mastery_path_id": "",
+            "knowledge_point_id": "",
+        }
+    )
     owner_id = _answer_image_owner(
         payload.session_id,
         payload.origin_type,
@@ -347,6 +367,12 @@ async def list_entries(
     offset: int = Query(default=0, ge=0),
 ) -> NotebookEntryListResponse:
     store = get_sqlite_session_store()
+    # Recover projections in the authenticated workspace, including non-admin
+    # users whose stores are not visited by process startup recovery.
+    from deeptutor.learning.mastery_projection import reconcile_mastery_projections
+
+    await reconcile_mastery_projections()
+    await store.reconcile_quiz_projections()
     listing = await store.list_notebook_entries(
         category_id=category_id,
         mistakes_only=mistakes_only,

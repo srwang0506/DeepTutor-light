@@ -252,7 +252,11 @@ class QuestionBankQuery:
         )
 
 
-class SQLiteSessionStore:
+from .quiz_contracts import SCHEMA as QUIZ_SCHEMA
+from .quiz_contracts import QuizContractStore
+
+
+class SQLiteSessionStore(QuizContractStore):
     """Persist unified chat sessions and messages in a SQLite database."""
 
     def __init__(self, db_path: Path | None = None) -> None:
@@ -283,6 +287,7 @@ class SQLiteSessionStore:
 
     def _initialize(self) -> None:
         with self._connect() as conn:
+            conn.executescript(QUIZ_SCHEMA)
             # WAL permits readers while another worker commits a turn/event
             # batch.  It is persistent for this database once enabled.
             conn.execute("PRAGMA journal_mode = WAL")
@@ -2669,6 +2674,7 @@ class SQLiteSessionStore:
         cards = """
             json_extract(metadata_json, '$.ask_user') IS NOT NULL
             OR json_extract(metadata_json, '$.ask_user_resolved') IS NOT NULL
+            OR json_extract(metadata_json, '$.project_memory_sources') IS NOT NULL
             OR json_extract(metadata_json, '$.tool_metadata.ask_user') IS NOT NULL
             OR json_extract(metadata_json, '$.mastery_question') IS NOT NULL
             OR json_extract(metadata_json, '$.tool_metadata.mastery_question') IS NOT NULL
@@ -2739,6 +2745,7 @@ class SQLiteSessionStore:
               AND (
                 json_extract(metadata_json, '$.ask_user') IS NOT NULL
                 OR json_extract(metadata_json, '$.ask_user_resolved') IS NOT NULL
+            OR json_extract(metadata_json, '$.project_memory_sources') IS NOT NULL
                 OR json_extract(metadata_json, '$.tool_metadata.ask_user') IS NOT NULL
               )
             ORDER BY seq DESC
@@ -3630,8 +3637,9 @@ class SQLiteSessionStore:
             attempt,
         )
 
-    def _record_assessment_sync(
+    def _record_assessment_in_conn(
         self,
+        conn,
         session_id: str | None,
         item: dict[str, Any],
         attempt: dict[str, Any],
@@ -3648,108 +3656,111 @@ class SQLiteSessionStore:
             raise ValueError("attempt_id and question_id are required")
         navigation_session, origin_type, origin_ref = self._notebook_origin(session_id, attempt)
         turn_id = str(attempt.get("turn_id") or "").strip()
-        with self._connect() as conn:
-            conn.execute("BEGIN IMMEDIATE")
-            existing = conn.execute(
-                "SELECT assessment_json, notebook_entry_id FROM assessment_attempts "
-                "WHERE attempt_id = ?",
-                (attempt_id,),
-            ).fetchone()
-            if existing is not None:
-                original = _json_loads(str(existing["assessment_json"]), {})
-                identity_fields = (
-                    "origin_type",
-                    "origin_ref",
-                    "turn_id",
-                    "question_id",
-                    "source",
-                    "assessment_type",
-                    "user_answer",
-                    "result",
-                    "mastery_path_id",
-                    "knowledge_point_id",
-                )
-                if any(original.get(key) != attempt.get(key) for key in identity_fields):
-                    raise ValueError(f"Conflicting assessment submission id: {attempt_id}")
-                entry_id = existing["notebook_entry_id"]
-                if entry_id is None:
-                    row = conn.execute(
-                        "SELECT id FROM notebook_entries WHERE origin_type = ? "
-                        "AND origin_ref = ? AND turn_id = ? AND question_id = ?",
-                        (origin_type, origin_ref, turn_id, question_id),
-                    ).fetchone()
-                    entry_id = row["id"] if row is not None else None
-                return int(entry_id) if entry_id is not None else 0, False, False
-
-            if (
-                navigation_session is not None
-                and conn.execute(
-                    "SELECT id FROM sessions WHERE id = ?", (navigation_session,)
-                ).fetchone()
-                is None
-            ):
-                raise ValueError(f"Session not found: {navigation_session}")
-            if str(attempt.get("source") or "") == "immersive_reading":
+        existing = conn.execute(
+            "SELECT assessment_json, notebook_entry_id FROM assessment_attempts "
+            "WHERE attempt_id = ?",
+            (attempt_id,),
+        ).fetchone()
+        if existing is not None:
+            original = _json_loads(str(existing["assessment_json"]), {})
+            identity_fields = (
+                "origin_type",
+                "origin_ref",
+                "turn_id",
+                "question_id",
+                "source",
+                "assessment_type",
+                "user_answer",
+                "result",
+                "mastery_path_id",
+                "knowledge_point_id",
+            )
+            if any(original.get(key) != attempt.get(key) for key in identity_fields):
+                raise ValueError(f"Conflicting assessment submission id: {attempt_id}")
+            entry_id = existing["notebook_entry_id"]
+            if entry_id is None:
                 row = conn.execute(
-                    "SELECT COUNT(*) AS count FROM assessment_attempts "
-                    "WHERE origin_type = ? AND origin_ref = ? AND turn_id = ? AND question_id = ?",
+                    "SELECT id FROM notebook_entries WHERE origin_type = ? "
+                    "AND origin_ref = ? AND turn_id = ? AND question_id = ?",
                     (origin_type, origin_ref, turn_id, question_id),
                 ).fetchone()
-                count = int(row["count"]) + 1
-                item = {**item, "attempt_count": count}
-                attempt = {**attempt, "attempt_count": count}
-            latest = conn.execute(
-                "SELECT occurred_at, attempt_id FROM assessment_attempts "
-                "WHERE origin_type = ? AND origin_ref = ? AND turn_id = ? AND question_id = ? "
-                "ORDER BY occurred_at DESC, attempt_id DESC LIMIT 1",
-                (origin_type, origin_ref, turn_id, question_id),
+                entry_id = row["id"] if row is not None else None
+            return int(entry_id) if entry_id is not None else 0, False, False
+
+        if (
+            navigation_session is not None
+            and conn.execute(
+                "SELECT id FROM sessions WHERE id = ?", (navigation_session,)
             ).fetchone()
-            occurred_at = float(attempt.get("occurred_at") or time.time())
-            is_latest = latest is None or (occurred_at, attempt_id) >= (
-                float(latest["occurred_at"]),
-                str(latest["attempt_id"]),
-            )
-            conn.execute(
-                """
-                INSERT INTO assessment_attempts (
-                    attempt_id, notebook_entry_id, session_id, origin_type,
-                    origin_ref, turn_id, question_id, source, assessment_type, result,
-                    mastery_path_id, knowledge_point_id, occurred_at,
-                    assessment_json
-                ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    attempt_id,
-                    navigation_session,
-                    origin_type,
-                    origin_ref,
-                    turn_id,
-                    question_id,
-                    str(attempt.get("source") or "deep_question"),
-                    str(attempt.get("assessment_type") or "quiz"),
-                    str(attempt.get("result") or "ungraded"),
-                    str(attempt.get("mastery_path_id") or ""),
-                    str(attempt.get("knowledge_point_id") or ""),
-                    occurred_at,
-                    _json_dumps(attempt),
-                ),
-            )
-            upserted = (
-                self._upsert_notebook_entries_in_conn(conn, session_id, [item]) if is_latest else 0
-            )
+            is None
+        ):
+            raise ValueError(f"Session not found: {navigation_session}")
+        if str(attempt.get("source") or "") == "immersive_reading":
             row = conn.execute(
-                "SELECT id FROM notebook_entries WHERE origin_type = ? "
-                "AND origin_ref = ? AND turn_id = ? AND question_id = ?",
+                "SELECT COUNT(*) AS count FROM assessment_attempts "
+                "WHERE origin_type = ? AND origin_ref = ? AND turn_id = ? AND question_id = ?",
                 (origin_type, origin_ref, turn_id, question_id),
             ).fetchone()
-            if row is None:
-                raise ValueError("Assessment projection was not persisted")
-            entry_id = int(row["id"])
-            conn.execute(
-                "UPDATE assessment_attempts SET notebook_entry_id = ? WHERE attempt_id = ?",
-                (entry_id, attempt_id),
-            )
+            count = int(row["count"]) + 1
+            item = {**item, "attempt_count": count}
+            attempt = {**attempt, "attempt_count": count}
+        latest = conn.execute(
+            "SELECT occurred_at, attempt_id FROM assessment_attempts "
+            "WHERE origin_type = ? AND origin_ref = ? AND turn_id = ? AND question_id = ? "
+            "ORDER BY occurred_at DESC, attempt_id DESC LIMIT 1",
+            (origin_type, origin_ref, turn_id, question_id),
+        ).fetchone()
+        occurred_at = float(attempt.get("occurred_at") or time.time())
+        is_latest = latest is None or (occurred_at, attempt_id) >= (
+            float(latest["occurred_at"]),
+            str(latest["attempt_id"]),
+        )
+        conn.execute(
+            """
+            INSERT INTO assessment_attempts (
+                attempt_id, notebook_entry_id, session_id, origin_type,
+                origin_ref, turn_id, question_id, source, assessment_type, result,
+                mastery_path_id, knowledge_point_id, occurred_at,
+                assessment_json
+            ) VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                attempt_id,
+                navigation_session,
+                origin_type,
+                origin_ref,
+                turn_id,
+                question_id,
+                str(attempt.get("source") or "deep_question"),
+                str(attempt.get("assessment_type") or "quiz"),
+                str(attempt.get("result") or "ungraded"),
+                str(attempt.get("mastery_path_id") or ""),
+                str(attempt.get("knowledge_point_id") or ""),
+                occurred_at,
+                _json_dumps(attempt),
+            ),
+        )
+        upserted = (
+            self._upsert_notebook_entries_in_conn(conn, session_id, [item]) if is_latest else 0
+        )
+        row = conn.execute(
+            "SELECT id FROM notebook_entries WHERE origin_type = ? "
+            "AND origin_ref = ? AND turn_id = ? AND question_id = ?",
+            (origin_type, origin_ref, turn_id, question_id),
+        ).fetchone()
+        if row is None:
+            raise ValueError("Assessment projection was not persisted")
+        entry_id = int(row["id"])
+        conn.execute(
+            "UPDATE assessment_attempts SET notebook_entry_id = ? WHERE attempt_id = ?",
+            (entry_id, attempt_id),
+        )
         return entry_id, bool(upserted), True
+
+    def _record_assessment_sync(self, session_id, item, attempt):
+        with self._connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            return self._record_assessment_in_conn(conn, session_id, item, attempt)
 
     async def record_assessment(
         self,

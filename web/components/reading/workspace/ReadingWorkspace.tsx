@@ -1,5 +1,7 @@
 "use client";
 
+import { StudyWorkspaceShell } from "@/components/study/StudyWorkspaceShell";
+
 import { scopedUrl } from "@/lib/workspace-scope";
 import { READING_HOME, readingFolderRoute, readingSessionIdFromPath } from "@/lib/learning-routes";
 
@@ -238,10 +240,11 @@ export function ReadingWorkspacePage() {
   } = useReadingLearningMode(workspaceId);
   const { gridRef, ...panels } = useReadingPanelLayout({
     enabled: isDesktopWide,
-    navigatorOpen: preferredNavigatorOpen,
+    navigatorOpen: false,
     companionOpen,
   });
-  const { navigatorOpen, exitFocus } = panels;
+  const { exitFocus } = panels;
+  const navigatorOpen = preferredNavigatorOpen;
   const companionDocked = isDesktopWide && companionOpen;
   const setCompanionOpen = useCallback(
     (open: boolean) => {
@@ -412,7 +415,7 @@ export function ReadingWorkspacePage() {
   // single `xl:hidden`, so at `lg` it dimmed a document the docked navigator
   // was sitting beside and swallowed every click on the page.
   const scrimClass =
-    companionOpen ? "xl:hidden" : navigatorOpen ? "lg:hidden" : "";
+    navigatorOpen ? "" : "hidden";
   const materialReady =
     activeTab?.material.status === "ready" && !isMedia && Boolean(material);
 
@@ -423,26 +426,22 @@ export function ReadingWorkspacePage() {
       onStart={() => toggleCompanion(true)}
     >
     <WorkspaceMenuContext.Provider value={menuHost}>
-    <main
+    <StudyWorkspaceShell
       ref={mainRef}
       data-learning={learning ? "true" : undefined}
       data-reading-workspace=""
       className="reading-v2 dt-reading-desk flex h-full min-h-0 flex-col overflow-hidden bg-[var(--background)] text-[var(--foreground)] dark:bg-[var(--background)] dark:text-[var(--foreground)]"
     >
 
+      <div className="flex shrink-0 border-b border-[var(--border)] px-4 xl:hidden" role="tablist" aria-label={t("Study workspace")}>
+        <button type="button" role="tab" aria-selected={!companionOpen} onClick={() => toggleCompanion(false)} className={`flex-1 border-b-2 py-3 text-sm ${!companionOpen ? "border-[var(--primary)] text-[var(--primary)]" : "border-transparent text-[var(--muted-foreground)]"}`}>{t("Materials")}</button>
+        <button type="button" role="tab" aria-selected={companionOpen} onClick={() => toggleCompanion(true)} className={`flex-1 border-b-2 py-3 text-sm ${companionOpen ? "border-[var(--primary)] text-[var(--primary)]" : "border-transparent text-[var(--muted-foreground)]"}`}>{t("Conversation")}</button>
+      </div>
       {/* One desk: the bar sits over the document columns only, and a docked
           companion runs the full height beside them as a sheet of its own. */}
       <div
         ref={gridRef}
-        className={`relative grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] overflow-hidden ${
-          companionOpen
-            ? navigatorOpen
-              ? "grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(184px,230px)_minmax(360px,1fr)] xl:grid-cols-[minmax(184px,230px)_minmax(360px,1fr)_5px_minmax(330px,420px)]"
-              : "grid-cols-[minmax(0,1fr)] xl:grid-cols-[minmax(360px,1fr)_5px_minmax(330px,420px)]"
-            : navigatorOpen
-              ? "grid-cols-[minmax(0,1fr)] lg:grid-cols-[minmax(184px,230px)_minmax(0,1fr)]"
-              : "grid-cols-[minmax(0,1fr)]"
-        }`}
+        className={`relative grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] overflow-hidden ${companionOpen ? "grid-cols-[minmax(0,1fr)] xl:grid-cols-[minmax(360px,1fr)_5px_minmax(330px,420px)]" : "grid-cols-[minmax(0,1fr)]"}`}
         style={panels.gridStyle}
       >
         <div className={`min-w-0 ${companionDocked ? "[grid-column:1/-3]" : "col-span-full"}`}>
@@ -477,9 +476,7 @@ export function ReadingWorkspacePage() {
             onClick={() => {
               // Only the panels that are sheets at this width: a docked
               // navigator has nothing to do with a tap on the scrim.
-              if (!window.matchMedia("(min-width: 1024px)").matches) {
-                setNavigatorOpen(false);
-              }
+              setNavigatorOpen(false);
               setCompanionOpen(false);
             }}
             aria-label={t("Close panels")}
@@ -615,7 +612,7 @@ export function ReadingWorkspacePage() {
           />
         )}
 
-        {companionOpen && (
+        <div className={companionOpen ? "contents" : "hidden"}>
           <ReadingCompanion
             workspaceId={workspaceId}
             material={activeTab?.material ?? null}
@@ -636,7 +633,7 @@ export function ReadingWorkspacePage() {
               />
             }
           />
-        )}
+        </div>
       </div>
 
       {removeTarget && (
@@ -742,7 +739,7 @@ export function ReadingWorkspacePage() {
           onClose={() => setOrganizedNotes(null)}
         />
       )}
-    </main>
+    </StudyWorkspaceShell>
     </WorkspaceMenuContext.Provider>
     </ReadingActionsProvider>
   );

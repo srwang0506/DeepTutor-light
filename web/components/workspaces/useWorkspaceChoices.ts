@@ -14,7 +14,7 @@ export function useWorkspaceChoices() {
   const active = useActiveWorkspaceId()
   const { workspaces } = useChatWorkspaces()
   const current = workspaces.find(row => row.workspace_id === active)
-  const currentName = active ? (current?.display_name ?? t('Workspace unavailable')) : t('General workspace')
+  const currentName = active ? (current?.display_name ?? t('Workspace')) : t('General workspace')
   const choices = [
     { workspace_id: '', display_name: t('General workspace') },
     ...workspaces.filter(row => row.workspace_id === active || (!row.archived && row.status === 'ready')),

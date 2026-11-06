@@ -23,7 +23,10 @@ from .rerank import rerank_nodes
 
 logger = logging.getLogger(__name__)
 
-BM25_PERSIST_DIRNAME = "bm25_retriever"
+# Version the lexical sidecar: old tokenization must never be loaded silently.
+BM25_PERSIST_DIRNAME = "bm25_retriever_cjk_v1"
+BM25_TOKEN_PATTERN = r"(?u)[\u3400-\u9fff]|[A-Za-z0-9]+(?:[._][0-9]+)*|[α-ωΑ-Ω]+"
+BM25_OPTIONS = {"token_pattern": BM25_TOKEN_PATTERN, "skip_stemming": True, "language": None}
 
 
 class _MatchedOnlyRetriever(BaseRetriever):
@@ -125,7 +128,7 @@ def build_bm25_retriever(index: Any, storage_dir: Path, *, top_k: int) -> Any | 
             logger.warning("Failed to load persisted BM25 retriever from %s: %s", persist_dir, exc)
 
     try:
-        return bm25_cls.from_defaults(index=index, similarity_top_k=top_k)
+        return bm25_cls.from_defaults(index=index, similarity_top_k=top_k, **BM25_OPTIONS)
     except Exception as exc:
         logger.warning("Failed to build BM25 retriever; falling back to vector retrieval: %s", exc)
         return None
@@ -147,7 +150,7 @@ def persist_bm25_retriever(index: Any, storage_dir: Path, *, top_k: int) -> bool
         shutil.rmtree(persist_dir, ignore_errors=True)
 
     try:
-        retriever = bm25_cls.from_defaults(index=index, similarity_top_k=top_k)
+        retriever = bm25_cls.from_defaults(index=index, similarity_top_k=top_k, **BM25_OPTIONS)
     except Exception as exc:
         logger.warning("Failed to build BM25 retriever for persistence: %s", exc)
         return False
@@ -224,6 +227,9 @@ def retrieve_nodes(
         config=config,
     )
     candidates = retriever.retrieve(query)
+    from .study_locator import prioritize_located_nodes
+
+    candidates = prioritize_located_nodes(index, query, candidates, top_k=candidate_top_k)
     if not config.reranker_model:
         return candidates[: max(1, int(top_k))]
 
@@ -295,7 +301,7 @@ def retrieve_scoped_nodes(
     vector = index.as_retriever(similarity_top_k=count)
     bm25_cls = _import_bm25_retriever()
     if bm25_cls is not None:
-        lexical = bm25_cls.from_defaults(nodes=nodes, similarity_top_k=count)
+        lexical = bm25_cls.from_defaults(nodes=nodes, similarity_top_k=count, **BM25_OPTIONS)
         retriever = QueryFusionRetriever(
             [vector, _MatchedOnlyRetriever(lexical)],
             llm=MockLLM(),
@@ -306,7 +312,10 @@ def retrieve_scoped_nodes(
         )
     else:
         retriever = vector
-    return [hit for hit in retriever.retrieve(query) if hit.node.node_id in ids][:count]
+    from .study_locator import prioritize_located_nodes
+
+    candidates = prioritize_located_nodes(index, query, retriever.retrieve(query), top_k=count)
+    return [hit for hit in candidates if hit.node.node_id in ids][:count]
 
 
 class _UnstemmedPageRetriever:
@@ -330,7 +339,9 @@ class _UnstemmedPageRetriever:
     def _tokenize(text):
         import bm25s
 
-        return bm25s.tokenize(text, stopwords="en", stemmer=None, show_progress=False)
+        return bm25s.tokenize(
+            text, stopwords=[], stemmer=None, token_pattern=BM25_TOKEN_PATTERN, show_progress=False
+        )
 
     def retrieve(self, query: str) -> list[Any]:
         from llama_index.core.schema import NodeWithScore
@@ -356,7 +367,7 @@ def _legacy_page_retriever(directory: Path) -> Any:
     cls = _import_bm25_retriever()
     if cls is None:
         return _UnstemmedPageRetriever(nodes)
-    return cls.from_defaults(nodes=nodes, similarity_top_k=min(8, len(nodes)))
+    return cls.from_defaults(nodes=nodes, similarity_top_k=min(8, len(nodes)), **BM25_OPTIONS)
 
 
 def retrieve_legacy_pages(directory: Path, query: str, *, top_k: int = 8) -> list[Any]:

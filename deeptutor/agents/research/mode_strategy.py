@@ -14,7 +14,9 @@ from dataclasses import dataclass, field
 import re
 from typing import Literal
 
-ResearchMode = Literal["notes", "report", "comparison", "learning_path"]
+ResearchMode = Literal[
+    "notes", "report", "comparison", "learning_path", "citation_audit", "experiment_plan"
+]
 ResearchDepth = Literal["quick", "standard", "deep", "manual"]
 
 _MANUAL_SUBTOPICS: dict[str, int] = {"quick": 2, "standard": 3, "deep": 4}
@@ -87,6 +89,14 @@ class ModeStrategy:
         elif self.name == "comparison":
             if not re.search(r"\|.*\|.*\|", report):
                 warnings.append("Comparison: no Markdown table detected.")
+        elif self.name == "citation_audit":
+            if not re.search(r"\|.*\|.*\|", report):
+                warnings.append("Citation audit: missing claim/evidence/verdict table.")
+        elif self.name == "experiment_plan":
+            if not re.search(r"baseline|基线|对照", report, re.I):
+                warnings.append("Experiment plan: baseline or control is missing.")
+            if not re.search(r"metric|指标", report, re.I):
+                warnings.append("Experiment plan: evaluation metrics are missing.")
         elif self.name == "learning_path":
             if not re.search(r"Checkpoint", report, re.IGNORECASE):
                 warnings.append("Learning path: missing Checkpoint block.")
@@ -95,6 +105,22 @@ class ModeStrategy:
 
 
 STRATEGIES: dict[ResearchMode, ModeStrategy] = {
+    "citation_audit": ModeStrategy(
+        name="citation_audit",
+        style="comparison",
+        rephrase_enabled=True,
+        decompose_mode="manual",
+        single_pass_threshold=99,
+        min_section_length=260,
+    ),
+    "experiment_plan": ModeStrategy(
+        name="experiment_plan",
+        style="report",
+        rephrase_enabled=True,
+        decompose_mode="manual",
+        single_pass_threshold=99,
+        min_section_length=420,
+    ),
     "notes": ModeStrategy(
         name="notes",
         style="study_notes",

@@ -94,7 +94,7 @@ class _Client:
         self.chat = _Chat(self)
 
 
-async def _run_step(client: _Client, usage: UsageTracker) -> Any:
+async def _run_step(client: _Client, usage: UsageTracker, **kwargs) -> Any:
     return await run_labeled_step(
         client=client,
         model="gpt-test",
@@ -110,6 +110,7 @@ async def _run_step(client: _Client, usage: UsageTracker) -> Any:
         iter_meta={"label": "Reasoning"},
         binding="openai",
         usage=usage,
+        **kwargs,
     )
 
 
@@ -172,3 +173,36 @@ async def test_stream_options_unsupported_retries_without_usage_request() -> Non
     assert len(client.calls) == 2
     assert "stream_options" in client.calls[0]
     assert "stream_options" not in client.calls[1]
+
+
+@pytest.mark.asyncio
+async def test_report_idle_window_allows_pause_without_truncation(monkeypatch) -> None:
+    monkeypatch.setattr(labeled_step_module, "_FINAL_LABEL_IDLE_TIMEOUT_S", 0.001)
+
+    class PausedStream(_Stream):
+        async def __anext__(self):
+            if len(self._chunks) == 1:
+                await asyncio.sleep(0.02)
+            return await super().__anext__()
+
+    stream = PausedStream(
+        [_chunk("``FINISH``\nFirst paragraph."), _chunk(" Final paragraph.", finish_reason="stop")]
+    )
+    client = _Client([stream])
+    result = await _run_step(
+        client, UsageTracker(model="gpt-test"), final_label_idle_timeout_s=0.2
+    )
+    assert result.text == "First paragraph. Final paragraph."
+    assert result.finish_reason == "stop"
+    assert not result.stream_idle_timeout
+    assert "final_label_idle_timeout_s" not in client.calls[0]
+
+
+@pytest.mark.asyncio
+async def test_report_idle_window_still_bounds_stalled_stream() -> None:
+    stream = _Stream([_chunk("``FINISH``\nIncomplete.")], stall_after_chunks=True)
+    result = await _run_step(
+        _Client([stream]), UsageTracker(model="gpt-test"), final_label_idle_timeout_s=0.01
+    )
+    assert result.stream_idle_timeout
+    assert stream.closed

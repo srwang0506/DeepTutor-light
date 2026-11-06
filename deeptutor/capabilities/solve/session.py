@@ -31,9 +31,15 @@ class SolveStep:
     goal: str
     done: bool = False
     summary: str = ""
+    verification: dict = field(default_factory=lambda: {"status": "unknown"})
 
     def to_dict(self) -> dict[str, object]:
-        return {"id": self.id, "goal": self.goal, "done": self.done}
+        return {
+            "id": self.id,
+            "goal": self.goal,
+            "done": self.done,
+            "verification": self.verification,
+        }
 
 
 @dataclass
@@ -45,6 +51,7 @@ class SolveSession:
     steps: list[SolveStep] = field(default_factory=list)
     replans: int = 0
     max_replans: int = DEFAULT_MAX_REPLANS
+    verification_calls: dict[str, int] = field(default_factory=dict)
 
     def set_plan(self, analysis: str, steps: list[tuple[str, str]]) -> None:
         self.analysis = analysis
@@ -87,6 +94,7 @@ class SolveSession:
         for step in self.steps:
             mark = "done" if step.done else ("next" if step is nxt else "todo")
             lines.append(f"- {step.id} [{mark}] {step.goal}")
+            lines.append(f"  verification: {step.verification['status']}")
         lines.append(
             "All steps are done: write the final answer now."
             if nxt is None

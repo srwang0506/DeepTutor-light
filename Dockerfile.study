@@ -1,0 +1,24 @@
+# Reproducible dependency versions; production services stay separate.
+# Override these with registry digest-pinned references in your deployment.
+ARG NODE_IMAGE=node:24.19.0-bookworm-slim
+ARG PYTHON_IMAGE=python:3.12.9-slim-bookworm
+FROM ${NODE_IMAGE} AS web
+WORKDIR /app/web
+COPY web/package.json web/package-lock.json ./
+RUN npm ci --legacy-peer-deps --no-audit --no-fund
+COPY web/ ./
+ENV DEEPTUTOR_NEXT_DIST_DIR=.next-study NEXT_PUBLIC_API_BASE=http://127.0.0.1:8001 NEXT_TELEMETRY_DISABLED=1
+RUN npm run build
+EXPOSE 3782
+ENV HOSTNAME=0.0.0.0 PORT=3782
+CMD ["node", ".next-study/standalone/server.js"]
+
+FROM ${PYTHON_IMAGE} AS api
+WORKDIR /app
+COPY requirements/study.lock.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+COPY . /app
+ENV DEEPTUTOR_HOME=/runtime DEEPTUTOR_STUDY_RUNTIME=1
+EXPOSE 8001
+HEALTHCHECK --interval=20s --timeout=3s --start-period=60s CMD python -c "from urllib.request import urlopen; assert urlopen('http://127.0.0.1:8001/health/ready').status == 200"
+CMD ["python", "-m", "uvicorn", "deeptutor.api.main:app", "--host", "0.0.0.0", "--port", "8001"]

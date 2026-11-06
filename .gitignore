@@ -294,3 +294,12 @@ dmypy.json
 *.mp3
 *.wav
 *.ogg
+
+# Light workbench local runtime and production build
+study-data/
+web/.next-study*/
+.study-runtime.lock
+.local-runtime/
+.venv-*/
+._*
+.study-data-*/

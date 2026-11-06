@@ -102,16 +102,24 @@ def sanitize_summary(text: str) -> str:
 
 
 def count_tokens(text: str) -> int:
-    """Estimate token count with tiktoken when available."""
+    """Count without network I/O on the event loop.
+
+    ``get_encoding`` can download its vocabulary synchronously with no timeout
+    on a fresh installation. Use the bundled, hash-verified tokenizer when available;
+    otherwise UTF-8 bytes give a conservative bound (also for CJK text). This
+    estimate is for admission/compaction, never billing.
+    """
     if not text:
         return 0
     try:
-        import tiktoken
+        from .local_tokenizer import context_encoding
 
-        encoding = tiktoken.get_encoding("cl100k_base")
-        return len(encoding.encode(text))
+        encoding = context_encoding()
+        if encoding is not None:
+            return len(encoding.encode(text, disallowed_special=()))
     except Exception:
-        return max(1, len(text) // 4)
+        pass
+    return len(text.encode("utf-8"))
 
 
 def _count_model_context_tokens(value: Any) -> int:

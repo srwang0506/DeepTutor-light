@@ -149,6 +149,9 @@ class ChatOrchestrator:
 
         async def _run() -> None:
             from deeptutor.services.llm.metrics import TurnUsage, current_usage
+            from deeptutor.services.llm.task_budget import TaskBudget, current_budget
+
+            budget_token = current_budget.set(current_budget.get() or TaskBudget(cap_name))
 
             turn_usage = current_usage.get()
             usage_token = None
@@ -165,6 +168,7 @@ class ChatOrchestrator:
             status = "completed"
             terminal_error_metadata: dict[str, Any] = {}
             try:
+                await self._prepare_project_recall(context, bus, cap_name)
                 await capability.run(context, bus)
                 if bus.result_completion is False:
                     status = "failed"
@@ -224,6 +228,7 @@ class ChatOrchestrator:
                 )
                 if usage_token is not None:
                     current_usage.reset(usage_token)
+                current_budget.reset(budget_token)
                 await bus.close()
                 if _turn_id:
                     unregister_bus(_turn_id)
@@ -246,6 +251,70 @@ class ChatOrchestrator:
                     await task
 
         await self._publish_completion(context, cap_name)
+
+    async def _prepare_project_recall(self, context, bus, cap_name):
+        # Partner memory has a separate owner/companion policy. Keep that boundary.
+        if (
+            context.runtime.consult_partner_id
+            or context.metadata.get("partner_id")
+            or context.metadata.get("agent_identity")
+        ):
+            return
+        if cap_name not in {
+            "chat",
+            "deep_solve",
+            "deep_research",
+            "immersive_reading",
+            "mastery_path",
+            "ask_questions",
+        }:
+            return
+        try:
+            from deeptutor.services.workspace.project_recall import (
+                recall_prompt,
+                search_project_memory,
+            )
+
+            result = await asyncio.to_thread(
+                search_project_memory, context.user_message, exclude_session=context.session_id
+            )
+            if context.language.startswith("zh"):
+                for hit in result["hits"]:
+                    if not hit["workspace_id"]:
+                        hit["workspace_name"] = "通用工作区"
+            prompt = recall_prompt(result)
+            context.extension("project_recall")["prompt"] = prompt
+            context.extension("project_recall")["hits"] = result["hits"]
+            if prompt:
+                await bus.emit(
+                    StreamEvent(
+                        type=StreamEventType.OBSERVATION,
+                        source="project_memory",
+                        content=(
+                            f"参考了 {len(result['hits'])} 条项目记忆"
+                            if context.language.startswith("zh")
+                            else f"Recalled {len(result['hits'])} project memories"
+                        ),
+                        metadata={
+                            "project_memory_sources": [
+                                {
+                                    k: h[k]
+                                    for k in (
+                                        "citation",
+                                        "workspace_name",
+                                        "title",
+                                        "url",
+                                        "external",
+                                    )
+                                }
+                                for h in result["hits"]
+                            ]
+                        },
+                    )
+                )
+        except Exception:
+            # A missing/corrupt optional recall index must not prevent a turn.
+            logger.warning("Project recall unavailable for this turn", exc_info=True)
 
     async def _publish_completion(self, context: UnifiedContext, cap_name: str) -> None:
         """Publish CAPABILITY_COMPLETE to the global EventBus."""

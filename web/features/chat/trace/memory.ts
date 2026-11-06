@@ -50,7 +50,7 @@ function carriesLearnerWords(event: StreamEvent): boolean {
 
 function isSemantic(event: StreamEvent): boolean {
   if (SEMANTIC_TYPES.has(String(event.type ?? ""))) return true;
-  return carriesCard(event) || carriesLearnerWords(event);
+  return carriesCard(event) || carriesLearnerWords(event) || Array.isArray(metadata(event).project_memory_sources);
 }
 
 function isCritical(event: StreamEvent): boolean {
@@ -60,7 +60,7 @@ function isCritical(event: StreamEvent): boolean {
   ) {
     return true;
   }
-  return carriesCard(event) || carriesLearnerWords(event);
+  return carriesCard(event) || carriesLearnerWords(event) || Array.isArray(metadata(event).project_memory_sources);
 }
 
 function boundLegacyPayload(event: StreamEvent): StreamEvent {

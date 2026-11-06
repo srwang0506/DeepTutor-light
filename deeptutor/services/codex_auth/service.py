@@ -469,6 +469,10 @@ class CodexOAuthService:
         )
 
     async def start_login(self) -> dict[str, Any]:
+        if getattr(self._store, "external_login", False):
+            from .local_login import managed_login_error
+
+            raise managed_login_error()
         async with self._operation_lock:
             if self._operation_is_active():
                 return self._login_start_payload(self._operation)
@@ -786,6 +790,8 @@ class CodexOAuthService:
         self,
         credentials: CodexCredentials,
     ) -> CodexCredentials:
+        if getattr(self._store, "external_login", False):
+            return await self._store.refresh_external()
         try:
             payload = await self._oauth.refresh(credentials.refresh_token)
         except CodexAuthError as exc:
@@ -849,6 +855,10 @@ class CodexOAuthService:
                 self._active_inferences -= 1
 
     async def logout(self) -> dict[str, Any]:
+        if getattr(self._store, "external_login", False):
+            from .local_login import managed_login_error
+
+            raise managed_login_error()
         async with self._inference_lock:
             if self._active_inferences:
                 raise CodexAuthError(
@@ -1279,11 +1289,18 @@ def _owner_model_catalog_service() -> ModelCatalogService:
 
 def get_codex_oauth_service() -> CodexOAuthService:
     secrets_root = _codex_secrets_root()
-    key = str(secrets_root)
+    from .local_login import LocalCodexCredentialStore, local_login_path
+
+    external_path = local_login_path()
+    key = str(secrets_root) + (f":local:{external_path}" if external_path else "")
     service = _SERVICE_INSTANCES.get(key)
     if service is None:
         callback_forward_port = load_system_settings()["frontend_port"]
-        store = CodexCredentialStore(secrets_root)
+        store = (
+            LocalCodexCredentialStore(secrets_root, external_path)
+            if external_path
+            else CodexCredentialStore(secrets_root)
+        )
         http = httpx.AsyncClient(timeout=30)
         catalog = CodexModelCatalog(store, http=http)
         service = CodexOAuthService(

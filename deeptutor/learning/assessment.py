@@ -45,6 +45,8 @@ class AssessmentOutcome(BaseModel):
     attempt_id: str = ""
     attempt_recorded: bool = False
     diagnostics: list[str] = Field(default_factory=list)
+    assessment_committed: bool = False
+    projection_status: str = "complete"
 
 
 def result_to_is_correct(result: str) -> bool:
@@ -472,6 +474,7 @@ async def record_assessment(record: AssessmentRecord) -> AssessmentOutcome:
         raise RecordAssessmentError(
             f"Failed to record assessment {record.question_id!r} for session {record.session_id!r}"
         ) from exc
+    projection_status = "complete"
     if item["mastery_path_id"] and item["knowledge_point_id"]:
         try:
             persisted = await store.get_assessment_attempt(attempt_id)
@@ -498,14 +501,17 @@ async def record_assessment(record: AssessmentRecord) -> AssessmentOutcome:
                 item["knowledge_point_id"],
                 exc_info=True,
             )
-            raise RecordAssessmentError(
-                f"Failed to update linked retention for assessment {attempt_id!r}"
-            ) from exc
+            # The authoritative attempt is already durable. Existing pending-link
+            # reconciliation retries only this projection, never the grade.
+            projection_status = "pending"
+            diagnostics.append("linked_retention_pending")
     return AssessmentOutcome(
         entry_id=entry_id,
         upserted=bool(upserted),
         attempt_id=attempt_id,
         attempt_recorded=attempt_recorded,
+        assessment_committed=True,
+        projection_status=projection_status,
         diagnostics=diagnostics,
     )
 

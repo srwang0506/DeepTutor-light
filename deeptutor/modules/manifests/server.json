@@ -339,6 +339,17 @@
       },
       "auth": "public",
       "order": 842
+    },
+    {
+      "reference": "deeptutor.api.routers.studio:router",
+      "options": {
+        "prefix": "/api/studio",
+        "tags": [
+          "studio"
+        ]
+      },
+      "auth": "learning",
+      "order": 597
     }
   ],
   "commands": [],

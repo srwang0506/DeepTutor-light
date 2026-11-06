@@ -13,7 +13,8 @@
     "deeptutor/api/routers/practice.py",
     "deeptutor/api/routers/question.py",
     "deeptutor/api/routers/question_notebook.py",
-    "deeptutor/tools/question"
+    "deeptutor/tools/question",
+    "deeptutor/api/routers/quiz.py"
   ],
   "capabilities": {
     "deep_question": {
@@ -89,6 +90,17 @@
       },
       "auth": "learning",
       "order": 695
+    },
+    {
+      "reference": "deeptutor.api.routers.quiz:router",
+      "options": {
+        "prefix": "/api/quiz",
+        "tags": [
+          "quiz"
+        ]
+      },
+      "auth": "learning",
+      "order": 696
     }
   ],
   "commands": [],

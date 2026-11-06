@@ -155,6 +155,7 @@ async def run_labeled_step(
     final_meta: dict[str, Any] | None = None,
     eager_sub_trace: bool = False,
     implicit_think_label: str | None = None,
+    final_label_idle_timeout_s: float | None = None,
 ) -> LabeledStepResult:
     """Drive one streaming LLM call under the label protocol.
 
@@ -503,7 +504,11 @@ async def run_labeled_step(
                 else:
                     break
             elif label in final_labels and content_acc:
-                timeout = _FINAL_LABEL_IDLE_TIMEOUT_S
+                timeout = (
+                    _FINAL_LABEL_IDLE_TIMEOUT_S
+                    if final_label_idle_timeout_s is None
+                    else final_label_idle_timeout_s
+                )
             try:
                 if timeout is None:
                     chunk = await stream_iter.__anext__()

@@ -168,7 +168,10 @@ def test_upsert_dedupes_identity_and_updates_content(client, session_id: str) ->
     assert second.json()["id"] == first.json()["id"]
     assert second.json()["user_answer"] == "C"
     assert second.json()["is_correct"] is False
-    assert second.json()["score_trend"] == "declined"
+    # Manual imports cannot manufacture grades; only the assessment operation
+    # can change an authoritative score.
+    assert first.json()["result"] == "ungraded"
+    assert second.json()["score_trend"] == "unchanged"
 
     listing = client.get(f"{PREFIX}/entries").json()
     assert listing["total"] == 1

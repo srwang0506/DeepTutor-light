@@ -27,10 +27,7 @@ const Markdown = dynamic(() => import('@/components/common/MarkdownRenderer'), {
 const Quiz = dynamic(() => import('@/app/(workspace)/learning/books/components/blocks/QuizBlock'), {
   ssr: false,
 })
-const Flashcards = dynamic(
-  () => import('@/app/(workspace)/learning/books/components/blocks/FlashCardsBlock'),
-  { ssr: false }
-)
+const Flashcards = dynamic(() => import('./NoteFlashcards'), { ssr: false })
 
 export default function NoteLearningContent({
   id,
@@ -239,8 +236,8 @@ export default function NoteLearningContent({
               }).catch(e => setError(String(e)))
             }}
           />
-        ) : kind === 'flashcards' && Array.isArray(payload.cards) ? (
-          <Flashcards block={block} />
+        ) : kind === 'flashcards' ? (
+          <Flashcards data={data} readOnly={readOnly} onChange={onChange} />
         ) : ['visualization', 'animation', 'media', 'audio', 'image'].includes(kind) &&
           (payload.renderer || payload.artifacts || payload.workspace_items) ? (
           <Result payload={payload} />
