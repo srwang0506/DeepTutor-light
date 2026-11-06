@@ -266,7 +266,7 @@ function Connections({ workspace }: { workspace: string }) {
     <StudioShell
       workspace={workspace}
       active="connections"
-      title="远程工作区"
+      title="把远方的工作，接到这里。"
       description="在项目里浏览服务器与仓库。代码、配置和日志有据可查，实验的来龙去脉也留得下来。"
       action={
         <Action onClick={() => edit()}>

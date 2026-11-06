@@ -29,7 +29,6 @@ import { waitForReplyLanguageSave } from "@/features/chat/controllers/reply-lang
 
 import {
   AlertCircle,
-  BookOpen,
   NotebookPen,
   PenLine,
   RotateCcw,
@@ -2736,10 +2735,10 @@ export default function ChatWorkspace() {
               ) : !hasMessages ? (
                 <div className="flex w-full flex-1 shrink-0 min-h-[340px] items-center justify-center py-8 sm:py-12 animate-fade-in px-6">
                   <div className="study-welcome w-full max-w-[800px] text-center">
-                    <span className="study-chat-mark" aria-hidden><BookOpen size={24} strokeWidth={1.5} /></span>
-                    <h1 className="study-chat-title">{t("A little more understanding, every day.")}</h1>
+                    <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--primary)]">{t("DeepTutor Light")}</p>
+                    <h1 className="font-serif text-3xl font-medium leading-tight tracking-tight sm:text-5xl">{t("A little more understanding, every day.")}</h1>
                     <p className="mx-auto mt-5 max-w-lg text-sm leading-7 text-[var(--muted-foreground)]">{t("Bring your materials. Ask a question. Make what you learn your own.")}</p>
-                    <div className="study-chat-shortcuts">
+                    <div className="mt-6 flex justify-center gap-3 text-xs">
                       <Link href={scopedUrl("/learning/reading")} className="rounded-full border border-[var(--border)] px-4 py-2.5 hover:bg-[var(--accent)]">{t("Open materials")}</Link>
                       <Link href={scopedUrl("/learning/practice")} className="rounded-full border border-[var(--border)] px-4 py-2.5 hover:bg-[var(--accent)]">{t("Continue practice")}</Link>
                     </div>

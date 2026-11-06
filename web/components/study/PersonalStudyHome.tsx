@@ -217,13 +217,13 @@ function StudyHome({ workspace }: { workspace: string }) {
           <div>
             <div className="study-eyebrow">
               <Sunrise size={16} />
-              {text('个人学习与科研', 'YOUR PERSONAL STUDIO')}
+              {text('为自己，留一点学习时间', 'A LITTLE TIME FOR YOURSELF')}
             </div>
-            <h1>{text('今天，继续探索。', 'A little further, every day.')}</h1>
+            <h1>{text('今天，从这里继续。', 'Pick up where you left off.')}</h1>
             <p>
               {text(
-                '从一份资料、一个问题开始，把好奇变成自己的理解。',
-                'A paper, a question, a new perspective. Make room for understanding.'
+                '把重要的事往前推进一点。按自己的节奏，理解、练习，再回来验证。',
+                'Make a little room to understand, practice, and return to what matters.'
               )}
             </p>
           </div>
@@ -233,6 +233,26 @@ function StudyHome({ workspace }: { workspace: string }) {
             <ArrowUpRight size={14} />
           </Link>
         </header>
+        <div className="study-time-bar">
+          <span>
+            <Clock3 size={16} />
+            {text('今天有多少时间？', 'How much time do you have?')}
+          </span>
+          <div role="group" aria-label={text('今日学习时间', 'Study time today')}>
+            {[15, 30, 45, 60, 90].map(minutes => (
+              <button
+                key={minutes}
+                aria-pressed={plan?.budget === minutes}
+                aria-label={text(`${minutes} 分钟`, `${minutes} minutes`)}
+                disabled={saving || !snapshot?.preferences}
+                onClick={() => void save({ minutes })}
+              >
+                {minutes}
+                <small>{text(' 分钟', ' min')}</small>
+              </button>
+            ))}
+          </div>
+        </div>
         {(error || !!snapshot?.failed.length) && (
           <div className="study-warning" role="alert">
             <span>
@@ -264,10 +284,10 @@ function StudyHome({ workspace }: { workspace: string }) {
             {text('正在找回你的学习进度…', 'Finding where you left off…')}
           </div>
         ) : (
-          <>
-            <section className="study-start">
-              <div className="study-start-copy">
-                <div className="study-eyebrow">{text('接下来这一小步', 'YOUR NEXT STEP')}</div>
+          <div className="study-columns">
+            <div className="study-main">
+              <section className="study-start">
+                <div className="study-eyebrow">{text('这一小步', 'YOUR NEXT STEP')}</div>
                 <h2>
                   {first?.title ||
                     text(
@@ -306,234 +326,208 @@ function StudyHome({ workspace }: { workspace: string }) {
                     </Link>
                   )}
                 </div>
-              </div>
-              <StudyDeskArt />
-            </section>
-
-            <section className="study-toolbox">
-              {readingAllowed && (
-                <Link href={scopedUrl('/learning/reading', workspace)}>
-                  <BookOpen size={18} />
-                  <div>
-                    <strong>{text('读一份资料', 'Read your materials')}</strong>
-                    <small>
-                      {text('原文、批注与提问在一起', 'Sources, notes and questions together')}
-                    </small>
-                  </div>
-                  <ArrowUpRight size={14} />
-                </Link>
-              )}
-              {!auth.learningPolicy && (
-                <Link href={scopedUrl('/research', workspace)}>
-                  <FlaskConical size={18} />
-                  <div>
-                    <strong>{text('推进一个研究问题', 'Explore a research question')}</strong>
-                    <small>
-                      {text('文献、证据与实验思路', 'Papers, evidence and experiments')}
-                    </small>
-                  </div>
-                  <ArrowUpRight size={14} />
-                </Link>
-              )}
-              <Link href={scopedUrl('/projects', workspace)}>
-                <FolderOpen size={18} />
-                <div>
-                  <strong>{text('我的项目', 'My projects')}</strong>
-                  <small>
-                    {text('独立空间，按需连接记忆', 'Separate spaces, connected memories')}
-                  </small>
+              </section>
+              <section aria-labelledby="study-plan-title" className="study-plan">
+                <div className="study-section-heading">
+                  <h2 id="study-plan-title">{text('今天的安排', 'Your plan for today')}</h2>
+                  <span>
+                    {text(`约 ${plan?.minutes ?? 0} 分钟`, `About ${plan?.minutes ?? 0} min`)}
+                  </span>
                 </div>
-                <ArrowUpRight size={14} />
-              </Link>
-            </section>
-            <div className="study-columns">
-              <div className="study-main">
-                <section aria-labelledby="study-plan-title" className="study-plan">
-                  <div className="study-section-heading">
-                    <h2 id="study-plan-title">{text('今天的安排', 'Your plan for today')}</h2>
-                    <span>
-                      {text(`约 ${plan?.minutes ?? 0} 分钟`, `About ${plan?.minutes ?? 0} min`)}
-                    </span>
+                <p className="study-section-help">
+                  {text(
+                    '先接续待答问题，再做到期复习，最后推进最近的学习。用时是建议，你可以随时调整。',
+                    'Unfinished questions first, then due reviews and recent learning. Times are suggestions; adjust your pace anytime.'
+                  )}
+                </p>
+                {plan?.selected.length ? (
+                  <ol className="study-plan-list">
+                    {plan.selected.map((item, index) => (
+                      <StudyRow
+                        key={item.key}
+                        item={item}
+                        index={index + 1}
+                        zh={zh}
+                        disabled={saving || !snapshot?.preferences}
+                        defer={() => void save({ deferral: { key: item.key, action: 'tomorrow' } })}
+                      />
+                    ))}
+                  </ol>
+                ) : (
+                  <div className="study-empty">
+                    <BookOpen size={23} />
+                    <p>
+                      {plan?.deferred.length
+                        ? text(
+                            '已把这些学习安排留到明天，也可以随时放回今天。',
+                            'Your learning is set aside for tomorrow. Bring it back whenever you like.'
+                          )
+                        : text(
+                            '还没有需要安排的学习记录。',
+                            'There is no learning to schedule yet.'
+                          )}
+                    </p>
+                    <Link
+                      href={scopedUrl(
+                        readingAllowed ? '/learning/reading' : '/learning',
+                        workspace
+                      )}
+                    >
+                      {text('打开我的学习', 'Open my learning')} →
+                    </Link>
                   </div>
-                  <div className="study-time-bar">
-                    <span>
-                      <Clock3 size={16} />
-                      {text('今天有多少时间？', 'How much time do you have?')}
-                    </span>
-                    <div role="group" aria-label={text('今日学习时间', 'Study time today')}>
-                      {[15, 30, 45, 60, 90].map(minutes => (
-                        <button
-                          key={minutes}
-                          aria-pressed={plan?.budget === minutes}
-                          aria-label={text(`${minutes} 分钟`, `${minutes} minutes`)}
-                          disabled={saving || !snapshot?.preferences}
-                          onClick={() => void save({ minutes })}
-                        >
-                          {minutes}
-                          <small>{text(' 分钟', ' min')}</small>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <p className="study-section-help">
+                )}
+              </section>
+              {!!plan?.deferred.length && (
+                <section
+                  className="study-deferred"
+                  aria-label={text('明天再学', 'Deferred until tomorrow')}
+                >
+                  <h2>{text('明天再学', 'For tomorrow')}</h2>
+                  <p>
                     {text(
-                      '先接续待答问题，再做到期复习，最后推进最近的学习。用时是建议，你可以随时调整。',
-                      'Unfinished questions first, then due reviews and recent learning. Times are suggestions; adjust your pace anytime.'
+                      '只是暂时移出今日安排，不会修改原有复习排期。',
+                      'Hidden from today’s plan. The original review schedule is unchanged.'
                     )}
                   </p>
-                  {plan?.selected.length ? (
-                    <ol className="study-plan-list">
-                      {plan.selected.map((item, index) => (
-                        <StudyRow
-                          key={item.key}
-                          item={item}
-                          index={index + 1}
-                          zh={zh}
-                          disabled={saving || !snapshot?.preferences}
-                          defer={() =>
-                            void save({ deferral: { key: item.key, action: 'tomorrow' } })
-                          }
-                        />
-                      ))}
-                    </ol>
-                  ) : (
-                    <div className="study-empty">
-                      <BookOpen size={23} />
-                      <p>
-                        {plan?.deferred.length
-                          ? text(
-                              '已把这些学习安排留到明天，也可以随时放回今天。',
-                              'Your learning is set aside for tomorrow. Bring it back whenever you like.'
-                            )
-                          : text(
-                              '还没有需要安排的学习记录。',
-                              'There is no learning to schedule yet.'
-                            )}
-                      </p>
+                  {plan.deferred.map(item => (
+                    <div key={item.key}>
+                      <span>{item.title}</span>
+                      <button
+                        disabled={saving}
+                        onClick={() =>
+                          void save({ deferral: { key: item.key, action: 'restore' } })
+                        }
+                      >
+                        {text('放回今天', 'Bring back')}
+                      </button>
+                    </div>
+                  ))}
+                </section>
+              )}
+              {!!plan?.later.length && (
+                <details className="study-more">
+                  <summary>
+                    {text(
+                      `还有 ${plan.later.length} 项，可以慢慢来`,
+                      `${plan.later.length} more, at your pace`
+                    )}
+                    <ChevronDown size={15} />
+                  </summary>
+                  {plan.later.map(item => (
+                    <Link key={item.key} href={item.href}>
+                      <span>{item.title}</span>
+                      <ArrowUpRight size={14} />
+                    </Link>
+                  ))}
+                </details>
+              )}
+            </div>
+            <aside className="study-side">
+              {chatAllowed && (
+                <section className="study-evidence">
+                  <div className="study-eyebrow">
+                    {text('进展有据可查', 'PROGRESS WITH EVIDENCE')}
+                  </div>
+                  <h2>{text('今天留下了什么', 'What you practiced today')}</h2>
+                  <div className="study-evidence-number">
+                    {reviewed === undefined ? '—' : reviewed}
+                    <span>{text('道复习题', 'reviewed questions')}</span>
+                  </div>
+                  <p>
+                    {text(
+                      '来自已保存的复习记录。阅读、看答案和独立作答会留下不同的证据。',
+                      'From saved review records. Reading, viewing answers and independent attempts provide different evidence.'
+                    )}
+                  </p>
+                  <Link href={scopedUrl('/learning/practice', workspace)}>
+                    {text('查看复习记录', 'Review history')}
+                    <ArrowRight size={14} />
+                  </Link>
+                </section>
+              )}
+              {chatAllowed && (
+                <section className="study-paths">
+                  <div className="study-section-heading">
+                    <h2>{text('正在学习', 'Your learning goals')}</h2>
+                    <Route size={17} />
+                  </div>
+                  {validGoals.length ? (
+                    validGoals.slice(0, 3).map(topic => (
                       <Link
+                        key={topic.path_id}
                         href={scopedUrl(
-                          readingAllowed ? '/learning/reading' : '/learning',
+                          `/learning/mastery/${encodeURIComponent(topic.path_id)}`,
                           workspace
                         )}
                       >
-                        {text('打开我的学习', 'Open my learning')} →
-                      </Link>
-                    </div>
-                  )}
-                </section>
-                {!!plan?.deferred.length && (
-                  <section
-                    className="study-deferred"
-                    aria-label={text('明天再学', 'Deferred until tomorrow')}
-                  >
-                    <h2>{text('明天再学', 'For tomorrow')}</h2>
-                    <p>
-                      {text(
-                        '只是暂时移出今日安排，不会修改原有复习排期。',
-                        'Hidden from today’s plan. The original review schedule is unchanged.'
-                      )}
-                    </p>
-                    {plan.deferred.map(item => (
-                      <div key={item.key}>
-                        <span>{item.title}</span>
-                        <button
-                          disabled={saving}
-                          onClick={() =>
-                            void save({ deferral: { key: item.key, action: 'restore' } })
-                          }
-                        >
-                          {text('放回今天', 'Bring back')}
-                        </button>
-                      </div>
-                    ))}
-                  </section>
-                )}
-                {!!plan?.later.length && (
-                  <details className="study-more">
-                    <summary>
-                      {text(
-                        `还有 ${plan.later.length} 项，可以慢慢来`,
-                        `${plan.later.length} more, at your pace`
-                      )}
-                      <ChevronDown size={15} />
-                    </summary>
-                    {plan.later.map(item => (
-                      <Link key={item.key} href={item.href}>
-                        <span>{item.title}</span>
-                        <ArrowUpRight size={14} />
-                      </Link>
-                    ))}
-                  </details>
-                )}
-              </div>
-              <aside className="study-side">
-                {chatAllowed && (
-                  <section className={`study-evidence ${reviewed === 0 ? 'is-empty' : ''}`}>
-                    <div className="study-eyebrow">{text('学习足迹', 'YOUR PROGRESS')}</div>
-                    <h2>{text('每一次练习，都算数。', 'Every practice leaves a trace.')}</h2>
-                    <div className="study-evidence-number">
-                      {reviewed === undefined ? '—' : reviewed}
-                      <span>{text('道复习题', 'reviewed questions')}</span>
-                    </div>
-                    <p>
-                      {text(
-                        '记录独立作答，也记录看过提示后的进步。',
-                        'Track independent attempts and progress made with a little help.'
-                      )}
-                    </p>
-                    <Link href={scopedUrl('/learning/practice', workspace)}>
-                      {text('查看复习记录', 'Review history')}
-                      <ArrowRight size={14} />
-                    </Link>
-                  </section>
-                )}
-                {chatAllowed && (
-                  <section className="study-paths">
-                    <div className="study-section-heading">
-                      <h2>{text('正在学习', 'Your learning goals')}</h2>
-                      <Route size={17} />
-                    </div>
-                    {validGoals.length ? (
-                      validGoals.slice(0, 3).map(topic => (
-                        <Link
-                          key={topic.path_id}
-                          href={scopedUrl(
-                            `/learning/mastery/${encodeURIComponent(topic.path_id)}`,
-                            workspace
+                        <strong>{topic.name || topic.metadata.goal}</strong>
+                        <span>
+                          {text(
+                            `${topic.map.counts.mastered} / ${topic.map.counts.total} 个目标已达标`,
+                            `${topic.map.counts.mastered} / ${topic.map.counts.total} objectives met`
                           )}
-                        >
-                          <strong>{topic.name || topic.metadata.goal}</strong>
-                          <span>
-                            {text(
-                              `${topic.map.counts.mastered} / ${topic.map.counts.total} 个目标已达标`,
-                              `${topic.map.counts.mastered} / ${topic.map.counts.total} objectives met`
-                            )}
-                          </span>
-                        </Link>
-                      ))
-                    ) : (
-                      <p>
-                        {text(
-                          '把“想学会什么”写成一个目标，再和导师一起调整路径。',
-                          'Turn something you want to learn into a goal, then shape the path with your tutor.'
-                        )}
-                      </p>
-                    )}
-                    <Link
-                      className="study-text-link"
-                      href={scopedUrl('/learning/mastery?create=1', workspace)}
-                    >
-                      {text('建立学习目标', 'Set a learning goal')}
-                      <ArrowUpRight size={14} />
-                    </Link>
-                  </section>
+                        </span>
+                      </Link>
+                    ))
+                  ) : (
+                    <p>
+                      {text(
+                        '把“想学会什么”写成一个目标，再和导师一起调整路径。',
+                        'Turn something you want to learn into a goal, then shape the path with your tutor.'
+                      )}
+                    </p>
+                  )}
+                  <Link
+                    className="study-text-link"
+                    href={scopedUrl('/learning/mastery?create=1', workspace)}
+                  >
+                    {text('建立学习目标', 'Set a learning goal')}
+                    <ArrowUpRight size={14} />
+                  </Link>
+                </section>
+              )}
+              <section className="study-toolbox">
+                {readingAllowed && (
+                  <Link href={scopedUrl('/learning/reading', workspace)}>
+                    <BookOpen size={18} />
+                    <div>
+                      <strong>{text('读一份资料', 'Read your materials')}</strong>
+                      <small>
+                        {text('原文、批注与提问在一起', 'Sources, notes and questions together')}
+                      </small>
+                    </div>
+                    <ArrowUpRight size={14} />
+                  </Link>
                 )}
-              </aside>
-            </div>
-          </>
+                {!auth.learningPolicy && (
+                  <Link href={scopedUrl('/research', workspace)}>
+                    <FlaskConical size={18} />
+                    <div>
+                      <strong>{text('推进一个研究问题', 'Explore a research question')}</strong>
+                      <small>
+                        {text('文献、证据与实验思路', 'Papers, evidence and experiments')}
+                      </small>
+                    </div>
+                    <ArrowUpRight size={14} />
+                  </Link>
+                )}
+                <Link href={scopedUrl('/projects', workspace)}>
+                  <FolderOpen size={18} />
+                  <div>
+                    <strong>{text('我的项目', 'My projects')}</strong>
+                    <small>
+                      {text('独立空间，按需连接记忆', 'Separate spaces, connected memories')}
+                    </small>
+                  </div>
+                  <ArrowUpRight size={14} />
+                </Link>
+              </section>
+            </aside>
+          </div>
         )}
-        {!auth.learningPolicy && <Continuations workspace={workspace} />}
       </div>
+      {!auth.learningPolicy && <Continuations workspace={workspace} />}
     </FeaturePage>
   )
 }
@@ -583,34 +577,5 @@ function StudyRow({
         </div>
       </div>
     </li>
-  )
-}
-
-/** Decorative book illustration; it never stands in for real progress data. */
-function StudyDeskArt() {
-  return (
-    <svg className="study-desk-art" viewBox="0 0 240 180" fill="none" aria-hidden="true">
-      <circle cx="133" cy="86" r="75" stroke="currentColor" strokeOpacity=".13" />
-      <circle cx="133" cy="86" r="57" stroke="currentColor" strokeOpacity=".08" />
-      <path d="M33 117 136 144 210 108" stroke="currentColor" strokeOpacity=".2" />
-      <g transform="rotate(-12 117 88)">
-        <rect x="64" y="33" width="110" height="127" rx="5" fill="#172d25" />
-        <rect x="69" y="28" width="110" height="127" rx="5" fill="#dce3ca" />
-        <path d="M82 28v127" stroke="#b7c2a4" />
-        <path d="M101 57h52M101 64h34" stroke="#687861" strokeWidth="2" strokeLinecap="round" />
-        <path
-          d="M101 81h53M101 90h45M101 99h49M101 108h36"
-          stroke="#a1ae94"
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
-        <path d="M149 28v32l8-6 8 6V28" fill="#c88765" />
-        <circle cx="145" cy="130" r="9" stroke="#687861" />
-        <path d="m141 130 3 3 5-6" stroke="#687861" strokeWidth="1.5" />
-      </g>
-      <path d="m44 52 3-9 3 9 9 3-9 3-3 9-3-9-9-3 9-3Z" fill="#c88765" />
-      <circle cx="203" cy="137" r="3" fill="#dce3ca" />
-      <path d="m197 38 6 6m0-6-6 6" stroke="#dce3ca" strokeOpacity=".6" />
-    </svg>
   )
 }

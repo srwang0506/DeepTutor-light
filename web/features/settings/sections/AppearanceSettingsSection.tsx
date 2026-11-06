@@ -114,7 +114,7 @@ export default function AppearanceSettingsPage() {
           <p className="mt-4 text-[11.5px] leading-relaxed text-[var(--muted-foreground)]/80">
             {t("System follows the device's light or dark appearance.")}{" "}
             {t(
-              "Default pairs warm white with forest green. Cream uses parchment and clay. Dark keeps comfortable contrast on deep green surfaces. Glass retains its translucent purple palette.",
+              "Default is a clean pure-white theme with a blue accent. Cream is warm and paper-like with a terracotta accent. Dark keeps Cream's warmth on near-black. Glass adds translucent purple panels on a deep gradient.",
             )}
           </p>
         </div>

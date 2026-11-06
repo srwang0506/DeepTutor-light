@@ -155,8 +155,8 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                     ? '项目'
                     : 'Project'
                 : zh
-                  ? '我的项目'
-                  : 'My projects'}
+                  ? '让每个想法，有自己的空间。'
+                  : 'A place for every idea.'}
             </h1>
             <p>
               {detail

@@ -1,7 +1,7 @@
 .projects-shell {
   --project-line: color-mix(in srgb, var(--foreground) 10%, transparent);
   --project-soft: color-mix(in srgb, var(--foreground) 3%, var(--background));
-  --project-green: var(--desk-green);
+  --project-green: #477965;
   max-width: 1080px;
   margin: auto;
   padding: 12px 0 38px;
@@ -15,7 +15,7 @@
   margin: 12px 0 34px;
 }
 .projects-eyebrow {
-  font-size: 11px;
+  font-size: 10px;
   letter-spacing: 0.16em;
   color: var(--muted-foreground);
   margin-bottom: 15px;
@@ -42,10 +42,10 @@
   padding: 10px 15px;
   border-radius: 10px;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.4;
   font-weight: 500;
-  background: var(--desk-paper);
+  background: var(--background);
   transition:
     background 0.15s,
     transform 0.15s;
@@ -54,9 +54,9 @@
   background: color-mix(in srgb, var(--foreground) 5%, var(--background));
 }
 .project-button.primary {
-  background: var(--desk-focus);
+  background: #477965;
   color: white;
-  border-color: var(--desk-focus);
+  border-color: #477965;
   box-shadow: 0 2px 4px #24493514;
 }
 .project-button.primary:hover {
@@ -78,17 +78,17 @@
   gap: 18px;
 }
 .project-tabs button {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--muted-foreground);
   padding: 8px 0;
   border-bottom: 2px solid transparent;
 }
 .project-tabs button.active {
   color: var(--foreground);
-  border-color: var(--desk-focus);
+  border-color: #477965;
 }
 .project-tabs span {
-  font-size: 11px;
+  font-size: 10px;
   background: var(--project-soft);
   padding: 2px 6px;
   border-radius: 5px;
@@ -107,7 +107,7 @@
   background: transparent;
   outline: none;
   width: 150px;
-  font-size: 13px;
+  font-size: 12px;
 }
 .project-grid {
   display: grid;
@@ -116,9 +116,9 @@
 }
 .project-card {
   border: 1px solid var(--project-line);
-  border-radius: 12px;
+  border-radius: 17px;
   padding: 24px 22px 16px;
-  background: var(--desk-paper);
+  background: var(--background);
   min-height: 232px;
   display: flex;
   flex-direction: column;
@@ -140,7 +140,7 @@
   margin-bottom: 22px;
 }
 .project-card-top > span:last-child {
-  font-size: 11px;
+  font-size: 10px;
   letter-spacing: 0.02em;
   color: var(--muted-foreground);
 }
@@ -176,7 +176,7 @@
   flex-shrink: 0;
 }
 .project-card > p {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.8;
   color: var(--muted-foreground);
   margin: 9px 0 22px;
@@ -199,7 +199,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
+  font-size: 10px;
 }
 .project-card-bottom button {
   padding: 6px;
@@ -211,7 +211,7 @@
 }
 .project-create-card {
   border: 1px dashed var(--project-line);
-  border-radius: 12px;
+  border-radius: 17px;
   min-height: 232px;
   display: flex;
   flex-direction: column;
@@ -223,7 +223,7 @@
 }
 .project-create-card:hover {
   background: var(--project-soft);
-  border-color: var(--desk-focus);
+  border-color: #477965;
 }
 .project-create-card > span {
   border: 1px solid var(--project-line);
@@ -260,7 +260,7 @@
   color: var(--foreground);
 }
 .project-explainer p {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.8;
   margin-top: 6px;
 }
@@ -294,7 +294,7 @@
   font-weight: 500;
 }
 .project-detail-hero p {
-  font-size: 13px;
+  font-size: 12px;
   margin-top: 6px;
   color: var(--muted-foreground);
 }
@@ -343,7 +343,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--muted-foreground);
 }
 .project-section-title > button {
@@ -373,12 +373,12 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 450;
 }
 .project-activity small {
   display: block;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--muted-foreground);
   margin-top: 4px;
 }
@@ -392,7 +392,7 @@
   color: var(--muted-foreground);
 }
 .project-empty p {
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.7;
 }
 .project-empty > a {
@@ -407,7 +407,7 @@
   align-items: center;
   gap: 10px;
   padding: 11px 0;
-  font-size: 13px;
+  font-size: 12px;
 }
 .project-task > svg {
   color: #477965;
@@ -420,7 +420,7 @@
   white-space: nowrap;
 }
 .project-task > small {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--muted-foreground);
 }
 .project-connection {
@@ -438,13 +438,13 @@
   min-width: 0;
 }
 .project-connection strong {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   word-break: break-word;
 }
 .project-connection small {
   display: block;
-  font-size: 11px;
+  font-size: 10px;
   margin-top: 4px;
   color: var(--muted-foreground);
 }
@@ -498,12 +498,12 @@
   flex: 1;
 }
 .project-resource strong {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
 }
 .project-resource small {
   display: block;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.7;
   color: var(--muted-foreground);
   margin-top: 5px;
@@ -526,8 +526,8 @@
   border: 1px solid var(--project-line);
   border-radius: 10px;
   padding: 11px 13px;
-  background: var(--desk-paper);
-  font-size: 13px;
+  background: var(--background);
+  font-size: 12px;
 }
 .project-recall-results {
   display: grid;
@@ -547,12 +547,12 @@
   margin-bottom: 12px;
 }
 .project-recall-result small {
-  font-size: 11px;
+  font-size: 10px;
   flex: 1;
   color: var(--muted-foreground);
 }
 .project-recall-result strong {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 550;
 }
 .project-recall-result p {
@@ -571,7 +571,7 @@
   align-items: center;
   gap: 20px;
   margin-top: 25px;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--muted-foreground);
 }
 .project-error {
@@ -579,7 +579,7 @@
   background: color-mix(in srgb, #bc5353 8%, transparent);
   color: #b44a4a;
   border-radius: 9px;
-  font-size: 13px;
+  font-size: 12px;
   margin: 12px 0;
   overflow-wrap: anywhere;
 }
@@ -587,7 +587,7 @@
   display: flex;
   gap: 8px;
   align-items: center;
-  font-size: 13px;
+  font-size: 12px;
   color: #477965;
   padding: 10px 0;
 }
@@ -595,7 +595,7 @@
   padding: 60px;
   text-align: center;
   color: var(--muted-foreground);
-  font-size: 13px;
+  font-size: 12px;
 }
 .project-editor {
   display: flex;
@@ -607,16 +607,16 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
 }
 .project-editor input:not([type='checkbox']),
 .project-editor textarea {
   border: 1px solid var(--border);
-  background: var(--desk-paper);
+  background: var(--background);
   border-radius: 9px;
   padding: 10px 12px;
-  font-size: 13px;
+  font-size: 12px;
   width: 100%;
   font-weight: 400;
   line-height: 1.6;
@@ -671,7 +671,7 @@
   display: flex;
   gap: 8px;
   align-items: center;
-  font-size: 13px;
+  font-size: 12px;
   padding: 12px 0;
   color: #477965;
 }
@@ -680,7 +680,7 @@
   font-weight: 500;
 }
 .project-local-memory > span:last-of-type {
-  font-size: 11px;
+  font-size: 10px;
 }
 .project-source-options {
   max-height: 220px;
@@ -710,13 +710,13 @@
 }
 .project-source-option strong {
   display: block;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   overflow-wrap: anywhere;
 }
 .project-source-option small {
   display: block;
-  font-size: 11px;
+  font-size: 10px;
   color: var(--muted-foreground);
   margin-top: 4px;
   line-height: 1.6;
@@ -731,13 +731,13 @@
   flex-shrink: 0;
 }
 .project-picker-foot {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--muted-foreground);
   line-height: 1.8;
   margin-top: 14px;
 }
 .project-advanced {
-  font-size: 13px;
+  font-size: 12px;
 }
 .project-advanced summary {
   color: var(--muted-foreground);
@@ -795,7 +795,7 @@
     font-size: 27px;
   }
   .projects-header p {
-    font-size: 13px;
+    font-size: 12px;
   }
   .project-toolbar {
     align-items: stretch;
@@ -860,42 +860,5 @@
   }
   .project-card:hover {
     transform: none;
-  }
-}
-
-.projects-header h1 {
-  font-size: 32px;
-  font-weight: 600;
-  letter-spacing: -0.04em;
-}
-.projects-header p {
-  font-size: 14px;
-}
-.project-card {
-  border-color: var(--desk-line);
-  box-shadow: 0 2px 4px #20332803;
-}
-.project-card-title {
-  font-size: 18px;
-}
-.project-card:hover {
-  box-shadow: 0 8px 20px #2033280c;
-}
-.project-card-top {
-  margin-bottom: 26px;
-}
-.project-search {
-  background: var(--desk-paper);
-}
-.project-mark {
-  border-radius: 10px;
-}
-.project-button {
-  min-height: 40px;
-  border-radius: 8px;
-}
-@media (max-width: 540px) {
-  .projects-header h1 {
-    font-size: 27px;
   }
 }
