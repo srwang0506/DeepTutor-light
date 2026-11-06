@@ -1,12 +1,14 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import WritingTools from './WritingTools'
 import WritingAssistant from './WritingAssistant'
 import { ArrowLeft, Download, FileCode2, Play, Plus, Save } from 'lucide-react'
 import { useActiveWorkspaceId } from '@/hooks/useActiveWorkspaceId'
 import { Dialog } from '@/shared/ui/Dialog'
+import { browserStorage } from '@/shared/storage'
+import { recoverDraft, assertDraftCanSave, type SavedDraft } from '@/lib/manuscript-draft'
 import { apiFetch } from '@/lib/api'
 import {
   records,
@@ -62,7 +64,9 @@ export default function WritingPage() {
   return <WritingWorkspace key={workspace} workspace={workspace} />
 }
 function WritingWorkspace({ workspace }: { workspace: string }) {
-  const router = useRouter()
+  const router = useRouter(),
+    search = useSearchParams()
+  const openedDeepLink = useRef(false)
   const draftKey = (document: string, path: string) =>
     `studio-draft:${workspace}:${document}:${path}`
   const op = useOperation(),
@@ -78,6 +82,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     [proposals, setProposals] = useState<StudioRecord<ProposalData>[]>([]),
     [submissions, setSubmissions] = useState<StudioRecord<SubmissionData>[]>([]),
     [preview, setPreview] = useState(''),
+    [pdfJump, setPdfJump] = useState<{ locator: number; nonce: number; y?: number } | null>(null),
     [jump, setJump] = useState<{ line: number; nonce: number } | undefined>(),
     [audit, setAudit] = useState<Audit | null>(null),
     [log, setLog] = useState(''),
@@ -95,10 +100,12 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     [accepting, setAccepting] = useState<StudioRecord<ProposalData> | null>(null),
     [factConfirmed, setFactConfirmed] = useState(false),
     [packing, setPacking] = useState(false),
+    [packageKind, setPackageKind] = useState('submission'),
     [allowlist, setAllowlist] = useState<string[]>([]),
     [newFile, setNewFile] = useState(false),
     [newPath, setNewPath] = useState(''),
     [conflict, setConflict] = useState<OpenFile | null>(null)
+  const conflictState = useRef<{ base: OpenFile; disk: OpenFile } | null>(null)
   const current = useRef({ active, file, text, savedText })
   current.current = { active, file, text, savedText }
   const saving = useRef<Promise<void> | null>(null),
@@ -145,6 +152,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
       await saving.current
       return
     }
+    assertDraftCanSave(conflictState.current)
     const snapshot = current.current
     if (!snapshot.active || !snapshot.file || snapshot.text === snapshot.savedText) return
     setSaveStatus('saving')
@@ -177,7 +185,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
             savedText: snapshot.text,
           }
           if (current.current.text === snapshot.text)
-            sessionStorage.removeItem(draftKey(snapshot.active!.id, snapshot.file!.path))
+            browserStorage.removeRaw('session', draftKey(snapshot.active!.id, snapshot.file!.path))
           setSaveStatus('saved')
         }
       } catch (e) {
@@ -194,7 +202,8 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     await task
   }, [workspace])
   useEffect(() => {
-    if (!active || !file || text === savedText || saveStatus === 'error') return
+    if (!active || !file || text === savedText || saveStatus === 'error' || conflictState.current)
+      return
     const timer = setTimeout(() => {
       void save().catch(() => {})
     }, 1000)
@@ -256,10 +265,19 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     const c = current.current
     if (c.active && c.file) {
       try {
-        sessionStorage.setItem(
-          draftKey(c.active.id, c.file.path),
-          JSON.stringify({ hash: c.file.hash, text: value })
+        if (
+          !browserStorage.writeRaw(
+            'session',
+            draftKey(c.active.id, c.file.path),
+            JSON.stringify({
+              hash: c.file.hash,
+              baseText: c.file.text,
+              text: value,
+              conflict: conflictState.current,
+            })
+          )
         )
+          throw new Error('Draft storage unavailable')
       } catch {
         setSaveError('浏览器无法暂存草稿，请保存后再离开页面。')
       }
@@ -271,24 +289,27 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
       workspace,
       `/manuscripts/${identifier}/file?path=${encodeURIComponent(path)}`
     )
-    let recovered: { hash: string; text: string } | null = null
+    let recovered: SavedDraft | null = null
     try {
-      const raw = sessionStorage.getItem(draftKey(identifier, path))
+      const raw = browserStorage.readRaw('session', draftKey(identifier, path))
       if (raw) {
         const data = JSON.parse(raw)
         if (typeof data.text === 'string' && typeof data.hash === 'string') recovered = data
       }
     } catch {}
-    const restored = recovered?.text ?? source.text
-    setFile(source)
+    const restoredState = recoverDraft(source, recovered)
+    const { base, text: restored } = restoredState
+    const conflicting = !!restoredState.conflict
+    conflictState.current = restoredState.conflict
+    setFile(base)
     setText(restored)
-    setSavedText(source.text)
-    const conflicting = !!recovered && recovered.hash !== source.hash && restored !== source.text
+    setSavedText(base.text)
     setSaveStatus(conflicting ? 'error' : 'saved')
     setSaveError(conflicting ? '已恢复未保存的编辑，但磁盘版本也发生变化。请比较后合并。' : '')
     if (conflicting) setConflict(source)
     setSelection({ start: 0, end: 0, text: '' })
-    current.current = { ...current.current, file: source, text: restored, savedText: source.text }
+    current.current = { ...current.current, file: base, text: restored, savedText: base.text }
+    if (conflicting) changeText(restored)
   }
   async function openDocument(row: StudioRecord<ManuscriptData>) {
     await flush()
@@ -309,6 +330,18 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     if (listing.files.some(f => f.path === row.data.main_file))
       await openFile(row.id, row.data.main_file)
   }
+  useEffect(() => {
+    const id = search.get('manuscript')
+    if (openedDeepLink.current || !id || !documents.length) return
+    const row = documents.find(d => d.id === id)
+    openedDeepLink.current = true
+    void (async () => {
+      const target = row || (await studio<StudioRecord<ManuscriptData>>(workspace, `/record/${id}`))
+      await openDocument(target)
+      const path = search.get('path')
+      if (path && path !== target.data.main_file) await openFile(id, path)
+    })().catch(e => op.setError(e.message))
+  }, [documents, search]) // eslint-disable-line react-hooks/exhaustive-deps
   async function newDocument() {
     let row: StudioRecord<ManuscriptData>
     if (archive) {
@@ -388,7 +421,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     setSaveError('')
     // A resolution chooses a reviewed disk version; discard only this file's
     // browser draft after preserving every recovery version on the server.
-    if (recovering.path) sessionStorage.removeItem(draftKey(active.id, recovering.path))
+    if (recovering.path) browserStorage.removeRaw('session', draftKey(active.id, recovering.path))
     current.current = { ...current.current, file: null, text: '', savedText: '' }
     await openDocument(active)
   }
@@ -421,6 +454,34 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
       abort.abort()
     }
   }, [successful?.id, workspace]) // eslint-disable-line react-hooks/exhaustive-deps
+  async function sourceMap(direction: 'forward' | 'inverse', page = 1, x = 0.5, y = 0.5) {
+    if (!successful || !file || !active) return
+    await flush()
+    const line = Array.from(text).slice(0, selection.start).join('').split('\n').length
+    const params = new URLSearchParams({
+      direction,
+      path: file.path,
+      line: String(line),
+      page: String(page),
+      x: String(x),
+      y: String(y),
+    })
+    const target = await studio<{
+      path: string
+      line: number
+      page: number
+      y: number
+      current_source_matches: boolean
+    }>(workspace, `/builds/${successful.id}/source-map/locate?${params}`)
+    if (!target.current_source_matches)
+      throw new Error('此预览对应旧源码，请重新编译后再定位，避免跳到已变化的行。')
+    if (direction === 'forward')
+      setPdfJump({ locator: target.page, y: Math.max(0, target.y - 0.1), nonce: Date.now() })
+    else {
+      if (target.path !== file.path) await openFile(active.id, target.path)
+      setJump({ line: target.line, nonce: Date.now() })
+    }
+  }
   async function inspect() {
     if (!active) return
     await flush()
@@ -457,6 +518,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     if (!active || !successful) return
     await post(workspace, `/manuscripts/${active.id}/submissions`, {
       paths: allowlist,
+      kind: packageKind,
       build_id: successful.id,
     })
     setPacking(false)
@@ -478,15 +540,17 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
   }
   async function inspectConflict() {
     if (!active || !file) return
-    setConflict(
-      await studio(
-        workspace,
-        `/manuscripts/${active.id}/file?path=${encodeURIComponent(file.path)}`
-      )
+    const disk = await studio<OpenFile>(
+      workspace,
+      `/manuscripts/${active.id}/file?path=${encodeURIComponent(file.path)}`
     )
+    conflictState.current = { base: file, disk }
+    setConflict(disk)
+    changeText(current.current.text)
   }
   function useRemote() {
     if (!conflict) return
+    conflictState.current = null
     setFile(conflict)
     setText(conflict.text)
     setSavedText(conflict.text)
@@ -498,14 +562,16 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
       text: conflict.text,
       savedText: conflict.text,
     }
-    if (active && file) sessionStorage.removeItem(draftKey(active.id, file.path))
+    if (active && file) browserStorage.removeRaw('session', draftKey(active.id, file.path))
     setConflict(null)
   }
   function mergeLocal() {
     if (!conflict) return
+    conflictState.current = null
     setFile(conflict)
     setSavedText(conflict.text)
     current.current = { ...current.current, file: conflict, savedText: conflict.text }
+    changeText(current.current.text)
     setSaveError('')
     setSaveStatus('saved')
     setConflict(null)
@@ -753,7 +819,11 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
                           ? '等待保存'
                           : '已保存'}
                   </span>
-                  <button className="studio-link-button" onClick={() => op.run(save)}>
+                  <button
+                    className="studio-link-button"
+                    aria-label="保存源文件"
+                    onClick={() => op.run(save)}
+                  >
                     <Save size={12} />
                   </button>
                 </div>
@@ -771,6 +841,13 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
             <section className="studio-preview">
               <header className="studio-editor-toolbar">
                 <span>PDF 预览</span>
+                <button
+                  className="studio-link-button"
+                  disabled={!successful || op.busy}
+                  onClick={() => op.run(() => sourceMap('forward'))}
+                >
+                  定位当前源码 ↗
+                </button>
                 <span className="studio-muted">
                   {previewStale
                     ? '源文件已更新，预览来自上次构建'
@@ -790,13 +867,17 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
                     sourceUrl={preview}
                     unitCount={1}
                     annotations={[]}
-                    jump={null}
+                    jump={pdfJump}
                     onSelection={() => {}}
+                    onPointDoubleClick={(page, x, y) => {
+                      void op.run(() => sourceMap('inverse', page, x, y))
+                    }}
                   />
                 </div>
               ) : (
                 <StudioEmpty title="保存，然后编译">
-                  预览来自固定的源文件快照；编译失败时，上一份成功的 PDF 会继续保留。
+                  双击 PDF 可定位源码；预览来自固定的源文件快照。编译失败时，上一份成功的 PDF
+                  会继续保留。
                 </StudioEmpty>
               )}
             </section>
@@ -1005,8 +1086,8 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
       <Dialog
         open={packing}
         onClose={() => !op.busy && setPacking(false)}
-        title="生成投稿快照"
-        description="从最近成功构建中选择要导出的文件。PDF 会一并加入，工程目录之外的资料不会包含在内。"
+        title="导出冻结版本"
+        description="投稿包包含入口文件、依赖与明确选择的附件，并在干净目录重新编译。内部归档可保留笔记和日志。"
         size="md"
         className="studio-dialog"
         footer={
@@ -1016,6 +1097,12 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
         }
       >
         <ErrorNotice message={op.error} />
+        <Field label="用途">
+          <select value={packageKind} onChange={e => setPackageKind(e.target.value)}>
+            <option value="submission">对外投稿 · 干净编译验证</option>
+            <option value="archive">内部研究归档</option>
+          </select>
+        </Field>
         {successful &&
           Object.keys(successful.data.input_files).map(path => (
             <label className="studio-check" key={path}>
@@ -1101,7 +1188,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
         open={!!conflict}
         onClose={() => setConflict(null)}
         title="外部修改需要合并"
-        description="当前编辑仍保留。比较两个版本，再决定如何继续。"
+        description="当前编辑仍保留，保存已暂停。关闭窗口后仍需解决冲突才能切换文件或继续保存。"
         size="lg"
         className="studio-dialog"
         footer={
@@ -1113,6 +1200,13 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
           </>
         }
       >
+        <details className="studio-note">
+          <summary>编辑基底版本</summary>
+          <pre className="studio-diff">
+            {conflictState.current?.base.text ||
+              '此旧草稿没有保存基底正文，请仔细比较当前编辑和磁盘版本。'}
+          </pre>
+        </details>
         <div className="studio-split">
           <div>
             <h3>磁盘版本</h3>

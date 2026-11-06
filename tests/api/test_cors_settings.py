@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from deeptutor.api import main as api_main
 
 
-def test_cors_allows_remote_http_origins_when_auth_disabled(
+def test_cors_always_requires_explicit_origins(
     monkeypatch,
 ) -> None:
     monkeypatch.delenv("AUTH_ENABLED", raising=False)
@@ -17,7 +17,8 @@ def test_cors_allows_remote_http_origins_when_auth_disabled(
 
     settings = api_main._build_cors_settings()
 
-    assert settings["allow_origin_regex"] == r"https?://.*"
+    assert settings["allow_origin_regex"] is None
+    assert settings["mode"] == "explicit"
     assert "http://localhost:3782" in settings["allow_origins"]
     assert "http://127.0.0.1:3782" in settings["allow_origins"]
 
@@ -56,7 +57,7 @@ def test_cors_normalizes_common_origin_input_mistakes(monkeypatch) -> None:
 
 
 def test_cors_preflight_allows_partner_patch_save() -> None:
-    client = TestClient(api_main.app)
+    client = TestClient(api_main.app, base_url="http://localhost:8001")
 
     response = client.options(
         "/api/partners/partner",

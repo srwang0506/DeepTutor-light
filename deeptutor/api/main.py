@@ -1,6 +1,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 import logging
+import os
 import sys
 
 from fastapi import FastAPI, Request
@@ -88,16 +89,14 @@ def _build_cors_settings() -> dict[str, object]:
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
-    for origin in extra_origins:
+    for origin in [*extra_origins, *os.environ.get("DEEPTUTOR_LOCAL_ORIGINS", "").split(",")]:
+        if not origin:
+            continue
         if origin not in origins:
             origins.append(origin)
 
-    # Auth is disabled by default. In that local/single-user mode, mirror the
-    # pre-v1.3.8 behavior and allow remote Docker/LAN origins out of the box.
-    # When auth is enabled, require explicit CORS_ORIGIN(S) for credentialed
-    # cross-origin requests.
-    allow_origin_regex = None if auth_settings["enabled"] else r"https?://.*"
-    mode = "explicit" if auth_settings["enabled"] else "permissive"
+    allow_origin_regex = None
+    mode = "explicit"
     return {
         "allow_origins": origins,
         "allow_origin_regex": allow_origin_regex,
@@ -525,6 +524,15 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+from deeptutor.api.local_access import LocalAccessMiddleware
+
+app.add_middleware(
+    LocalAccessMiddleware,
+    enabled=not load_auth_settings()["enabled"],
+    capability=os.environ.get("DEEPTUTOR_LOCAL_CAPABILITY", ""),
+    origins=_cors_settings["allow_origins"],
 )
 
 # Initialize user directories on startup

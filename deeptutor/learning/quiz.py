@@ -38,6 +38,8 @@ class QuizReceipt(BaseModel):
     confidence: float | None = None
     projection_status: Literal["complete", "pending"] = "complete"
     entry_id: int | None = None
+    independent: bool = False
+    evidence_kind: Literal["independent", "assisted", "correction"] | None = None
 
 
 async def question_contract(store, session_id, turn_id, question_id, version=""):
@@ -79,6 +81,12 @@ async def question_contract(store, session_id, turn_id, question_id, version="")
 
 def validate_source_scope(contract):
     scope = (contract.get("metadata") or {}).get("source_scope") or {}
+    if scope.get("studio_object"):
+        from deeptutor.studio.actions import resolve
+        from deeptutor.studio.contracts import ObjectRef
+        from deeptutor.studio.database import Studio
+
+        resolve(Studio(), ObjectRef(**scope["studio_object"]))
     material_id = scope.get("reading_material_id")
     if material_id:
         from deeptutor.multi_user.learning_access import assert_learning_material
@@ -160,6 +168,10 @@ async def submit_quiz(store, request: QuizSubmission):
     lease = await store.begin_quiz_submission(payload, retry=request.retry)
     if lease is None:
         return await store.quiz_submission(request.attempt_id, request.session_id)
+    if request.assistance != "independent":
+        await store.record_quiz_exposure(
+            request.session_id, contract, request.assistance, "attempt:" + request.attempt_id
+        )
     verdict = None
     image_references = []
     try:
@@ -169,7 +181,7 @@ async def submit_quiz(store, request: QuizSubmission):
             verdict = Verdict(
                 result="ungraded",
                 confidence=0,
-                feedback="Reference viewed. Try a new attempt independently to check your understanding.",
+                feedback="Reference viewed. A later correction is valuable; use a new transfer question after a delay to check independent understanding.",
             )
         if verdict is None and not request.answer_images:
             verdict = rule_verdict(contract, request.answer)

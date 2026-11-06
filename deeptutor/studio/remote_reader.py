@@ -130,7 +130,9 @@ def repository(path, roots):
         raise ValueError("Select a repository root with a local .git directory.")
     commit = git(path, "rev-parse", "--verify", "HEAD")
     branch = git(path, "rev-parse", "--abbrev-ref", "HEAD")
-    dirty = git(path, "status", "--porcelain=v1", "--untracked-files=no")
+    # Even `git status` may run repository-defined clean filters while refreshing
+    # an index. Object/ref reads cannot establish worktree cleanliness safely.
+    # Keep that distinction explicit instead of executing untrusted converters.
     candidates = []
     # A bounded walk does not enter dependency directories or follow symlinks.
     visited = 0
@@ -181,8 +183,10 @@ def repository(path, roots):
         "path": str(path),
         "commit": commit,
         "branch": branch,
-        "tracked_changes": dirty,
-        "dirty": bool(dirty),
+        "tracked_changes": None,
+        "dirty": None,
+        "dirty_state": "unknown",
+        "dirty_reason": "Read-only inspection does not execute worktree filters.",
         "candidates": candidates,
         "scan_complete": visited <= 3000 and len(candidates) < 150,
         "analysis": "static_only",

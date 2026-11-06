@@ -49,6 +49,9 @@ class Studio:
     def db(self, *, write=False):
         db = sqlite3.connect(self.root / "studio.sqlite", timeout=15)
         db.row_factory = sqlite3.Row
+        db.create_function(
+            "casefold", 1, lambda value: str(value or "").casefold(), deterministic=True
+        )
         try:
             db.execute("PRAGMA foreign_keys=ON")
             db.execute("PRAGMA journal_mode=WAL")
@@ -88,6 +91,16 @@ class Studio:
                 """)
             if db.execute("SELECT value FROM metadata WHERE key='schema'").fetchone()[0] != "1":
                 raise Conflict("This library requires a newer application version.")
+            if not db.execute("SELECT 1 FROM metadata WHERE key='library_indexes_v1'").fetchone():
+                # Install once before opening the read/write transaction. Nested
+                # readers never attempt DDL while another domain command writes.
+                db.executescript("""
+                  CREATE INDEX IF NOT EXISTS editions_by_work
+                    ON records(json_extract(data,'$.work_id')) WHERE kind='edition';
+                  CREATE INDEX IF NOT EXISTS library_work_order
+                    ON records(updated DESC,id) WHERE kind='work' AND scope='@library';
+                  INSERT OR IGNORE INTO metadata VALUES ('library_indexes_v1','1');
+                """)
             db.execute("BEGIN IMMEDIATE" if write else "BEGIN")
             yield db
             db.commit()
@@ -104,7 +117,45 @@ class Studio:
         ).fetchone()
         if row is None or (kind and row["kind"] != kind):
             raise Missing("Record not found in this project.")
-        return {**dict(row), "data": json.loads(row["data"])}
+        result = {**dict(row), "data": json.loads(row["data"])}
+        return self.present(result)
+
+    @staticmethod
+    def present(row):
+        # Preserve the immutable original; expose legacy checks as requiring review.
+        data = dict(row["data"])
+        if row["kind"] == "evidence" and data.get("review_schema") != 2:
+            data.update(
+                legacy_verification=data.get("verification"),
+                verification="unreviewed",
+                quote_match="not_checked",
+                visual_review="not_reviewed",
+                claim_support="unassessed",
+                needs_review=True,
+            )
+        if row["kind"] == "claim" and not data.get("edges") and data.get("status") == "confirmed":
+            data.update(legacy_status="confirmed", status="draft", needs_review=True)
+        return {**row, "data": data}
+
+    def revision(self, identifier, revision=None):
+        with self.db() as db:
+            current = self.record(db, identifier)
+            if revision is None or revision == current["revision"]:
+                return {**current, "latest_revision": current["revision"]}
+            old = db.execute(
+                "SELECT * FROM revisions WHERE id=? AND revision=?", (identifier, revision)
+            ).fetchone()
+            if old is None:
+                raise Missing("This object revision is unavailable.")
+            return self.present(
+                {
+                    **current,
+                    "data": json.loads(old["data"]),
+                    "revision": revision,
+                    "updated": old["created"],
+                    "latest_revision": current["revision"],
+                }
+            )
 
     def get(self, identifier, kind=None):
         with self.db() as db:
@@ -144,6 +195,10 @@ class Studio:
             if terms:
                 sql += " AND r.id IN (SELECT id FROM search WHERE search MATCH ?)"
                 params.append(" AND ".join('"' + term + '"' for term in terms))
+            elif query.strip():
+                # Scientific symbols must not turn into an unfiltered query.
+                sql += " AND instr(casefold(r.data), casefold(?))>0"
+                params.append(query.strip())
             sql += " ORDER BY r.updated DESC, r.id LIMIT ?"
             params.append(min(limit, 500))
             return [self.record(db, row[0]) for row in db.execute(sql, params)]

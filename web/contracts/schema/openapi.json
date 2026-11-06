@@ -47,6 +47,158 @@
         "title": "ActionPayload",
         "type": "object"
       },
+      "ActionReceipt": {
+        "additionalProperties": false,
+        "properties": {
+          "committed": {
+            "title": "Committed",
+            "type": "boolean"
+          },
+          "continue_actions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Continue Actions",
+            "type": "array"
+          },
+          "cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost"
+          },
+          "elapsed_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elapsed Seconds"
+          },
+          "failure_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failure Reason"
+          },
+          "operation_id": {
+            "title": "Operation Id",
+            "type": "string"
+          },
+          "pending_sync": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Pending Sync",
+            "type": "array"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "state": {
+            "enum": [
+              "running",
+              "prepared",
+              "committed",
+              "failed"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "operation_id",
+          "committed",
+          "state"
+        ],
+        "title": "ActionReceipt",
+        "type": "object"
+      },
+      "ActionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "const": "practice_from_selection",
+            "title": "Action",
+            "type": "string"
+          },
+          "allowed_sources": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "maxItems": 20,
+            "title": "Allowed Sources",
+            "type": "array"
+          },
+          "idempotency_key": {
+            "maxLength": 100,
+            "minLength": 16,
+            "title": "Idempotency Key",
+            "type": "string"
+          },
+          "max_output_tokens": {
+            "default": 2500,
+            "maximum": 4000.0,
+            "minimum": 1000.0,
+            "title": "Max Output Tokens",
+            "type": "integer"
+          },
+          "network_policy": {
+            "default": "model_only",
+            "enum": [
+              "offline",
+              "model_only"
+            ],
+            "title": "Network Policy",
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "enum": [
+                "read_source",
+                "create_practice"
+              ],
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "target": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "timeout_seconds": {
+            "default": 150,
+            "maximum": 180.0,
+            "minimum": 30.0,
+            "title": "Timeout Seconds",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "action",
+          "target",
+          "idempotency_key"
+        ],
+        "title": "ActionRequest",
+        "type": "object"
+      },
       "ActiveModelUpdate": {
         "description": "Switch the globally-active model for a kind (llm / embedding).",
         "properties": {
@@ -995,6 +1147,42 @@
           "format"
         ],
         "title": "BibliographyImport",
+        "type": "object"
+      },
+      "BibliographyReport": {
+        "additionalProperties": false,
+        "properties": {
+          "edition_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Edition Ids",
+            "type": "array"
+          },
+          "format": {
+            "default": "bibtex",
+            "enum": [
+              "bibtex",
+              "ris",
+              "csl"
+            ],
+            "title": "Format",
+            "type": "string"
+          },
+          "keys": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Keys",
+            "type": "object"
+          }
+        },
+        "required": [
+          "edition_ids"
+        ],
+        "title": "BibliographyReport",
         "type": "object"
       },
       "BilingualPairingInfo": {
@@ -2687,9 +2875,83 @@
         "title": "CitationInput",
         "type": "object"
       },
+      "ClaimEdit": {
+        "additionalProperties": false,
+        "properties": {
+          "claim": {
+            "$ref": "#/components/schemas/ClaimInput"
+          },
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "claim"
+        ],
+        "title": "ClaimEdit",
+        "type": "object"
+      },
+      "ClaimEvidenceEdge": {
+        "additionalProperties": false,
+        "properties": {
+          "qualifiers": {
+            "default": "",
+            "maxLength": 5000,
+            "title": "Qualifiers",
+            "type": "string"
+          },
+          "review": {
+            "default": "unreviewed",
+            "enum": [
+              "unreviewed",
+              "confirmed",
+              "disputed"
+            ],
+            "title": "Review",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "supports",
+              "contradicts",
+              "qualifies",
+              "context"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "source_id": {
+            "title": "Source Id",
+            "type": "string"
+          },
+          "source_revision": {
+            "minimum": 1.0,
+            "title": "Source Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "source_id",
+          "source_revision",
+          "role"
+        ],
+        "title": "ClaimEvidenceEdge",
+        "type": "object"
+      },
       "ClaimInput": {
         "additionalProperties": false,
         "properties": {
+          "edges": {
+            "items": {
+              "$ref": "#/components/schemas/ClaimEvidenceEdge"
+            },
+            "maxItems": 100,
+            "title": "Edges",
+            "type": "array"
+          },
           "evidence_ids": {
             "items": {
               "type": "string"
@@ -5667,6 +5929,12 @@
             ],
             "title": "Region"
           },
+          "review_note": {
+            "default": "",
+            "maxLength": 5000,
+            "title": "Review Note",
+            "type": "string"
+          },
           "stance": {
             "default": "context",
             "enum": [
@@ -5693,6 +5961,16 @@
             ],
             "title": "Verification",
             "type": "string"
+          },
+          "visual_review": {
+            "default": "not_reviewed",
+            "enum": [
+              "not_reviewed",
+              "confirmed",
+              "disputed"
+            ],
+            "title": "Visual Review",
+            "type": "string"
           }
         },
         "required": [
@@ -5712,6 +5990,18 @@
             "title": "Expected Revision",
             "type": "integer"
           },
+          "review_note": {
+            "anyOf": [
+              {
+                "maxLength": 5000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Note"
+          },
           "verification": {
             "enum": [
               "unreviewed",
@@ -5720,6 +6010,22 @@
             ],
             "title": "Verification",
             "type": "string"
+          },
+          "visual_review": {
+            "anyOf": [
+              {
+                "enum": [
+                  "not_reviewed",
+                  "confirmed",
+                  "disputed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visual Review"
           }
         },
         "required": [
@@ -5744,6 +6050,58 @@
           }
         },
         "title": "ExportDocxRequest",
+        "type": "object"
+      },
+      "ExposureInput": {
+        "additionalProperties": false,
+        "properties": {
+          "event_id": {
+            "maxLength": 100,
+            "minLength": 16,
+            "title": "Event Id",
+            "type": "string"
+          },
+          "level": {
+            "enum": [
+              "hint",
+              "revealed"
+            ],
+            "title": "Level",
+            "type": "string"
+          },
+          "question_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Question Id",
+            "type": "string"
+          },
+          "question_version": {
+            "default": "",
+            "maxLength": 64,
+            "title": "Question Version",
+            "type": "string"
+          },
+          "session_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Session Id",
+            "type": "string"
+          },
+          "turn_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Turn Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "turn_id",
+          "question_id",
+          "level",
+          "event_id"
+        ],
+        "title": "ExposureInput",
         "type": "object"
       },
       "FetchModelsPayload": {
@@ -7805,6 +8163,82 @@
         "title": "LlamaIndexConfigUpdate",
         "type": "object"
       },
+      "Locator": {
+        "additionalProperties": false,
+        "properties": {
+          "blob_hash": {
+            "default": "",
+            "pattern": "^(?:[0-9a-f]{64})?$",
+            "title": "Blob Hash",
+            "type": "string"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          },
+          "path": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Path",
+            "type": "string"
+          },
+          "quote": {
+            "default": "",
+            "maxLength": 16000,
+            "title": "Quote",
+            "type": "string"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "maxItems": 4,
+                "minItems": 4,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          }
+        },
+        "title": "Locator",
+        "type": "object"
+      },
       "LoginRequest": {
         "description": "Payload for the POST /login endpoint.",
         "properties": {
@@ -9330,6 +9764,50 @@
         "title": "NotebookReference",
         "type": "object"
       },
+      "ObjectRef": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Kind",
+            "type": "string"
+          },
+          "locator": {
+            "$ref": "#/components/schemas/Locator"
+          },
+          "owner": {
+            "const": "current_account",
+            "default": "current_account",
+            "title": "Owner",
+            "type": "string"
+          },
+          "revision": {
+            "minimum": 1.0,
+            "title": "Revision",
+            "type": "integer"
+          },
+          "scope": {
+            "maxLength": 200,
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "required": [
+          "scope",
+          "kind",
+          "id",
+          "revision"
+        ],
+        "title": "ObjectRef",
+        "type": "object"
+      },
       "ObservationInput": {
         "additionalProperties": false,
         "properties": {
@@ -10524,6 +11002,14 @@
             "title": "Direction",
             "type": "string"
           },
+          "extensions": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "maxProperties": 30,
+            "title": "Extensions",
+            "type": "object"
+          },
           "input": {
             "default": "",
             "maxLength": 500,
@@ -10548,6 +11034,18 @@
             "default": "",
             "maxLength": 500,
             "title": "Population",
+            "type": "string"
+          },
+          "profile": {
+            "default": "general",
+            "enum": [
+              "general",
+              "hoi_detection",
+              "hoi_reconstruction",
+              "trajectory",
+              "mathematics"
+            ],
+            "title": "Profile",
             "type": "string"
           },
           "sampling": {
@@ -10985,6 +11483,22 @@
             ],
             "title": "Error"
           },
+          "evidence_kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "independent",
+                  "assisted",
+                  "correction"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Kind"
+          },
           "feedback": {
             "anyOf": [
               {
@@ -10995,6 +11509,11 @@
               }
             ],
             "title": "Feedback"
+          },
+          "independent": {
+            "default": false,
+            "title": "Independent",
+            "type": "boolean"
           },
           "projection_status": {
             "default": "complete",
@@ -13775,6 +14294,15 @@
         "properties": {
           "build_id": {
             "title": "Build Id",
+            "type": "string"
+          },
+          "kind": {
+            "default": "submission",
+            "enum": [
+              "submission",
+              "archive"
+            ],
+            "title": "Kind",
             "type": "string"
           },
           "paths": {
@@ -50597,6 +51125,79 @@
         ]
       }
     },
+    "/api/quiz/exposures": {
+      "post": {
+        "operationId": "exposure_api_quiz_exposures_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExposureInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Exposure",
+        "tags": [
+          "quiz"
+        ]
+      }
+    },
     "/api/quiz/submit": {
       "post": {
         "operationId": "submit_api_quiz_submit_post",
@@ -66958,6 +67559,81 @@
         ]
       }
     },
+    "/api/studio/actions": {
+      "post": {
+        "operationId": "action_api_studio_actions_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionReceipt"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Action",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
     "/api/studio/artifacts": {
       "post": {
         "operationId": "artifact_api_studio_artifacts_post",
@@ -67185,6 +67861,79 @@
         ]
       }
     },
+    "/api/studio/bibliography/export-report": {
+      "post": {
+        "operationId": "bibliography_export_report_api_studio_bibliography_export_report_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BibliographyReport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Bibliography Export Report",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
     "/api/studio/bibliography/import": {
       "post": {
         "operationId": "import_bibliography_api_studio_bibliography_import_post",
@@ -67402,6 +68151,148 @@
         ]
       }
     },
+    "/api/studio/builds/{identifier}/source-map/locate": {
+      "get": {
+        "operationId": "source_map_api_studio_builds__identifier__source_map_locate_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "direction",
+            "required": true,
+            "schema": {
+              "enum": [
+                "forward",
+                "inverse"
+              ],
+              "title": "Direction",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 500,
+              "title": "Path",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "line",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Line",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "x",
+            "required": false,
+            "schema": {
+              "default": 0.5,
+              "maximum": 1,
+              "minimum": 0,
+              "title": "X",
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "y",
+            "required": false,
+            "schema": {
+              "default": 0.5,
+              "maximum": 1,
+              "minimum": 0,
+              "title": "Y",
+              "type": "number"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Source Map",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
     "/api/studio/builds/{identifier}/{name}": {
       "get": {
         "operationId": "build_file_api_studio_builds__identifier___name__get",
@@ -67556,6 +68447,88 @@
           }
         },
         "summary": "Add Claim",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/claims/{identifier}": {
+      "put": {
+        "operationId": "edit_claim_api_studio_claims__identifier__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClaimEdit"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Edit Claim",
         "tags": [
           "studio"
         ]
@@ -67874,6 +68847,132 @@
           }
         },
         "summary": "Read Connection",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/connectors": {
+      "get": {
+        "operationId": "connectors_api_studio_connectors_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Connectors",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/continuations": {
+      "get": {
+        "operationId": "continuations_api_studio_continuations_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Continuations",
         "tags": [
           "studio"
         ]
@@ -68773,6 +69872,39 @@
             "schema": {
               "default": false,
               "title": "Project Only",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 2000,
+              "title": "Cursor",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "missing",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Missing",
               "type": "boolean"
             }
           },
@@ -70394,6 +71526,23 @@
             }
           },
           {
+            "in": "query",
+            "name": "revision",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Revision"
+            }
+          },
+          {
             "in": "header",
             "name": "Authorization",
             "required": false,
@@ -70624,6 +71773,79 @@
           }
         },
         "summary": "Records",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/resume": {
+      "post": {
+        "operationId": "resume_reading_api_studio_resume_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObjectRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resume Reading",
         "tags": [
           "studio"
         ]
@@ -71383,6 +72605,78 @@
         ]
       }
     },
+    "/api/studio/submissions/{identifier}/response-export": {
+      "get": {
+        "operationId": "response_export_api_studio_submissions__identifier__response_export_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Response Export",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
     "/api/studio/subscriptions": {
       "post": {
         "operationId": "create_subscription_api_studio_subscriptions_post",
@@ -71678,6 +72972,78 @@
           }
         },
         "summary": "Work",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/works/{identifier}": {
+      "get": {
+        "operationId": "work_detail_api_studio_works__identifier__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Work Detail",
         "tags": [
           "studio"
         ]

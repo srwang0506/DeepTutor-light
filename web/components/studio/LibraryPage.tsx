@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import DiscoveryPanel from './DiscoveryPanel'
+import BibliographyExport from './BibliographyExport'
 import { BookOpen, Plus, Search, Upload, Compass, ArrowUpRight, Library } from 'lucide-react'
 import { Dialog } from '@/shared/ui/Dialog'
 import { useActiveWorkspaceId } from '@/hooks/useActiveWorkspaceId'
@@ -23,6 +24,7 @@ export default function LibraryPage() {
 function LibraryHome({ workspace }: { workspace: string }) {
   const [works, setWorks] = useState<Work[]>([]),
     [loading, setLoading] = useState(true),
+    [cursor, setCursor] = useState(''),
     [query, setQuery] = useState(''),
     [filter, setFilter] = useState('all')
   const [dialog, setDialog] = useState<'add' | 'import' | 'discover' | 'attach' | 'edition' | null>(
@@ -41,21 +43,41 @@ function LibraryHome({ workspace }: { workspace: string }) {
     [format, setFormat] = useState('bibtex'),
     [notice, setNotice] = useState('')
   const op = useOperation()
-  async function reload(signal?: AbortSignal) {
-    const r = await studio<{ works: Work[] }>(workspace, '/library', {}, signal)
-    setWorks(r.works)
+  async function reload(signal?: AbortSignal, after = '') {
+    const params = new URLSearchParams({
+      q: query,
+      project_only: String(filter === 'project'),
+      missing: String(filter === 'missing'),
+      cursor: after,
+    })
+    const r = await studio<{ works: Work[]; next_cursor: string }>(
+      workspace,
+      `/library?${params}`,
+      {},
+      signal
+    )
+    setWorks(previous => (after ? [...previous, ...r.works] : r.works))
+    setCursor(r.next_cursor)
     setLoading(false)
   }
   useEffect(() => {
     const abort = new AbortController()
-    void reload(abort.signal).catch(e => {
-      if (!abort.signal.aborted) {
-        op.setError(e.message)
-        setLoading(false)
-      }
-    })
-    return () => abort.abort()
-  }, [workspace]) // eslint-disable-line react-hooks/exhaustive-deps
+    setLoading(true)
+    const timer = setTimeout(
+      () =>
+        void reload(abort.signal).catch(e => {
+          if (!abort.signal.aborted) {
+            op.setError(e.message)
+            setLoading(false)
+          }
+        }),
+      200
+    )
+    return () => {
+      clearTimeout(timer)
+      abort.abort()
+    }
+  }, [workspace, query, filter]) // eslint-disable-line react-hooks/exhaustive-deps
   function open(mode: typeof dialog) {
     setDialog(mode)
     setTitle('')
@@ -95,16 +117,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
     }
     setDialog(null)
   }
-  const list = works.filter(
-    w =>
-      (filter === 'all' ||
-        (filter === 'project' && w.editions.some(e => e.project_role)) ||
-        (filter === 'missing' && w.editions.every(e => !e.data.files.length))) &&
-      [w.data.title, ...w.data.authors, ...w.data.tags, ...w.editions.map(e => e.data.citekey)]
-        .join(' ')
-        .toLowerCase()
-        .includes(query.toLowerCase())
-  )
+  const list = works
   const originals = works.flatMap(w => w.editions).filter(e => e.data.files.length).length
   return (
     <StudioShell
@@ -130,7 +143,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
           <Search size={16} />
           <input
             aria-label="搜索资料"
-            placeholder="标题、作者、标签或引用键"
+            placeholder="标题、作者、DOI、引用键或科学符号"
             value={query}
             onChange={e => setQuery(e.target.value)}
           />
@@ -249,6 +262,15 @@ function LibraryHome({ workspace }: { workspace: string }) {
               或题录，留下疑问，再把原文里的线索整理成自己的理解。已有阅读资料仍可从右侧打开。
             </StudioEmpty>
           )}
+          {cursor && (
+            <Action
+              secondary
+              disabled={op.busy}
+              onClick={() => op.run(() => reload(undefined, cursor))}
+            >
+              加载更多资料
+            </Action>
+          )}
         </main>
         <aside className="studio-aside">
           <section className="studio-panel">
@@ -267,6 +289,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
               <Action secondary onClick={() => open('import')}>
                 导入书目
               </Action>
+              <BibliographyExport workspace={workspace} works={works} />
             </div>
             <p className="studio-note">
               <Link className="studio-outlink" href={scopedUrl('/learning/reading', workspace)}>

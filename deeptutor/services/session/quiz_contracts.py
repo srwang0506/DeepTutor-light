@@ -19,6 +19,13 @@ def fingerprint(value):
 
 
 SCHEMA = """
+CREATE TABLE IF NOT EXISTS quiz_exposures (
+    id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+    version TEXT NOT NULL, family TEXT NOT NULL, objective TEXT NOT NULL,
+    level TEXT NOT NULL CHECK(level IN ('hint','revealed')), occurred REAL NOT NULL
+);
+CREATE INDEX IF NOT EXISTS quiz_exposure_identity ON quiz_exposures(version,family,occurred);
+CREATE TABLE IF NOT EXISTS quiz_migrations (name TEXT PRIMARY KEY, applied REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS quiz_contracts (
     session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
     turn_id TEXT NOT NULL, question_id TEXT NOT NULL, version TEXT NOT NULL,
@@ -40,6 +47,88 @@ CREATE TABLE IF NOT EXISTS quiz_submissions (
 
 class QuizContractStore:
     """Mixin using SessionStore's connection, lock, and assessment transaction."""
+
+    @staticmethod
+    def _exposure_identity(contract):
+        metadata = contract.get("metadata") or {}
+        # Server contract owns family/objective; never accept these from an answer request.
+        family = metadata.get("question_family") or fingerprint(
+            {k: contract.get(k) for k in ("question", "options", "correct_answer")}
+        )
+        return str(family), str(metadata.get("objective_id") or "")
+
+    def _migrate_quiz_exposures(self, conn):
+        """Preserve pre-ledger assistance without rewriting historical grades."""
+        name = "exposure_history_v1"
+        if conn.execute("SELECT 1 FROM quiz_migrations WHERE name=?", (name,)).fetchone():
+            return
+        rows = conn.execute(
+            "SELECT q.attempt_id,q.session_id,q.version,q.request_json,q.created_at,c.contract_json "
+            "FROM quiz_submissions q JOIN quiz_contracts c ON c.session_id=q.session_id "
+            "AND c.turn_id=q.turn_id AND c.question_id=q.question_id AND c.version=q.version"
+        ).fetchall()
+        for row in rows:
+            payload = json.loads(row["request_json"])
+            level = payload.get("assistance")
+            if level not in {"hint", "revealed"}:
+                continue
+            family, objective = self._exposure_identity(json.loads(row["contract_json"]))
+            conn.execute(
+                "INSERT OR IGNORE INTO quiz_exposures VALUES (?,?,?,?,?,?,?)",
+                (
+                    "legacy:" + row["attempt_id"],
+                    row["session_id"],
+                    row["version"],
+                    family,
+                    objective,
+                    level,
+                    row["created_at"],
+                ),
+            )
+        conn.execute("INSERT INTO quiz_migrations VALUES (?,?)", (name, time.time()))
+
+    async def record_quiz_exposure(self, session_id, contract, level, event_id):
+        if level not in {"hint", "revealed"}:
+            raise ValueError("Unknown assistance level")
+        family, objective = self._exposure_identity(contract)
+
+        def write():
+            with self._connect() as conn:
+                conn.execute("BEGIN IMMEDIATE")
+                identity = (session_id, contract["question_version"], family, objective, level)
+                old = conn.execute(
+                    "SELECT session_id,version,family,objective,level FROM quiz_exposures WHERE id=?",
+                    (event_id,),
+                ).fetchone()
+                if old and tuple(old) != identity:
+                    raise ValueError("Exposure event identity already belongs to a different event")
+                conn.execute(
+                    "INSERT OR IGNORE INTO quiz_exposures VALUES (?,?,?,?,?,?,?)",
+                    (
+                        event_id,
+                        session_id,
+                        contract["question_version"],
+                        family,
+                        objective,
+                        level,
+                        time.time(),
+                    ),
+                )
+            return {"recorded": True, "level": level}
+
+        return await self._run(write)
+
+    def _quiz_exposure_in_conn(self, conn, session_id, contract):
+        family, objective = self._exposure_identity(contract)
+        row = conn.execute(
+            "SELECT e.level,e.occurred FROM quiz_exposures e JOIN sessions s ON s.id=e.session_id "
+            "WHERE COALESCE(json_extract(s.preferences_json,'$.workspace_id'),'') = "
+            "(SELECT COALESCE(json_extract(preferences_json,'$.workspace_id'),'') FROM sessions WHERE id=?) "
+            "AND (e.version=? OR (e.family=? AND e.occurred>?)) "
+            "ORDER BY (e.level='revealed') DESC,e.occurred DESC LIMIT 1",
+            (session_id, contract["question_version"], family, time.time() - 86400),
+        ).fetchone()
+        return dict(row) if row else None
 
     async def register_quiz_question(self, session_id, turn_id, contract):
         body = {k: v for k, v in contract.items() if k != "question_version"}
@@ -157,6 +246,32 @@ class QuizContractStore:
                 ).fetchone()
                 if not row or row["state"] != "grading" or row["lease"] != lease:
                     return False
+                saved_contract = conn.execute(
+                    "SELECT contract_json FROM quiz_contracts WHERE session_id=? AND turn_id=? AND question_id=? AND version=?",
+                    (row["session_id"], row["turn_id"], row["question_id"], row["version"]),
+                ).fetchone()
+                exposure = (
+                    self._quiz_exposure_in_conn(
+                        conn, row["session_id"], json.loads(saved_contract[0])
+                    )
+                    if saved_contract
+                    else None
+                )
+                if exposure:
+                    attempt["hints_used"] = max(1, attempt.get("hints_used", 0))
+                    attempt["assistance"] = exposure["level"]
+                    item["hints_used"] = attempt["hints_used"]
+                    receipt["evidence_kind"] = (
+                        "correction" if exposure["level"] == "revealed" else "assisted"
+                    )
+                    receipt["independent"] = False
+                    receipt["feedback"] = (
+                        (receipt.get("feedback") or "")
+                        + " 已保留这次修正；此前的答案或提示暴露仍会计入，建议间隔一天后尝试新题检验迁移。"
+                    )
+                else:
+                    receipt["evidence_kind"] = "independent"
+                    receipt["independent"] = True
                 committed = receipt.get("result") in {"correct", "partial", "incorrect"}
                 if committed:
                     # The verdict is authoritative here. Notebook projection is

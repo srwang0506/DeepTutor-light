@@ -82,6 +82,26 @@ export default function WritingTools({
   const op = useOperation()
   const toggle = (id: string) =>
     setSourceIds(ids => (ids.includes(id) ? ids.filter(s => s !== id) : [...ids, id]))
+  async function exportResponses() {
+    if (!submission) return
+    const result = await studio<{ content: string; filename: string; unresolved: string[] }>(
+      workspace,
+      `/submissions/${submission}/response-export`
+    )
+    const url = URL.createObjectURL(
+      new Blob([result.content], { type: 'text/markdown;charset=utf-8' })
+    )
+    const link = document.createElement('a')
+    link.href = url
+    link.download = result.filename
+    link.click()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    setNotice(
+      result.unresolved.length
+        ? `已导出回复草稿，仍有 ${result.unresolved.length} 条意见或证据需要复核。`
+        : '已导出回复草稿，请检查后提交。'
+    )
+  }
   async function loadSources() {
     const rows = await Promise.all(
       ['evidence', 'observation', 'artifact', 'claim', 'run'].map(kind =>
@@ -433,7 +453,7 @@ export default function WritingTools({
                       <Link
                         key={source.id}
                         href={scopedUrl(
-                          source.kind === 'run' ? '/studio/experiments' : '/studio/evidence',
+                          `/objects/${source.id}?revision=${source.revision}`,
                           workspace
                         )}
                       >
@@ -498,6 +518,13 @@ export default function WritingTools({
                     ))}
                   </div>
                 )}
+                <Action
+                  secondary
+                  disabled={op.busy || !submission}
+                  onClick={() => op.run(exportResponses)}
+                >
+                  导出本版审稿回复
+                </Action>
                 <h3 className="studio-section-title">{review ? '编辑这条意见' : '记录新意见'}</h3>
                 <Field label="原投稿版本">
                   <select

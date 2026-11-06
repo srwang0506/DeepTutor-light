@@ -62,6 +62,8 @@ installation before deciding to reinstall it.
   evidence and visual assessment.
 - [Scientific research](SCIENTIFIC_RESEARCH.md): paper tools, evidence and MCP
   authorization.
+- [Personal Studio](PERSONAL_STUDIO.md): versioned cross-tool actions, scientific
+  evidence, exposure history, manuscript conflicts and local deployment.
 - [Practice](PRACTICE.md): question imports, review records and scheduling.
 - [Video learning](watching-workspace.md) and [voice](VOICE_CONFIGURATION.md):
   Reading media migration, captions, speech adapters and verification.

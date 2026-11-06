@@ -1,0 +1,66 @@
+name: Personal Studio contracts
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/study-workbench]
+  pull_request:
+    paths:
+      - 'deeptutor/studio/**'
+      - 'deeptutor/services/session/**'
+      - 'deeptutor/learning/quiz.py'
+      - 'deeptutor/api/**'
+      - 'deeptutor/runtime/**'
+      - 'web/**'
+      - 'tests/studio/**'
+      - '.github/workflows/studio-contracts.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: studio-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      DEEPTUTOR_HOME: ${{ runner.temp }}/studio-contract-runtime
+      DEEPTUTOR_STUDY_RUNTIME: '1'
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements/study.lock.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install locked dependencies
+        run: |
+          python -m pip install -r requirements/study.lock.txt
+          npm --prefix web ci --legacy-peer-deps
+      - name: Verify domain regressions and legacy session migration
+        run: >-
+          python -m pytest -q tests/studio tests/learning/test_study_quiz.py
+          tests/services/session/test_sqlite_store.py
+          --junitxml=studio-domain-results.xml
+      - name: Verify client contracts and editing state
+        working-directory: web
+        run: |
+          npm run contracts:check
+          npm run typecheck
+          npm run test:node
+      - name: Preserve results for this commit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: studio-contracts-${{ github.sha }}
+          path: studio-domain-results.xml
+          if-no-files-found: ignore

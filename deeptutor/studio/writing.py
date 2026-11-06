@@ -159,3 +159,57 @@ def outline(store, identifier):
                 }
             )
     return result
+
+
+def export_response(store, submission_id):
+    """A source-linked response letter, distinct from an accepted/submitted response."""
+    submission = store.get(submission_id, "submission")
+    with store.db() as db:
+        ids = [
+            r[0]
+            for r in db.execute(
+                "SELECT id FROM records WHERE scope=? AND kind='review' AND json_extract(data,'$.submission_id')=? ORDER BY created,id",
+                (store.project, submission_id),
+            )
+        ]
+        rows = [store.record(db, identifier, "review") for identifier in ids]
+    lines = [
+        "# Response to reviewers",
+        "",
+        f"Submission snapshot: {submission_id} (build {submission['data']['build_id']})",
+        "",
+        "Draft for author review; not submitted automatically.",
+        "",
+    ]
+    unresolved = []
+    for index, row in enumerate(rows, 1):
+        data = row["data"]
+        lines += [
+            f"## Comment {index}",
+            "",
+            data["comment"],
+            "",
+            "### Response",
+            "",
+            data["response"] or "[Response pending]",
+            "",
+        ]
+        if data["status"] != "addressed" or store.stale(row["id"]):
+            unresolved.append(row["id"])
+        for change in data["changes"]:
+            lines.append(f"- Changed source: {change.get('path')} · {change.get('hash')}")
+        for source in data["source_ids"]:
+            with store.db() as db:
+                edge = db.execute(
+                    "SELECT source_revision FROM dependencies WHERE source=? AND target=?",
+                    (source, row["id"]),
+                ).fetchone()
+            revision = edge[0] if edge else "unknown"
+            lines.append(f"- Evidence: {source}@{revision}")
+        lines.append("")
+    return {
+        "filename": "response-to-reviewers.md",
+        "content": "\n".join(lines),
+        "unresolved": unresolved,
+        "submission_id": submission_id,
+    }

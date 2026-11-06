@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, BookmarkPlus, Columns2, MessageCircle } from 'lucide-react'
@@ -7,6 +7,7 @@ import { PdfDocumentView, type SelectionPayload } from '@/components/reading/Pdf
 import type { AnnotationItem } from '@/lib/reading-api'
 import { useActiveWorkspaceId } from '@/hooks/useActiveWorkspaceId'
 import { scopedUrl } from '@/lib/workspace-scope'
+import { randomUuid } from '@/lib/random-uuid'
 import { setPendingPrompt } from '@/lib/pending-prompt'
 import {
   studio,
@@ -54,19 +55,22 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
   })
   useEffect(() => {
     const controller = new AbortController()
-    void Promise.all([
-      studio<Edition>(workspace, `/record/${identifier}`, {}, controller.signal),
-      studio<{ works: Work[] }>(workspace, '/library', {}, controller.signal),
-      records<EvidenceData>(workspace, 'evidence', controller.signal),
-    ])
-      .then(([e, l, ev]) => {
+    void studio<Edition>(workspace, `/record/${identifier}`, {}, controller.signal)
+      .then(async e => {
+        const [work, ev] = await Promise.all([
+          studio<Work>(workspace, `/works/${e.data.work_id}`, {}, controller.signal),
+          records<EvidenceData>(
+            workspace,
+            `evidence?q=${encodeURIComponent(identifier)}`,
+            controller.signal
+          ),
+        ])
         setEdition(e)
-        const work = l.works.find(w => w.id === e.data.work_id)
-        setTitle(work?.data.title || e.data.label)
+        setTitle(work.data.title || e.data.label)
         setRelated(
-          work?.editions.filter(other => other.id !== identifier && other.data.files.length) || []
+          work.editions.filter(other => other.id !== identifier && other.data.files.length)
         )
-        setEvidence(ev.filter(row => row.data.edition_id === identifier))
+        setEvidence(ev)
         if (!hash) setHash(e.data.files[0]?.hash || '')
       })
       .catch(e => {
@@ -74,6 +78,44 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
       })
     return () => controller.abort()
   }, [identifier, workspace]) // eslint-disable-line react-hooks/exhaustive-deps
+  const practiceKey = useRef('')
+  useEffect(() => {
+    practiceKey.current = randomUuid()
+  }, [selection])
+  useEffect(() => {
+    if (!edition || !hash || !page) return
+    const timer = setTimeout(() => {
+      void post(workspace, '/resume', {
+        scope: edition.scope,
+        kind: 'edition',
+        id: edition.id,
+        revision: edition.revision,
+        locator: { page, blob_hash: hash },
+      }).catch(() => {})
+    }, 1200)
+    return () => clearTimeout(timer)
+  }, [edition, hash, page, workspace])
+  async function practice() {
+    if (!edition || !selection) return
+    const result = await post<{
+      operation_id: string
+      committed: boolean
+      failure_reason?: string
+    }>(workspace, '/actions', {
+      action: 'practice_from_selection',
+      idempotency_key: practiceKey.current,
+      target: {
+        scope: edition.scope,
+        kind: 'edition',
+        id: edition.id,
+        revision: edition.revision,
+        locator: { blob_hash: hash, page: selection.locator, quote: selection.quote },
+      },
+    })
+    if (!result.committed)
+      throw new Error(result.failure_reason || '练习正在生成，稍后可使用同一选区重试。')
+    router.push(scopedUrl(`/objects/${result.operation_id}`, workspace))
+  }
   const file = edition?.data.files.find(f => f.hash === hash),
     other = related.find(e => e.id === compare)
   const annotations = useMemo<AnnotationItem[]>(
@@ -296,10 +338,7 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
                 >
                   给反例
                 </Action>
-                <Action
-                  secondary
-                  onClick={() => ask('根据这段材料给我一道需要独立作答的理解题，先不要给答案。')}
-                >
+                <Action secondary disabled={op.busy} onClick={() => op.run(practice)}>
                   现在测我
                 </Action>
               </div>

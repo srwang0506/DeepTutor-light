@@ -94,11 +94,7 @@ export default function NoteFlashcards({
               : 'Start with a question'}
         </small>
         {!readOnly && (
-          <button
-            onClick={create}
-            title={zh ? '添加卡片' : 'Add card'}
-            aria-label={zh ? '添加卡片' : 'Add card'}
-          >
+          <button onClick={create} aria-label={zh ? '添加卡片' : 'Add card'}>
             <Plus size={15} />
           </button>
         )}

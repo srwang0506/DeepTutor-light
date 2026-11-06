@@ -19,7 +19,8 @@ async def test_crossref_pages_preserve_exact_queries_raw_snapshots_and_cursors(s
     def handle(request):
         params = dict(request.url.params)
         calls.append(params)
-        first = params["cursor"] == "*"
+        assert "cursor" not in params
+        first = params["offset"] == "0"
         return httpx.Response(
             200,
             json={
@@ -51,7 +52,7 @@ async def test_crossref_pages_preserve_exact_queries_raw_snapshots_and_cursors(s
         json.loads(store.blob_path(first_hash).read_bytes())["message"]["items"][0]["DOI"]
         == "10.1234/1"
     )
-    assert calls[1]["cursor"] == "opaque-next"
+    assert calls[1]["offset"] == "2"
     assert calls[1]["filter"] == "from-pub-date:2020-01-01"
     assert calls[1]["sort"] == "published"
     with pytest.raises(Conflict):

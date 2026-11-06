@@ -157,7 +157,12 @@ def test_different_units_or_splits_prevent_delta(store):
     assert evidence.compare_observations(store, a["id"], b["id"])["delta"] == 8
     data = b["data"]
     data["protocol"]["unit"] = "fraction"
-    evidence.create_observation(store, ObservationInput(**data), b["id"], b["revision"])
+    evidence.create_observation(
+        store,
+        ObservationInput(**{k: v for k, v in data.items() if k in ObservationInput.model_fields}),
+        b["id"],
+        b["revision"],
+    )
     assert evidence.compare_observations(store, a["id"], b["id"])["delta"] is None
 
 
@@ -185,7 +190,15 @@ def test_changed_result_marks_dependent_artifacts_and_manuscript_stale(store):
     with store.db(write=True) as db:
         store.link(db, table["id"], manuscript["id"])
     evidence.create_observation(
-        store, ObservationInput(**{**row["data"], "value": 41}), row["id"], row["revision"]
+        store,
+        ObservationInput(
+            **{
+                **{k: v for k, v in row["data"].items() if k in ObservationInput.model_fields},
+                "value": 41,
+            }
+        ),
+        row["id"],
+        row["revision"],
     )
     assert store.stale(table["id"]) and store.stale(manuscript["id"])
     assert {r["id"] for r in store.impact(row["id"])} == {table["id"], manuscript["id"]}
@@ -301,7 +314,7 @@ def test_stale_proposal_and_scope_hidden_manuscript(store):
         manuscripts.file_list(Studio(store.root, project="b"), m["id"])
 
 
-def test_submission_uses_immutable_build_allowlist(store):
+def test_submission_uses_immutable_build_allowlist(store, monkeypatch):
     m = manuscripts.create_manuscript(store, ManuscriptInput(title="Paper"))
     snapshot = store.save_blob(b"old manuscript")
     with store.db(write=True) as db:
@@ -319,6 +332,14 @@ def test_submission_uses_immutable_build_allowlist(store):
     file.write_text("new manuscript")
     with pytest.raises(ValueError):
         manuscripts.submission(store, m["id"], ["private-notes.md"], build["id"])
+    monkeypatch.setattr(
+        manuscripts,
+        "execute_build",
+        lambda _, frozen: {
+            **frozen,
+            "data": {**frozen["data"], "status": "succeeded", "outputs": build["data"]["outputs"]},
+        },
+    )
     submission = manuscripts.submission(store, m["id"], ["main.tex"], build["id"])
     with zipfile.ZipFile(store.blob_path(submission["data"]["archive_hash"])) as z:
         assert set(z.namelist()) == {"main.tex", "submission.pdf"}
@@ -327,7 +348,12 @@ def test_submission_uses_immutable_build_allowlist(store):
 
 def test_optimistic_record_revision_rejects_lost_update(store):
     row = observation(store)
-    command = ObservationInput(**{**row["data"], "value": 45})
+    command = ObservationInput(
+        **{
+            **{k: v for k, v in row["data"].items() if k in ObservationInput.model_fields},
+            "value": 45,
+        }
+    )
     evidence.create_observation(store, command, row["id"], 1)
     with pytest.raises(Conflict):
         evidence.create_observation(store, command, row["id"], 1)

@@ -6,6 +6,7 @@ import asyncio
 import importlib.util
 import os
 from pathlib import Path
+import secrets
 import shutil
 import signal
 import subprocess
@@ -71,6 +72,10 @@ def main():
     os.environ["DEEPTUTOR_HOME"] = str(args.home.resolve())
     os.environ["DEEPTUTOR_STUDY_RUNTIME"] = "1"
     os.environ["BACKEND_PORT"] = "8001"
+    os.environ["DEEPTUTOR_LOCAL_CAPABILITY"] = secrets.token_urlsafe(32)
+    os.environ["DEEPTUTOR_LOCAL_ORIGINS"] = (
+        f"http://127.0.0.1:{args.port},http://localhost:{args.port}"
+    )
     os.environ["NEXT_PUBLIC_API_BASE"] = "http://127.0.0.1:8001"
     os.environ["DEEPTUTOR_API_BASE_URL"] = "http://127.0.0.1:8001"
     for key in ("NO_PROXY", "no_proxy"):

@@ -541,6 +541,7 @@ class SQLiteSessionStore(QuizContractStore):
             from deeptutor.services.practice.storage import initialize_practice
 
             initialize_practice(conn)
+            self._migrate_quiz_exposures(conn)
             conn.commit()
 
     @staticmethod

@@ -1,4 +1,5 @@
 'use client'
+import ClaimsPanel from './ClaimsPanel'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { apiFetch } from '@/lib/api'
@@ -41,6 +42,8 @@ interface Comparison {
   differences: { field: string; left: string; right: string }[]
   matched: string[]
   delta: number | null
+  delta_unit?: string
+  conversions?: { field: string; left: string; right: string }[]
 }
 const blank = (): ObservationData => ({
   title: '',
@@ -67,7 +70,10 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
     [draft, setDraft] = useState(blank),
     [selected, setSelected] = useState<string[]>([]),
     [comparison, setComparison] = useState<Comparison | null>(null),
-    [generated, setGenerated] = useState(false)
+    [generated, setGenerated] = useState(false),
+    [reviewing, setReviewing] = useState<StudioRecord<EvidenceData> | null>(null),
+    [reviewNote, setReviewNote] = useState(''),
+    [visualReview, setVisualReview] = useState(false)
   async function reload(signal?: AbortSignal) {
     const [a, b, c, d] = await Promise.all([
       records<EvidenceData>(workspace, 'evidence', signal),
@@ -113,7 +119,9 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
   }
   function edit(row?: StudioRecord<ObservationData>) {
     setEditing(row || null)
-    setDraft(row ? structuredClone(row.data) : blank())
+    const next = row ? structuredClone(row.data) : blank()
+    delete next.source_ref
+    setDraft(next)
     setDialog(true)
   }
   async function save() {
@@ -146,7 +154,12 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
     await studio(workspace, `/evidence/${row.id}/review`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ expected_revision: row.revision, verification }),
+      body: JSON.stringify({
+        expected_revision: row.revision,
+        verification,
+        visual_review: visualReview ? 'confirmed' : 'not_reviewed',
+        review_note: reviewNote,
+      }),
     })
     await reload()
     setComparison(null)
@@ -180,12 +193,14 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
             ['matrix', '结果矩阵', observations.length],
             ['evidence', '原文证据', evidence.length],
             ['artifacts', '表与图', artifacts.length],
+            ['claims', '主张与反证', ''],
           ].map(([key, title, count]) => (
             <button key={key} aria-pressed={tab === key} onClick={() => setTab(String(key))}>
               {title} <span className="studio-muted">{count}</span>
             </button>
           ))}
         </div>
+        {tab === 'claims' && <ClaimsPanel workspace={workspace} />}
         {tab === 'matrix' && (
           <div className="studio-actions">
             <Action
@@ -290,13 +305,21 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                   ? '所选结果满足记录中的比较条件'
                   : comparison.status === 'incomparable'
                     ? '评估条件存在差异'
-                    : '还有条件需要核对'}
+                    : comparison.status === 'conflict'
+                      ? '来源之间存在冲突'
+                      : '还有条件需要核对'}
               </h2>
               <p>
                 {comparison.status === 'comparable'
-                  ? `第二项相对第一项的数值差为 ${comparison.delta}。此差值不代表统计显著性或因果关系。`
+                  ? `第二项相对第一项的数值差为 ${comparison.delta} ${comparison.delta_unit || ''}。此差值不代表统计显著性或因果关系。`
                   : '在条件核实前，不生成优劣排名或数值提升结论。'}
               </p>
+              {comparison.conversions?.map(item => (
+                <p className="studio-note" key={item.field}>
+                  已按确定的单位关系换算{label(item.field)}：{item.right} → {item.left}
+                  。原始值仍保留。
+                </p>
+              ))}
               {comparison.unknown.length > 0 && (
                 <div className="studio-badges">
                   {comparison.unknown.map((field, i) => (
@@ -364,6 +387,30 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                   第 {row.data.page_label || row.data.page} 页 · {row.data.kind}
                 </span>
               </div>
+              <div className="studio-badges" style={{ marginTop: 8 }}>
+                <span className="studio-badge">
+                  定位：{row.data.anchor_valid ? '有效' : '待重核'}
+                </span>
+                <span
+                  className={`studio-badge ${row.data.quote_match === 'exact' ? 'good' : 'warn'}`}
+                >
+                  引句：
+                  {(
+                    {
+                      exact: '精确匹配',
+                      approximate: '近似匹配',
+                      unmatched: '未匹配',
+                      no_text: '无文字层',
+                      not_requested: '未摘录文字',
+                      ambiguous: '多处匹配',
+                    } as Record<string, string>
+                  )[row.data.quote_match || ''] || '待核对'}
+                </span>
+                <span className="studio-badge">主张支持需逐项核对</span>
+              </div>
+              {row.data.needs_review && (
+                <p className="studio-note">旧版核对记录已保留；请按当前规则重新核验。</p>
+              )}
               <h3 style={{ marginTop: 12 }}>{row.data.label}</h3>
               {row.data.quote && <blockquote>{row.data.quote}</blockquote>}
               <p>{row.data.interpretation || '尚未添加自己的解读。'}</p>
@@ -381,8 +428,12 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                 <div className="studio-actions">
                   <button
                     className="studio-link-button"
-                    disabled={op.busy || row.data.resolution !== 'resolved'}
-                    onClick={() => op.run(() => review(row, 'confirmed'))}
+                    disabled={op.busy}
+                    onClick={() => {
+                      setReviewing(row)
+                      setReviewNote(row.data.review_note || '')
+                      setVisualReview(false)
+                    }}
                   >
                     我已核实
                   </button>
@@ -535,7 +586,64 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
           <h3 className="studio-section-title" style={{ margin: 0 }}>
             评估协议
           </h3>
+          <Field label="任务口径">
+            <select
+              value={draft.protocol.profile || 'general'}
+              onChange={e =>
+                setDraft(d => ({ ...d, protocol: { ...d.protocol, profile: e.target.value } }))
+              }
+            >
+              {[
+                ['general', '通用定量比较'],
+                ['hoi_detection', 'HOI 交互检测'],
+                ['hoi_reconstruction', 'HOI 三维重建'],
+                ['trajectory', '轨迹评估'],
+                ['mathematics', '数学与数值方法'],
+              ].map(([id, label]) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <p className="studio-note">
+            必要条件不能用“不适用”代替。数值差仅用于描述，不代表统计显著性。
+          </p>
           <div className="studio-form-grid">
+            {(
+              (
+                {
+                  hoi_reconstruction: [
+                    'target',
+                    'template_dependency',
+                    'calibration',
+                    'coordinate_space',
+                  ],
+                  trajectory: [
+                    'trajectory_source',
+                    'coordinate_space',
+                    'scale_normalization',
+                    'evaluation_version',
+                  ],
+                  mathematics: ['assumptions', 'domain'],
+                } as Record<string, string[]>
+              )[draft.protocol.profile || ''] || []
+            ).map(key => (
+              <Field key={key} label={key}>
+                <input
+                  value={draft.protocol.extensions?.[key] || ''}
+                  onChange={e =>
+                    setDraft(d => ({
+                      ...d,
+                      protocol: {
+                        ...d.protocol,
+                        extensions: { ...d.protocol.extensions, [key]: e.target.value },
+                      },
+                    }))
+                  }
+                />
+              </Field>
+            ))}
             {PROTOCOL_FIELDS.map(([key, title]) => (
               <div key={key}>
                 <Field label={title}>
@@ -592,6 +700,58 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
             />
           </Field>
         </div>
+      </Dialog>
+      <Dialog
+        open={!!reviewing}
+        onClose={() => setReviewing(null)}
+        title="核对证据原件"
+        description="核对的是原文或原图；是否支持某个结论，需要在主张中单独审核。"
+        className="studio-dialog"
+        footer={
+          <Action
+            disabled={op.busy}
+            onClick={() =>
+              op.run(async () => {
+                if (reviewing) await review(reviewing, 'confirmed')
+                setReviewing(null)
+              })
+            }
+          >
+            确认核对
+          </Action>
+        }
+      >
+        {reviewing && (
+          <Link
+            className="studio-outlink"
+            target="_blank"
+            href={scopedUrl(
+              `/library/${reviewing.data.edition_id}?file=${reviewing.data.blob_hash}&page=${reviewing.data.page}&evidence=${reviewing.id}`,
+              workspace
+            )}
+          >
+            打开冻结原件 · 第 {reviewing.data.page} 页 ↗
+          </Link>
+        )}
+        <p className="studio-note">
+          引句必须在所选区域匹配。扫描页、图表或公式没有文字层时，需要对照原图核验并留下说明。
+        </p>
+        <Field label="核对说明">
+          <textarea
+            value={reviewNote}
+            onChange={e => setReviewNote(e.target.value)}
+            placeholder="核对了哪张图、哪一行或哪个公式；有哪些限制？"
+          />
+        </Field>
+        <label className="studio-check">
+          <input
+            type="checkbox"
+            checked={visualReview}
+            onChange={e => setVisualReview(e.target.checked)}
+          />
+          我已对照原图完成视觉核验
+        </label>
+        <ErrorNotice message={op.error} />
       </Dialog>
     </StudioShell>
   )

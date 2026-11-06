@@ -29,12 +29,16 @@ def parameters(provider, query, limit, cursor, order, year_from, year_to):
         if filters:
             params["filter"] = ",".join(filters)
     elif provider == "crossref":
+        if not 0 <= int(cursor or 0) < 1000:
+            raise ValueError(
+                "Crossref sorted discovery covers the first 1,000 results. Narrow the query or date range."
+            )
         url, params = (
             "https://api.crossref.org/works",
             {
                 "query.bibliographic": query,
-                "rows": limit,
-                "cursor": cursor or "*",
+                "rows": min(limit, 1000 - int(cursor or 0)),
+                "offset": int(cursor or 0),
                 "sort": "published" if order == "newest" else "relevance",
                 "order": "desc",
             },
@@ -209,8 +213,21 @@ async def request_page(store, provider, options, cursor=None, seen=0, transport=
                     )
 
         count = len(page["items"])
-        if provider == "arxiv":
+        if provider in {"arxiv", "crossref"}:
             page["next_cursor"] = str(int(cursor or 0) + count)
+        if provider == "crossref":
+            page["coverage"] = {
+                "mode": "bounded_sorted",
+                "offset": int(cursor or 0),
+                "returned": count,
+                "maximum": 1000,
+                "year_from": options.get("year_from"),
+                "year_to": options.get("year_to"),
+                "snapshot_stable": False,
+            }
+            if int(cursor or 0) + count >= 1000:
+                page["next_cursor"] = None
+                page["coverage"]["limited"] = (page.get("total") or 0) > 1000
         complete = count < options["limit"] or (
             page.get("total") is not None and seen + count >= page["total"]
         )
@@ -220,7 +237,9 @@ async def request_page(store, provider, options, cursor=None, seen=0, transport=
             raise ValueError("Provider repeated a pagination cursor; narrow or restart the query.")
         if complete:
             page["next_cursor"] = None
-        page["status"] = "complete" if complete else "partial"
+        page["status"] = (
+            "complete" if complete and not page.get("coverage", {}).get("limited") else "partial"
+        )
     except (
         httpx.HTTPError,
         ValueError,

@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
-import { parseAuthEnabled } from "./lib/api";
-import { resolveBackendApiBase } from "./lib/backend-runtime-config";
-import { prepareBackendForwardHeaders } from "./lib/backend-forward";
+import { localGuard, withLocalSession } from './lib/local-access'
+import { NextRequest, NextResponse } from 'next/server'
+import { parseAuthEnabled } from './lib/api'
+import { resolveBackendApiBase } from './lib/backend-runtime-config'
+import { prepareBackendForwardHeaders } from './lib/backend-forward'
 import {
   CODEX_CALLBACK_API_PATH,
   COOKIE_NAME,
@@ -11,8 +12,9 @@ import {
   isBackendPath,
   isCodexCallbackPath,
   isRetiredPagePath,
+  isPublicStaticAsset,
   isWebSocketPath,
-} from "./lib/proxy-policy";
+} from './lib/proxy-policy'
 
 // Backend base URL for `/api/*` and `/ws/*` rewrites. The container entrypoint
 // exports `DEEPTUTOR_API_BASE_URL` from `data/user/settings/system.json`
@@ -23,42 +25,46 @@ import {
 // The loopback is spelled as the IPv4 literal, not `localhost`: on a dual-stack
 // host that name resolves to ::1 first, while uvicorn binds 0.0.0.0 (IPv4
 // only), so every rewrite would fail to connect.
-const API_BASE_URL = resolveBackendApiBase();
+const API_BASE_URL = resolveBackendApiBase()
 
 const AUTH_ENABLED = parseAuthEnabled(
-  process.env.DEEPTUTOR_AUTH_ENABLED ?? process.env.NEXT_PUBLIC_AUTH_ENABLED,
-);
+  process.env.DEEPTUTOR_AUTH_ENABLED ?? process.env.NEXT_PUBLIC_AUTH_ENABLED
+)
 
 // Redirect to the login page, preserving the intended destination in `next`.
 // A present-but-invalid cookie is cleared so the browser stops resending it;
 // when no cookie was sent there is nothing to clear.
 function redirectToLogin(
   req: NextRequest,
-  { clearCookie }: { clearCookie: boolean },
+  { clearCookie }: { clearCookie: boolean }
 ): NextResponse {
-  const loginUrl = req.nextUrl.clone();
-  loginUrl.pathname = LOGIN_PATH;
-  loginUrl.search = "";
-  loginUrl.searchParams.set(
-    "next",
-    `${req.nextUrl.pathname}${req.nextUrl.search}`,
-  );
-  const response = NextResponse.redirect(loginUrl);
-  if (clearCookie) response.cookies.delete(COOKIE_NAME);
-  return response;
+  const loginUrl = req.nextUrl.clone()
+  loginUrl.pathname = LOGIN_PATH
+  loginUrl.search = ''
+  loginUrl.searchParams.set('next', `${req.nextUrl.pathname}${req.nextUrl.search}`)
+  const response = NextResponse.redirect(loginUrl)
+  if (clearCookie) response.cookies.delete(COOKIE_NAME)
+  return response
 }
 
 export function proxy(req: NextRequest): NextResponse {
-  const { pathname, search } = req.nextUrl;
+  if (req.method === 'GET' && isPublicStaticAsset(req.nextUrl.pathname))
+    return NextResponse.next()
+  const callback = req.method === 'GET' && isCodexCallbackPath(req.nextUrl.pathname)
+  const rejected = callback ? null : localGuard(req)
+  if (rejected) return rejected
+  const { pathname, search } = req.nextUrl
 
   if (isCodexCallbackPath(pathname)) {
-    return NextResponse.rewrite(
-      new URL(CODEX_CALLBACK_API_PATH + search, API_BASE_URL),
-    );
+    return NextResponse.rewrite(new URL(CODEX_CALLBACK_API_PATH + search, API_BASE_URL), {
+      request: {
+        headers: prepareBackendForwardHeaders(new Headers({ host: req.headers.get('host') || '' })),
+      },
+    })
   }
 
   if (isRetiredPagePath(pathname)) {
-    return new NextResponse(null, { status: 404 });
+    return new NextResponse(null, { status: 404 })
   }
 
   // 1. Bridge the origin gap: forward backend-relative paths to the API server.
@@ -68,11 +74,10 @@ export function proxy(req: NextRequest): NextResponse {
     return NextResponse.rewrite(new URL(pathname + search, API_BASE_URL), {
       request: {
         headers: prepareBackendForwardHeaders(req.headers, {
-          allowWebSocketUpgrade:
-            req.method === "GET" && isWebSocketPath(pathname),
+          allowWebSocketUpgrade: req.method === 'GET' && isWebSocketPath(pathname),
         }),
       },
-    });
+    })
   }
 
   // 2. Auth gate — multi-user mode only. Disabled by default, and never blocks
@@ -80,15 +85,15 @@ export function proxy(req: NextRequest): NextResponse {
   //    isAuthExempt: that exemption is what keeps the logo/banner images
   //    loading once login is enabled — issue #599).
   if (!AUTH_ENABLED || isAuthExempt(pathname)) {
-    return NextResponse.next();
+    return withLocalSession(NextResponse.next())
   }
 
-  const token = req.cookies.get(COOKIE_NAME)?.value;
-  if (classifyToken(token, Date.now()) !== "valid") {
-    return redirectToLogin(req, { clearCookie: Boolean(token) });
+  const token = req.cookies.get(COOKIE_NAME)?.value
+  if (classifyToken(token, Date.now()) !== 'valid') {
+    return redirectToLogin(req, { clearCookie: Boolean(token) })
   }
 
-  return NextResponse.next();
+  return withLocalSession(NextResponse.next())
 }
 
 export const config = {
@@ -104,6 +109,6 @@ export const config = {
   // optimizer's loopback fetch for the source image (e.g. /logo.png) is let
   // through the auth gate by isAuthExempt.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|api/knowledge-bases(?:$|/[^/]+/upload(?:/|$))).*)",
+    '/((?!_next/static|_next/image|favicon.ico|api/knowledge-bases(?:$|/[^/]+/upload(?:/|$))).*)',
   ],
-};
+}

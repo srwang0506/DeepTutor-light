@@ -52,6 +52,12 @@ export interface EvidenceData {
   stance: string
   verification: string
   resolution: string
+  anchor_valid?: boolean
+  quote_match?: string
+  visual_review?: string
+  review_note?: string
+  claim_support?: string
+  needs_review?: boolean
 }
 export type Protocol = Record<
   | 'dataset'
@@ -67,8 +73,16 @@ export type Protocol = Record<
   | 'threshold'
   | 'aggregation',
   string
-> & { direction: 'higher' | 'lower' | 'unknown'; not_applicable: string[] }
-export const PROTOCOL_FIELDS: [keyof Omit<Protocol, 'direction' | 'not_applicable'>, string][] = [
+> & {
+  direction: 'higher' | 'lower' | 'unknown'
+  not_applicable: string[]
+  profile?: string
+  extensions?: Record<string, string>
+}
+export const PROTOCOL_FIELDS: [
+  keyof Omit<Protocol, 'direction' | 'not_applicable' | 'profile' | 'extensions'>,
+  string,
+][] = [
   ['dataset', '数据集'],
   ['dataset_version', '数据版本'],
   ['split', '划分'],
@@ -83,6 +97,8 @@ export const PROTOCOL_FIELDS: [keyof Omit<Protocol, 'direction' | 'not_applicabl
   ['aggregation', '聚合方式'],
 ]
 export const emptyProtocol = (): Protocol => ({
+  profile: 'general',
+  extensions: {},
   dataset: '',
   dataset_version: '',
   split: '',
@@ -99,6 +115,7 @@ export const emptyProtocol = (): Protocol => ({
   not_applicable: [],
 })
 export interface ObservationData {
+  source_ref?: { id: string; revision: number }
   title: string
   origin: string
   source_id: string
@@ -181,6 +198,7 @@ export interface DiscoveryData {
     next_cursor?: string | null
     started?: number
     query?: Record<string, unknown>
+    coverage?: { mode: string; maximum: number; limited?: boolean; snapshot_stable: boolean }
   }[]
 }
 

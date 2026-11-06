@@ -66,8 +66,14 @@ async def file_bytes(file: UploadFile, maximum=100 * 1024 * 1024):
 
 
 @router.get("/library")
-async def library(q: str = Query("", max_length=2000), project_only: bool = False):
-    return {"works": await operation(catalog.library, Studio(), q, project_only)}
+async def library(
+    q: str = Query("", max_length=2000),
+    project_only: bool = False,
+    limit: int = Query(100, ge=1, le=200),
+    cursor: str = Query("", max_length=2000),
+    missing: bool = False,
+):
+    return await operation(catalog.library_page, Studio(), q, project_only, limit, cursor, missing)
 
 
 @router.post("/works")
@@ -174,9 +180,9 @@ async def records(
 
 
 @router.get("/record/{identifier}")
-async def record(identifier: str):
+async def record(identifier: str, revision: int | None = Query(None, ge=1)):
     store = Studio()
-    row = await operation(store.get, identifier)
+    row = await operation(store.revision, identifier, revision)
     return {**row, "stale": await operation(store.stale, identifier)}
 
 
@@ -218,6 +224,18 @@ async def compare(left: str, right: str):
 @router.post("/claims")
 async def add_claim(payload: ClaimInput):
     return await operation(evidence.create_claim, Studio(), payload)
+
+
+class ClaimEdit(Command):
+    expected_revision: int = Field(ge=1)
+    claim: ClaimInput
+
+
+@router.put("/claims/{identifier}")
+async def edit_claim(identifier: str, payload: ClaimEdit):
+    return await operation(
+        evidence.create_claim, Studio(), payload.claim, identifier, payload.expected_revision
+    )
 
 
 @router.post("/screening")
@@ -392,6 +410,7 @@ async def build_file(
 
 
 class SubmissionInput(Command):
+    kind: Literal["submission", "archive"] = "submission"
     paths: list[str] = Field(min_length=1, max_length=2000)
     build_id: str
 
@@ -399,7 +418,7 @@ class SubmissionInput(Command):
 @router.post("/manuscripts/{identifier}/submissions")
 async def submit(identifier: str, payload: SubmissionInput):
     return await operation(
-        manuscripts.submission, Studio(), identifier, payload.paths, payload.build_id
+        manuscripts.submission, Studio(), identifier, payload.paths, payload.build_id, payload.kind
     )
 
 
@@ -468,6 +487,8 @@ async def import_remote_run(identifier: str, payload: SnapshotRun):
 class EvidenceReview(Command):
     expected_revision: int = Field(ge=1)
     verification: Literal["unreviewed", "confirmed", "disputed"]
+    visual_review: Literal["not_reviewed", "confirmed", "disputed"] | None = None
+    review_note: str | None = Field(default=None, max_length=5000)
 
 
 @router.patch("/evidence/{identifier}/review")
@@ -478,6 +499,8 @@ async def review_evidence(identifier: str, payload: EvidenceReview):
         identifier,
         payload.expected_revision,
         payload.verification,
+        payload.visual_review,
+        payload.review_note,
     )
 
 
@@ -638,8 +661,6 @@ async def remote_run_draft(identifier: str):
     return await operation(connections.snapshot_run_draft, Studio(), identifier)
 
 
-
-
 class PreferencesUpdate(assist.WritingPreferences):
     expected_revision: int = Field(ge=0)
 
@@ -697,3 +718,78 @@ async def writing_assist(identifier: str, payload: WritingAssistInput):
         ) from exc
     finally:
         reset_llm_selection(token)
+
+
+from deeptutor.studio.contracts import ActionReceipt, ActionRequest, connector_manifests
+
+
+@router.get("/connectors")
+async def connectors():
+    return {"connectors": connector_manifests()}
+
+
+@router.post("/actions", response_model=ActionReceipt)
+async def action(payload: ActionRequest):
+    from deeptutor.services.llm import complete
+    from deeptutor.services.session import get_sqlite_session_store
+    from deeptutor.studio.actions import practice
+
+    try:
+        return await practice(Studio(), get_sqlite_session_store(), payload, complete)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@router.get("/works/{identifier}")
+async def work_detail(identifier: str):
+    return await operation(catalog.work_details, Studio(), identifier)
+
+
+@router.get("/continuations")
+async def continuations():
+    from deeptutor.studio.resume import pending
+
+    return {"items": await operation(pending, Studio())}
+
+
+from deeptutor.studio.contracts import ObjectRef
+
+
+@router.post("/resume")
+async def resume_reading(payload: ObjectRef):
+    from deeptutor.studio.resume import save
+
+    return await operation(save, Studio(), payload)
+
+
+class BibliographyReport(BibliographyExport):
+    format: Literal["bibtex", "ris", "csl"] = "bibtex"
+
+
+@router.post("/bibliography/export-report")
+async def bibliography_export_report(payload: BibliographyReport):
+    return await operation(
+        catalog.bibliography_export, Studio(), payload.edition_ids, payload.format, payload.keys
+    )
+
+
+@router.get("/builds/{identifier}/source-map/locate")
+async def source_map(
+    identifier: str,
+    direction: Literal["forward", "inverse"],
+    path: str = Query("", max_length=500),
+    line: int = Query(1, ge=1),
+    page: int = Query(1, ge=1),
+    x: float = Query(0.5, ge=0, le=1),
+    y: float = Query(0.5, ge=0, le=1),
+):
+    from deeptutor.studio.source_map import locate
+
+    return await operation(locate, Studio(), identifier, direction, path, line, page, x, y)
+
+
+@router.get("/submissions/{identifier}/response-export")
+async def response_export(identifier: str):
+    from deeptutor.studio.writing import export_response
+
+    return await operation(export_response, Studio(), identifier)

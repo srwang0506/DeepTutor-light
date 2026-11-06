@@ -34,6 +34,39 @@ async def cancel(session_id: str, attempt_id: str):
     return result
 
 
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class ExposureInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    session_id: str = Field(min_length=1, max_length=200)
+    turn_id: str = Field(min_length=1, max_length=200)
+    question_id: str = Field(min_length=1, max_length=200)
+    question_version: str = Field(default="", max_length=64)
+    level: Literal["hint", "revealed"]
+    event_id: str = Field(min_length=16, max_length=100)
+
+
+@router.post("/exposures")
+async def exposure(payload: ExposureInput):
+    store = get_sqlite_session_store()
+    try:
+        contract = await question_contract(
+            store,
+            payload.session_id,
+            payload.turn_id,
+            payload.question_id,
+            payload.question_version,
+        )
+        return await store.record_quiz_exposure(
+            payload.session_id, contract, payload.level, payload.event_id
+        )
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
 @router.get("/{session_id}/{turn_id}/{question_id}")
 async def read_question(session_id: str, turn_id: str, question_id: str, version: str = ""):
     try:

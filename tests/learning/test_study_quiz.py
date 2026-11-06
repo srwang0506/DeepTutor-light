@@ -253,3 +253,57 @@ def test_source_scope_accepts_current_and_preserved_revisions(monkeypatch, tmp_p
     monkeypatch.setattr(store, "revisions", lambda _: [])
     with pytest.raises(ValueError, match="original material version"):
         validate_source_scope(contract)
+
+
+@pytest.mark.asyncio
+async def test_new_attempt_cannot_erase_reference_exposure(quiz):
+    store, request = quiz
+    await submit_quiz(store, request.model_copy(update={"assistance": "revealed"}))
+    receipt = await submit_quiz(
+        store, request.model_copy(update={"attempt_id": "new-attempt-1234567890"})
+    )
+    assert receipt["result"] == "correct"
+    assert receipt["independent"] is False
+    assert receipt["evidence_kind"] == "correction"
+    attempts = await store.list_assessment_attempts("s")
+    assert attempts[0]["hints_used"] > 0
+
+
+@pytest.mark.asyncio
+async def test_exposure_survives_restart_before_any_submission(quiz):
+    store, request = quiz
+    contract = await question_contract(store, "s", "t", "q")
+    await store.record_quiz_exposure("s", contract, "hint", "reveal-event-123456")
+    restarted = SQLiteSessionStore(db_path=store.db_path)
+    receipt = await submit_quiz(restarted, request)
+    assert receipt["evidence_kind"] == "assisted"
+    assert receipt["independent"] is False
+
+
+@pytest.mark.asyncio
+async def test_old_assisted_attempt_is_backfilled_on_upgrade(quiz):
+    store, request = quiz
+    await submit_quiz(store, request.model_copy(update={"assistance": "revealed"}))
+    # Simulate the schema immediately before the exposure ledger existed.
+    with store._connect() as conn:
+        conn.execute("DELETE FROM quiz_exposures")
+        conn.execute("DELETE FROM quiz_migrations")
+    restarted = SQLiteSessionStore(db_path=store.db_path)
+    restarted = SQLiteSessionStore(db_path=store.db_path)
+    with restarted._connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM quiz_exposures").fetchone()[0] == 1
+    receipt = await submit_quiz(
+        restarted, request.model_copy(update={"attempt_id": "after-upgrade-123456789"})
+    )
+    assert receipt["evidence_kind"] == "correction"
+    assert not receipt["independent"]
+
+
+@pytest.mark.asyncio
+async def test_exposure_replay_cannot_change_event_payload(quiz):
+    store, _ = quiz
+    contract = await question_contract(store, "s", "t", "q")
+    await store.record_quiz_exposure("s", contract, "hint", "same-event")
+    await store.record_quiz_exposure("s", contract, "hint", "same-event")
+    with pytest.raises(ValueError, match="different event"):
+        await store.record_quiz_exposure("s", contract, "revealed", "same-event")

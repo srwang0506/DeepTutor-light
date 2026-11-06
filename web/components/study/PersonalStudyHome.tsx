@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import Continuations from '@/components/studio/Continuations'
 import {
   ArrowRight,
   ArrowUpRight,
@@ -526,6 +527,7 @@ function StudyHome({ workspace }: { workspace: string }) {
           </div>
         )}
       </div>
+      {!auth.learningPolicy && <Continuations workspace={workspace} />}
     </FeaturePage>
   )
 }

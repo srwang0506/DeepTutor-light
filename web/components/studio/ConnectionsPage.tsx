@@ -15,6 +15,7 @@ import {
   Unplug,
 } from 'lucide-react'
 import { Dialog } from '@/shared/ui/Dialog'
+import ConnectorCapabilities from './ConnectorCapabilities'
 import { useActiveWorkspaceId } from '@/hooks/useActiveWorkspaceId'
 import { records, post, studio, type StudioRecord } from '@/lib/studio-api'
 import { setPendingPrompt } from '@/lib/pending-prompt'
@@ -61,8 +62,8 @@ interface Snapshot {
   result: {
     path?: string
     commit?: string
-    dirty?: boolean
-    tracked_changes?: string
+    dirty?: boolean | null
+    tracked_changes?: string | null
     entries?: Entry[]
     truncated?: boolean
     roots?: string[]
@@ -497,9 +498,11 @@ function Connections({ workspace }: { workspace: string }) {
                     观测 commit：<code>{result?.commit}</code>
                   </p>
                   <p>
-                    {result?.dirty
-                      ? '存在已跟踪文件的未提交修改。尚未采集补丁，不能视为完整的实验代码快照。'
-                      : '此概览只检查仓库状态，不代表实验已经运行。'}
+                    {result?.dirty == null
+                      ? '工作树修改状态未知。只读检查仅获取 Git 对象元数据，不执行工作树过滤器。'
+                      : result.dirty
+                        ? '存在已跟踪文件的未提交修改。尚未采集补丁，不能视为完整的实验代码快照。'
+                        : '此概览只检查仓库状态，不代表实验已经运行。'}
                   </p>
                   {result?.candidates && (
                     <>
@@ -565,6 +568,7 @@ function Connections({ workspace }: { workspace: string }) {
           )}
         </main>
       </div>
+      <ConnectorCapabilities workspace={workspace} />
       <Dialog
         open={dialog}
         onClose={() => !op.busy && setDialog(false)}
@@ -710,6 +714,17 @@ function Connections({ workspace }: { workspace: string }) {
           </p>
         </div>
       </Dialog>
+      <details className="studio-panel" style={{ marginTop: 24 }}>
+        <summary>接入方式与能力边界</summary>
+        <p className="studio-note">
+          SSH /
+          GitHub：授权只读，结果保存为不可变快照。MLflow、W&amp;B、TensorBoard：当前支持导出文件交换。文献检索：在线只读。TeX
+          修改：先预览差异，再由你应用。
+        </p>
+        <p className="studio-note">
+          只读连接不会自行执行实验、推送代码或删除远端文件。服务不可用时，已保存的资料和结果仍可访问。
+        </p>
+      </details>
     </StudioShell>
   )
 }

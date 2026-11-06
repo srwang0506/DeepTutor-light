@@ -1644,6 +1644,13 @@ def start(
     # and to gate the login redirect. The browser uses relative paths, so the
     # frontend server reaches the backend on the IPv4 loopback at the resolved port —
     # use backend_url (not api_base, which may be an external browser URL).
+    import secrets
+
+    if not auth_enabled:
+        common_env["DEEPTUTOR_LOCAL_CAPABILITY"] = secrets.token_urlsafe(32)
+        common_env["DEEPTUTOR_LOCAL_ORIGINS"] = (
+            f"http://127.0.0.1:{frontend_port},http://localhost:{frontend_port}"
+        )
     common_env["DEEPTUTOR_API_BASE_URL"] = backend_url
     common_env["DEEPTUTOR_AUTH_ENABLED"] = "true" if auth_enabled else "false"
     common_env["PYTHONUNBUFFERED"] = "1"

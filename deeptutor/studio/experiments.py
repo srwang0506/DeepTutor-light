@@ -5,13 +5,20 @@ import io
 import json
 from pathlib import Path
 
-from .database import encoded
+from .database import Conflict, encoded, sha
 from .evidence import compare_observations
 from .models import RunInput
 
 
 def create_run(
-    store, command: RunInput, identifier=None, expected=None, *, provenance=None, sources=()
+    store,
+    command: RunInput,
+    identifier=None,
+    expected=None,
+    *,
+    provenance=None,
+    sources=(),
+    import_identity=None,
 ):
     data = command.model_dump()
     required = (
@@ -39,6 +46,20 @@ def create_run(
     if provenance:
         data.update(provenance)
     with store.db(write=True) as db:
+        if import_identity:
+            key, payload_hash = import_identity
+            existing = db.execute(
+                "SELECT id FROM records WHERE kind='run' AND scope=? AND json_extract(data,'$.import_key')=?",
+                (store.project, key),
+            ).fetchone()
+            if existing:
+                record = store.record(db, existing[0], "run")
+                if record["data"]["import_payload_hash"] != payload_hash:
+                    raise Conflict(
+                        "This import key was already used with different content. Use a new snapshot identity."
+                    )
+                return record
+            data.update(import_key=key, import_payload_hash=payload_hash)
         if identifier:
             previous = store.record(db, identifier, "run")["data"]
             for field in ("remote_source", "execution_verified", "tracking_snapshot"):
@@ -83,7 +104,7 @@ def make_table(store, title, identifiers):
     output = io.StringIO()
     writer = csv.writer(output)
     writer.writerow(["Method", "Value", "State", "Origin", "Metric", "Unit", "Source", "Revision"])
-    latex = [r"\begin{tabular}{lrl}", r"Method & Value & Status \\", r"\hline"]
+    latex = [r"\begin{tabular}{lrll}", r"Method & Value & Unit & Status \\", r"\hline"]
     for row in rows:
         d = row["data"]
         value = d["value"] if d["value"] is not None else ""
@@ -99,7 +120,10 @@ def make_table(store, title, identifiers):
                 row["revision"],
             ]
         )
-        latex.append(f"{tex_escape(d['title'])} & {value} & {tex_escape(d['state'])} " + r"\\")
+        latex.append(
+            f"{tex_escape(d['title'])} & {value} & {tex_escape(d['protocol']['unit'])} & "
+            f"{tex_escape(d['state'])} " + r"\\"
+        )
     latex.append(r"\end{tabular}")
     files = {
         "table.csv": store.save_blob(output.getvalue().encode()),
@@ -137,11 +161,12 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 root=Path(__file__).parent
 data=json.loads((root/'inputs.json').read_text())
+normalization=json.loads((root/'normalization.json').read_text())
 style=json.loads((root/'style.json').read_text())
 fig=Figure(figsize=(7,4.2),layout='constrained');FigureCanvasAgg(fig)
 ax=fig.subplots()
 labels=[r['data']['title'] for r in data]
-values=[r['data']['value'] for r in data]
+values=[r['data']['value']*normalization['factors'][i] for i,r in enumerate(data)]
 ax.bar(range(len(values)),values,color=style['color'],width=.62)
 ax.set_xticks(range(len(values)),labels,rotation=20,ha='right')
 ax.set_ylabel(data[0]['data']['protocol']['metric']+' ('+data[0]['data']['protocol']['unit']+')')
@@ -158,15 +183,33 @@ def make_figure(store, title, identifiers):
 
     if not 2 <= len(identifiers) <= 30:
         raise ValueError("Choose 2–30 observations for a comparison figure.")
+    factors = [1.0]
+    comparisons = []
     for identifier in identifiers[1:]:
-        if compare_observations(store, identifiers[0], identifier)["status"] != "comparable":
+        comparison = compare_observations(store, identifiers[0], identifier)
+        if comparison["status"] != "comparable":
             raise ValueError(
                 "Plotting comparative values requires verified matching evaluation conditions."
             )
+        factors.append(
+            next(
+                (v["right_to_left"] for v in comparison["conversions"] if v["field"] == "unit"), 1.0
+            )
+        )
+        comparisons.append(comparison)
     rows = [store.get(i, "observation") for i in identifiers]
     with tempfile.TemporaryDirectory(prefix="deeptutor-figure-") as tmp:
         root = Path(tmp)
         (root / "inputs.json").write_text(encoded(rows))
+        (root / "normalization.json").write_text(
+            encoded(
+                {
+                    "unit": rows[0]["data"]["protocol"]["unit"],
+                    "factors": factors,
+                    "comparisons": comparisons,
+                }
+            )
+        )
         (root / "style.json").write_text(encoded({"color": "#477965", "version": 1}))
         (root / "plot.py").write_text(PLOT_SCRIPT)
         # This is our fixed, versioned script. No uploaded code is executed.
@@ -190,7 +233,7 @@ def make_figure(store, title, identifiers):
                 "type": "figure",
                 "files": files,
                 "input_snapshots": rows,
-                "script_version": 1,
+                "script_version": 2,
             },
         )
         for identifier in identifiers:
@@ -207,13 +250,40 @@ def import_run_rows(store, text, format):
     if not isinstance(rows, list) or not 1 <= len(rows) <= 500:
         raise ValueError("Import 1–500 run records.")
     results = []
+    occurrences = {}
     for n, row in enumerate(rows):
         try:
+            if not isinstance(row, dict):
+                raise ValueError("Each run must be an object.")
+            row = dict(row)
+            identity = row.pop("import_identity", {})
+            if not isinstance(identity, dict) or set(identity) - {
+                "connector",
+                "external_run_id",
+                "snapshot",
+                "idempotency_key",
+            }:
+                raise ValueError("Invalid import identity.")
             if isinstance(row.get("configuration"), str):
                 row["configuration"] = json.loads(row["configuration"] or "{}")
             if isinstance(row.get("seed"), str):
                 row["seed"] = int(row["seed"]) if row["seed"] else None
-            record = create_run(store, RunInput(**row))
+            command = RunInput(**row)
+            payload_hash = sha(encoded(command.model_dump()).encode())
+            occurrences[payload_hash] = occurrences.get(payload_hash, 0) + 1
+            if identity:
+                if not all(isinstance(v, str) and 0 < len(v) <= 500 for v in identity.values()):
+                    raise ValueError("Import identity fields must be nonempty strings.")
+                if not identity.get("idempotency_key") and not all(
+                    identity.get(k) for k in ("connector", "external_run_id", "snapshot")
+                ):
+                    raise ValueError(
+                        "Provide an operation key or connector, external run ID and snapshot."
+                    )
+                key = sha(encoded(identity).encode())
+            else:
+                key = sha(encoded(["manifest", payload_hash, occurrences[payload_hash]]).encode())
+            record = create_run(store, command, import_identity=(key, payload_hash))
             results.append({"index": n, "status": "imported", "id": record["id"]})
         except (ValueError, TypeError) as exc:
             results.append({"index": n, "status": "error", "detail": str(exc)})

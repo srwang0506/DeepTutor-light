@@ -236,6 +236,15 @@ export default function DiscoveryPanel({
                 {items.length} 条 · {pages.length} 页响应
               </small>
             </h3>
+            {last.coverage && (
+              <p className="studio-note">
+                本次检索最多覆盖 {last.coverage.maximum.toLocaleString()} 条排序结果。
+                {last.coverage.limited ? '已到覆盖上限，可缩小年份或检索范围后继续。' : ''}
+                {!last.coverage.snapshot_stable
+                  ? '来源更新可能影响后续页顺序；每页原始响应均已保存。'
+                  : ''}
+              </p>
+            )}
             {last.status === 'rate_limited' && (
               <p className="studio-note">
                 服务要求稍后重试{last.retry_after ? `（Retry-After: ${last.retry_after}）` : ''}

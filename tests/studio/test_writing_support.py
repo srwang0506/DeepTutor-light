@@ -96,7 +96,16 @@ def test_confirmed_claim_cannot_launder_unknown_values_through_table(store):
         evidence.create_claim(
             store,
             ClaimInput(
-                title="This result is confirmed", status="confirmed", evidence_ids=[table["id"]]
+                title="This result is confirmed",
+                status="confirmed",
+                edges=[
+                    dict(
+                        source_id=table["id"],
+                        source_revision=table["revision"],
+                        role="supports",
+                        review="confirmed",
+                    )
+                ],
             ),
         )
     draft = evidence.create_claim(

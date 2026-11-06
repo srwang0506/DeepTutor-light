@@ -12,6 +12,7 @@ import os
 from pathlib import Path
 import shutil
 import sqlite3
+import stat
 import tempfile
 import time
 
@@ -67,12 +68,22 @@ def backup(home, destination):
     ):
         stage = Path(staging)
         (stage / "data").mkdir()
-        manifest = {"schema": 1, "created_at": time.time(), "source_home": str(home), "files": []}
+        manifest = {
+            "schema": 1,
+            "created_at": time.time(),
+            "source_home": str(home),
+            "files": [],
+            "directories": [],
+        }
         for src in sorted(source.rglob("*")):
             if src.is_symlink():
                 raise ValueError(
                     f"External symbolic link must be materialized before backup: {src.relative_to(home)}"
                 )
+            if src.is_dir():
+                manifest["directories"].append(str(src.relative_to(home)))
+                (stage / src.relative_to(home)).mkdir(parents=True, exist_ok=True)
+                continue
             if (
                 not src.is_file()
                 or src.name.startswith("._")
@@ -114,6 +125,19 @@ def verify(snapshot):
     manifest = json.loads((snapshot / "manifest.json").read_text())
     if manifest.get("schema") != 1 or not isinstance(manifest.get("files"), list):
         raise ValueError("Unsupported backup manifest")
+    # rglob does not descend into directory links, whereas copytree used to do
+    # so. Reject every link, including unlisted/empty directory links, first.
+    if (snapshot / "data").is_symlink():
+        raise ValueError("Backup data cannot be a symbolic link")
+    for path in (snapshot / "data").rglob("*"):
+        if path.is_symlink() or not (path.is_file() or path.is_dir()):
+            raise ValueError("Backup contains a symbolic link or special file")
+    for directory in manifest.get("directories", []):
+        rel = Path(directory)
+        if rel.is_absolute() or ".." in rel.parts or rel.parts[:1] != ("data",):
+            raise ValueError("Invalid backup directory")
+        if not (snapshot / rel).is_dir() or (snapshot / rel).is_symlink():
+            raise ValueError("Missing or unsafe backup directory")
     paths = set()
     for row in manifest["files"]:
         relative = Path(row["path"])
@@ -238,11 +262,58 @@ def restore(snapshot, destination):
     destination.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=destination.parent, prefix=".study-restore-") as staging:
         stage = Path(staging)
-        shutil.copytree(snapshot / "data", stage / "data", copy_function=shutil.copyfile)
+        (stage / "data").mkdir()
+        for directory in manifest.get("directories", []):
+            (stage / directory).mkdir(parents=True, exist_ok=True)
+        # Restore exactly the validated manifest. Never recursively copy data
+        # that appeared after validation, or traverse a swapped directory link.
+        for row in manifest["files"]:
+            relative = Path(row["path"])
+            target = stage / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with snapshot_file(snapshot, relative) as source, target.open("xb") as output:
+                checksum = sha256()
+                size = 0
+                while chunk := source.read(1024 * 1024):
+                    size += len(chunk)
+                    if size > row["size"]:
+                        raise ValueError("Backup changed during restore")
+                    checksum.update(chunk)
+                    output.write(chunk)
+                if size != row["size"] or checksum.hexdigest() != row["sha256"]:
+                    raise ValueError("Backup changed during restore")
+            if row["sqlite"]:
+                check_sqlite(target)
         relocate_file_references(stage, manifest.get("source_home"), destination)
         os.chmod(stage, 0o700)
         stage.rename(destination)
     return manifest
+
+
+@contextmanager
+def snapshot_file(root, relative):
+    """Open each path component without following links, including swap races."""
+    if os.open not in os.supports_dir_fd or not hasattr(os, "O_NOFOLLOW"):
+        raise ValueError("Safe restore requires no-follow directory handles on this platform")
+    handles = []
+    try:
+        directory = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        handles.append(directory)
+        for part in relative.parts[:-1]:
+            directory = os.open(
+                part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=directory
+            )
+            handles.append(directory)
+        fd = os.open(relative.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+        with os.fdopen(fd, "rb") as source:
+            if not stat.S_ISREG(os.fstat(source.fileno()).st_mode):
+                raise ValueError("Backup entry is not a regular file")
+            yield source
+    except OSError as exc:
+        raise ValueError("Backup path changed or contains a link") from exc
+    finally:
+        for handle in reversed(handles):
+            os.close(handle)
 
 
 def main():

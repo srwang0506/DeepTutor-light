@@ -43,6 +43,8 @@ class EvidenceInput(Command):
     stance: Literal["supports", "contradicts", "qualifies", "context"] = "context"
     verification: Literal["unreviewed", "confirmed", "disputed"] = "unreviewed"
     parser_signature: str = Field(default="original", max_length=200)
+    visual_review: Literal["not_reviewed", "confirmed", "disputed"] = "not_reviewed"
+    review_note: str = Field(default="", max_length=5000)
 
     @model_validator(mode="after")
     def valid_region(self):
@@ -56,6 +58,9 @@ class EvidenceInput(Command):
 
 
 class Protocol(Command):
+    profile: Literal[
+        "general", "hoi_detection", "hoi_reconstruction", "trajectory", "mathematics"
+    ] = "general"
     dataset: str = Field(default="", max_length=500)
     dataset_version: str = Field(default="", max_length=500)
     split: str = Field(default="", max_length=500)
@@ -70,10 +75,18 @@ class Protocol(Command):
     aggregation: str = Field(default="", max_length=500)
     direction: Literal["higher", "lower", "unknown"] = "unknown"
     not_applicable: list[str] = Field(default_factory=list, max_length=12)
+    extensions: dict[str, str] = Field(default_factory=dict, max_length=30)
 
     @model_validator(mode="after")
     def applicable_conditions(self):
-        fields = set(type(self).model_fields) - {"direction", "not_applicable"}
+        if any(len(k) > 100 or len(v) > 1000 for k, v in self.extensions.items()):
+            raise ValueError("Protocol extension names or values are too long.")
+        fields = set(type(self).model_fields) - {
+            "direction",
+            "not_applicable",
+            "profile",
+            "extensions",
+        }
         if (
             len(set(self.not_applicable)) != len(self.not_applicable)
             or not set(self.not_applicable) <= fields
@@ -126,11 +139,20 @@ class RunInput(Command):
     artifacts: list[dict[str, str]] = Field(default_factory=list, max_length=200)
 
 
+class ClaimEvidenceEdge(Command):
+    source_id: str
+    source_revision: int = Field(ge=1)
+    role: Literal["supports", "contradicts", "qualifies", "context"]
+    qualifiers: str = Field(default="", max_length=5000)
+    review: Literal["unreviewed", "confirmed", "disputed"] = "unreviewed"
+
+
 class ClaimInput(Command):
     title: str = Field(min_length=1, max_length=2000)
     evidence_ids: list[str] = Field(default_factory=list, max_length=100)
     status: Literal["draft", "confirmed", "disputed"] = "draft"
     note: str = Field(default="", max_length=10000)
+    edges: list[ClaimEvidenceEdge] = Field(default_factory=list, max_length=100)
 
 
 class ScreeningInput(Command):

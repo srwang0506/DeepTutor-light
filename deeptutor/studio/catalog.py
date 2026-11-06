@@ -104,7 +104,7 @@ def edition_file(store, edition_id, digest):
     return store.blob_path(digest), file
 
 
-def page_source(store, edition_id, digest, page):
+def page_source(store, edition_id, digest, page, region=None):
     import fitz
 
     path, metadata = edition_file(store, edition_id, digest)
@@ -112,8 +112,16 @@ def page_source(store, edition_id, digest, page):
         raise ValueError("Page is outside this original.")
     with fitz.open(path) as pdf:
         p = pdf[page - 1]
+        clip = None
+        if region:
+            x0, y0, x1, y1 = region
+            if not 0 <= x0 < x1 <= 1 or not 0 <= y0 < y1 <= 1:
+                raise ValueError("Invalid page region")
+            clip = fitz.Rect(
+                x0 * p.rect.width, y0 * p.rect.height, x1 * p.rect.width, y1 * p.rect.height
+            )
         return {
-            "text": p.get_text()[:100000],
+            "text": p.get_text(clip=clip)[:100000],
             "page": page,
             "label": p.get_label(),
             "width": p.rect.width,
@@ -135,27 +143,82 @@ def link_project(store, edition_id, role="reading"):
     return {"edition_id": edition_id, "project_id": store.project, "role": role}
 
 
-def library(store, query="", project_only=False):
-    works = store.list("work", query, 500)
-    editions = store.list("edition", limit=500)
+def library_page(store, query="", project_only=False, limit=100, cursor="", missing=False):
+    """Filter identities and project membership before pagination; editions are never truncated."""
+    import base64
+    import hashlib
+
+    query = query.strip()
+    limit = max(1, min(int(limit), 200))
+    fingerprint = hashlib.sha256(
+        json.dumps([store.project, query, project_only, missing]).encode()
+    ).hexdigest()[:16]
     with store.db() as db:
-        links = {
-            r["edition"]: r["role"]
-            for r in db.execute("SELECT * FROM project_library WHERE project=?", (store.project,))
-        }
-    return [
-        {
-            **work,
-            "editions": [
-                {**e, "project_role": links.get(e["id"])}
-                for e in editions
-                if e["data"]["work_id"] == work["id"] and (not project_only or e["id"] in links)
-            ],
-        }
-        for work in works
-        if not project_only
-        or any(e["data"]["work_id"] == work["id"] and e["id"] in links for e in editions)
-    ]
+        params = []
+        sql = "SELECT w.id,w.updated FROM records w WHERE w.kind='work' AND w.scope='@library'"
+        # Unary + removes the column's TEXT affinity (without changing its value).
+        # Otherwise SQLite coerces the JSON expression and scans the entire
+        # edition index for every work instead of using an indexed lookup.
+        editions = "SELECT 1 FROM records e LEFT JOIN project_library p ON p.edition=e.id AND p.project=? WHERE e.kind='edition' AND json_extract(e.data,'$.work_id')=+w.id"
+        if project_only:
+            sql += " AND EXISTS (" + editions + " AND p.edition IS NOT NULL)"
+            params.append(store.project)
+        if missing:
+            sql += " AND NOT EXISTS (" + editions + " AND json_array_length(e.data,'$.files')>0)"
+            params.append(store.project)
+        if query:
+            # Unicode raw substring complements FTS, including DOI, citekeys and math symbols.
+            sql += (
+                " AND (instr(casefold(w.data),casefold(?))>0 OR EXISTS ("
+                + editions
+                + " AND instr(casefold(e.data),casefold(?))>0))"
+            )
+            params.extend([query, store.project, query])
+        if cursor:
+            try:
+                marker = json.loads(base64.urlsafe_b64decode(cursor.encode()))
+                if (
+                    marker[0] != fingerprint
+                    or len(marker) != 3
+                    or not isinstance(marker[1], (int, float))
+                    or not isinstance(marker[2], str)
+                ):
+                    raise ValueError()
+            except Exception as exc:
+                raise ValueError("Invalid library cursor; restart this search.") from exc
+            sql += " AND (w.updated<? OR (w.updated=? AND w.id>?))"
+            params.extend([marker[1], marker[1], marker[2]])
+        sql += " ORDER BY w.updated DESC,w.id LIMIT ?"
+        params.append(limit + 1)
+        selected = db.execute(sql, params).fetchall()
+        works = []
+        for item in selected[:limit]:
+            rows = db.execute(
+                "SELECT e.id,p.role FROM records e LEFT JOIN project_library p ON p.edition=e.id AND p.project=? "
+                "WHERE e.kind='edition' AND json_extract(e.data,'$.work_id')=? "
+                + ("AND p.edition IS NOT NULL " if project_only else "")
+                + "ORDER BY e.created,e.id",
+                (store.project, item["id"]),
+            ).fetchall()
+            works.append(
+                {
+                    **store.record(db, item["id"]),
+                    "editions": [
+                        {**store.record(db, e["id"]), "project_role": e["role"]} for e in rows
+                    ],
+                }
+            )
+        next_cursor = ""
+        if len(selected) > limit:
+            last = selected[limit - 1]
+            next_cursor = base64.urlsafe_b64encode(
+                json.dumps([fingerprint, last["updated"], last["id"]]).encode()
+            ).decode()
+        return {"works": works, "next_cursor": next_cursor}
+
+
+def library(store, query="", project_only=False):
+    return library_page(store, query, project_only)["works"]
 
 
 def parse_bibliography(text, format):
@@ -199,6 +262,7 @@ def parse_bibliography(text, format):
                 "doi": r.get("DOI", ""),
                 "arxiv": r.get("arxiv", ""),
                 "citekey": str(r.get("id", "")),
+                "venue": r.get("container-title", ""),
                 "url": r.get("URL", ""),
                 "original": r,
             }
@@ -212,7 +276,7 @@ def parse_bibliography(text, format):
             if match:
                 last, value = match.groups()
                 if last == "TY":
-                    current = {}
+                    current = {"TY": [value]}
                 elif last == "ER":
                     rows.append(current)
                     current = {}
@@ -283,7 +347,13 @@ def import_bibliography(store, text, format):
                     continue
                 work = store.put(db, "work", command.model_dump())
                 edition = _create_edition(
-                    store, db, {**edition_command.model_dump(), "work_id": work["id"]}
+                    store,
+                    db,
+                    {
+                        **edition_command.model_dump(),
+                        "work_id": work["id"],
+                        "bibliographic_source": {"format": format, "record": item["original"]},
+                    },
                 )
                 db.execute(
                     "INSERT INTO project_library VALUES (?,?,?,?)",
@@ -322,7 +392,129 @@ def bibliography(store, edition_ids, keys=None):
         }.items():
             if value:
                 entry[name] = str(value)
+        original = edition.get("bibliographic_source", {})
+        if original.get("format") == "bibtex":
+            entry = {**original["record"], "ID": key}
+        elif original.get("format") in {"ris", "csl"}:
+            raw = original["record"]
+            kind = (
+                raw.get("type", "") if original["format"] == "csl" else (raw.get("TY") or [""])[0]
+            )
+            entry["ENTRYTYPE"] = {
+                "paper-conference": "inproceedings",
+                "CONF": "inproceedings",
+                "CPAPER": "inproceedings",
+                "book": "book",
+                "BOOK": "book",
+                "chapter": "incollection",
+                "CHAP": "incollection",
+                "thesis": "phdthesis",
+                "THES": "phdthesis",
+            }.get(kind, "article")
+            if entry["ENTRYTYPE"] in {"inproceedings", "incollection"} and "journal" in entry:
+                entry["booktitle"] = entry.pop("journal")
+            mapping = (
+                {"page": "pages", "publisher": "publisher", "volume": "volume", "issue": "number"}
+                if original["format"] == "csl"
+                else {"SP": "pages", "PB": "publisher", "VL": "volume", "IS": "number"}
+            )
+            for source, dest in mapping.items():
+                value = raw.get(source)
+                if value:
+                    entry[dest] = str(value[0] if isinstance(value, list) else value)
+            if raw.get("EP") and entry.get("pages"):
+                entry["pages"] += "--" + raw["EP"][0]
         entries.append(entry)
     database = BibDatabase()
     database.entries = entries
     return bibtexparser.dumps(database)
+
+
+def work_details(store, identifier):
+    with store.db() as db:
+        work = store.record(db, identifier, "work")
+        rows = db.execute(
+            "SELECT id FROM records WHERE kind='edition' AND json_extract(data,'$.work_id')=? ORDER BY created,id",
+            (identifier,),
+        ).fetchall()
+        return {**work, "editions": [store.record(db, r[0]) for r in rows]}
+
+
+def bibliography_export(store, edition_ids, format="bibtex", keys=None):
+    if format not in {"bibtex", "ris", "csl"}:
+        raise ValueError("Choose BibTeX, RIS or CSL JSON.")
+    losses, originals = [], []
+    for identifier in edition_ids:
+        edition = store.get(identifier, "edition")["data"]
+        source = edition.get("bibliographic_source", {})
+        if source.get("format") == format:
+            originals.append(source["record"])
+        else:
+            originals.append(None)
+            if source:
+                losses.append(
+                    {
+                        "edition_id": identifier,
+                        "from": source.get("format"),
+                        "to": format,
+                        "fields_requiring_review": sorted(source.get("record", {}).keys()),
+                        "original_preserved": True,
+                    }
+                )
+            else:
+                losses.append(
+                    {
+                        "edition_id": identifier,
+                        "from": "catalog_metadata",
+                        "to": format,
+                        "fields_requiring_review": [
+                            "publication_type",
+                            "authors",
+                            "venue",
+                            "year",
+                            "identifiers",
+                        ],
+                        "original_preserved": False,
+                    }
+                )
+    if format == "bibtex":
+        content, mime, name = (
+            bibliography(store, edition_ids, keys),
+            "application/x-bibtex",
+            "references.bib",
+        )
+    elif any(item is None for item in originals):
+        # Do not invent a lossless conversion to a format without a reviewed mapper.
+        raise ValueError(
+            "Native RIS/CSL export requires entries imported in that format. Export BibTeX with its conversion report, or export each original separately."
+        )
+    elif format == "csl":
+        content, mime, name = (
+            json.dumps(originals, ensure_ascii=False, indent=2),
+            "application/vnd.citationstyles.csl+json",
+            "references.json",
+        )
+    else:
+        content = "\n\n".join(
+            "\n".join(
+                [
+                    "TY  - " + (r.get("TY") or ["GEN"])[0],
+                    *[
+                        f"{key}  - {value}"
+                        for key, values in r.items()
+                        if key not in {"TY", "ER"}
+                        for value in values
+                    ],
+                    "ER  - ",
+                ]
+            )
+            for r in originals
+        )
+        mime, name = "application/x-research-info-systems", "references.ris"
+    return {
+        "content": content,
+        "mime": mime,
+        "filename": name,
+        "losses": losses,
+        "lossless": not losses,
+    }

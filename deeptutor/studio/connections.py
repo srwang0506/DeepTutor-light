@@ -414,7 +414,25 @@ def import_snapshot_run(store, snapshot_id, command: RunInput, repository_snapsh
     sources = [(snapshot_id, "imported_log")]
     if repository_snapshot:
         sources.append((repository_snapshot_id, "repository_snapshot"))
-    return create_run(store, command, provenance=data, sources=sources)
+    return create_run(
+        store,
+        command,
+        provenance=data,
+        sources=sources,
+        import_identity=(
+            sha(
+                encoded(
+                    [
+                        "remote_snapshot",
+                        snapshot["data"]["connection_id"],
+                        source["hash"],
+                        repository_snapshot_id,
+                    ]
+                ).encode()
+            ),
+            sha(encoded(command.model_dump()).encode()),
+        ),
+    )
 
 
 def snapshot_run_draft(store, identifier):

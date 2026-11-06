@@ -6,20 +6,20 @@
 // NextResponse objects. Keeping the policy pure means the routing/auth rules
 // can be unit-tested in the node harness without booting the Next runtime.
 
-export const LOGIN_PATH = "/login";
-export const HANDOFF_PATH = "/handoff";
-export const COOKIE_NAME = "dt_token";
-export const CODEX_CALLBACK_PATH = "/auth/callback";
-export const CODEX_CALLBACK_API_PATH = "/api/auth/openai-codex/callback";
-const RETIRED_PAGE_PATHS = new Set(["/partners/groups"]);
+export const LOGIN_PATH = '/login'
+export const HANDOFF_PATH = '/handoff'
+export const COOKIE_NAME = 'dt_token'
+export const CODEX_CALLBACK_PATH = '/auth/callback'
+export const CODEX_CALLBACK_API_PATH = '/api/auth/openai-codex/callback'
+const RETIRED_PAGE_PATHS = new Set(['/partners/groups'])
 
 export function isCodexCallbackPath(pathname: string): boolean {
-  return pathname === CODEX_CALLBACK_PATH;
+  return pathname === CODEX_CALLBACK_PATH
 }
 
 /** Exact retired pages that would otherwise collide with a dynamic route. */
 export function isRetiredPagePath(pathname: string): boolean {
-  return RETIRED_PAGE_PATHS.has(pathname);
+  return RETIRED_PAGE_PATHS.has(pathname)
 }
 
 // Paths whose responses come from the backend, not the Next app. The middleware
@@ -27,15 +27,11 @@ export function isRetiredPagePath(pathname: string): boolean {
 // relative URLs (e.g. `:3782/api/...` or `.../ws`) and let the rewrite
 // bridge the origin gap.
 export function isBackendPath(pathname: string): boolean {
-  return (
-    pathname.startsWith("/api/") ||
-    isWebSocketPath(pathname) ||
-    pathname.startsWith("/files/")
-  );
+  return pathname.startsWith('/api/') || isWebSocketPath(pathname) || pathname.startsWith('/files/')
 }
 
 export function isWebSocketPath(pathname: string): boolean {
-  return pathname === "/ws" || pathname.startsWith("/ws/");
+  return pathname === '/ws' || pathname.startsWith('/ws/')
 }
 
 // Static assets served straight out of `web/public` (logos, favicons, fonts,
@@ -46,45 +42,56 @@ export function isWebSocketPath(pathname: string): boolean {
 // (issue #599 — broken logo/banner after login). Public assets are
 // non-sensitive by design, so allowing them through is safe.
 const STATIC_ASSET =
-  /\.(?:png|jpe?g|gif|svg|ico|webp|avif|woff2?|ttf|otf|txt|json|map|css|js|wasm)$/i;
+  /\.(?:png|jpe?g|gif|svg|ico|webp|avif|woff2?|ttf|otf|txt|json|map|css|js|wasm)$/i
+
+/** Only bundled public files, never backend files that happen to have an extension. */
+export function isPublicStaticAsset(pathname: string): boolean {
+  return (
+    !pathname.includes('..') &&
+    ([
+      '/logo.png',
+      '/logo_black.png',
+      '/logo-ver2.png',
+      '/banner.png',
+      '/apple-touch-icon.png',
+    ].includes(pathname) ||
+      (/^\/(?:brand|provider-icons|agent-icons|knowledge-engine-icons|pdfjs)\//.test(pathname) &&
+        STATIC_ASSET.test(pathname)))
+  )
+}
 
 // Paths the auth gate must never block: the auth pages themselves, Next.js
 // internals, and public static assets (see STATIC_ASSET above).
 export function isAuthExempt(pathname: string): boolean {
   return (
     pathname.startsWith(LOGIN_PATH) ||
-    pathname.startsWith("/register") ||
+    pathname.startsWith('/register') ||
     pathname === HANDOFF_PATH ||
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/favicon") ||
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/favicon') ||
     STATIC_ASSET.test(pathname)
-  );
+  )
 }
 
-export type TokenState = "missing" | "malformed" | "expired" | "valid";
+export type TokenState = 'missing' | 'malformed' | 'expired' | 'valid'
 
 // Classify the auth cookie WITHOUT trusting its signature — the middleware is a
 // cheap front-line gate, not the authority (the backend does real verification
 // on every API call). `nowMs` is injected rather than read from the clock so
 // the classifier stays pure and testable.
-export function classifyToken(
-  token: string | undefined,
-  nowMs: number,
-): TokenState {
-  if (!token) return "missing";
+export function classifyToken(token: string | undefined, nowMs: number): TokenState {
+  if (!token) return 'missing'
 
   // Expect a JWT: header.payload.signature
-  const parts = token.split(".");
-  if (parts.length !== 3) return "malformed";
+  const parts = token.split('.')
+  if (parts.length !== 3) return 'malformed'
 
   try {
-    const payload = JSON.parse(
-      Buffer.from(parts[1], "base64url").toString("utf-8"),
-    );
-    if (payload.exp && nowMs >= payload.exp * 1000) return "expired";
+    const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf-8'))
+    if (payload.exp && nowMs >= payload.exp * 1000) return 'expired'
   } catch {
-    return "malformed";
+    return 'malformed'
   }
 
-  return "valid";
+  return 'valid'
 }

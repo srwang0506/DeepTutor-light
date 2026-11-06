@@ -49,7 +49,12 @@ The application does not automatically load the project's `.env` file.
 ## Run and inspect
 
 For the combined launcher, use `deeptutor start` and read the actual URLs in
-its output. For separate development processes, run the API and frontend in
+its output. Local authentication-disabled mode requires a private shared app
+capability; prefer the combined launcher or `scripts/study.py run --dev`.
+For separate processes, configure the same private `DEEPTUTOR_LOCAL_CAPABILITY`
+in both and explicit `DEEPTUTOR_LOCAL_ORIGINS` on the API, or enable ordinary
+authentication. See [Personal Studio](PERSONAL_STUDIO.md#local-access-and-safe-restoration).
+Then run the API and frontend in
 two terminals with the same chosen runtime home:
 
 ```bash

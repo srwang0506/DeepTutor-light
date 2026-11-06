@@ -1,76 +1,62 @@
-"use client";
+'use client'
 
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import { Loader2 } from "lucide-react";
-import { useTranslation } from "react-i18next";
-import {
-  loadPdfjs,
-  pdfjsCMapUrl,
-  pdfjsWasmUrl,
-  type PdfDocument,
-} from "@/lib/pdfjs-loader";
-import type {
-  AnnotationItem,
-  NormalisedRect,
-  ReadingTextSelector,
-} from "@/lib/reading-api";
-import { rawMaterialUrl } from "@/lib/reading-api";
-import { domRangeForQuote } from "@/lib/reading-quote-locator";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Loader2 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
+import { loadPdfjs, pdfjsCMapUrl, pdfjsWasmUrl, type PdfDocument } from '@/lib/pdfjs-loader'
+import type { AnnotationItem, NormalisedRect, ReadingTextSelector } from '@/lib/reading-api'
+import { rawMaterialUrl } from '@/lib/reading-api'
+import { domRangeForQuote } from '@/lib/reading-quote-locator'
 import {
   cleanQuote,
   selectionTextWithoutLineNumbers,
   locatorOfSelection,
   normaliseRects,
-} from "@/lib/reading-selection";
-import { PdfPage } from "./PdfPage";
+} from '@/lib/reading-selection'
+import { PdfPage } from './PdfPage'
 
 /** Pages kept rendered on each side of the viewport. */
-const RENDER_MARGIN = 1;
+const RENDER_MARGIN = 1
 /** Pages this close keep their parsed form after their canvas is freed. */
-const RETAIN_MARGIN = 6;
+const RETAIN_MARGIN = 6
 /** How long a `reader_goto` highlight pulses before fading. */
-const PAGE_GAP = 16;
+const PAGE_GAP = 16
 
 export interface SelectionPayload {
-  locator: number;
-  quote: string;
+  locator: number
+  quote: string
   /**
    * The quote as reading text, when the page put something that is not text
    * into it (margin line numbers). Questions carry this; marks keep `quote`.
    */
-  text?: string;
-  rects: NormalisedRect[];
-  sourceAnchor?: string;
-  selectors?: ReadingTextSelector[];
+  text?: string
+  rects: NormalisedRect[]
+  sourceAnchor?: string
+  selectors?: ReadingTextSelector[]
   /** Viewport coordinates of the selection, for popover placement. */
-  anchor: { x: number; y: number };
+  anchor: { x: number; y: number }
 }
 
 export interface JumpRequest {
-  locator: number;
-  quote?: string;
+  locator: number
+  quote?: string
   /** Changes on every request so repeats of the same target still fire. */
-  nonce: number;
+  nonce: number
+  y?: number
 }
 
 export interface PdfDocumentViewProps {
-  materialId: string;
+  materialId: string
   /** Immutable originals from the personal catalog use the same PDF renderer. */
-  sourceUrl?: string;
-  unitCount: number;
-  annotations: AnnotationItem[];
-  jump: JumpRequest | null;
-  highlightedAnnotationId?: string | null;
-  onSelection: (payload: SelectionPayload | null) => void;
-  onAnnotationClick?: (annotation: AnnotationItem) => void;
-  onVisibleLocatorChange?: (locator: number) => void;
+  sourceUrl?: string
+  unitCount: number
+  annotations: AnnotationItem[]
+  jump: JumpRequest | null
+  highlightedAnnotationId?: string | null
+  onSelection: (payload: SelectionPayload | null) => void
+  onAnnotationClick?: (annotation: AnnotationItem) => void
+  onVisibleLocatorChange?: (locator: number) => void
+  onPointDoubleClick?: (page: number, x: number, y: number) => void
 }
 
 /**
@@ -92,55 +78,55 @@ export function PdfDocumentView({
   onSelection,
   onAnnotationClick,
   onVisibleLocatorChange,
+  onPointDoubleClick,
 }: PdfDocumentViewProps) {
-  const { t } = useTranslation();
-  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const { t } = useTranslation()
+  const scrollRef = useRef<HTMLDivElement | null>(null)
   // Loaded document and load error are both tagged with the material they
   // belong to, so switching documents invalidates them by derivation instead of
   // by a synchronous reset inside the effect (which would cascade a render).
   const [loaded, setLoaded] = useState<{
-    materialId: string;
-    doc: PdfDocument;
-    ratio: number;
-  } | null>(null);
+    materialId: string
+    doc: PdfDocument
+    ratio: number
+  } | null>(null)
   const [loadError, setLoadError] = useState<{
-    materialId: string;
-    message: string;
-  } | null>(null);
-  const [pageWidth, setPageWidth] = useState(0);
-  const committedWidthRef = useRef(0);
+    materialId: string
+    message: string
+  } | null>(null)
+  const [pageWidth, setPageWidth] = useState(0)
+  const committedWidthRef = useRef(0)
   const resizeAnchorRef = useRef<{
-    doc: PdfDocument;
-    locator: string;
-    fraction: number;
-    viewportOffset: number;
-  } | null>(null);
-  const [visibleLocator, setVisibleLocator] = useState(1);
+    doc: PdfDocument
+    locator: string
+    fraction: number
+    viewportOffset: number
+  } | null>(null)
+  const [visibleLocator, setVisibleLocator] = useState(1)
   // Tagged with the jump's nonce for the same reason: a stale flash cannot
   // outlive the request that produced it.
   const [flash, setFlash] = useState<{
-    nonce: number;
-    locator: number;
-    rects: NormalisedRect[];
-  } | null>(null);
+    nonce: number
+    locator: number
+    rects: NormalisedRect[]
+  } | null>(null)
 
-  const doc = loaded?.materialId === materialId ? loaded.doc : null;
-  const effectiveUnitCount = doc?.numPages || unitCount;
-  const fallbackRatio =
-    loaded?.materialId === materialId ? loaded.ratio : 1.414; // A4 until measured
-  const error = loadError?.materialId === materialId ? loadError.message : null;
+  const doc = loaded?.materialId === materialId ? loaded.doc : null
+  const effectiveUnitCount = doc?.numPages || unitCount
+  const fallbackRatio = loaded?.materialId === materialId ? loaded.ratio : 1.414 // A4 until measured
+  const error = loadError?.materialId === materialId ? loadError.message : null
 
   // -- document ------------------------------------------------------------
 
   useEffect(() => {
-    let cancelled = false;
+    let cancelled = false
     // The loading task — not the document proxy — owns `destroy()`, and
     // destroying it is what releases the worker port and the buffered file.
-    let task: { destroy: () => Promise<void> } | null = null;
+    let task: { destroy: () => Promise<void> } | null = null
 
-    (async () => {
+    ;(async () => {
       try {
-        const pdfjs = await loadPdfjs();
+        const pdfjs = await loadPdfjs()
         const loadingTask = pdfjs.getDocument({
           url: sourceUrl || rawMaterialUrl(materialId),
           // PDF.js loads OpenJPEG/JBIG2/QCMS from these assets when a PDF uses
@@ -159,51 +145,47 @@ export function PdfDocumentView({
           // at a time, so a few-MB paper queued dozens of them before its
           // pages could draw. 1 MB ranges ask for the same bytes in a handful.
           rangeChunkSize: 1 << 20,
-        });
-        task = loadingTask;
-        const opened: PdfDocument = await loadingTask.promise;
-        if (cancelled) return;
-        const first = await opened.getPage(1);
-        const viewport = first.getViewport({ scale: 1 });
-        if (cancelled) return;
+        })
+        task = loadingTask
+        const opened: PdfDocument = await loadingTask.promise
+        if (cancelled) return
+        const first = await opened.getPage(1)
+        const viewport = first.getViewport({ scale: 1 })
+        if (cancelled) return
         setLoaded({
           materialId,
           doc: opened,
           ratio: viewport.width > 0 ? viewport.height / viewport.width : 1.414,
-        });
+        })
       } catch (caught) {
-        if (cancelled) return;
+        if (cancelled) return
         setLoadError({
           materialId,
           message:
-            caught instanceof Error
-              ? caught.message
-              : t("This document could not be opened."),
-        });
+            caught instanceof Error ? caught.message : t('This document could not be opened.'),
+        })
       }
-    })();
+    })()
 
     return () => {
-      cancelled = true;
+      cancelled = true
       // Release the worker's copy of the file; without this each opened
       // document leaks a worker port for the life of the session.
-      void task?.destroy();
-    };
-  }, [materialId, sourceUrl, t]);
+      void task?.destroy()
+    }
+  }, [materialId, sourceUrl, t])
 
   // -- width ---------------------------------------------------------------
 
   useLayoutEffect(() => {
-    committedWidthRef.current = pageWidth;
-    const anchor = resizeAnchorRef.current;
-    resizeAnchorRef.current = null;
-    const root = scrollRef.current;
-    if (!root || !anchor || anchor.doc !== doc) return;
-    const page = root.querySelector<HTMLElement>(
-      `[data-reader-unit="${anchor.locator}"]`,
-    );
-    if (!page) return;
-    const rect = page.getBoundingClientRect();
+    committedWidthRef.current = pageWidth
+    const anchor = resizeAnchorRef.current
+    resizeAnchorRef.current = null
+    const root = scrollRef.current
+    if (!root || !anchor || anchor.doc !== doc) return
+    const page = root.querySelector<HTMLElement>(`[data-reader-unit="${anchor.locator}"]`)
+    if (!page) return
+    const rect = page.getBoundingClientRect()
     // Restore after the new page heights commit, before paint or the visible
     // locator effect can report the page at the old pixel scroll position.
     root.scrollTop = Math.max(
@@ -212,29 +194,28 @@ export function PdfDocumentView({
         rect.top -
         root.getBoundingClientRect().top +
         anchor.fraction * rect.height -
-        anchor.viewportOffset,
-    );
-  }, [doc, pageWidth]);
+        anchor.viewportOffset
+    )
+  }, [doc, pageWidth])
 
   useEffect(() => {
-    const element = scrollRef.current;
-    if (!element) return;
+    const element = scrollRef.current
+    if (!element) return
     const measure = () => {
       // Leave room for the scrollbar gutter and the page's own margin.
-      const available = element.clientWidth - 48;
-      const nextWidth = Math.max(240, Math.min(1100, available));
+      const available = element.clientWidth - 48
+      const nextWidth = Math.max(240, Math.min(1100, available))
       if (nextWidth === committedWidthRef.current) {
         // A resize can return to the committed width before React renders.
         // Do not leave an unused anchor to override a later user scroll.
-        resizeAnchorRef.current = null;
+        resizeAnchorRef.current = null
       } else if (doc && !resizeAnchorRef.current) {
-        const rootRect = element.getBoundingClientRect();
-        const pages =
-          element.querySelectorAll<HTMLElement>("[data-reader-unit]");
+        const rootRect = element.getBoundingClientRect()
+        const pages = element.querySelectorAll<HTMLElement>('[data-reader-unit]')
         for (const page of pages) {
-          const rect = page.getBoundingClientRect();
-          if (rect.height <= 0 || rect.bottom <= rootRect.top) continue;
-          if (rect.top >= rootRect.bottom) break;
+          const rect = page.getBoundingClientRect()
+          if (rect.height <= 0 || rect.bottom <= rootRect.top) continue
+          if (rect.top >= rootRect.bottom) break
           // The first visible page anchors the viewport's top edge. Keep the
           // point in page coordinates, plus any padding/gap above that page.
           // Coalesced notifications retain this anchor until the width commits.
@@ -243,17 +224,17 @@ export function PdfDocumentView({
             locator: page.dataset.readerUnit!,
             fraction: Math.max(0, (rootRect.top - rect.top) / rect.height),
             viewportOffset: Math.max(0, rect.top - rootRect.top),
-          };
-          break;
+          }
+          break
         }
       }
-      setPageWidth(nextWidth);
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [doc]);
+      setPageWidth(nextWidth)
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [doc])
 
   // -- which page is on screen --------------------------------------------
 
@@ -268,48 +249,43 @@ export function PdfDocumentView({
    * question it answers directly.
    */
   useEffect(() => {
-    const root = scrollRef.current;
-    if (!root || !doc) return;
+    const root = scrollRef.current
+    if (!root || !doc) return
 
-    let frame = 0;
+    let frame = 0
     const measure = () => {
-      frame = 0;
-      const rootRect = root.getBoundingClientRect();
-      const pages = root.querySelectorAll<HTMLElement>("[data-reader-unit]");
-      let best: { locator: number; covered: number } | null = null;
+      frame = 0
+      const rootRect = root.getBoundingClientRect()
+      const pages = root.querySelectorAll<HTMLElement>('[data-reader-unit]')
+      let best: { locator: number; covered: number } | null = null
       for (const page of pages) {
-        const rect = page.getBoundingClientRect();
-        const covered =
-          Math.min(rect.bottom, rootRect.bottom) -
-          Math.max(rect.top, rootRect.top);
-        if (covered <= 0) continue;
-        const locator = Number(page.dataset.readerUnit ?? "0");
-        if (!locator) continue;
-        if (!best || covered > best.covered) best = { locator, covered };
+        const rect = page.getBoundingClientRect()
+        const covered = Math.min(rect.bottom, rootRect.bottom) - Math.max(rect.top, rootRect.top)
+        if (covered <= 0) continue
+        const locator = Number(page.dataset.readerUnit ?? '0')
+        if (!locator) continue
+        if (!best || covered > best.covered) best = { locator, covered }
       }
-      if (best)
-        setVisibleLocator((current) =>
-          current === best.locator ? current : best.locator,
-        );
-    };
+      if (best) setVisibleLocator(current => (current === best.locator ? current : best.locator))
+    }
 
     const onScroll = () => {
       // One measurement per frame: a fast flick fires scroll dozens of times and
       // each measurement walks every page element.
-      if (!frame) frame = window.requestAnimationFrame(measure);
-    };
+      if (!frame) frame = window.requestAnimationFrame(measure)
+    }
 
-    measure();
-    root.addEventListener("scroll", onScroll, { passive: true });
+    measure()
+    root.addEventListener('scroll', onScroll, { passive: true })
     return () => {
-      root.removeEventListener("scroll", onScroll);
-      if (frame) window.cancelAnimationFrame(frame);
-    };
-  }, [doc, effectiveUnitCount, pageWidth]);
+      root.removeEventListener('scroll', onScroll)
+      if (frame) window.cancelAnimationFrame(frame)
+    }
+  }, [doc, effectiveUnitCount, pageWidth])
 
   useEffect(() => {
-    onVisibleLocatorChange?.(visibleLocator);
-  }, [visibleLocator, onVisibleLocatorChange]);
+    onVisibleLocatorChange?.(visibleLocator)
+  }, [visibleLocator, onVisibleLocatorChange])
 
   /**
    * Which pages hold a canvas: those near the viewport, plus those near an
@@ -321,22 +297,19 @@ export function PdfDocumentView({
    */
   const isActive = useCallback(
     (locator: number) => {
-      const near = (anchor: number) =>
-        Math.abs(locator - anchor) <= RENDER_MARGIN;
-      return near(visibleLocator) || (jump ? near(jump.locator) : false);
+      const near = (anchor: number) => Math.abs(locator - anchor) <= RENDER_MARGIN
+      return near(visibleLocator) || (jump ? near(jump.locator) : false)
     },
-    [visibleLocator, jump],
-  );
+    [visibleLocator, jump]
+  )
 
   // -- jumping -------------------------------------------------------------
 
-  const scrollToLocator = useCallback((locator: number) => {
-    const root = scrollRef.current;
-    if (!root) return false;
-    const target = root.querySelector<HTMLElement>(
-      `[data-reader-unit="${locator}"]`,
-    );
-    if (!target) return false;
+  const scrollToLocator = useCallback((locator: number, y = 0) => {
+    const root = scrollRef.current
+    if (!root) return false
+    const target = root.querySelector<HTMLElement>(`[data-reader-unit="${locator}"]`)
+    if (!target) return false
     // Measured, not `offsetTop`: the nearest positioned ancestor is the reader
     // shell (it is absolutely positioned), not this scroll container, so
     // `offsetTop` is off by the header's height. Rect maths is independent of
@@ -345,59 +318,58 @@ export function PdfDocumentView({
       target.getBoundingClientRect().top -
       root.getBoundingClientRect().top +
       root.scrollTop -
-      PAGE_GAP;
+      PAGE_GAP +
+      Math.max(0, Math.min(1, y)) * target.getBoundingClientRect().height
     // Assigned, never animated. Programmatic smooth scrolling is silently a
     // no-op in some embedded browsers, and `scroll-behavior` in CSS would make
     // this assignment inherit that failure — a citation jump that does nothing
     // is far worse than one that does not glide.
-    root.scrollTop = Math.max(0, top);
-    return true;
-  }, []);
+    root.scrollTop = Math.max(0, top)
+    return true
+  }, [])
 
   useEffect(() => {
-    if (!jump || !doc) return;
-    const locator = Math.min(Math.max(1, jump.locator), effectiveUnitCount);
-    const nonce = jump.nonce;
-    const quote = jump.quote;
-    let cancelled = false;
-    let timer: number | undefined;
+    if (!jump || !doc) return
+    const locator = Math.min(Math.max(1, jump.locator), effectiveUnitCount)
+    const nonce = jump.nonce
+    const quote = jump.quote
+    let cancelled = false
+    let timer: number | undefined
 
     // Scrolling and searching both wait a frame: the jump may have just widened
     // the render window, and the target page needs to exist in the DOM first.
-    let scrollTries = 0;
+    let scrollTries = 0
     const run = () => {
-      if (cancelled) return;
-      if (!scrollToLocator(locator)) {
+      if (cancelled) return
+      if (!scrollToLocator(locator, jump.y || 0)) {
         // The page div may not be in the DOM for a frame after a jump widens the
         // render window. Bounded, so a locator that never appears (a truncated
         // document, say) cannot spin forever.
-        scrollTries += 1;
-        if (scrollTries <= 20) timer = window.setTimeout(run, 120);
-        return;
+        scrollTries += 1
+        if (scrollTries <= 20) timer = window.setTimeout(run, 120)
+        return
       }
-      if (!quote) return;
-      let attempts = 0;
+      if (!quote) return
+      let attempts = 0
       const findQuote = () => {
-        if (cancelled) return;
-        attempts += 1;
-        const root = scrollRef.current;
-        const page = root?.querySelector<HTMLElement>(
-          `[data-reader-unit="${locator}"]`,
-        );
-        const layer = page?.querySelector<HTMLElement>(".textLayer");
+        if (cancelled) return
+        attempts += 1
+        const root = scrollRef.current
+        const page = root?.querySelector<HTMLElement>(`[data-reader-unit="${locator}"]`)
+        const layer = page?.querySelector<HTMLElement>('.textLayer')
         if (layer && layer.childElementCount > 0) {
-          const range = domRangeForQuote(layer, quote);
-          const box = page?.getBoundingClientRect();
+          const range = domRangeForQuote(layer, quote)
+          const box = page?.getBoundingClientRect()
           if (range && box) {
             const rects = normaliseRects([...range.getClientRects()], {
               left: box.left,
               top: box.top,
               width: box.width,
               height: box.height,
-            });
+            })
             if (rects.length) {
-              setFlash({ nonce, locator, rects });
-              return;
+              setFlash({ nonce, locator, rects })
+              return
             }
           }
         }
@@ -408,43 +380,42 @@ export function PdfDocumentView({
         // that genuinely is not on the page (an image caption, a scan) stops
         // polling; the page is still scrolled into view, which is the useful
         // part of the request.
-        if (attempts < 25) timer = window.setTimeout(findQuote, 120);
-      };
-      timer = window.setTimeout(findQuote, 140);
-    };
-    timer = window.setTimeout(run, 0);
+        if (attempts < 25) timer = window.setTimeout(findQuote, 120)
+      }
+      timer = window.setTimeout(findQuote, 140)
+    }
+    timer = window.setTimeout(run, 0)
 
     return () => {
-      cancelled = true;
-      if (timer) window.clearTimeout(timer);
-    };
-  }, [jump, doc, effectiveUnitCount, scrollToLocator]);
+      cancelled = true
+      if (timer) window.clearTimeout(timer)
+    }
+  }, [jump, doc, effectiveUnitCount, scrollToLocator])
 
   // Tagged with the nonce that produced it, so the previous jump's highlight is
   // superseded by derivation — no timer, and no way for a stale highlight to
   // outlive the request behind it. The mark itself persists until then; see the
   // `dt-reader-flash` rules for why it does not fade out.
-  const activeFlash =
-    flash && jump && flash.nonce === jump.nonce ? flash : null;
+  const activeFlash = flash && jump && flash.nonce === jump.nonce ? flash : null
 
   // -- selection -----------------------------------------------------------
 
   const handlePointerUp = useCallback(() => {
-    const selection = window.getSelection();
+    const selection = window.getSelection()
     if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
-      onSelection(null);
-      return;
+      onSelection(null)
+      return
     }
-    const range = selection.getRangeAt(0);
-    const root = scrollRef.current;
+    const range = selection.getRangeAt(0)
+    const root = scrollRef.current
     if (!root || !root.contains(range.commonAncestorContainer)) {
-      onSelection(null);
-      return;
+      onSelection(null)
+      return
     }
-    const quote = cleanQuote(selection.toString());
+    const quote = cleanQuote(selection.toString())
     if (!quote) {
-      onSelection(null);
-      return;
+      onSelection(null)
+      return
     }
 
     // Attribute the selection to the page it started on, and measure against
@@ -452,38 +423,36 @@ export function PdfDocumentView({
     const startElement =
       range.startContainer.nodeType === Node.ELEMENT_NODE
         ? (range.startContainer as HTMLElement)
-        : range.startContainer.parentElement;
-    const page = startElement?.closest<HTMLElement>("[data-reader-unit]");
-    const locator = locatorOfSelection([
-      Number(page?.dataset.readerUnit ?? "0") || null,
-    ]);
+        : range.startContainer.parentElement
+    const page = startElement?.closest<HTMLElement>('[data-reader-unit]')
+    const locator = locatorOfSelection([Number(page?.dataset.readerUnit ?? '0') || null])
     if (!page || !locator) {
-      onSelection(null);
-      return;
+      onSelection(null)
+      return
     }
 
-    const box = page.getBoundingClientRect();
-    const clientRects = [...range.getClientRects()];
+    const box = page.getBoundingClientRect()
+    const clientRects = [...range.getClientRects()]
     const rects = normaliseRects(clientRects, {
       left: box.left,
       top: box.top,
       width: box.width,
       height: box.height,
-    });
+    })
     if (!rects.length) {
-      onSelection(null);
-      return;
+      onSelection(null)
+      return
     }
-    const last = clientRects[clientRects.length - 1];
-    const text = selectionTextWithoutLineNumbers(range);
+    const last = clientRects[clientRects.length - 1]
+    const text = selectionTextWithoutLineNumbers(range)
     onSelection({
       locator,
       quote,
       ...(text ? { text } : {}),
       rects,
       anchor: { x: last.left + last.width / 2, y: last.top },
-    });
-  }, [onSelection]);
+    })
+  }, [onSelection])
 
   // -- render --------------------------------------------------------------
 
@@ -491,19 +460,28 @@ export function PdfDocumentView({
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 px-8 text-center">
         <p className="text-[13px] font-medium text-[var(--foreground)]">
-          {t("This document could not be opened.")}
+          {t('This document could not be opened.')}
         </p>
-        <p className="max-w-[420px] text-[12px] text-[var(--muted-foreground)]">
-          {error}
-        </p>
+        <p className="max-w-[420px] text-[12px] text-[var(--muted-foreground)]">{error}</p>
       </div>
-    );
+    )
   }
 
   return (
     <div
       ref={scrollRef}
       onMouseUp={handlePointerUp}
+      onDoubleClick={event => {
+        if (!onPointDoubleClick) return
+        const target = (event.target as Element).closest<HTMLElement>('[data-reader-unit]')
+        if (!target) return
+        const rect = target.getBoundingClientRect()
+        onPointDoubleClick(
+          Number(target.dataset.readerUnit),
+          (event.clientX - rect.left) / rect.width,
+          (event.clientY - rect.top) / rect.height
+        )
+      }}
       // The desk the pages lie on. This was `bg-[var(--muted)]/40`, which
       // compiles to nothing here — a var() colour has no channels for the
       // `/NN` modifier to reach into, so the rule was dropped and the desk
@@ -514,33 +492,27 @@ export function PdfDocumentView({
       {!doc ? (
         <div className="flex h-full items-center justify-center gap-2 text-[12px] text-[var(--muted-foreground)]">
           <Loader2 size={14} className="animate-spin" />
-          {t("Opening document…")}
+          {t('Opening document…')}
         </div>
       ) : (
         <div className="flex flex-col items-center" style={{ gap: PAGE_GAP }}>
-          {Array.from({ length: effectiveUnitCount }, (_, index) => index + 1).map(
-            (locator) => (
-              <PdfPage
-                key={locator}
-                doc={doc}
-                locator={locator}
-                width={pageWidth}
-                fallbackRatio={fallbackRatio}
-                active={isActive(locator)}
-                retain={Math.abs(locator - visibleLocator) <= RETAIN_MARGIN || isActive(locator)}
-                annotations={annotations}
-                highlightedAnnotationId={highlightedAnnotationId}
-                flashRects={
-                  activeFlash?.locator === locator
-                    ? activeFlash.rects
-                    : undefined
-                }
-                onAnnotationClick={onAnnotationClick}
-              />
-            ),
-          )}
+          {Array.from({ length: effectiveUnitCount }, (_, index) => index + 1).map(locator => (
+            <PdfPage
+              key={locator}
+              doc={doc}
+              locator={locator}
+              width={pageWidth}
+              fallbackRatio={fallbackRatio}
+              active={isActive(locator)}
+              retain={Math.abs(locator - visibleLocator) <= RETAIN_MARGIN || isActive(locator)}
+              annotations={annotations}
+              highlightedAnnotationId={highlightedAnnotationId}
+              flashRects={activeFlash?.locator === locator ? activeFlash.rects : undefined}
+              onAnnotationClick={onAnnotationClick}
+            />
+          ))}
         </div>
       )}
     </div>
-  );
+  )
 }

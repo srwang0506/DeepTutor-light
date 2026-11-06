@@ -172,6 +172,8 @@ def recover_saves(store, identifier):
                         identifier=identifier,
                         expected=row["revision"],
                     )
+                if actual == data["after"] and data.get("proposal"):
+                    _finalize_proposal(store, db, identifier, data["proposal"], data["after"], None)
             journal.unlink()
     return unresolved
 
@@ -316,7 +318,7 @@ def read_file(store, identifier, path):
     return {"path": path, "text": data.decode("utf-8"), "hash": sha(data)}
 
 
-def _save_locked(store, identifier, command: FileEdit, skip_recovery=False):
+def _save_locked(store, identifier, command: FileEdit, skip_recovery=False, proposal=None):
     if not skip_recovery and any(
         item["path"] in {None, command.path} for item in recover_saves(store, identifier)
     ):
@@ -336,7 +338,11 @@ def _save_locked(store, identifier, command: FileEdit, skip_recovery=False):
     # A durable prepared journal preserves both sides if the process stops between file and DB writes.
     journal = file.parent / (".studio-save-" + uuid4().hex + ".json")
     with journal.open("w") as handle:
-        handle.write(encoded({"path": command.path, "before": old_hash, "after": new_hash}))
+        handle.write(
+            encoded(
+                {"path": command.path, "before": old_hash, "after": new_hash, "proposal": proposal}
+            )
+        )
         handle.flush()
         os.fsync(handle.fileno())
     temporary = file.parent / (".studio-write-" + uuid4().hex)
@@ -364,6 +370,8 @@ def _save_locked(store, identifier, command: FileEdit, skip_recovery=False):
             identifier=identifier,
             expected=manuscript["revision"],
         )
+        if proposal:
+            _finalize_proposal(store, db, identifier, proposal, new_hash, change["id"])
     journal.unlink()
     return {"path": command.path, "hash": new_hash, "change_id": change["id"]}
 
@@ -375,21 +383,23 @@ def save_file(store, identifier, command: FileEdit):
 
 def factual_changes(before, after):
     patterns = {
-        "numbers_units": r"\b\d+(?:\.\d+)?(?:%|\s*(?:mm|cm|m|ms|s|Hz|GB))?",
+        "numbers_units": r"(?<![\w.])[+\-−]?\d+(?:\.\d+)?(?:[eE][+\-−]?\d+)?(?:%|\s*(?:[numkMGTμµ]?W|mm|cm|ms|m|s|Hz|GB)\b)?",
         "citations": r"\\(?:cite\w*|ref|eqref)\*?(?:\[[^\]]*\])*\{[^}]+\}",
         "equations": r"\$[^$]+\$|\\\[[\s\S]*?\\\]",
         "negation": r"\b(?:not|never|without|no)\b|不|未|无",
         "scope": r"\b(?:only|all|every|seen|unseen|some|certain|always)\b|仅|所有|全部|已见|未见|部分|始终",
         "causality": r"\b(?:cause[sd]?|prove[sd]?|suggest[sd]?|correlat\w*|guarantee[sd]?)\b|导致|证明|表明|相关|保证",
+        "comparison": r"\b[\w-]+\s+(?:(?:consistently|significantly|slightly)\s+)?(?:outperforms?|underperforms?|exceeds?|surpasses?)\s+[\w-]+\b|\b[\w-]+\s+(?:increase[sd]?|decrease[sd]?|improve[sd]?|reduce[sd]?)\b|\b(?:higher|lower|better|worse)\s+than\s+[\w-]+\b|[\w]+(?:优于|劣于|高于|低于|增加|降低|减少|提升)[\w]*",
     }
     return [
         {
             "kind": kind,
-            "before": re.findall(pattern, before, re.I),
-            "after": re.findall(pattern, after, re.I),
+            "before": re.findall(pattern, before, 0 if kind == "numbers_units" else re.I),
+            "after": re.findall(pattern, after, 0 if kind == "numbers_units" else re.I),
         }
         for kind, pattern in patterns.items()
-        if re.findall(pattern, before, re.I) != re.findall(pattern, after, re.I)
+        if re.findall(pattern, before, 0 if kind == "numbers_units" else re.I)
+        != re.findall(pattern, after, 0 if kind == "numbers_units" else re.I)
     ]
 
 
@@ -431,26 +441,66 @@ def propose(store, identifier, command: ProposalInput):
         return row
 
 
-def accept_proposal(store, identifier, expected, confirm_facts=False):
-    proposal = store.get(identifier, "proposal")
-    if proposal["revision"] != expected or proposal["data"]["status"] != "pending":
-        raise Conflict("This suggestion is no longer pending.")
+def _finalize_proposal(store, db, manuscript, operation, applied_hash, change_id):
+    proposal = store.record(db, operation["id"], "proposal")
     data = proposal["data"]
-    if store.stale(identifier):
+    if data.get("status") == "accepted" and data.get("applied_hash") == applied_hash:
+        return proposal
+    if (
+        proposal["revision"] != operation["revision"]
+        or data.get("status") != "pending"
+        or data["manuscript_id"] != manuscript
+    ):
         raise Conflict(
-            "The evidence behind this suggestion changed. Review it and generate a new suggestion."
+            "Prepared edit no longer matches its proposal; keep the journal for recovery."
         )
-    if data["fact_changes"] and not confirm_facts:
-        raise ValueError("Review factual changes before accepting this edit.")
-    manuscript = data["manuscript_id"]
+    row = store.put(
+        db,
+        "proposal",
+        {
+            **data,
+            "status": "accepted",
+            "applied_hash": applied_hash,
+            "receipt": {
+                "operation_id": operation["id"],
+                "state": "applied",
+                "hash": applied_hash,
+                "change_id": change_id,
+            },
+        },
+        identifier=proposal["id"],
+        expected=proposal["revision"],
+    )
+    for source in data["source_ids"]:
+        store.link(db, source, manuscript, "manuscript_evidence")
+    return row
+
+
+def accept_proposal(store, identifier, expected, confirm_facts=False):
+    initial = store.get(identifier, "proposal")
+    manuscript = initial["data"]["manuscript_id"]
     with lock(store, manuscript):
+        recover_saves(store, manuscript)
         proposal = store.get(identifier, "proposal")
-        if proposal["revision"] != expected:
-            raise Conflict("This suggestion changed.")
+        data = proposal["data"]
+        if (
+            data["status"] == "accepted"
+            and data.get("receipt")
+            and proposal["revision"] == expected + 1
+        ):
+            return proposal  # Same operation retry returns the durable receipt.
+        if proposal["revision"] != expected or data["status"] != "pending":
+            raise Conflict("This suggestion is no longer pending.")
+        if store.stale(identifier):
+            raise Conflict(
+                "The evidence behind this suggestion changed. Review it and generate a new suggestion."
+            )
+        if data["fact_changes"] and not confirm_facts:
+            raise ValueError("Review factual changes before accepting this edit.")
         current = read_file(store, manuscript, data["path"])
         if current["hash"] != data["base_hash"]:
             raise Conflict("The file changed since this proposal. No edit was applied.")
-        result = _save_locked(
+        _save_locked(
             store,
             manuscript,
             FileEdit(
@@ -460,18 +510,9 @@ def accept_proposal(store, identifier, expected, confirm_facts=False):
                 + data["text"]
                 + current["text"][data["end"] :],
             ),
+            proposal={"id": identifier, "revision": expected},
         )
-        with store.db(write=True) as db:
-            row = store.put(
-                db,
-                "proposal",
-                {**data, "status": "accepted", "applied_hash": result["hash"]},
-                identifier=identifier,
-                expected=expected,
-            )
-            for source in data["source_ids"]:
-                store.link(db, source, manuscript, "manuscript_evidence")
-        return row
+        return store.get(identifier, "proposal")
 
 
 def audit(store, identifier):
@@ -556,16 +597,17 @@ def execute_build(store, build, cancelled=None):
     from .connections import ProcessCancelled
 
     snapshots = build["data"]["input_files"]
-    compiler, sandbox = shutil.which("latexmk"), shutil.which("sandbox-exec")
+    compiler = shutil.which("latexmk")
     try:
         if cancelled and cancelled():
             raise ProcessCancelled("Build cancelled before compilation.")
-        if not compiler or not sandbox:
+        if not compiler:
             raise ValueError(
                 "Isolated TeX compilation is unavailable. Install latexmk and an OS sandbox; source editing remains available."
             )
         with tempfile.TemporaryDirectory(prefix="deeptutor-tex-") as tmp:
             root = Path(tmp).resolve()
+            source_root = str(root)
             for path, digest in snapshots.items():
                 target = root / path
                 target.parent.mkdir(parents=True, exist_ok=True)
@@ -574,29 +616,6 @@ def execute_build(store, build, cancelled=None):
             tex_root = next(
                 (p.parent for p in resolved_compiler.parents if p.name == "texmf-dist"),
                 resolved_compiler.parents[2],
-            )
-            allowed = [
-                "/System",
-                "/usr",
-                "/bin",
-                "/sbin",
-                "/Library/Apple",
-                str(tex_root),
-                str(root),
-                "/dev/null",
-                "/dev/urandom",
-            ]
-
-            def quote(x):
-                return json.dumps(x)
-
-            profile = (
-                "(version 1)(deny default)(allow process*)(allow sysctl-read)(allow mach-lookup)(allow file-read-metadata)"
-                '(allow file-read* (literal "/"))'
-                + "".join("(allow file-read* (subpath " + quote(x) + "))" for x in allowed)
-                + "(allow file-write* (subpath "
-                + quote(str(root))
-                + "))"
             )
             engine = {"pdflatex": "-pdf", "xelatex": "-xelatex", "lualatex": "-lualatex"}[
                 build["data"]["engine"]
@@ -619,6 +638,7 @@ def execute_build(store, build, cancelled=None):
             import sys
 
             from .connections import bounded_process
+            from .tex_sandbox import command as sandbox_command
 
             returncode, stdout, stderr = bounded_process(
                 [
@@ -627,19 +647,7 @@ def execute_build(store, build, cancelled=None):
                     "-c",
                     "import os,resource,sys;resource.setrlimit(resource.RLIMIT_FSIZE,(52428800,52428800));os.execv(sys.argv[1],sys.argv[1:])",
                 ]
-                + [
-                    sandbox,
-                    "-p",
-                    profile,
-                    compiler,
-                    "-norc",
-                    engine,
-                    "-interaction=nonstopmode",
-                    "-halt-on-error",
-                    "-synctex=1",
-                    "-no-shell-escape",
-                    build["data"]["main_file"],
-                ],
+                + sandbox_command(root, compiler, engine, build["data"]["main_file"], tex_root),
                 cwd=root,
                 env=env,
                 timeout=90,
@@ -673,27 +681,140 @@ def execute_build(store, build, cancelled=None):
         return store.put(
             db,
             "build",
-            {**latest["data"], "status": status, "outputs": outputs, "finished": time.time()},
+            {
+                **latest["data"],
+                "status": status,
+                "outputs": outputs,
+                "finished": time.time(),
+                "source_root": locals().get("source_root"),
+            },
             identifier=build["id"],
             expected=latest["revision"],
         )
 
 
-def submission(store, identifier, paths, build_id):
-    if not paths or len(paths) > 2000:
-        raise ValueError("Choose an explicit file allowlist.")
+def dependency_closure(store, snapshots, main_file):
+    """Resolve literal TeX dependencies from frozen bytes; clean compilation checks dynamic ones."""
+    if main_file not in snapshots:
+        raise ValueError("The build has no main TeX source.")
+    required, pending = set(), [main_file]
+    extensions = {
+        "input": ["", ".tex"],
+        "include": ["", ".tex"],
+        "includegraphics": ["", ".pdf", ".png", ".jpg", ".jpeg", ".eps"],
+        "bibliography": ["", ".bib"],
+        "addbibresource": ["", ".bib"],
+        "usepackage": [".sty"],
+        "documentclass": [".cls"],
+        "bibliographystyle": [".bst"],
+    }
+    while pending:
+        path = pending.pop()
+        if path in required:
+            continue
+        required.add(path)
+        if Path(path).suffix not in {".tex", ".sty", ".cls"}:
+            continue
+        text = blob_bytes(store, snapshots[path]).decode("utf-8")
+        text = re.sub(r"(?<!\\)%[^\n]*", "", text)
+        graphics = re.findall(r"\\graphicspath\{((?:\{[^}]*\})+)\}", text)
+        roots = ["", str(Path(path).parent)] + [
+            v for group in graphics for v in re.findall(r"\{([^}]*)\}", group)
+        ]
+        for command, names in re.findall(
+            r"\\(input|include|includegraphics|bibliography|addbibresource|usepackage|documentclass|bibliographystyle)\*?(?:\[[^\]]*\])*\{([^}]+)\}",
+            text,
+        ):
+            for name in names.split(","):
+                name = name.strip()
+                if "\\" in name or "#" in name:
+                    continue  # Dynamic macros require explicitly selected assets plus clean build.
+                candidates = [
+                    str(relative_path(str(Path(root) / (name + ext))))
+                    for root in roots
+                    for ext in extensions[command]
+                ]
+                found = next(
+                    (candidate for candidate in candidates if candidate in snapshots), None
+                )
+                if found:
+                    pending.append(found)
+                elif command not in {"usepackage", "documentclass", "bibliographystyle"}:
+                    raise ValueError(f"Missing source dependency: {name}")
+    return required
+
+
+def submission(store, identifier, paths, build_id, kind="submission"):
+    if not paths or len(paths) > 2000 or len(set(paths)) != len(paths):
+        raise ValueError("Choose an explicit, distinct file allowlist.")
     build = store.get(build_id, "build")
     if build["data"]["manuscript_id"] != identifier or build["data"]["status"] != "succeeded":
         raise ValueError("Choose a successful build of this manuscript.")
     snapshots = build["data"]["input_files"]
     if any(p not in snapshots for p in paths):
         raise ValueError("Submission files must come from the selected build snapshot.")
+    if kind not in {"submission", "archive"}:
+        raise ValueError("Choose submission or internal archive.")
+    validation = None
+    if kind == "submission":
+        main = (
+            build["data"].get("main_file")
+            or store.get(identifier, "manuscript")["data"]["main_file"]
+        )
+        if main not in paths:
+            raise ValueError("A submission must include its main TeX source.")
+        if any(
+            Path(p).suffix.lower()
+            not in {
+                ".tex",
+                ".bib",
+                ".sty",
+                ".cls",
+                ".bst",
+                ".bbl",
+                ".pdf",
+                ".png",
+                ".jpg",
+                ".jpeg",
+                ".eps",
+                ".svg",
+                ".txt",
+            }
+            for p in paths
+        ):
+            raise ValueError("Use internal archive for notes, configuration or research logs.")
+        paths = sorted(set(paths) | dependency_closure(store, snapshots, main))
+        with store.db(write=True) as db:
+            validation = store.put(
+                db,
+                "build",
+                {
+                    **build["data"],
+                    "input_files": {p: snapshots[p] for p in paths},
+                    "status": "queued",
+                    "purpose": "submission_validation",
+                    "main_file": main,
+                    "engine": build["data"].get(
+                        "engine", store.record(db, identifier, "manuscript")["data"]["engine"]
+                    ),
+                    "started": time.time(),
+                    "outputs": {},
+                    "cancel_requested": False,
+                },
+            )
+        validation = execute_build(store, validation)
+        if validation["data"]["status"] != "succeeded":
+            raise ValueError(
+                f"Clean submission compilation failed. Inspect build {validation['id']} before exporting."
+            )
+    pdf_build = validation or build
     content = io.BytesIO()
     with zipfile.ZipFile(content, "w", zipfile.ZIP_DEFLATED) as archive:
         for path in paths:
             archive.writestr(str(relative_path(path)), blob_bytes(store, snapshots[path]))
         archive.writestr(
-            "submission.pdf", store.blob_path(build["data"]["outputs"]["preview.pdf"]).read_bytes()
+            "submission.pdf" if kind == "submission" else "preview.pdf",
+            store.blob_path(pdf_build["data"]["outputs"]["preview.pdf"]).read_bytes(),
         )
     digest = store.save_blob(content.getvalue())
     with store.db(write=True) as db:
@@ -703,6 +824,8 @@ def submission(store, identifier, paths, build_id):
             {
                 "manuscript_id": identifier,
                 "build_id": build_id,
+                "kind": kind,
+                "validation_build_id": validation["id"] if validation else None,
                 "files": {p: snapshots[p] for p in paths},
                 "archive_hash": digest,
                 "created": time.time(),
