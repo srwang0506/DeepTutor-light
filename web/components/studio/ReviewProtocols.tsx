@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import Link from 'next/link'
+import { ListChecks, Plus } from 'lucide-react'
 import { Dialog } from '@/shared/ui/Dialog'
 import { scopedUrl } from '@/lib/workspace-scope'
 import {
@@ -108,13 +109,18 @@ export default function ReviewProtocols({ workspace }: { workspace: string }) {
     setCursor(data.next_cursor)
   }
   return (
-    <section className="studio-card">
+    <section className="studio-card studio-feature">
       <div className="studio-toolbar">
-        <div>
-          <h3>{t('文献综述与证据提取')}</h3>
-          <p className="studio-muted">
-            {t('先冻结问题与标准，再逐篇筛选。所有纳排理由和提取结果都保留来源版本。')}
-          </p>
+        <div className="studio-panel-heading">
+          <span className="studio-panel-icon">
+            <ListChecks size={19} aria-hidden />
+          </span>
+          <div>
+            <h3>{t('文献综述与证据提取')}</h3>
+            <p className="studio-muted">
+              {t('先冻结问题与标准，再逐篇筛选。所有纳排理由和提取结果都保留来源版本。')}
+            </p>
+          </div>
         </div>
         <Action
           secondary
@@ -125,23 +131,26 @@ export default function ReviewProtocols({ workspace }: { workspace: string }) {
             })
           }
         >
+          <Plus size={15} aria-hidden />
           {t('建立综述')}
         </Action>
       </div>
       <ErrorNotice message={op.error} />
-      <div className="studio-pills">
-        {protocols.map((p) => (
-          <button
-            key={p.id}
-            aria-pressed={report?.protocol.id === p.id}
-            onClick={() => void op.run(() => load(p.id))}
-          >
-            {p.data.title}
-          </button>
-        ))}
-      </div>
+      {protocols.length > 0 && (
+        <div className="studio-pills">
+          {protocols.map((p) => (
+            <button
+              key={p.id}
+              aria-pressed={report?.protocol.id === p.id}
+              onClick={() => void op.run(() => load(p.id))}
+            >
+              {p.data.title}
+            </button>
+          ))}
+        </div>
+      )}
       {report && (
-        <>
+        <div className="studio-review-content">
           <h4>{report.protocol.data.question}</h4>
           <p className="studio-muted">
             {t('冻结检索式')}：{report.protocol.data.search_query}
@@ -169,72 +178,85 @@ export default function ReviewProtocols({ workspace }: { workspace: string }) {
           >
             {t('导出提取表 CSV')}
           </a>
-          {report.items.map((row) => (
-            <article className="studio-card" key={row.edition.id}>
-              <strong>{row.title}</strong>
-              <p className="studio-muted">
-                {labels[row.state]} · {t('版本')} {row.edition.revision}
-                {row.stale ? ` · ${t('来源已变，需重新复核')}` : ''}
-              </p>
-              <div className="studio-actions">
-                <Link href={scopedUrl(`/objects/${row.edition.id}`, workspace)}>
-                  {t('阅读原文')}
-                </Link>
-                <Action
-                  secondary
-                  onClick={() => {
-                    setItem(row)
-                    setMode('decision')
-                    setStage('abstract')
-                    setDecision(row.decisions.abstract?.data.decision || 'uncertain')
-                    setReason(row.decisions.abstract?.data.reason || '')
-                    setReviewed(false)
-                  }}
-                >
-                  {t('筛选')}
-                </Action>
-                <Action
-                  secondary
-                  disabled={row.state !== 'included'}
-                  onClick={() =>
-                    void op.run(async () => {
-                      const ev = await records<EvidenceData>(workspace, 'evidence')
-                      setEvidence(ev.filter((e) => e.data.edition_id === row.edition.id))
+          <div className="studio-card-list">
+            {report.items.map((row) => (
+              <article className="studio-card" key={row.edition.id}>
+                <strong>{row.title}</strong>
+                <p className="studio-muted">
+                  {labels[row.state]} · {t('版本')} {row.edition.revision}
+                  {row.stale ? ` · ${t('来源已变，需重新复核')}` : ''}
+                </p>
+                <div className="studio-actions">
+                  <Link
+                    className="studio-button secondary"
+                    href={scopedUrl(`/objects/${row.edition.id}`, workspace)}
+                  >
+                    {t('阅读原文')}
+                  </Link>
+                  <Action
+                    secondary
+                    onClick={() => {
                       setItem(row)
-                      setMode('extraction')
-                      setField(report.protocol.data.extraction_fields[0])
-                      setValue('')
-                      setAnchors([])
-                    })
-                  }
-                >
-                  {t('提取证据')}
-                </Action>
-              </div>
-              {Object.entries(row.extractions)
-                .filter(([, v]) => v)
-                .map(([name, entry]) => (
-                  <p key={name}>
-                    <strong>{name}</strong>：{entry?.data.value}
-                    {entry?.stale && (
-                      <span className="studio-muted"> · {t('来源已变，需重新复核')}</span>
-                    )}
-                    {entry?.data.evidence_ids.map((id, index) => (
-                      <Link
-                        className="ml-2 underline"
-                        key={id}
-                        href={scopedUrl(`/objects/${id}`, workspace)}
-                      >
-                        {t('原文证据')} {index + 1}
-                      </Link>
-                    ))}
-                  </p>
-                ))}
-            </article>
-          ))}
-        </>
+                      setMode('decision')
+                      setStage('abstract')
+                      setDecision(row.decisions.abstract?.data.decision || 'uncertain')
+                      setReason(row.decisions.abstract?.data.reason || '')
+                      setReviewed(false)
+                    }}
+                  >
+                    {t('筛选')}
+                  </Action>
+                  <Action
+                    secondary
+                    disabled={row.state !== 'included'}
+                    onClick={() =>
+                      void op.run(async () => {
+                        const ev = await records<EvidenceData>(workspace, 'evidence')
+                        setEvidence(ev.filter((e) => e.data.edition_id === row.edition.id))
+                        setItem(row)
+                        setMode('extraction')
+                        setField(report.protocol.data.extraction_fields[0])
+                        setValue('')
+                        setAnchors([])
+                      })
+                    }
+                  >
+                    {t('提取证据')}
+                  </Action>
+                </div>
+                {Object.entries(row.extractions)
+                  .filter(([, v]) => v)
+                  .map(([name, entry]) => (
+                    <p key={name}>
+                      <strong>{name}</strong>：{entry?.data.value}
+                      {entry?.stale && (
+                        <span className="studio-muted"> · {t('来源已变，需重新复核')}</span>
+                      )}
+                      {entry?.data.evidence_ids.map((id, index) => (
+                        <Link
+                          className="ml-2 underline"
+                          key={id}
+                          href={scopedUrl(`/objects/${id}`, workspace)}
+                        >
+                          {t('原文证据')} {index + 1}
+                        </Link>
+                      ))}
+                    </p>
+                  ))}
+              </article>
+            ))}
+          </div>
+        </div>
       )}
-      <Dialog open={create} title={t('冻结综述协议')} onClose={() => setCreate(false)} size="lg">
+      <Dialog
+        open={create}
+        className="studio-dialog"
+        busy={op.busy}
+        title={t('冻结综述协议')}
+        onClose={() => setCreate(false)}
+        size="lg"
+      >
+        <ErrorNotice message={op.error} />
         <form
           className="studio-form"
           onSubmit={(e) => {
@@ -258,22 +280,32 @@ export default function ReviewProtocols({ workspace }: { workspace: string }) {
             })
           }}
         >
-          {Object.entries({
-            title: t('综述名称'),
-            question: t('研究问题'),
-            search_query: t('检索式'),
-            inclusion: t('纳入标准，每行一条'),
-            exclusion: t('排除标准，每行一条'),
-            extraction_fields: t('提取字段，每行一个'),
-          }).map(([key, label]) => (
-            <Field key={key} label={label}>
-              <textarea
-                required
-                value={draft[key as keyof typeof draft]}
-                onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
-              />
-            </Field>
-          ))}
+          <div className="studio-form-grid studio-review-fields">
+            {Object.entries({
+              title: t('综述名称'),
+              question: t('研究问题'),
+              search_query: t('检索式'),
+              inclusion: t('纳入标准，每行一条'),
+              exclusion: t('排除标准，每行一条'),
+              extraction_fields: t('提取字段，每行一个'),
+            }).map(([key, label]) => (
+              <Field key={key} label={label}>
+                {key === 'title' ? (
+                  <input
+                    required
+                    value={draft.title}
+                    onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+                  />
+                ) : (
+                  <textarea
+                    required
+                    value={draft[key as keyof typeof draft]}
+                    onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
+                  />
+                )}
+              </Field>
+            ))}
+          </div>
           <fieldset className="studio-field">
             <legend>{t('候选文献')}</legend>
             {works.flatMap((w) =>
@@ -305,10 +337,13 @@ export default function ReviewProtocols({ workspace }: { workspace: string }) {
       </Dialog>
       <Dialog
         open={!!item}
+        className="studio-dialog"
+        busy={op.busy}
         title={mode === 'decision' ? t('记录筛选决定') : t('提取原文证据')}
         onClose={() => setItem(null)}
         size="lg"
       >
+        <ErrorNotice message={op.error} />
         {item && report && (
           <form
             className="studio-form"

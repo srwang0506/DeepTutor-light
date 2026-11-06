@@ -6994,5 +6994,10 @@
   "：保留": "：Giữ lại",
   "；新来件": "；Mục mới đến",
   "跨设备项目迁移": "Chuyển dự án giữa các thiết bị",
-  "打包数据上限 200 MB，单文件 50 MB。请保存好传输口令。": "Gói dữ liệu tối đa 200 MB, mỗi tệp tối đa 50 MB. Hãy lưu giữ cụm mật khẩu chuyển dữ liệu."
+  "打包数据上限 200 MB，单文件 50 MB。请保存好传输口令。": "Gói dữ liệu tối đa 200 MB, mỗi tệp tối đa 50 MB. Hãy lưu giữ cụm mật khẩu chuyển dữ liệu.",
+  "资料库": "Thư viện",
+  "证据与比较": "Bằng chứng và so sánh",
+  "实验记录": "Thí nghiệm",
+  "论文写作": "Viết bài nghiên cứu",
+  "远程工作区": "Không gian làm việc từ xa"
 }

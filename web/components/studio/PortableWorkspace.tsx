@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ArrowDownToLine, FileSearch, LockKeyhole, CheckCircle2 } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { post, studio, studioUrl } from '@/lib/studio-api'
 import { Action, ErrorNotice, Field, useOperation } from './StudioShell'
@@ -74,17 +75,21 @@ export default function PortableWorkspace({ workspace }: { workspace: string }) 
   }
   const conflicts = preview?.items.filter((i) => i.state === 'conflict') || []
   return (
-    <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 space-y-4">
-      <div>
-        <h2 className="font-semibold">{t('跨设备项目迁移')}</h2>
-        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-          {t(
-            '用加密文件交换当前项目的聊天、学习记录、记忆、资料与科研成果。密钥和跨工作区记忆授权留在本机；导入前先检查差异。',
-          )}
-        </p>
+    <section className="studio-card space-y-5">
+      <div className="studio-panel-heading">
+        <span className="studio-panel-icon">
+          <LockKeyhole size={19} aria-hidden />
+        </span>
+        <div>
+          <h2>{t('跨设备项目迁移')}</h2>
+          <p className="studio-muted">
+            {t(
+              '用加密文件交换当前项目的聊天、学习记录、记忆、资料与科研成果。密钥和跨工作区记忆授权留在本机；导入前先检查差异。',
+            )}
+          </p>
+        </div>
       </div>
-      <p className="studio-muted">{t('打包数据上限 200 MB，单文件 50 MB。请保存好传输口令。')}</p>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="studio-form-grid">
         <Field label={t('传输口令（至少 12 个字符）')}>
           <input
             type="password"
@@ -105,20 +110,27 @@ export default function PortableWorkspace({ workspace }: { workspace: string }) 
           />
         </Field>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <Action disabled={op.busy || passphrase.length < 12} onClick={() => void exportProject()}>
-          {t('导出当前项目')}
-        </Action>
-        <Action
-          disabled={op.busy || !file || passphrase.length < 12}
-          onClick={() => void inspect()}
-        >
-          {t('预览导入')}
-        </Action>
+      <div className="studio-transfer-footer">
+        <p className="studio-note">{t('打包数据上限 200 MB，单文件 50 MB。请保存好传输口令。')}</p>
+        <div className="studio-actions">
+          <Action disabled={op.busy || passphrase.length < 12} onClick={() => void exportProject()}>
+            <ArrowDownToLine size={15} aria-hidden />
+            {t('导出当前项目')}
+          </Action>
+          <Action
+            secondary
+            disabled={op.busy || !file || passphrase.length < 12}
+            onClick={() => void inspect()}
+          >
+            <FileSearch size={15} aria-hidden />
+            {t('预览导入')}
+          </Action>
+        </div>
       </div>
       <ErrorNotice message={loadError || op.error} />
       {message && (
-        <p role="status" className="text-sm">
+        <p role="status" className="studio-success">
+          <CheckCircle2 size={16} aria-hidden />
           {message}
         </p>
       )}
@@ -130,13 +142,13 @@ export default function PortableWorkspace({ workspace }: { workspace: string }) 
               conflicts: conflicts.length,
             })}
           </p>
-          <div className="max-h-72 overflow-y-auto divide-y divide-[var(--border)]">
+          <div className="studio-transfer-preview max-h-72 overflow-y-auto divide-y divide-[var(--border)]">
             {preview.items
               .filter((i) => i.state !== 'unchanged')
               .map((item) => (
-                <div key={item.resource} className="py-2 flex flex-wrap items-center gap-3 text-sm">
+                <div key={item.resource} className="studio-transfer-row">
                   <code className="min-w-0 flex-1 break-all">{item.resource}</code>
-                  <span>
+                  <span className={`studio-badge ${item.state === 'conflict' ? 'warn' : ''}`}>
                     {
                       {
                         new: t('新增'),
@@ -149,6 +161,7 @@ export default function PortableWorkspace({ workspace }: { workspace: string }) 
                   </span>
                   {item.state === 'conflict' && (
                     <select
+                      className="studio-control"
                       aria-label={t('选择冲突处理方式')}
                       value={choices[item.resource] || ''}
                       onChange={(e) =>
@@ -179,10 +192,10 @@ export default function PortableWorkspace({ workspace }: { workspace: string }) 
         </div>
       )}
       {transfers.length > 0 && (
-        <details className="text-sm">
+        <details>
           <summary>{t('最近的传输回执')}</summary>
           {transfers.map((item) => (
-            <div key={item.id} className="py-2">
+            <div key={item.id} className="studio-receipt-row">
               {new Date(item.created * 1000).toLocaleString()} ·{' '}
               {item.state === 'complete' ? t('已完成') : t('可重新上传原包恢复')} ·{' '}
               <code>{item.id.slice(0, 12)}</code>

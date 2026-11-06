@@ -7012,5 +7012,10 @@
   "：保留": "：Manter",
   "；新来件": "；Novos itens recebidos",
   "跨设备项目迁移": "Transferência de projetos entre dispositivos",
-  "打包数据上限 200 MB，单文件 50 MB。请保存好传输口令。": "O pacote de dados está limitado a 200 MB, com 50 MB por ficheiro. Guarde a frase-passe de transferência."
+  "打包数据上限 200 MB，单文件 50 MB。请保存好传输口令。": "O pacote de dados está limitado a 200 MB, com 50 MB por ficheiro. Guarde a frase-passe de transferência.",
+  "资料库": "Biblioteca",
+  "证据与比较": "Evidências e comparações",
+  "实验记录": "Experimentos",
+  "论文写作": "Redação científica",
+  "远程工作区": "Espaços de trabalho remotos"
 }

@@ -7016,5 +7016,10 @@
   "：保留": ": zachowaj",
   "；新来件": "; nowe pozycje",
   "跨设备项目迁移": "Przenoszenie projektu między urządzeniami",
-  "打包数据上限 200 MB，单文件 50 MB。请保存好传输口令。": "Pakiet danych może mieć do 200 MB, a pojedynczy plik do 50 MB. Zachowaj hasło do przenoszenia danych."
+  "打包数据上限 200 MB，单文件 50 MB。请保存好传输口令。": "Pakiet danych może mieć do 200 MB, a pojedynczy plik do 50 MB. Zachowaj hasło do przenoszenia danych.",
+  "资料库": "Biblioteka",
+  "证据与比较": "Dowody i porównania",
+  "实验记录": "Eksperymenty",
+  "论文写作": "Pisanie artykułów",
+  "远程工作区": "Zdalne obszary robocze"
 }

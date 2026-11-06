@@ -6994,5 +6994,10 @@
   "：保留": ": Beibehalten",
   "；新来件": "; neue Eingänge",
   "跨设备项目迁移": "Projektübertragung zwischen Geräten",
-  "打包数据上限 200 MB，单文件 50 MB。请保存好传输口令。": "Das Datenpaket ist auf 200 MB begrenzt, einzelne Dateien auf 50 MB. Bewahre deine Übertragungs-Passphrase sicher auf."
+  "打包数据上限 200 MB，单文件 50 MB。请保存好传输口令。": "Das Datenpaket ist auf 200 MB begrenzt, einzelne Dateien auf 50 MB. Bewahre deine Übertragungs-Passphrase sicher auf.",
+  "资料库": "Bibliothek",
+  "证据与比较": "Belege und Vergleiche",
+  "实验记录": "Experimente",
+  "论文写作": "Manuskripte verfassen",
+  "远程工作区": "Remote-Arbeitsbereiche"
 }

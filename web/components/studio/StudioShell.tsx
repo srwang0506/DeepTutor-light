@@ -1,7 +1,15 @@
 'use client'
 import { useTranslation } from 'react-i18next'
 import Link from 'next/link'
-import { ArrowUpRight, BookOpen, FlaskConical, Layers3, PenLine, Server } from 'lucide-react'
+import {
+  ArrowUpRight,
+  BookOpen,
+  FlaskConical,
+  Layers3,
+  PenLine,
+  Server,
+  CircleAlert,
+} from 'lucide-react'
 import { type ReactNode, useRef, useState } from 'react'
 import { scopedUrl } from '@/lib/workspace-scope'
 import './studio.css'
@@ -36,11 +44,11 @@ export function StudioShell({
         </header>
         <nav className="studio-nav" aria-label={t('研究工作界面')}>
           {[
-            ['library', '/library', '资料库', BookOpen],
-            ['evidence', '/studio/evidence', '证据与比较', Layers3],
-            ['experiments', '/studio/experiments', '实验记录', FlaskConical],
-            ['writing', '/studio/writing', '论文写作', PenLine],
-            ['connections', '/studio/connections', '远程工作区', Server],
+            ['library', '/library', t('资料库'), BookOpen],
+            ['evidence', '/studio/evidence', t('证据与比较'), Layers3],
+            ['experiments', '/studio/experiments', t('实验记录'), FlaskConical],
+            ['writing', '/studio/writing', t('论文写作'), PenLine],
+            ['connections', '/studio/connections', t('远程工作区'), Server],
           ].map(([id, href, label, Icon]) => {
             const I = Icon as typeof BookOpen
             return (
@@ -89,7 +97,8 @@ export function Field({
 export function ErrorNotice({ message }: { message: string }) {
   return message ? (
     <p className="studio-error" role="alert">
-      {message}
+      <CircleAlert size={16} aria-hidden />
+      <span>{message}</span>
     </p>
   ) : null
 }

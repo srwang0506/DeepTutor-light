@@ -6994,5 +6994,10 @@
   "：保留": ": Koru",
   "；新来件": "; yeni gelenler",
   "跨设备项目迁移": "Cihazlar arasında proje aktarımı",
-  "打包数据上限 200 MB，单文件 50 MB。请保存好传输口令。": "Paketlenmiş veriler en fazla 200 MB, tek bir dosya en fazla 50 MB olabilir. Aktarım parolanızı güvenli bir yerde saklayın."
+  "打包数据上限 200 MB，单文件 50 MB。请保存好传输口令。": "Paketlenmiş veriler en fazla 200 MB, tek bir dosya en fazla 50 MB olabilir. Aktarım parolanızı güvenli bir yerde saklayın.",
+  "资料库": "Kütüphane",
+  "证据与比较": "Kanıtlar ve karşılaştırmalar",
+  "实验记录": "Deneyler",
+  "论文写作": "Makale yazımı",
+  "远程工作区": "Uzak çalışma alanları"
 }

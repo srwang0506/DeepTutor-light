@@ -4,8 +4,8 @@
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
-  color: #262a34;
-  background: #f6f7f9;
+  color: #1c2420;
+  background: #fafbf9;
   color-scheme: light;
 }
 * {
@@ -34,10 +34,10 @@ h2 {
   white-space: pre-wrap;
 }
 p {
-  color: #626977;
+  color: #68736b;
 }
 a {
-  color: #5368bd;
+  color: #276b59;
   text-decoration: none;
 }
 .toolbar {
@@ -57,17 +57,17 @@ select,
 textarea {
   font: inherit;
   border-radius: 9px;
-  border: 1px solid #d8dce5;
+  border: 1px solid #dfe5e0;
   padding: 10px 14px;
 }
 button {
-  background: #596bc0;
+  background: #276b59;
   color: white;
   cursor: pointer;
 }
 button:disabled {
   opacity: 0.5;
-  cursor: wait;
+  cursor: not-allowed;
 }
 .secondary,
 select {
@@ -77,7 +77,7 @@ select {
 article {
   padding: 24px;
   background: white;
-  border: 1px solid #e2e5ec;
+  border: 1px solid #dfe5e0;
   border-radius: 16px;
   margin: 16px 0;
 }
@@ -118,22 +118,88 @@ iframe {
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    background: #16181e;
+    background: #181c19;
     color: #e9eaf0;
     color-scheme: dark;
   }
   article {
-    background: #20232c;
-    border-color: #353a49;
+    background: #222823;
+    border-color: #3b453e;
   }
   p {
-    color: #a7adbc;
+    color: #aab7ae;
   }
   textarea,
   select {
-    border-color: #414857;
+    border-color: #465449;
   }
   a {
-    color: #a5b4ff;
+    color: #8ec5aa;
+  }
+}
+
+button,
+select,
+textarea {
+  transition:
+    border-color 150ms,
+    box-shadow 150ms,
+    background-color 150ms;
+}
+button,
+select {
+  min-height: 42px;
+  font-size: 13px;
+}
+button:not(:disabled):hover {
+  filter: brightness(0.94);
+}
+:where(button, select, textarea, a):focus-visible {
+  outline: 2px solid #5b977e;
+  outline-offset: 3px;
+}
+#network {
+  align-self: flex-start;
+  padding: 6px 10px;
+  border: 1px solid #dfe5e0;
+  border-radius: 20px;
+}
+#status:empty {
+  display: none;
+}
+#status:not(:empty) {
+  border-left: 2px solid #5b977e;
+  padding: 10px 14px;
+  background: #5b977e0c;
+  border-radius: 0 8px 8px 0;
+}
+article {
+  box-shadow: 0 2px 8px #1c242003;
+}
+@media (max-width: 600px) {
+  main {
+    padding: 28px 18px;
+  }
+  header {
+    flex-direction: column;
+    gap: 10px;
+  }
+  h1 {
+    font-size: 27px;
+  }
+  article {
+    padding: 18px;
+  }
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .actions > button {
+    flex: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
   }
 }

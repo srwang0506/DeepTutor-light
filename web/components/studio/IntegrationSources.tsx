@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Plus, RefreshCw, Unplug } from 'lucide-react'
+import { Plus, RefreshCw, Unplug, LibraryBig, Activity } from 'lucide-react'
 import Link from 'next/link'
 import { Dialog } from '@/shared/ui/Dialog'
 import { scopedUrl } from '@/lib/workspace-scope'
@@ -81,17 +81,26 @@ export default function IntegrationSources({
   }
   return (
     <section
-      className="studio-card"
+      className="studio-card studio-feature"
       aria-label={provider === 'zotero' ? t('Zotero 增量同步') : t('实时实验来源')}
     >
       <div className="studio-toolbar">
-        <div>
-          <h3>{provider === 'zotero' ? t('连接 Zotero 书库') : t('持续接收实验记录')}</h3>
-          <p className="studio-muted">
-            {provider === 'zotero'
-              ? t('只读同步文献元数据，保留作者整理与来源删除标记。')
-              : t('从选定 JSONL 文件断点续读。运行声明、指标与产物保留原始事件。')}
-          </p>
+        <div className="studio-panel-heading">
+          <span className="studio-panel-icon">
+            {provider === 'zotero' ? (
+              <LibraryBig size={19} aria-hidden />
+            ) : (
+              <Activity size={19} aria-hidden />
+            )}
+          </span>
+          <div>
+            <h3>{provider === 'zotero' ? t('连接 Zotero 书库') : t('持续接收实验记录')}</h3>
+            <p className="studio-muted">
+              {provider === 'zotero'
+                ? t('只读同步文献元数据，保留作者整理与来源删除标记。')
+                : t('从选定 JSONL 文件断点续读。运行声明、指标与产物保留原始事件。')}
+            </p>
+          </div>
         </div>
         <Action
           secondary
@@ -106,105 +115,115 @@ export default function IntegrationSources({
         </Action>
       </div>
       <ErrorNotice message={loadError || op.error} />
-      {sources.map((source) => (
-        <article key={source.id} className="studio-card">
-          <div className="studio-toolbar">
-            <div>
-              <strong>{source.data.title}</strong>
-              <p className="studio-muted">
-                {stateName[source.data.state] || source.data.state} ·{' '}
-                {source.data.last_sync
-                  ? new Date(source.data.last_sync * 1000).toLocaleString()
-                  : t('尚未同步')}
-              </p>
-              <p className="studio-muted">
-                {source.data.provider === 'zotero'
-                  ? `${t('库版本')} ${source.data.cursor.version ?? 0}`
-                  : `${t('已读取字节')} ${source.data.cursor.offset ?? 0}`}{' '}
-                · {t('最近新增')} {source.data.last_count ?? 0}
-              </p>
-              {source.data.error && <ErrorNotice message={source.data.error} />}
-            </div>
-            <div className="studio-toolbar">
-              <Action
-                secondary
-                disabled={op.busy || !source.data.enabled}
-                onClick={() =>
-                  void op.run(async () => {
-                    await post(workspace, `/integrations/${source.id}/refresh`, {})
-                    await load()
-                    onChange?.()
-                  })
-                }
-              >
-                <RefreshCw size={14} />
-                {t('立即同步')}
-              </Action>
-              <Action
-                secondary
-                onClick={() => {
-                  setEditing(source)
-                  setDraft({
-                    title: source.data.title,
-                    library_type: source.data.library_type,
-                    library_id: source.data.library_id,
-                    path: source.data.path,
-                    api_key: '',
-                  })
-                  setDialog(true)
-                }}
-              >
-                {t('重新连接')}
-              </Action>
-              <Action
-                secondary
-                disabled={op.busy || !source.data.enabled}
-                onClick={() =>
-                  void op.run(async () => {
-                    await studio(workspace, `/integrations/${source.id}`, {
-                      method: 'PATCH',
-                      body: JSON.stringify({
+      {sources.length > 0 && (
+        <div className="studio-inset-list">
+          {sources.map((source) => (
+            <article key={source.id} className="studio-card">
+              <div className="studio-toolbar">
+                <div>
+                  <strong>{source.data.title}</strong>
+                  <p className="studio-muted">
+                    {stateName[source.data.state] || source.data.state} ·{' '}
+                    {source.data.last_sync
+                      ? new Date(source.data.last_sync * 1000).toLocaleString()
+                      : t('尚未同步')}
+                  </p>
+                  <p className="studio-muted">
+                    {source.data.provider === 'zotero'
+                      ? `${t('库版本')} ${source.data.cursor.version ?? 0}`
+                      : `${t('已读取字节')} ${source.data.cursor.offset ?? 0}`}{' '}
+                    · {t('最近新增')} {source.data.last_count ?? 0}
+                  </p>
+                  {source.data.error && <ErrorNotice message={source.data.error} />}
+                </div>
+                <div className="studio-actions">
+                  <Action
+                    secondary
+                    disabled={op.busy || !source.data.enabled}
+                    onClick={() =>
+                      void op.run(async () => {
+                        await post(workspace, `/integrations/${source.id}/refresh`, {})
+                        await load()
+                        onChange?.()
+                      })
+                    }
+                  >
+                    <RefreshCw size={14} />
+                    {t('立即同步')}
+                  </Action>
+                  <Action
+                    secondary
+                    onClick={() => {
+                      setEditing(source)
+                      setDraft({
                         title: source.data.title,
-                        provider: source.data.provider,
                         library_type: source.data.library_type,
                         library_id: source.data.library_id,
                         path: source.data.path,
-                        interval_seconds: source.data.interval_seconds,
-                        enabled: false,
-                        expected_revision: source.revision,
-                      }),
-                    })
-                    await load()
-                  })
-                }
-              >
-                <Unplug size={14} />
-                {t('断开')}
-              </Action>
-              {provider === 'zotero' && (
-                <Action
-                  secondary
-                  onClick={() =>
-                    void op.run(async () => {
-                      const r = await studio<{
-                        items: NonNullable<typeof objects>
-                        next_cursor: string
-                      }>(workspace, `/integrations/${source.id}/objects`)
-                      setObjects(r.items)
-                      setObjectSource(source.id)
-                      setObjectCursor(r.next_cursor)
-                    })
-                  }
-                >
-                  {t('来源条目')}
-                </Action>
-              )}
-            </div>
-          </div>
-        </article>
-      ))}
+                        api_key: '',
+                      })
+                      setDialog(true)
+                    }}
+                  >
+                    {t('重新连接')}
+                  </Action>
+                  <Action
+                    secondary
+                    disabled={op.busy || !source.data.enabled}
+                    onClick={() =>
+                      void op.run(async () => {
+                        await studio(workspace, `/integrations/${source.id}`, {
+                          method: 'PATCH',
+                          body: JSON.stringify({
+                            title: source.data.title,
+                            provider: source.data.provider,
+                            library_type: source.data.library_type,
+                            library_id: source.data.library_id,
+                            path: source.data.path,
+                            interval_seconds: source.data.interval_seconds,
+                            enabled: false,
+                            expected_revision: source.revision,
+                          }),
+                        })
+                        await load()
+                      })
+                    }
+                  >
+                    <Unplug size={14} />
+                    {t('断开')}
+                  </Action>
+                  {provider === 'zotero' && (
+                    <Action
+                      secondary
+                      onClick={() =>
+                        void op.run(async () => {
+                          const r = await studio<{
+                            items: NonNullable<typeof objects>
+                            next_cursor: string
+                          }>(workspace, `/integrations/${source.id}/objects`)
+                          setObjects(r.items)
+                          setObjectSource(source.id)
+                          setObjectCursor(r.next_cursor)
+                        })
+                      }
+                    >
+                      {t('来源条目')}
+                    </Action>
+                  )}
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
       {dialog && (
-        <Dialog open title={t('连接只读来源')} onClose={() => setDialog(false)}>
+        <Dialog
+          open
+          className="studio-dialog"
+          busy={op.busy}
+          title={t('连接只读来源')}
+          onClose={() => setDialog(false)}
+        >
           <form
             className="studio-form"
             onSubmit={(e) => {
@@ -228,6 +247,7 @@ export default function IntegrationSources({
               })
             }}
           >
+            <ErrorNotice message={op.error} />
             <Field label={t('名称')}>
               <input
                 required
@@ -293,8 +313,14 @@ export default function IntegrationSources({
         </Dialog>
       )}
       {objects && (
-        <Dialog open title={t('来源条目与删除标记')} onClose={() => setObjects(null)}>
+        <Dialog
+          open
+          className="studio-dialog"
+          title={t('来源条目与删除标记')}
+          onClose={() => setObjects(null)}
+        >
           <div className="studio-form">
+            <ErrorNotice message={op.error} />
             {objectCursor && (
               <Action
                 disabled={op.busy}

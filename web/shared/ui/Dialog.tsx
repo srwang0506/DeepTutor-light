@@ -9,6 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { IconButton } from "./IconButton";
 import { cn } from "./styles";
 
@@ -46,13 +47,14 @@ export function Dialog({
   description,
   footer,
   size = "md",
-  closeLabel = "Close",
+  closeLabel,
   closeOnBackdrop = true,
   closeOnEscape = true,
   busy = false,
   alert = false,
   className,
 }: DialogProps) {
+  const { t } = useTranslation();
   const dialogRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const descriptionId = useId();
@@ -153,7 +155,7 @@ export function Dialog({
             ) : null}
           </div>
           <IconButton
-            label={closeLabel}
+            label={closeLabel ?? t("Close")}
             icon={<X aria-hidden className="h-4 w-4" />}
             size="sm"
             disabled={busy}

@@ -1,7 +1,7 @@
 .personal-study-shell {
   max-width: 1080px;
   margin: 22px auto 60px;
-  --study-accent: #477965;
+  --study-accent: var(--primary);
   --study-soft: color-mix(in srgb, var(--study-accent) 7%, var(--background));
 }
 .personal-study-header {
@@ -84,7 +84,7 @@
 }
 .study-time-bar button[aria-pressed='true'] {
   background: var(--study-accent);
-  color: white;
+  color: var(--primary-foreground);
 }
 .study-time-bar button:not([aria-pressed='true']):hover {
   background: var(--muted);
@@ -145,10 +145,11 @@
   gap: 18px;
   align-items: center;
   background: var(--study-accent);
-  color: white;
-  font-size: 12px;
-  padding: 11px 17px;
-  border-radius: 9px;
+  color: var(--primary-foreground);
+  min-height: 40px;
+  font-size: 13px;
+  padding: 9px 15px;
+  border-radius: 10px;
 }
 .study-primary:hover {
   filter: brightness(1.07);

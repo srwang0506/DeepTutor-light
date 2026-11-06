@@ -7899,5 +7899,10 @@
   "：保留": " : conserver",
   "；新来件": " ; nouvel élément reçu",
   "跨设备项目迁移": "Transfert de projet entre appareils",
-  "打包数据上限 200 MB，单文件 50 MB。请保存好传输口令。": "Les données regroupées sont limitées à 200 Mo, avec 50 Mo par fichier. Conservez votre phrase secrète de transfert."
+  "打包数据上限 200 MB，单文件 50 MB。请保存好传输口令。": "Les données regroupées sont limitées à 200 Mo, avec 50 Mo par fichier. Conservez votre phrase secrète de transfert.",
+  "资料库": "Bibliothèque",
+  "证据与比较": "Preuves et comparaisons",
+  "实验记录": "Expériences",
+  "论文写作": "Rédaction scientifique",
+  "远程工作区": "Espaces de travail distants"
 }

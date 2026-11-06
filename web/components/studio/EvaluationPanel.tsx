@@ -1,8 +1,9 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { ClipboardCheck, Download, FileCheck2, Play } from 'lucide-react'
 import { post, studio, type StudioRecord } from '@/lib/studio-api'
-import { Action, ErrorNotice, useOperation } from './StudioShell'
+import { Action, ErrorNotice, Field, useOperation } from './StudioShell'
 interface Suite {
   id: string
   title: string
@@ -114,52 +115,67 @@ export default function EvaluationPanel({ workspace }: { workspace: string }) {
   }
   return (
     <details className="studio-card">
-      <summary className="cursor-pointer font-semibold">{t('质量评测与复核')}</summary>
-      <div className="space-y-4 pt-4">
+      <summary>
+        <span className="studio-summary-label">
+          <ClipboardCheck size={18} aria-hidden />
+          {t('质量评测与复核')}
+        </span>
+      </summary>
+      <div className="space-y-5">
         <p className="studio-muted">
           {t(
             '先导入并冻结独立整理的任务集，再使用当前模型逐题执行。标准答案不会发给模型；同一题族或论文不能跨开发集和测试集。开放题保留人工复核状态。',
           )}
         </p>
-        <div className="flex flex-wrap items-center gap-3">
-          <input
-            type="file"
-            accept="application/json,.json"
-            aria-label={t('评测任务集 JSON')}
-            disabled={running}
-            onChange={(e) => setFile(e.target.files?.[0] || null)}
-          />
-          <Action secondary disabled={!file || op.busy || running} onClick={() => void upload()}>
-            {t('冻结任务集')}
-          </Action>
-        </div>
-        <div className="flex flex-wrap gap-3">
-          <select
-            aria-label={t('选择已冻结的任务集')}
-            value={selected}
-            disabled={running}
-            onChange={(e) => setSelected(e.target.value)}
-          >
-            <option value="">{t('选择任务集')}</option>
-            {suites.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.title} · {s.cases}
-              </option>
-            ))}
-          </select>
-          <Action disabled={!selected || running || op.busy} onClick={() => void evaluate()}>
-            {t('使用当前模型开始评测')}
-          </Action>
-          {running && (
-            <Action
-              secondary
-              onClick={() => {
-                stop.current = true
-              }}
-            >
-              {t('完成当前题后暂停')}
+        <div className="studio-form-row">
+          <Field label={t('评测任务集 JSON')}>
+            <input
+              type="file"
+              accept="application/json,.json"
+              aria-label={t('评测任务集 JSON')}
+              disabled={running}
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+            />
+          </Field>
+          <div className="studio-actions">
+            <Action secondary disabled={!file || op.busy || running} onClick={() => void upload()}>
+              <FileCheck2 size={15} aria-hidden />
+              {t('冻结任务集')}
             </Action>
-          )}
+          </div>
+        </div>
+        <div className="studio-form-row">
+          <Field label={t('选择已冻结的任务集')}>
+            <select
+              aria-label={t('选择已冻结的任务集')}
+              value={selected}
+              disabled={running}
+              onChange={(e) => setSelected(e.target.value)}
+            >
+              <option value="">{t('选择任务集')}</option>
+              {suites.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.title} · {s.cases}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <div className="studio-actions">
+            <Action disabled={!selected || running || op.busy} onClick={() => void evaluate()}>
+              <Play size={15} aria-hidden />
+              {t('使用当前模型开始评测')}
+            </Action>
+            {running && (
+              <Action
+                secondary
+                onClick={() => {
+                  stop.current = true
+                }}
+              >
+                {t('完成当前题后暂停')}
+              </Action>
+            )}
+          </div>
         </div>
         <ErrorNotice message={op.error || loadError} />
         {report && (
@@ -168,7 +184,7 @@ export default function EvaluationPanel({ workspace }: { workspace: string }) {
               {report.model.model} · {report.metrics.all.finished}/{report.metrics.all.cases} ·{' '}
               {report.state === 'complete' ? t('运行完成') : t('可以继续')}
             </p>
-            <div className="overflow-x-auto">
+            <div className="studio-table-wrap">
               <table className="studio-table">
                 <thead>
                   <tr>
@@ -210,6 +226,7 @@ export default function EvaluationPanel({ workspace }: { workspace: string }) {
               {t('费用未知')}
             </p>
             <Action secondary onClick={download}>
+              <Download size={15} aria-hidden />
               {t('导出完整评测回执')}
             </Action>
           </section>
@@ -217,11 +234,11 @@ export default function EvaluationPanel({ workspace }: { workspace: string }) {
         {runs.length > 0 && (
           <div className="space-y-2">
             {runs.map((run) => (
-              <div key={run.id} className="flex items-center justify-between gap-3 text-sm">
+              <div key={run.id} className="studio-receipt-row">
                 <span>
                   {run.model.model} · {run.completed}/{run.total}
                 </span>
-                <div className="flex gap-2">
+                <div className="studio-actions">
                   <Action
                     secondary
                     disabled={running}

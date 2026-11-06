@@ -1,5 +1,6 @@
 'use client'
 import { useTranslation } from 'react-i18next'
+import { Blocks } from 'lucide-react'
 
 import { useEffect, useState } from 'react'
 import { studio } from '@/lib/studio-api'
@@ -39,13 +40,18 @@ export default function ConnectorCapabilities({ workspace }: { workspace: string
     return () => abort.abort()
   }, [workspace])
   return (
-    <details className="studio-panel" style={{ marginTop: 24 }}>
-      <summary>{t('应用接入与能力范围')}</summary>
+    <details className="studio-card">
+      <summary>
+        <span className="studio-summary-label">
+          <Blocks size={18} aria-hidden />
+          {t('应用接入与能力范围')}
+        </span>
+      </summary>
       <p className="studio-note">{t('查看每种连接实际能做的事、授权方式和当前限制。')}</p>
       <ErrorNotice message={error} />
       <div className="studio-cards">
         {items.map((item) => (
-          <article className="studio-panel" key={item.id}>
+          <article className="studio-card" key={item.id}>
             <span className="studio-badge">{modes[item.mode] || item.mode}</span>
             <h3>{item.name}</h3>
             <p>{item.authorization}</p>

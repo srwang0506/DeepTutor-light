@@ -2,6 +2,9 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Dialog } from '@/shared/ui/Dialog'
+import { Button } from '@/shared/ui/Button'
+import { Field } from '@/shared/ui/Field'
+import { InlineAlert } from '@/shared/ui/InlineAlert'
 import { apiFetch } from '@/lib/api'
 import { randomUuid } from '@/lib/random-uuid'
 interface Descriptor {
@@ -88,17 +91,13 @@ export default function QuestionFamilyReview({
   }
   return (
     <div className="text-sm">
-      <button
-        type="button"
-        className="px-3 py-2 text-[var(--primary)]"
-        disabled={busy}
-        onClick={() => void begin()}
-      >
+      <Button variant="ghost" size="sm" loading={busy && !open} onClick={() => void begin()}>
         {saved ? t('已复核题族') : t('复核目标与解法')}
-      </button>
-      {error && <p role="alert">{error}</p>}
+      </Button>
+      {error && !open && <InlineAlert tone="danger">{error}</InlineAlert>}
       <Dialog
         open={open}
+        busy={busy}
         title={t('题族复核')}
         onClose={() => !busy && setOpen(false)}
         description={t(
@@ -106,9 +105,10 @@ export default function QuestionFamilyReview({
         )}
       >
         <div className="space-y-4">
+          {error && <InlineAlert tone="danger">{error}</InlineAlert>}
           {candidates.map((c, i) => (
             <button
-              className="block rounded-lg border p-3 text-left w-full"
+              className="block w-full rounded-xl border border-border bg-card p-3 text-left text-sm transition-colors hover:border-primary/40 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               key={i}
               type="button"
               onClick={() =>
@@ -121,14 +121,15 @@ export default function QuestionFamilyReview({
               }
             >
               {c.objective} · {c.method}
-              <small className="block">
+              <small className="mt-1 block text-xs text-muted-foreground">
                 {t('候选建议，需你复核')} · {Math.round((c.score || 0) * 100)}%
               </small>
             </button>
           ))}
           {(['objective', 'method', 'conditions', 'rationale'] as const).map((key) => (
-            <label key={key} className="block">
-              {
+            <Field
+              key={key}
+              label={
                 {
                   objective: t('目标概念'),
                   method: t('所需解法'),
@@ -136,28 +137,30 @@ export default function QuestionFamilyReview({
                   rationale: t('为何属于这个题族'),
                 }[key]
               }
+            >
               <textarea
-                className="mt-1 block w-full rounded-lg border bg-transparent p-2"
+                className="block min-h-24 w-full resize-y rounded-xl border border-border bg-background px-3 py-2 text-sm leading-6 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 required
                 value={draft[key]}
                 onChange={(e) => setDraft({ ...draft, [key]: e.target.value })}
               />
-            </label>
+            </Field>
           ))}
-          <button
-            className="rounded-lg bg-[var(--primary)] text-[var(--primary-foreground)] px-4 py-2"
-            type="button"
-            disabled={
-              busy ||
-              !draft.objective.trim() ||
-              !draft.method.trim() ||
-              !draft.conditions.trim() ||
-              draft.rationale.trim().length < 5
-            }
-            onClick={() => void save()}
-          >
-            {t('确认并保存复核')}
-          </button>
+          <div className="flex justify-end border-t border-border pt-4">
+            <Button
+              loading={busy}
+              disabled={
+                busy ||
+                !draft.objective.trim() ||
+                !draft.method.trim() ||
+                !draft.conditions.trim() ||
+                draft.rationale.trim().length < 5
+              }
+              onClick={() => void save()}
+            >
+              {t('确认并保存复核')}
+            </Button>
+          </div>
         </div>
       </Dialog>
     </div>

@@ -205,7 +205,6 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
             </button>
           ))}
         </div>
-        {tab === 'claims' && <ClaimsPanel workspace={workspace} />}
         {tab === 'matrix' && (
           <div className="studio-actions">
             <Action
@@ -234,6 +233,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
           </div>
         )}
       </div>
+      {tab === 'claims' && <ClaimsPanel workspace={workspace} />}
       {tab === 'matrix' && (
         <>
           {observations.length ? (
@@ -480,7 +480,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
               <div className="studio-actions" style={{ marginTop: 16 }}>
                 {Object.keys(row.data.files).map((name) => (
                   <button
-                    className="studio-link"
+                    className="studio-link-button"
                     key={name}
                     disabled={op.busy}
                     onClick={() => op.run(() => downloadArtifact(row.id, name))}

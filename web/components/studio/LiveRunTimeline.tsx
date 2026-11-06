@@ -3,6 +3,7 @@ import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useKeyedState } from '@/hooks/useKeyedState'
 import { studio } from '@/lib/studio-api'
+import { Action, ErrorNotice } from './StudioShell'
 interface Event {
   event_id: string
   type: string
@@ -82,25 +83,25 @@ export default function LiveRunTimeline({
   const names = [...new Set(events.filter((e) => e.type === 'metric').map((e) => e.name!))]
   if (!events.length && !error && !before) return null
   return (
-    <section aria-label={t('实时指标历史')} className="studio-card">
+    <section aria-label={t('实时指标历史')} className="studio-timeline">
       <h3>{t('实时指标历史')}</h3>
       <p className="studio-muted">
         {t('曲线来自来源日志的声明，不代表本系统见证了训练执行。协议与单位仍需复核。')}
       </p>
       <p className="studio-muted">{t('当前窗口最多保留 2000 条事件；更早记录可分页查看。')}</p>
-      <div className="flex gap-3">
+      <div className="studio-actions">
         {older && (
-          <button type="button" onClick={() => setBefore(older)}>
+          <Action secondary onClick={() => setBefore(older)}>
             {t('更早事件')}
-          </button>
+          </Action>
         )}
         {before && (
-          <button type="button" onClick={() => setBefore('')}>
+          <Action secondary onClick={() => setBefore('')}>
             {t('返回实时')}
-          </button>
+          </Action>
         )}
       </div>
-      {error && <p role="alert">{error}</p>}
+      <ErrorNotice message={error} />
       {names.map((name) => {
         const samples = [
           ...new Map(
@@ -120,18 +121,19 @@ export default function LiveRunTimeline({
           )
           .join(' ')
         return (
-          <figure key={name}>
+          <figure key={name} className="studio-metric">
             <figcaption>
-              {name} · {t('最新值')} {samples.at(-1)?.value} · {t('步数')} {samples.at(-1)?.step}
+              <strong>{name}</strong>
+              <span>
+                {t('最新值')} {samples.at(-1)?.value}
+              </span>
+              <span>
+                {t('步数')} {samples.at(-1)?.step}
+              </span>
             </figcaption>
             <svg viewBox="0 0 500 165" role="img" aria-label={`${name}: ${ymin} – ${ymax}`}>
               <path d="M20 20V140H480" fill="none" stroke="currentColor" opacity=".2" />
-              <polyline
-                points={points}
-                fill="none"
-                stroke="var(--studio-accent, #3b6b5b)"
-                strokeWidth="2"
-              />
+              <polyline points={points} fill="none" stroke="var(--studio-ink)" strokeWidth="2" />
               <text x="20" y="160" fontSize="10">
                 {xmin}
               </text>
@@ -141,31 +143,33 @@ export default function LiveRunTimeline({
             </svg>
             <details>
               <summary>{t('原始样本')}</summary>
-              <table>
-                <thead>
-                  <tr>
-                    <th>{t('步数')}</th>
-                    <th>{t('数值')}</th>
-                    <th>{t('事件')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {samples.map((e) => (
-                    <tr key={e.event_id}>
-                      <td>{e.step}</td>
-                      <td>{e.value}</td>
-                      <td>{e.event_id}</td>
+              <div className="studio-table-wrap">
+                <table className="studio-table">
+                  <thead>
+                    <tr>
+                      <th>{t('步数')}</th>
+                      <th>{t('数值')}</th>
+                      <th>{t('事件')}</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {samples.map((e) => (
+                      <tr key={e.event_id}>
+                        <td>{e.step}</td>
+                        <td>{e.value}</td>
+                        <td>{e.event_id}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </details>
           </figure>
         )
       })}
       <details>
         <summary>{t('运行与产物声明')}</summary>
-        <pre>
+        <pre className="studio-diff">
           {JSON.stringify(
             events.filter((e) => e.type !== 'metric'),
             null,

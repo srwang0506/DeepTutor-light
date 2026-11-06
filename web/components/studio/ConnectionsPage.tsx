@@ -587,9 +587,11 @@ function Connections({ workspace }: { workspace: string }) {
           )}
         </main>
       </div>
-      <PortableWorkspace workspace={workspace} />
-      <EvaluationPanel workspace={workspace} />
-      <ConnectorCapabilities workspace={workspace} />
+      <div className="studio-section-stack">
+        <PortableWorkspace workspace={workspace} />
+        <EvaluationPanel workspace={workspace} />
+        <ConnectorCapabilities workspace={workspace} />
+      </div>
       <Dialog
         open={dialog}
         onClose={() => !op.busy && setDialog(false)}

@@ -6994,5 +6994,10 @@
   "：保留": ": Keep",
   "；新来件": "; new incoming items",
   "跨设备项目迁移": "Cross-device project transfer",
-  "打包数据上限 200 MB，单文件 50 MB。请保存好传输口令。": "Packaged data is limited to 200 MB, with 50 MB per file. Keep your transfer passphrase safe."
+  "打包数据上限 200 MB，单文件 50 MB。请保存好传输口令。": "Packaged data is limited to 200 MB, with 50 MB per file. Keep your transfer passphrase safe.",
+  "资料库": "Library",
+  "证据与比较": "Evidence & comparisons",
+  "实验记录": "Experiments",
+  "论文写作": "Manuscript writing",
+  "远程工作区": "Remote workspaces"
 }
