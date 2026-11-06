@@ -126,16 +126,16 @@ it("resizes with the keyboard, persists across mounts, and resets on double clic
   const first = render(<SidebarShell />);
   const handle = screen.getByRole("separator", { name: "Resize sidebar" });
   fireEvent.keyDown(handle, { key: "ArrowRight" });
-  expect(handle).toHaveAttribute("aria-valuenow", "282");
+  expect(handle).toHaveAttribute("aria-valuenow", "262");
   expect(
     first.container
       .querySelector("aside")!
       .style.getPropertyValue("--sidebar-width"),
-  ).toBe("282px");
+  ).toBe("262px");
   first.unmount();
   render(<SidebarShell />);
   const restored = screen.getByRole("separator", { name: "Resize sidebar" });
-  expect(restored).toHaveAttribute("aria-valuenow", "282");
+  expect(restored).toHaveAttribute("aria-valuenow", "262");
   fireEvent.keyDown(restored, { key: "Home" });
   fireEvent.keyDown(restored, { key: "ArrowLeft" });
   expect(restored).toHaveAttribute("aria-valuenow", "220");
@@ -145,5 +145,5 @@ it("resizes with the keyboard, persists across mounts, and resets on double clic
     restored.getAttribute("aria-valuemax"),
   );
   fireEvent.doubleClick(restored);
-  expect(restored).toHaveAttribute("aria-valuenow", "272");
+  expect(restored).toHaveAttribute("aria-valuenow", "252");
 });

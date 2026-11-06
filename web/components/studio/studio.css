@@ -1,14 +1,14 @@
 .studio-page {
   height: 100%;
   overflow: auto;
-  background: var(--background);
+  background: var(--desk-canvas);
   color: var(--foreground);
-  --studio-ink: #385b4e;
+  --studio-ink: var(--desk-green);
   --studio-tint: color-mix(in srgb, var(--studio-ink) 7%, var(--background));
 }
 .studio-inner {
   max-width: 1380px;
-  padding: 36px 42px 70px;
+  padding: 34px 36px 60px;
   margin: auto;
 }
 .studio-header {
@@ -16,19 +16,19 @@
   align-items: center;
   justify-content: space-between;
   gap: 28px;
-  margin-bottom: 32px;
+  margin-bottom: 26px;
 }
 .studio-eyebrow {
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.15em;
   color: var(--muted-foreground);
 }
 .studio-header h1 {
-  font-size: 34px;
+  font-size: 31px;
   letter-spacing: -0.04em;
   line-height: 1.4;
-  margin: 14px 0 12px;
-  font-weight: 560;
+  margin: 12px 0 10px;
+  font-weight: 600;
 }
 .studio-header p {
   font-size: 13px;
@@ -67,11 +67,11 @@
   border: 1px solid transparent;
   border-radius: 9px;
   padding: 10px 15px;
-  font-size: 12px;
+  font-size: 13px;
   white-space: nowrap;
 }
 .studio-button.secondary {
-  background: var(--background);
+  background: var(--desk-paper);
   color: var(--foreground);
   border-color: var(--border);
 }
@@ -106,7 +106,7 @@
   border-radius: 10px;
   padding: 11px 14px;
   min-width: 220px;
-  background: var(--background);
+  background: var(--desk-paper);
 }
 .studio-search input {
   width: 100%;
@@ -146,9 +146,9 @@
 }
 .studio-panel {
   border: 1px solid var(--border);
-  border-radius: 15px;
+  border-radius: 12px;
   padding: 23px;
-  background: var(--background);
+  background: var(--desk-paper);
 }
 .studio-panel h2 {
   font-size: 14px;
@@ -182,13 +182,13 @@
   color: var(--studio-ink);
 }
 .studio-work h2 {
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.6;
   font-weight: 550;
   margin-bottom: 6px;
 }
 .studio-work p {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted-foreground);
   line-height: 1.8;
 }
@@ -200,7 +200,7 @@
   margin-top: 11px;
 }
 .studio-badge {
-  font-size: 10px;
+  font-size: 12px;
   border: 1px solid var(--border);
   border-radius: 5px;
   padding: 3px 6px;
@@ -235,7 +235,7 @@
   gap: 18px;
 }
 .studio-note {
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.9;
   color: var(--muted-foreground);
   margin: 12px 0;
@@ -245,7 +245,7 @@
   text-align: center;
   color: var(--muted-foreground);
   border: 1px dashed var(--border);
-  border-radius: 15px;
+  border-radius: 12px;
 }
 .studio-empty > svg {
   margin: 0 auto 18px;
@@ -280,13 +280,13 @@
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--background);
+  background: var(--desk-paper);
   width: 100%;
   font-size: 12px;
   line-height: 1.7;
 }
 .studio-field small {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted-foreground);
   line-height: 1.7;
 }
@@ -305,7 +305,7 @@
   gap: 17px;
 }
 .studio-dialog {
-  --studio-ink: #385b4e;
+  --studio-ink: var(--desk-green);
 }
 .studio-error {
   border: 1px solid #c65c442f;
@@ -350,7 +350,7 @@
   background: var(--studio-tint);
   padding: 14px 16px;
   font-weight: 500;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted-foreground);
 }
 .studio-table td {
@@ -363,7 +363,7 @@
 }
 .studio-table td small {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   line-height: 1.7;
   color: var(--muted-foreground);
   margin-top: 4px;
@@ -405,7 +405,7 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--background);
+  background: var(--desk-paper);
 }
 .studio-reader-bar {
   display: flex;
@@ -438,7 +438,7 @@
   display: block;
   width: 100%;
   text-align: left;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.7;
   padding: 8px;
   border-radius: 6px;
@@ -476,7 +476,7 @@
   overflow: auto;
 }
 .studio-reader-page {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted-foreground);
 }
 .studio-editor {
@@ -498,12 +498,12 @@
   text-align: left;
   width: 100%;
   padding: 9px;
-  font-size: 11px;
+  font-size: 12px;
   border-radius: 6px;
   overflow-wrap: anywhere;
 }
 .studio-file-tree button[aria-current='true'] {
-  background: var(--background);
+  background: var(--desk-paper);
   color: var(--studio-ink);
 }
 .studio-editor-main {
@@ -517,7 +517,7 @@
   align-items: center;
   padding: 12px 16px;
   border-bottom: 1px solid var(--border);
-  font-size: 11px;
+  font-size: 12px;
   gap: 12px;
 }
 .studio-code {
@@ -526,7 +526,7 @@
 }
 .studio-code .cm-editor {
   height: 100%;
-  font-size: 12px;
+  font-size: 13px;
 }
 .studio-code .cm-scroller {
   overflow: auto;
@@ -550,7 +550,7 @@
 }
 .studio-diff {
   font-family: ui-monospace, monospace;
-  font-size: 11px;
+  font-size: 12px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   line-height: 1.8;
@@ -685,7 +685,7 @@
 .studio-section-label {
   display: flex;
   justify-content: space-between;
-  font-size: 10px;
+  font-size: 12px;
   letter-spacing: 0.06em;
   color: var(--muted-foreground);
   margin: 4px 0 16px;
@@ -722,7 +722,7 @@
 }
 .studio-connection small {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted-foreground);
   margin-top: 6px;
   overflow: hidden;
@@ -747,13 +747,13 @@
   width: 100%;
   text-align: left;
   padding: 12px 6px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted-foreground);
   overflow-wrap: anywhere;
 }
 .studio-remote-history small {
   display: block;
-  font-size: 9px;
+  font-size: 12px;
   margin-top: 5px;
 }
 .studio-remote-history svg {
@@ -774,7 +774,7 @@
   font-weight: 550;
 }
 .studio-remote-heading p {
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted-foreground);
   margin-top: 7px;
 }
@@ -782,7 +782,7 @@
   display: inline-flex;
   gap: 5px;
   align-items: center;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--studio-ink);
 }
 .studio-remote-scope {
@@ -790,7 +790,7 @@
   flex-wrap: wrap;
   gap: 8px;
   margin: 20px 0 12px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted-foreground);
 }
 .studio-remote-scope button {
@@ -814,8 +814,8 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px 12px;
-  font-size: 11px;
-  background: var(--background);
+  font-size: 12px;
+  background: var(--desk-paper);
 }
 .studio-remote-welcome {
   padding: 65px 30px;
@@ -870,7 +870,7 @@
   justify-content: center;
   gap: 16px;
   margin-top: 30px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted-foreground);
 }
 .studio-file-browser {
@@ -885,7 +885,7 @@
   text-align: left;
   width: 100%;
   padding: 13px 16px;
-  font-size: 11px;
+  font-size: 12px;
   border-bottom: 1px solid var(--border);
 }
 .studio-file-browser button:last-child {
@@ -904,7 +904,7 @@
 }
 .studio-file-browser small {
   color: var(--muted-foreground);
-  font-size: 10px;
+  font-size: 12px;
 }
 .studio-file-browser p {
   padding: 12px;
@@ -920,7 +920,7 @@
   gap: 16px;
   background: var(--studio-tint);
   padding: 14px 18px;
-  font-size: 11px;
+  font-size: 12px;
 }
 .studio-remote-file header span {
   display: flex;
@@ -930,7 +930,7 @@
 }
 .studio-remote-file pre {
   font-family: ui-monospace, monospace;
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1.8;
   padding: 20px;
   overflow: auto;
@@ -943,7 +943,7 @@
 }
 .studio-remote-file footer code {
   display: block;
-  font-size: 9px;
+  font-size: 12px;
   overflow-wrap: anywhere;
   color: var(--muted-foreground);
   margin-bottom: 15px;
@@ -980,7 +980,7 @@
   align-items: center;
   gap: 7px;
   margin-top: 9px;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted-foreground);
 }
 .studio-check input {
@@ -1034,7 +1034,7 @@
 .studio-source-choice small,
 .studio-outline-row small {
   display: block;
-  font-size: 10px;
+  font-size: 12px;
   color: var(--muted-foreground);
   margin-top: 4px;
 }
@@ -1053,7 +1053,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  font-size: 11px;
+  font-size: 12px;
   color: var(--primary);
 }
 .studio-outline-row {
@@ -1114,7 +1114,7 @@
   margin: 30px 0;
   padding: 26px;
   border: 1px solid var(--border);
-  border-radius: 20px;
+  border-radius: 12px;
   background: var(--card);
 }
 .studio-continuations h2 {
@@ -1144,7 +1144,7 @@
   min-width: 0;
 }
 .studio-continuation span {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--muted-foreground);
 }
 .studio-continuation strong {
@@ -1155,4 +1155,274 @@
   white-space: nowrap;
   text-overflow: ellipsis;
   overflow: hidden;
+}
+
+/* The studio uses one level of navigation and compact document chrome. */
+.studio-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  font-weight: 550;
+  letter-spacing: 0.13em;
+}
+.studio-section-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--desk-clay);
+}
+.studio-nav {
+  gap: 5px;
+  padding: 5px;
+  margin-bottom: 28px;
+  border: 1px solid var(--desk-line);
+  border-radius: 10px;
+  background: var(--desk-soft);
+}
+.studio-nav a {
+  gap: 7px;
+  padding: 9px 13px;
+  font-size: 12px;
+  border: 0;
+  border-radius: 6px;
+}
+.studio-nav a[aria-current] {
+  background: var(--desk-paper);
+  color: var(--desk-green);
+  box-shadow: 0 1px 3px #2033280a;
+}
+.studio-nav a:hover {
+  color: var(--desk-green);
+  background: var(--desk-paper);
+}
+.studio-button {
+  min-height: 40px;
+  font-size: 13px;
+  transition:
+    background 0.15s,
+    box-shadow 0.15s;
+}
+.studio-button:not(.secondary) {
+  background: var(--desk-focus);
+  color: var(--desk-focus-text);
+}
+.studio-button:not(:disabled):hover {
+  box-shadow: 0 3px 8px #20332812;
+}
+.studio-pills {
+  background: var(--desk-soft);
+  border-radius: 8px;
+  padding: 4px;
+  flex-wrap: wrap;
+}
+.studio-pills button[aria-pressed='true'] {
+  background: var(--desk-paper);
+  box-shadow: 0 1px 3px #20332808;
+}
+.studio-library-list {
+  border: 1px solid var(--desk-line);
+  border-radius: 12px;
+  background: var(--desk-paper);
+  overflow: hidden;
+}
+.studio-work {
+  padding: 24px;
+  gap: 20px;
+}
+.studio-work:last-child {
+  border-bottom: 0;
+}
+.studio-work:hover {
+  background: color-mix(in srgb, var(--desk-soft) 40%, var(--desk-paper));
+}
+.studio-work-icon {
+  width: 44px;
+  height: 57px;
+  border-radius: 4px 8px 8px 4px;
+  background: #ede9df;
+  color: #8b7658;
+  border-color: #dfd9c9;
+  box-shadow: inset 4px 0 #d9ceba;
+}
+.studio-work:nth-child(3n + 2) .studio-work-icon {
+  background: #e5ebe3;
+  color: #668164;
+  border-color: #d4dece;
+  box-shadow: inset 4px 0 #c5d1bd;
+}
+.studio-work:nth-child(3n + 3) .studio-work-icon {
+  background: #e9e8ed;
+  color: #7d7893;
+  border-color: #d8d5e0;
+  box-shadow: inset 4px 0 #ccc8d6;
+}
+.studio-badge {
+  font-size: 10px;
+  padding: 4px 7px;
+}
+.studio-panel {
+  background: var(--desk-paper);
+  border-color: var(--desk-line);
+}
+.studio-empty {
+  background: var(--desk-paper);
+  border: 1px solid var(--desk-line);
+  border-radius: 12px;
+  padding: 52px 28px;
+}
+.studio-empty > svg {
+  color: var(--desk-clay);
+  padding: 15px;
+  box-sizing: content-box;
+  background: var(--desk-soft);
+  border-radius: 15px;
+  margin-bottom: 20px;
+}
+.studio-page-editor .studio-inner {
+  max-width: none;
+  padding: 20px 24px 40px;
+}
+.studio-page-editor .studio-header {
+  margin-bottom: 16px;
+  align-items: flex-start;
+}
+.studio-page-editor .studio-header h1 {
+  font-size: 24px;
+  margin: 8px 0 0;
+}
+.studio-page-editor .studio-header p {
+  font-size: 12px;
+  margin-top: 6px;
+}
+.studio-page-editor .studio-header .studio-eyebrow {
+  font-size: 9px;
+}
+.studio-page-editor .studio-nav {
+  margin-bottom: 16px;
+}
+.studio-writing-toolbar {
+  margin-bottom: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--desk-line);
+  border-radius: 10px 10px 0 0;
+  background: var(--desk-paper);
+  gap: 10px;
+}
+.studio-writing-toolbar .studio-button {
+  min-height: 34px;
+  padding: 7px 10px;
+  font-size: 11px;
+  border-radius: 6px;
+}
+.studio-page-editor .studio-writing-tools {
+  gap: 6px;
+  margin: -1px 0 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--desk-line);
+  border-radius: 0 0 10px 10px;
+  background: var(--desk-paper);
+}
+.studio-writing-tools .studio-button {
+  border-color: transparent;
+  background: transparent;
+  min-height: 30px;
+  padding: 5px 9px;
+  font-size: 11px;
+}
+.studio-writing-tools .studio-button:hover {
+  background: var(--desk-soft);
+  box-shadow: none;
+}
+.studio-page-editor .studio-split {
+  gap: 12px;
+  grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
+}
+.studio-page-editor .studio-editor,
+.studio-page-editor .studio-preview {
+  border-radius: 10px;
+  background: var(--desk-paper);
+  min-height: 560px;
+}
+.studio-page-editor .studio-file-tree {
+  background: var(--desk-soft);
+  padding: 9px;
+}
+.studio-page-editor .studio-file-tree button {
+  font-size: 11px;
+  padding: 9px 7px;
+}
+.studio-page-editor .studio-split .studio-editor {
+  grid-template-columns: 125px minmax(0, 1fr);
+}
+.studio-editor-toolbar {
+  background: var(--desk-paper);
+  min-height: 44px;
+  padding: 10px 12px;
+  font-size: 11px;
+}
+.studio-editor-toolbar [role='status'] {
+  color: var(--desk-green);
+}
+.studio-build-pdf {
+  background: var(--desk-soft);
+}
+.studio-continuations {
+  padding: 24px;
+  margin-top: 30px;
+}
+.studio-continuations h2 {
+  font-size: 19px;
+  font-weight: 550;
+}
+@media (max-width: 1100px) {
+  .studio-work {
+    grid-template-columns: 38px minmax(0, 1fr);
+    padding: 20px;
+  }
+  .studio-work-tools {
+    grid-column: 2;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .studio-page-editor .studio-split .studio-editor {
+    grid-template-columns: 95px minmax(0, 1fr);
+  }
+  .studio-writing-toolbar {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 760px) {
+  .studio-inner,
+  .studio-page-editor .studio-inner {
+    padding: 22px 18px 40px;
+  }
+  .studio-nav {
+    gap: 2px;
+  }
+  .studio-nav a {
+    padding: 8px 10px;
+  }
+  .studio-page-editor .studio-split {
+    grid-template-columns: 1fr;
+  }
+  .studio-page-editor .studio-split .studio-editor {
+    grid-template-columns: 105px minmax(0, 1fr);
+  }
+  .studio-page-editor .studio-header {
+    gap: 12px;
+  }
+  .studio-work {
+    padding: 18px;
+    gap: 14px;
+  }
+}
+@media (max-width: 760px) {
+  .studio-page-editor .studio-split .studio-editor {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .studio-page-editor .studio-file-tree {
+    border-right: 0;
+    border-bottom: 1px solid var(--desk-line);
+  }
 }

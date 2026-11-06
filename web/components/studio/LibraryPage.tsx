@@ -123,7 +123,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
     <StudioShell
       workspace={workspace}
       active="library"
-      title="资料，慢慢成为理解。"
+      title="我的资料库"
       description="把论文、讲义与自己的问题放在一起。原文只收藏一次，版本与证据清楚地留在身边。"
       action={
         <div className="studio-actions">

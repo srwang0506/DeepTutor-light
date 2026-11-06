@@ -12,6 +12,7 @@ export function StudioShell({
   description,
   children,
   action,
+  compact = false,
 }: {
   workspace: string
   active: string
@@ -19,39 +20,56 @@ export function StudioShell({
   description: string
   children: ReactNode
   action?: ReactNode
+  compact?: boolean
 }) {
   return (
-    <section className="studio-page">
+    <section
+      className={`studio-page${compact ? ' studio-page-editor' : ''}`}
+      data-studio-section={active}
+    >
       <div className="studio-inner">
         <header className="studio-header">
           <div>
-            <span className="studio-eyebrow">PERSONAL STUDIO · 学习与科研</span>
+            <span className="studio-eyebrow">
+              <span className="studio-section-dot" />
+              {active === 'library'
+                ? 'YOUR LIBRARY'
+                : active === 'writing'
+                  ? 'WRITING STUDIO'
+                  : active === 'evidence'
+                    ? 'EVIDENCE & INSIGHT'
+                    : active === 'experiments'
+                      ? 'EXPERIMENT NOTEBOOK'
+                      : 'CONNECTED WORKSPACE'}
+            </span>
             <h1>{title}</h1>
             <p>{description}</p>
           </div>
           {action}
         </header>
-        <nav className="studio-nav" aria-label="研究工作界面">
-          {[
-            ['library', '/library', '资料库', BookOpen],
-            ['evidence', '/studio/evidence', '证据与比较', Layers3],
-            ['experiments', '/studio/experiments', '实验记录', FlaskConical],
-            ['writing', '/studio/writing', '论文写作', PenLine],
-            ['connections', '/studio/connections', '远程工作区', Server],
-          ].map(([id, href, label, Icon]) => {
-            const I = Icon as typeof BookOpen
-            return (
-              <Link
-                key={id as string}
-                href={scopedUrl(href as string, workspace)}
-                aria-current={active === id ? 'page' : undefined}
-              >
-                <I size={15} />
-                {label as string}
-              </Link>
-            )
-          })}
-        </nav>
+        {!compact && (
+          <nav className="studio-nav" aria-label="研究工作界面">
+            {[
+              ['library', '/library', '资料库', BookOpen],
+              ['evidence', '/studio/evidence', '证据与比较', Layers3],
+              ['experiments', '/studio/experiments', '实验记录', FlaskConical],
+              ['writing', '/studio/writing', '论文写作', PenLine],
+              ['connections', '/studio/connections', '远程工作区', Server],
+            ].map(([id, href, label, Icon]) => {
+              const I = Icon as typeof BookOpen
+              return (
+                <Link
+                  key={id as string}
+                  href={scopedUrl(href as string, workspace)}
+                  aria-current={active === id ? 'page' : undefined}
+                >
+                  <I size={15} />
+                  {label as string}
+                </Link>
+              )
+            })}
+          </nav>
+        )}
         {children}
       </div>
     </section>

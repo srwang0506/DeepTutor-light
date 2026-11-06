@@ -262,12 +262,15 @@ export function CategoryBody({
       )}
       {nav.category === 'research' && (
         <div className="space-y-1">
-          <OverviewRow href="/project" label={t('Projects')} icon={FolderOpen} />
+          <div className="dt-nav-group-label">{t('Current project')}</div>
+          <OverviewRow href="/project" label={t('Project overview')} icon={FolderOpen} />
           <OverviewRow href="/learning/practice" label={t('Practice & records')} icon={ListTodo} />
+          <div className="dt-nav-group-label">{t('Research workspace')}</div>
           <OverviewRow href="/studio/evidence" label="证据与比较" icon={Layers3} />
           <OverviewRow href="/studio/experiments" label="实验记录" icon={FlaskConical} />
           <OverviewRow href="/studio/writing" label="论文写作" icon={FilePenLine} />
           <OverviewRow href="/studio/connections" label="远程工作区" icon={Server} />
+          <div className="dt-nav-group-label">{t('Explore & tools')}</div>
           <OverviewRow href="/research" label={t('Research workbench')} icon={FlaskConical} />
           <OverviewRow
             href="/chat?capability=deep_research"
@@ -286,10 +289,11 @@ export function CategoryBody({
       )}
       {(nav.category === 'resources' || nav.visited.includes('resources')) && (
         <div hidden={nav.category !== 'resources'}>
-          {!nav.allowedSurfaces && (
-            <OverviewRow href="/library" label={t('Library')} icon={ResourcesShelfIcon} />
-          )}
-          <OverviewRow href="/learning/reading" label={t('Materials')} icon={ResourcesShelfIcon} />
+          <OverviewRow
+            href="/learning/reading"
+            label={t('Reading & annotations')}
+            icon={ResourcesShelfIcon}
+          />
           <OverviewRow href="/knowledge-bases" label={t('Knowledge Bases')} icon={Search} />
         </div>
       )}

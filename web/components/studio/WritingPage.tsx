@@ -590,7 +590,8 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     <StudioShell
       workspace={workspace}
       active="writing"
-      title={active ? active.data.title : '让论点与证据，一起成稿。'}
+      compact={!!active}
+      title={active ? active.data.title : '论文与手稿'}
       description={
         active
           ? '真实的多文件 LaTeX 工程。编辑自动保存，构建与投稿各自保留版本。'
@@ -657,7 +658,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
         </div>
       ) : (
         <>
-          <div className="studio-toolbar">
+          <div className="studio-toolbar studio-writing-toolbar">
             <div className="studio-actions">
               <Action
                 onClick={() => op.run(compile)}

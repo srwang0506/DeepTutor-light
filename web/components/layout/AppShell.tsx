@@ -1,39 +1,31 @@
-"use client";
+'use client'
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-  Suspense,
-} from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
-import { PageChromeProvider } from "./PageChrome";
-import { useTranslation } from "react-i18next";
-import { useDevice } from "@/hooks/useDevice";
-import type { ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, Suspense } from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { Menu, BookOpen } from 'lucide-react'
+import { PageChromeProvider } from './PageChrome'
+import { useTranslation } from 'react-i18next'
+import { useDevice } from '@/hooks/useDevice'
+import type { ReactNode } from 'react'
 
 /* Lets the sidebar dismiss the drawer after a nav click without every layout
    threading a callback down through WorkspaceSidebar/UtilitySidebar. Null on
    desktop and anywhere outside AppShell, so `drawer?.close()` is a no-op there
    rather than a crash. */
-const SidebarDrawerContext = createContext<{ close: () => void } | null>(null);
+const SidebarDrawerContext = createContext<{ close: () => void } | null>(null)
 
 export function useSidebarDrawer() {
-  return useContext(SidebarDrawerContext);
+  return useContext(SidebarDrawerContext)
 }
 
 interface AppShellProps {
   /** The route group's sidebar (workspace or utility). */
-  sidebar: ReactNode;
+  sidebar: ReactNode
   /** Bar above the page (the layout variant decides what, if anything). */
-  pageBar?: ReactNode;
-  homeHref?: string;
-  children: ReactNode;
+  pageBar?: ReactNode
+  homeHref?: string
+  children: ReactNode
 }
 
 /**
@@ -52,31 +44,31 @@ interface AppShellProps {
  * the very first server-rendered paint is already correct on a phone. JS only
  * owns the part that is stateful anyway: whether the drawer is open.
  */
-export default function AppShell({ sidebar, pageBar, children, homeHref = "/" }: AppShellProps) {
-  const { t } = useTranslation();
-  const pathname = usePathname();
-  const { isMobile } = useDevice();
-  const [drawerOpen, setDrawerOpen] = useState(false);
+export default function AppShell({ sidebar, pageBar, children, homeHref = '/' }: AppShellProps) {
+  const { t } = useTranslation()
+  const pathname = usePathname()
+  const { isMobile } = useDevice()
+  const [drawerOpen, setDrawerOpen] = useState(false)
 
-  const close = useCallback(() => setDrawerOpen(false), []);
+  const close = useCallback(() => setDrawerOpen(false), [])
 
   // Any route change hands the screen back to the content. Compared during
   // render rather than in an effect (same pattern as SessionViewerPanel's
   // session reset) so the drawer never paints open over the new route.
-  const [trackedPathname, setTrackedPathname] = useState(pathname);
+  const [trackedPathname, setTrackedPathname] = useState(pathname)
   if (trackedPathname !== pathname) {
-    setTrackedPathname(pathname);
-    setDrawerOpen(false);
+    setTrackedPathname(pathname)
+    setDrawerOpen(false)
   }
 
   useEffect(() => {
-    if (!drawerOpen) return;
+    if (!drawerOpen) return
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setDrawerOpen(false);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [drawerOpen]);
+      if (event.key === 'Escape') setDrawerOpen(false)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [drawerOpen])
 
   return (
     <SidebarDrawerContext.Provider value={{ close }}>
@@ -84,11 +76,7 @@ export default function AppShell({ sidebar, pageBar, children, homeHref = "/" }:
           a vh-sized shell pushes the composer under it. */}
       <div className="flex h-dvh overflow-hidden">
         {drawerOpen ? (
-          <div
-            onClick={close}
-            aria-hidden
-            className="fixed inset-0 z-40 bg-black/40 md:hidden"
-          />
+          <div onClick={close} aria-hidden className="fixed inset-0 z-40 bg-black/40 md:hidden" />
         ) : null}
 
         {/* `inert` (not just translate-x) while closed: a drawer parked
@@ -98,7 +86,7 @@ export default function AppShell({ sidebar, pageBar, children, homeHref = "/" }:
         <div
           inert={isMobile && !drawerOpen ? true : undefined}
           className={`max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:shadow-xl max-md:transition-transform max-md:duration-200 max-md:ease-out ${
-            drawerOpen ? "max-md:translate-x-0" : "max-md:-translate-x-full"
+            drawerOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full'
           }`}
         >
           {sidebar}
@@ -109,27 +97,17 @@ export default function AppShell({ sidebar, pageBar, children, homeHref = "/" }:
             <button
               type="button"
               onClick={() => setDrawerOpen(true)}
-              aria-label={t("Open navigation")}
+              aria-label={t('Open navigation')}
               aria-expanded={drawerOpen}
               className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)]/55 hover:text-[var(--foreground)]"
             >
               <Menu size={18} strokeWidth={1.7} />
             </button>
             <Link href={homeHref} className="flex items-center gap-1.5">
-              <Image
-                src="/brand/color-logo.png"
-                alt="DeepTutor"
-                width={20}
-                height={20}
-                className="h-5 w-5"
-              />
-              <Image
-                src="/brand/color-word.png"
-                alt="DeepTutor"
-                width={1200}
-                height={310}
-                className="h-[18px] w-auto"
-              />
+              <span className="dt-studio-mark">
+                <BookOpen size={17} strokeWidth={1.7} />
+              </span>
+              <span className="text-sm font-semibold tracking-tight">DeepTutor</span>
             </Link>
           </div>
 
@@ -138,7 +116,9 @@ export default function AppShell({ sidebar, pageBar, children, homeHref = "/" }:
           <PageChromeProvider>
             {pageBar}
             <div className="min-h-0 flex-1 overflow-hidden">
-              <Suspense fallback={<div aria-busy="true" className="h-full bg-[var(--background)]" />}>
+              <Suspense
+                fallback={<div aria-busy="true" className="h-full bg-[var(--background)]" />}
+              >
                 {children}
               </Suspense>
             </div>
@@ -146,5 +126,5 @@ export default function AppShell({ sidebar, pageBar, children, homeHref = "/" }:
         </main>
       </div>
     </SidebarDrawerContext.Provider>
-  );
+  )
 }
