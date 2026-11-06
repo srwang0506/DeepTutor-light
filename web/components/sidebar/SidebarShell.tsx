@@ -16,7 +16,7 @@ import {
   type CSSProperties,
 } from "react";
 import { useAppShell } from "@/context/AppShellContext";
-import { ChevronsLeft, ChevronsRight, PanelLeftClose, Search, SquarePen } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, PanelLeftClose, Search, SquarePen, FolderOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useChatWorkspaces } from "@/hooks/useChatWorkspaces";
 
@@ -418,6 +418,7 @@ export function SidebarShell({
         </div>
       )}
 
+      {!homeSlot && <Link href="/projects" prefetch={false} onClick={() => drawer?.close()} className="mx-3 mb-2 flex items-center gap-2.5 rounded-lg border border-[var(--border)] px-3 py-2.5 text-xs text-[var(--muted-foreground)] hover:bg-[var(--muted)]"><FolderOpen size={15} strokeWidth={1.5} /><span>{t('Projects', { defaultValue: '项目' })}</span></Link>}
       {homeSlot ? homeSlot(false) : <CategoryTabs nav={categoryNav} collapsed={false} />}
 
       {/* Partner previews stay visible while their conversation list scrolls. */}
