@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next'
 import { FeaturePage } from '@/components/layout/FeaturePage'
 import { useActiveWorkspaceId } from '@/hooks/useActiveWorkspaceId'
 import { scopedUrl, selectWorkspace } from '@/lib/workspace-scope'
+import { getLocale } from '@/lib/datetime'
 import {
   getProjectOverview,
   listWorkspaces,
@@ -33,6 +34,7 @@ import {
   type ProjectRecallResult,
 } from '@/lib/workspaces-api'
 import ProjectEditor from './ProjectEditor'
+import { projectErrorMessage } from './project-feedback'
 import './projects.css'
 
 function Mark({ row, large = false }: { row: ChatWorkspaceRegistration; large?: boolean }) {
@@ -48,7 +50,7 @@ function Mark({ row, large = false }: { row: ChatWorkspaceRegistration; large?: 
 }
 
 export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
-  const { i18n } = useTranslation(),
+  const { t, i18n } = useTranslation(),
     zh = i18n.language.startsWith('zh')
   const active = useActiveWorkspaceId()
   const [projects, setProjects] = useState<ChatWorkspaceRegistration[]>([])
@@ -62,7 +64,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
     [recall, setRecall] = useState<ProjectRecallResult | null>(null)
   const [searching, setSearching] = useState(false),
     [mutation, setMutation] = useState(false)
-  const [notice, setNotice] = useState('')
+  const [saved, setSaved] = useState(false)
   const sequence = useRef(0),
     searchSequence = useRef(0)
   const loadData = useCallback(async () => {
@@ -102,7 +104,9 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
     .filter(
       (p) =>
         p.archived === archived &&
-        `${p.display_name} ${p.description ?? ''}`.toLowerCase().includes(filter.toLowerCase()),
+        `${workspaceLabel(p, zh)} ${p.description ?? ''}`
+          .toLowerCase()
+          .includes(filter.toLowerCase()),
     )
     .sort((a, b) =>
       a.kind === 'general'
@@ -192,15 +196,15 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
             </button>
           )}
         </header>
-        {notice && (
+        {saved && (
           <p className="project-notice" role="status">
             <CheckCircle2 size={16} />
-            {notice}
+            {zh ? '项目与记忆来源已保存。' : 'Project and memory sources saved.'}
           </p>
         )}
         {error && (
           <div className="project-error" role="alert">
-            {error}
+            {projectErrorMessage(error, t)}
             <button className="project-text-button" onClick={() => void load()}>
               {zh ? '重新加载' : 'Reload'}
             </button>
@@ -299,7 +303,11 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                     </span>
                     {row.archived ? (
                       <button
-                        aria-label={zh ? `恢复 ${row.display_name}` : `Restore ${row.display_name}`}
+                        aria-label={
+                          zh
+                            ? `恢复 ${workspaceLabel(row, zh)}`
+                            : `Restore ${workspaceLabel(row, zh)}`
+                        }
                         disabled={mutation}
                         onClick={() => void archive(row)}
                       >
@@ -308,7 +316,9 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                     ) : (
                       <button
                         aria-label={
-                          zh ? `${row.display_name} 的设置` : `Settings for ${row.display_name}`
+                          zh
+                            ? `${workspaceLabel(row, zh)} 的设置`
+                            : `Settings for ${workspaceLabel(row, zh)}`
                         }
                         onClick={() => setEditor(row)}
                       >
@@ -401,7 +411,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                           <strong>{s.title || (zh ? '未命名对话' : 'Untitled')}</strong>
                           <small>
                             {new Date(s.updated_at * 1000).toLocaleDateString(
-                              zh ? 'zh-CN' : 'en-US',
+                              getLocale(i18n.resolvedLanguage || i18n.language),
                               { month: 'short', day: 'numeric' },
                             )}
                           </small>
@@ -682,7 +692,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
               const created = editor === 'new'
               setEditor(null)
               setRecall(null)
-              setNotice(zh ? '项目与记忆来源已保存。' : 'Project and memory sources saved.')
+              setSaved(true)
               if (created) open(row)
               else void load()
             }}

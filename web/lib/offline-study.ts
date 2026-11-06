@@ -1,6 +1,8 @@
 import { apiFetch } from './api'
 import { scopedUrl } from './workspace-scope'
 import { randomUuid } from './random-uuid'
+import i18n from 'i18next'
+import { normalizeLanguage } from '@/i18n/languages'
 export interface OfflineItem {
   id: string
   owner: string
@@ -17,13 +19,13 @@ export interface OfflineItem {
 }
 export async function offlineOwner(): Promise<string> {
   const r = await apiFetch('/api/auth/status')
-  if (!r.ok) throw new Error('请先登录后保存离线资料。')
+  if (!r.ok) throw new Error(i18n.t('请先登录后保存离线资料。'))
   const a = await r.json()
-  if (a.enabled && !a.authenticated) throw new Error('请先登录。')
+  if (a.enabled && !a.authenticated) throw new Error(i18n.t('请先登录。'))
   return a.user_id || 'local'
 }
 async function prepare() {
-  if (!('serviceWorker' in navigator)) throw new Error('此浏览器不支持离线工作台。')
+  if (!('serviceWorker' in navigator)) throw new Error(i18n.t('此浏览器不支持离线工作台。'))
   const registration = await navigator.serviceWorker.register('/offline/sw.js', {
     scope: '/offline/',
   })
@@ -32,13 +34,14 @@ async function prepare() {
     await new Promise<void>((resolve, reject) => {
       worker.addEventListener('statechange', () => {
         if (worker.state === 'activated') resolve()
-        if (worker.state === 'redundant') reject(new Error('离线入口安装失败。'))
+        if (worker.state === 'redundant') reject(new Error(i18n.t('离线入口安装失败。')))
       })
     })
 }
 export async function saveOffline(item: OfflineItem) {
   await prepare()
-  if (item.blob && item.blob.size > 50_000_000) throw new Error('单份离线资料不能超过 50 MB。')
+  if (item.blob && item.blob.size > 50_000_000)
+    throw new Error(i18n.t('单份离线资料不能超过 50 MB。'))
   const db = await new Promise<IDBDatabase>((resolve, reject) => {
     const r = indexedDB.open('deeptutor-offline-v1', 1)
     r.onupgradeneeded = () => r.result.createObjectStore('items', { keyPath: 'id' })
@@ -86,9 +89,9 @@ export async function saveQuizOffline(
 export async function savePdfOffline(workspace: string, title: string, url: string) {
   const owner = await offlineOwner()
   const r = await apiFetch(url)
-  if (!r.ok) throw new Error('无法保存原文。')
+  if (!r.ok) throw new Error(i18n.t('无法保存原文。'))
   const blob = await r.blob()
-  if (!blob.type.includes('pdf')) throw new Error('这份原文不是 PDF。')
+  if (!blob.type.includes('pdf')) throw new Error(i18n.t('这份原文不是 PDF。'))
   await saveOffline({
     id: randomUuid(),
     owner,
@@ -101,5 +104,5 @@ export async function savePdfOffline(workspace: string, title: string, url: stri
   return offlineHref(workspace, owner)
 }
 export const offlineHref = (workspace: string, owner: string) =>
-  `/offline/?workspace=${encodeURIComponent(workspace)}&owner=${encodeURIComponent(owner)}`
+  `/offline/?workspace=${encodeURIComponent(workspace)}&owner=${encodeURIComponent(owner)}&lang=${normalizeLanguage(i18n.resolvedLanguage || i18n.language)}`
 export const offlineSubmitUrl = (workspace: string) => scopedUrl('/api/quiz/submit', workspace)

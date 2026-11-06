@@ -8,6 +8,8 @@ export { APP_LANGUAGES, isAppLanguage, normalizeLanguage } from "./languages";
 export type { AppLanguage } from "./languages";
 
 let _initialized = false;
+let englishWorkbenchReady = false;
+let englishWorkbenchLoading: Promise<void> | null = null;
 
 export function initI18n(language?: unknown) {
   if (_initialized) return i18n;
@@ -38,12 +40,38 @@ export function initI18n(language?: unknown) {
   return i18n;
 }
 
+export function isLanguageReady(language: AppLanguage): boolean {
+  return englishWorkbenchReady && i18n.hasResourceBundle(language, "app");
+}
+
+function ensureEnglishWorkbench(): Promise<void> {
+  if (englishWorkbenchReady) return Promise.resolve();
+  if (!englishWorkbenchLoading) {
+    englishWorkbenchLoading = import("@/locales/en/workbench.json")
+      .then(({ default: messages }) => {
+        i18n.addResourceBundle("en", "app", messages, true, true);
+        englishWorkbenchReady = true;
+      })
+      .catch((error: unknown) => {
+        englishWorkbenchLoading = null;
+        throw error;
+      });
+  }
+  return englishWorkbenchLoading;
+}
+
 export async function ensureLanguage(language: AppLanguage) {
+  // Feature copy is loaded before rendering in every language, including as
+  // the English fallback for partial locales. Keep it out of the root shell.
+  await ensureEnglishWorkbench();
   if (i18n.hasResourceBundle(language, "app")) return;
 
   if (language === "zh") {
-    const zhApp = (await import("@/locales/zh/app.json")).default;
-    i18n.addResourceBundle("zh", "app", zhApp, true, true);
+    const [core, workbench] = await Promise.all([
+      import("@/locales/zh/app.json"),
+      import("@/locales/zh/workbench.json"),
+    ]);
+    i18n.addResourceBundle("zh", "app", { ...core.default, ...workbench.default }, true, true);
   }
 
   if (language === "fr") {

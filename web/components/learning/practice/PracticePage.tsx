@@ -7,6 +7,7 @@ import { ArrowRight, CalendarCheck, Check, ClipboardList, FileUp, Loader2 } from
 import { QuestionBankSection } from "@/components/space/question-bank";
 import SpaceSectionHeader from "@/components/space/SpaceSectionHeader";
 import { practiceRoute, questionBankRoute } from "@/lib/learning-routes";
+import { getLocale } from "@/lib/datetime";
 import { getPracticeQueue, getPracticeSummary, type PracticeSummary } from "@/lib/practice-api";
 import { LearningErrorState, LearningShell } from "../LearningShell";
 import { ReviewHome } from "./ReviewHome";
@@ -28,7 +29,7 @@ function PracticeCollectionPage({
   mode: "practice" | "library";
   initialImport: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const libraryOnly = mode === "library";
   const pageRoute = libraryOnly ? questionBankRoute : practiceRoute;
   const router = useRouter();
@@ -185,7 +186,9 @@ function PracticeCollectionPage({
                             {" "}
                             ·{" "}
                             {t("Next review: {{date}}", {
-                              date: new Date(summary.next_due_at * 1000).toLocaleDateString(),
+                              date: new Date(summary.next_due_at * 1000).toLocaleDateString(
+                                getLocale(i18n.resolvedLanguage || i18n.language),
+                              ),
                             })}
                           </>
                         )}

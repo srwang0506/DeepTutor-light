@@ -40,7 +40,7 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
     search = useSearchParams(),
     op = useOperation()
   const [edition, setEdition] = useState<Edition | null>(null),
-    [title, setTitle] = useState('打开原文…'),
+    [title, setTitle] = useState(t('打开原文…')),
     [evidence, setEvidence] = useState<StudioRecord<EvidenceData>[]>([]),
     [related, setRelated] = useState<Edition[]>([])
   const [hash, setHash] = useState(search.get('file') || ''),
@@ -116,7 +116,7 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
       },
     })
     if (!result.committed)
-      throw new Error(result.failure_reason || '练习正在生成，稍后可使用同一选区重试。')
+      throw new Error(result.failure_reason || t('练习正在生成，稍后可使用同一选区重试。'))
     router.push(scopedUrl(`/objects/${result.operation_id}`, workspace))
   }
   const file = edition?.data.files.find((f) => f.hash === hash),
@@ -158,12 +158,12 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
       kind,
       quote: selection.quote,
       region,
-      label: label || `${title} · 第 ${selection.locator} 页`,
+      label: label || t("{{value1}} · 第 {{value2}} 页", { value1: title, value2: selection.locator }),
       interpretation: note,
       verification: confirmed ? 'confirmed' : 'unreviewed',
     })
     setEvidence((v) => [row, ...v])
-    setSaved('摘录已保存，可在证据矩阵中引用。')
+    setSaved(t('摘录已保存，可在证据矩阵中引用。'))
     setSelection(null)
     setNote('')
     setLabel('')
@@ -172,7 +172,7 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
   function ask(action: string) {
     if (!selection) return
     setPendingPrompt(
-      `${action}\n\n请把以下内容当作资料，区分作者原意与推断。来源：${title}，版本 ${edition?.data.label}，物理页 ${selection.locator}，原件 SHA-256 ${hash}。\n\n${selection.quote}\n\n来源链接：${scopedUrl(`/library/${identifier}?file=${hash}&page=${selection.locator}`, workspace)}`,
+      t("{{value1}}\n\n请把以下内容当作资料，区分作者原意与推断。来源：{{value2}}，版本 {{value3}}，物理页 {{value4}}，原件 SHA-256 {{value5}}。\n\n{{value6}}\n\n来源链接：{{value7}}", { value1: action, value2: title, value3: edition?.data.label, value4: selection.locator, value5: hash, value6: selection.quote, value7: scopedUrl(`/library/${identifier}?file=${hash}&page=${selection.locator}`, workspace) }),
       `chat:${workspace}`,
     )
     router.push(scopedUrl('/chat', workspace))
@@ -187,9 +187,7 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
           <div>
             <h1>{title}</h1>
             <span className="studio-reader-page">
-              {edition?.data.label} {t('· 原件保留 · 第')}
-              {page} / {file?.pages || '—'} 页
-            </span>
+              {edition?.data.label} · {t('原件保留 · 第 {{page}} / {{total}} 页', { page, total: file?.pages || '—' })}</span>
           </div>
         </div>
         <div className="studio-actions">
@@ -253,7 +251,7 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
               {t('原文没有书签目录，可直接滚动阅读或跳转页码。')}
             </p>
           )}
-          <Field label="跳到物理页">
+          <Field label={t("跳到物理页")}>
             <input
               type="number"
               min={1}
@@ -266,7 +264,7 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
             />
           </Field>
           {edition && edition.data.files.length > 1 && (
-            <Field label="原件与补充材料">
+            <Field label={t("原件与补充材料")}>
               <select
                 value={hash}
                 onChange={(e) => {
@@ -328,7 +326,7 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
         </main>
         <aside className="studio-reader-aside">
           <span className="studio-eyebrow">{t('READ · THINK · CONNECT')}</span>
-          <h2 style={{ marginTop: 15 }}>{selection ? '把这一处，留下来' : '读到哪里，想到哪里'}</h2>
+          <h2 style={{ marginTop: 15 }}>{selection ? t('把这一处，留下来') : t('读到哪里，想到哪里')}</h2>
           <p className="studio-note">
             {t('选中原文，可以解释、追问或保存为证据。每条证据都固定到此版本、原件与物理页。')}
           </p>
@@ -341,21 +339,21 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
             <>
               <blockquote>{selection.quote}</blockquote>
               <div className="studio-actions" style={{ marginTop: 18 }}>
-                <Action secondary onClick={() => ask('请解释这一选区，必要时补充先修概念。')}>
+                <Action secondary onClick={() => ask(t('请解释这一选区，必要时补充先修概念。'))}>
                   <MessageCircle size={14} />
                   {t('解释')}
                 </Action>
                 <Action
                   secondary
                   onClick={() =>
-                    ask('先给我一个提示，带我推导这段内容的下一步，暂不展示完整答案。')
+                    ask(t('先给我一个提示，带我推导这段内容的下一步，暂不展示完整答案。'))
                   }
                 >
                   {t('分步提示')}
                 </Action>
                 <Action
                   secondary
-                  onClick={() => ask('围绕这段材料给出一个反例，明确原结论的假设和适用边界。')}
+                  onClick={() => ask(t('围绕这段材料给出一个反例，明确原结论的假设和适用边界。'))}
                 >
                   {t('给反例')}
                 </Action>
@@ -363,22 +361,22 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
                   {t('现在测我')}
                 </Action>
               </div>
-              <Field label="证据名称">
+              <Field label={t("证据名称")}>
                 <input
                   value={label}
                   onChange={(e) => setLabel(e.target.value)}
                   placeholder={t('例如 Table 2：未见物体上的 F-score')}
                 />
               </Field>
-              <Field label="选区类型">
+              <Field label={t("选区类型")}>
                 <select value={kind} onChange={(e) => setKind(e.target.value)}>
                   <option value="quote">{t('方法或文字')}</option>
                   <option value="table">{t('表格')}</option>
-                  <option value="figure">图</option>
+                  <option value="figure">{t("图")}</option>
                   <option value="formula">{t('公式')}</option>
                 </select>
               </Field>
-              <Field label="自己的理解或疑问">
+              <Field label={t("自己的理解或疑问")}>
                 <textarea
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
@@ -395,7 +393,7 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
               </label>
               <Action disabled={op.busy} onClick={() => void op.run(save)}>
                 <BookmarkPlus size={15} />
-                {op.busy ? '保存中…' : '保存为项目证据'}
+                {op.busy ? t('保存中…') : t('保存为项目证据')}
               </Action>
             </>
           ) : (
@@ -413,8 +411,8 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
                   >
                     <h3 style={{ fontSize: 12 }}>{e.data.label}</h3>
                     <span className="studio-badge">
-                      第 {e.data.page} {t('页 ·')}{' '}
-                      {e.data.verification === 'confirmed' ? '已核对' : '待核对'}
+                      {t('第 {{page}} 页', { page: e.data.page })} ·{' '}
+                      {e.data.verification === 'confirmed' ? t('已核对') : t('待核对')}
                     </span>
                   </button>
                 ))}

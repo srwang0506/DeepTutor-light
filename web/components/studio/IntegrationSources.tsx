@@ -1,6 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { studioLabel } from './display'
+import { getLocale } from '@/lib/datetime'
 import { Plus, RefreshCw, Unplug, LibraryBig, Activity } from 'lucide-react'
 import Link from 'next/link'
 import { Dialog } from '@/shared/ui/Dialog'
@@ -30,7 +32,7 @@ export default function IntegrationSources({
   provider: Source['provider']
   onChange?: () => void
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const op = useOperation()
   const [loadError, setLoadError] = useState('')
   const [sources, setSources] = useState<StudioRecord<Source>[]>([])
@@ -123,9 +125,9 @@ export default function IntegrationSources({
                 <div>
                   <strong>{source.data.title}</strong>
                   <p className="studio-muted">
-                    {stateName[source.data.state] || source.data.state} ·{' '}
+                    {stateName[source.data.state] || studioLabel(t, source.data.state)} ·{' '}
                     {source.data.last_sync
-                      ? new Date(source.data.last_sync * 1000).toLocaleString()
+                      ? new Date(source.data.last_sync * 1000).toLocaleString(getLocale(i18n.resolvedLanguage || i18n.language))
                       : t('尚未同步')}
                   </p>
                   <p className="studio-muted">

@@ -192,3 +192,23 @@ it("keeps a successful preview available when import saving fails", async () => 
   await waitFor(() => expect(onImported).toHaveBeenCalledOnce());
   expect(api.previewPracticeImport).toHaveBeenCalledWith(expect.any(File), "mistakes");
 });
+
+
+it("formats the next review date in the UI language rather than the browser locale", async () => {
+  const formatDate = Date.prototype.toLocaleDateString;
+  const dateSpy = vi
+    .spyOn(Date.prototype, "toLocaleDateString")
+    .mockImplementation(function (this: Date, locales, options) {
+      return formatDate.call(this, locales ?? "zh-CN", options);
+    });
+  try {
+    render(<PracticeSession ids={[8]} onClose={vi.fn()} />);
+    fireEvent.click(await screen.findByRole("button", { name: "I have mastered this" }));
+    await screen.findByText("Practice complete");
+    const expectedDate = formatDate.call(new Date(200000 * 1000), "en-US");
+    expect(screen.getByText(`Next review: ${expectedDate}`)).toBeVisible();
+    expect(dateSpy).toHaveBeenCalledWith("en-US");
+  } finally {
+    dateSpy.mockRestore();
+  }
+});

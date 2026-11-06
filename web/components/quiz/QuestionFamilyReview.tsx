@@ -63,7 +63,7 @@ export default function QuestionFamilyReview({
       )
       setOpen(true)
     } catch (e) {
-      setError(String(e))
+      setError(e instanceof Error ? e.message : String(e))
     } finally {
       setBusy(false)
     }
@@ -84,7 +84,7 @@ export default function QuestionFamilyReview({
       setSaved(true)
       setOpen(false)
     } catch (e) {
-      setError(String(e))
+      setError(e instanceof Error ? e.message : String(e))
     } finally {
       setBusy(false)
     }
@@ -94,7 +94,7 @@ export default function QuestionFamilyReview({
       <Button variant="ghost" size="sm" loading={busy && !open} onClick={() => void begin()}>
         {saved ? t('已复核题族') : t('复核目标与解法')}
       </Button>
-      {error && !open && <InlineAlert tone="danger">{error}</InlineAlert>}
+      {error && !open && <InlineAlert tone="danger">{t(error)}</InlineAlert>}
       <Dialog
         open={open}
         busy={busy}
@@ -105,7 +105,7 @@ export default function QuestionFamilyReview({
         )}
       >
         <div className="space-y-4">
-          {error && <InlineAlert tone="danger">{error}</InlineAlert>}
+          {error && <InlineAlert tone="danger">{t(error)}</InlineAlert>}
           {candidates.map((c, i) => (
             <button
               className="block w-full rounded-xl border border-border bg-card p-3 text-left text-sm transition-colors hover:border-primary/40 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"

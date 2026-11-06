@@ -36,7 +36,7 @@ export function StudioShell({
       <div className="studio-inner">
         <header className="studio-header">
           <div>
-            <span className="studio-eyebrow">{t('PERSONAL STUDIO · 学习与科研')}</span>
+            <span className="studio-eyebrow">{t('学习与科研工作台')}</span>
             <h1>{title}</h1>
             <p>{description}</p>
           </div>
@@ -95,10 +95,11 @@ export function Field({
   )
 }
 export function ErrorNotice({ message }: { message: string }) {
+  const { t } = useTranslation()
   return message ? (
     <p className="studio-error" role="alert">
       <CircleAlert size={16} aria-hidden />
-      <span>{message}</span>
+      <span>{t(message)}</span>
     </p>
   ) : null
 }
@@ -133,6 +134,7 @@ export function OutLink({ href, children }: { href: string; children: ReactNode 
   )
 }
 export function useOperation() {
+  const { t } = useTranslation()
   const lock = useRef(false)
   const [busy, setBusy] = useState(false),
     [error, setError] = useState('')
@@ -144,7 +146,7 @@ export function useOperation() {
     try {
       await fn()
     } catch (e) {
-      setError(e instanceof Error ? e.message : '操作未完成，请重试。')
+      setError(e instanceof Error ? e.message : t('操作未完成，请重试。'))
     } finally {
       lock.current = false
       setBusy(false)

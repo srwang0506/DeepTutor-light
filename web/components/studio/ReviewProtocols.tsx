@@ -82,7 +82,7 @@ export default function ReviewProtocols({ workspace }: { workspace: string }) {
         if (active) setProtocols(r)
       })
       .catch((e) => {
-        if (active) setError(String(e))
+        if (active) setError(e instanceof Error ? e.message : String(e))
       })
     return () => {
       active = false

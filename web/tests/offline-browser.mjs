@@ -43,11 +43,17 @@ try {
       ? { channel: process.env.DEEPTUTOR_BROWSER_CHANNEL }
       : {}),
   })
-  const context = await browser.newContext()
+  // The interface locale must override the browser's own language.
+  const context = await browser.newContext({ locale: 'zh-CN' })
   const page = await context.newPage()
   const errors = []
   page.on('pageerror', (e) => errors.push(e.message))
-  await page.goto(origin + '/offline/?workspace=course&owner=local')
+  await page.goto(origin + '/offline/?workspace=course&owner=local&lang=en')
+  await page.getByRole('heading', { name: 'Offline study', exact: true }).waitFor()
+  assert.equal(await page.locator('html').getAttribute('lang'), 'en')
+  await page.getByRole('button', { name: 'Submit queued answers online' }).waitFor()
+  await page.goto(origin + '/offline/?workspace=course&owner=local&lang=zh')
+  await page.getByRole('heading', { name: '离线学习', exact: true }).waitFor()
   await page.evaluate(async () => {
     await navigator.serviceWorker.register('/offline/sw.js', { scope: '/offline/' })
     await navigator.serviceWorker.ready
@@ -125,6 +131,17 @@ try {
   assert.equal(submissions[0].attempt_id, 'offline-attempt-stable')
   assert.equal(submissions[0].offline, true)
   assert.equal(submissions[0].answer, 'A')
+  await page.evaluate(() => localStorage.setItem('deeptutor-language', 'en'))
+  await page.goto(origin + '/offline/?workspace=course&owner=local')
+  await page.getByRole('heading', { name: 'Offline study', exact: true }).waitFor()
+  await page.getByLabel('Your answer').waitFor()
+  const languagePage = await context.newPage()
+  await languagePage.goto(origin + '/offline/?workspace=course&owner=local')
+  await languagePage.evaluate(() => localStorage.setItem('deeptutor-language', 'zh'))
+  await page.getByRole('heading', { name: '离线学习', exact: true }).waitFor()
+  await page.getByLabel('你的答案').waitFor()
+  assert.equal(await page.getByLabel('你的答案').inputValue(), 'A')
+  await languagePage.close()
   assert.deepEqual(errors, [])
   console.log(
     JSON.stringify({
@@ -138,6 +155,9 @@ try {
         'committed receipt',
         'no duplicate submission',
         'no browser exceptions',
+        'explicit interface language overrides browser locale',
+        'saved application language applies to offline study',
+        'language changes preserve saved answers',
       ],
     }),
   )

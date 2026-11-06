@@ -1,6 +1,7 @@
 'use client'
 import { useKeyedState } from '@/hooks/useKeyedState'
 import { useTranslation } from 'react-i18next'
+import { FileInput } from '@/shared/ui/FileInput'
 import IntegrationSources from './IntegrationSources'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -42,7 +43,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
     [year, setYear] = useState(''),
     [doi, setDoi] = useState(''),
     [arxiv, setArxiv] = useState(''),
-    [label, setLabel] = useState('原始版本'),
+    [label, setLabel] = useState(t('原始版本')),
     [file, setFile] = useState<File | null>(null)
   const [bibliography, setBibliography] = useState(''),
     [format, setFormat] = useState('bibtex'),
@@ -89,7 +90,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
     setYear('')
     setDoi('')
     setArxiv('')
-    setLabel('原始版本')
+    setLabel(t('原始版本'))
     setFile(null)
     setNotice('')
     op.setError('')
@@ -128,7 +129,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
       workspace={workspace}
       active="library"
       title={t('资料，慢慢成为理解。')}
-      description="把论文、讲义与自己的问题放在一起。原文只收藏一次，版本与证据清楚地留在身边。"
+      description={t("把论文、讲义与自己的问题放在一起。原文只收藏一次，版本与证据清楚地留在身边。")}
       action={
         <div className="studio-actions">
           <Action secondary onClick={() => open('discover')}>
@@ -155,9 +156,9 @@ function LibraryHome({ workspace }: { workspace: string }) {
         </label>
         <div className="studio-pills">
           {[
-            ['all', '全部资料'],
-            ['project', '当前项目'],
-            ['missing', '待补全文'],
+            ['all', t('全部资料')],
+            ['project', t('当前项目')],
+            ['missing', t('待补全文')],
           ].map(([id, text]) => (
             <button key={id} aria-pressed={filter === id} onClick={() => setFilter(id)}>
               {text}
@@ -187,7 +188,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
                   <div>
                     <h2>{w.data.title}</h2>
                     <p>
-                      {w.data.authors.slice(0, 4).join(' · ') || '作者待补充'}
+                      {w.data.authors.slice(0, 4).join(' · ') || t('作者待补充')}
                       {w.data.year ? ` · ${w.data.year}` : ''}
                     </p>
                     <div className="studio-badges">
@@ -196,8 +197,8 @@ function LibraryHome({ workspace }: { workspace: string }) {
                           className={`studio-badge ${e.data.files.length ? 'good' : ''}`}
                           key={e.id}
                         >
-                          {e.data.label} · {e.data.files.length ? '已存原文' : '待补全文'}
-                          {e.project_role ? ' · 本项目' : ''}
+                          {e.data.label} · {e.data.files.length ? t('已存原文') : t('待补全文')}
+                          {e.project_role ? t(' · 本项目') : ''}
                         </span>
                       ))}
                       {w.data.tags.map((tag) => (
@@ -286,7 +287,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
               ))}
             </div>
           ) : (
-            <StudioEmpty title={query ? '没有匹配的资料' : '从一份想读懂的资料开始'}>
+            <StudioEmpty title={query ? t('没有匹配的资料') : t('从一份想读懂的资料开始')}>
               {t(
                 '收藏 PDF 或题录，留下疑问，再把原文里的线索整理成自己的理解。已有阅读资料仍可从右侧打开。',
               )}
@@ -336,14 +337,14 @@ function LibraryHome({ workspace }: { workspace: string }) {
         open={dialog !== null}
         title={
           dialog === 'discover'
-            ? '从一个问题，发现下一篇论文'
+            ? t('从一个问题，发现下一篇论文')
             : dialog === 'import'
-              ? '导入已有书目'
+              ? t('导入已有书目')
               : dialog === 'attach'
-                ? '保存这个版本的原文'
+                ? t('保存这个版本的原文')
                 : dialog === 'edition'
-                  ? '添加可独立引用的版本'
-                  : '收藏一份资料'
+                  ? t('添加可独立引用的版本')
+                  : t('收藏一份资料')
         }
         onClose={() => setDialog(null)}
         size={dialog === 'discover' ? 'xl' : 'lg'}
@@ -371,7 +372,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
                       await reload()
                       const errors = result.entries.filter((e) => e.status === 'error')
                       setNotice(
-                        `已处理 ${result.entries.length} 条；补全 ${result.entries.filter((e) => e.enriched).length} 条；${result.entries.reduce((n, e) => n + (e.conflicts || 0), 0)} 项字段冲突已保留；${errors.length} 条需要检查。${errors.map((e) => e.detail).join('；')}`,
+                        t("已处理 {{value1}} 条；补全 {{value2}} 条；{{value3}} 项字段冲突已保留；{{value4}} 条需要检查。{{value5}}", { value1: result.entries.length, value2: result.entries.filter((e) => e.enriched).length, value3: result.entries.reduce((n, e) => n + (e.conflicts || 0), 0), value4: errors.length, value5: errors.map((e) => e.detail).join('；') }),
                       )
                       if (!errors.length) setDialog(null)
                     } else if (dialog === 'attach' && selected && file) {
@@ -382,7 +383,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
                   })
                 }
               >
-                {op.busy ? '正在保存…' : '保存到资料库'}
+                {op.busy ? t('正在保存…') : t('保存到资料库')}
               </Action>
             </div>
           )
@@ -398,7 +399,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
           <div className="studio-form">
             {dialog === 'add' && (
               <>
-                <Field label="标题">
+                <Field label={t("标题")}>
                   <input
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
@@ -406,23 +407,23 @@ function LibraryHome({ workspace }: { workspace: string }) {
                   />
                 </Field>
                 <div className="studio-form-grid">
-                  <Field label="作者（用分号分隔）">
+                  <Field label={t("作者（用分号分隔）")}>
                     <input value={authors} onChange={(e) => setAuthors(e.target.value)} />
                   </Field>
-                  <Field label="年份">
+                  <Field label={t("年份")}>
                     <input type="number" value={year} onChange={(e) => setYear(e.target.value)} />
                   </Field>
                 </div>
               </>
             )}
-            <Field label="版本名称" hint="例如 arXiv v1、会议正式版；版本不会互相覆盖。">
+            <Field label={t("版本名称")} hint={t("例如 arXiv v1、会议正式版；版本不会互相覆盖。")}>
               <input value={label} onChange={(e) => setLabel(e.target.value)} />
             </Field>
             <div className="studio-form-grid">
-              <Field label="DOI（可选）">
+              <Field label={t("DOI（可选）")}>
                 <input value={doi} onChange={(e) => setDoi(e.target.value)} />
               </Field>
-              <Field label="arXiv ID（可选）">
+              <Field label={t("arXiv ID（可选）")}>
                 <input
                   value={arxiv}
                   onChange={(e) => setArxiv(e.target.value)}
@@ -433,9 +434,8 @@ function LibraryHome({ workspace }: { workspace: string }) {
             <label className="studio-upload">
               <Upload size={23} />
               <span>{t('保存 PDF 原文，或稍后再补')}</span>
-              <input
-                type="file"
-                accept="application/pdf"
+              <FileInput
+                    accept="application/pdf"
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
               />
             </label>
@@ -445,32 +445,30 @@ function LibraryHome({ workspace }: { workspace: string }) {
           <label className="studio-upload">
             <Upload size={23} />
             <span>{t('原件按内容保存，同一文件更名不会重复入库。')}</span>
-            <input
-              type="file"
-              accept="application/pdf"
+            <FileInput
+                accept="application/pdf"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
             />
           </label>
         )}
         {dialog === 'import' && (
           <div className="studio-form">
-            <Field label="书目格式">
+            <Field label={t("书目格式")}>
               <select value={format} onChange={(e) => setFormat(e.target.value)}>
                 <option value="bibtex">{t('BibTeX / BibLaTeX')}</option>
                 <option value="ris">{t('RIS')}</option>
                 <option value="csl">{t('CSL-JSON')}</option>
               </select>
             </Field>
-            <input
+            <FileInput
               aria-label={t('选择书目文件')}
-              type="file"
-              accept=".bib,.ris,.json"
+                accept=".bib,.ris,.json"
               onChange={(e) => {
                 const f = e.target.files?.[0]
                 if (f) void f.text().then(setBibliography)
               }}
             />
-            <Field label="书目内容">
+            <Field label={t("书目内容")}>
               <textarea
                 rows={12}
                 value={bibliography}

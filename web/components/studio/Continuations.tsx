@@ -65,7 +65,7 @@ export default function Continuations({ workspace }: { workspace: string }) {
   return (
     <section className="studio-continuations">
       <header>
-        <span className="studio-eyebrow">{t('CONTINUE · 继续推进')}</span>
+        <span className="studio-eyebrow">{t('继续推进')}</span>
         <h2>{t('留下的线索，接着往前。')}</h2>
       </header>
       {error && (
@@ -92,14 +92,14 @@ export default function Continuations({ workspace }: { workspace: string }) {
                   {
                     (
                       {
-                        draft_conflict: '处理稿件草稿冲突',
-                        remote_snapshot: '核对待导入结果',
-                        resume: `继续第 ${item.source?.locator.page} 页`,
-                        evidence: '核对原文证据',
-                        claim: '核对研究主张',
-                        proposal: '审阅稿件修改',
-                        activity: '练习与反馈',
-                        run: '核对实验记录',
+                        draft_conflict: t('处理稿件草稿冲突'),
+                        remote_snapshot: t('核对待导入结果'),
+                        resume: t("继续第 {{value1}} 页", { value1: item.source?.locator.page }),
+                        evidence: t('核对原文证据'),
+                        claim: t('核对研究主张'),
+                        proposal: t('审阅稿件修改'),
+                        activity: t('练习与反馈'),
+                        run: t('核对实验记录'),
                       } as Record<string, string>
                     )[item.kind]
                   }

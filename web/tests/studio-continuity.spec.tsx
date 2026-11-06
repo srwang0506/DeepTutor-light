@@ -74,7 +74,7 @@ it('requires a choice for every transfer conflict before applying', async () => 
   fireEvent.change(screen.getByLabelText('传输口令（至少 12 个字符）'), {
     target: { value: 'a long test passphrase' },
   })
-  fireEvent.change(screen.getByLabelText('接收另一台设备的项目包'), {
+  fireEvent.change(screen.getByLabelText(/^接收另一台设备的项目包/), {
     target: { files: [new File(['fixture'], 'project.dtsync')] },
   })
   fireEvent.click(screen.getByRole('button', { name: '预览导入' }))

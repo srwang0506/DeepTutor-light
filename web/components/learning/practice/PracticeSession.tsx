@@ -2,6 +2,7 @@
 
 import Markdown from '@/components/common/MarkdownRenderer'
 import { practiceMarkdown } from '@/lib/practice-content'
+import { getLocale } from '@/lib/datetime'
 import { randomUuid } from '@/lib/random-uuid'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -39,7 +40,7 @@ export function PracticeSession({
   )
   const [total] = useState(queue.length)
   const [skipped, setSkipped] = useState(0)
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [index, setIndex] = useState(0)
   const [saved, setSaved] = useState(0)
   const [saving, setSaving] = useState(false)
@@ -84,7 +85,11 @@ export function PracticeSession({
           )}
           {nextDue && (
             <p className="mt-2 text-xs text-muted-foreground">
-              {t('Next review: {{date}}', { date: new Date(nextDue * 1000).toLocaleDateString() })}
+              {t('Next review: {{date}}', {
+                date: new Date(nextDue * 1000).toLocaleDateString(
+                  getLocale(i18n.resolvedLanguage || i18n.language),
+                ),
+              })}
             </p>
           )}
           <button
@@ -231,7 +236,7 @@ function PracticeTurn({
     <div className="rounded-2xl border border-border bg-card p-5 sm:p-8">
       {error && (
         <div role="alert" className="mb-4 rounded-lg bg-destructive/5 p-3 text-sm text-destructive">
-          <p>{error}</p>
+          <p>{t(error)}</p>
           {(conflict || !entry) && (
             <button type="button" onClick={reset} className="mt-2 underline">
               {t('Reload question')}

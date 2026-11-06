@@ -215,6 +215,11 @@ export interface DiscoveryData {
 export function studioUrl(path: string, workspace: string) {
   return apiUrl(scopedUrl('/api/studio' + path, workspace))
 }
+export class StudioRequestError extends Error {
+  constructor(message: string, public status: number) {
+    super(message)
+  }
+}
 export async function studio<T>(
   workspace: string,
   path: string,
@@ -231,11 +236,12 @@ export async function studio<T>(
     signal: signal || init.signal || AbortSignal.timeout(210000),
   })
   if (!response.ok) {
-    const body = await response.json().catch(() => ({ detail: '请求失败' }))
-    throw new Error(
+    const body = await response.json().catch(() => ({}))
+    throw new StudioRequestError(
       typeof body.detail === 'string'
         ? body.detail
-        : `请求未完成（${response.status}），请检查输入。`
+        : 'Request failed. Check your input and try again.',
+      response.status,
     )
   }
   return response.json() as Promise<T>

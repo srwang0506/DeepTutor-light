@@ -1,4 +1,4 @@
-const CACHE = 'deeptutor-offline-shell-v2'
+const CACHE = 'deeptutor-offline-shell-v3'
 const ASSETS = ['/offline/', '/offline/index.html', '/offline/app.js', '/offline/style.css']
 self.addEventListener('install', (event) => {
   event.waitUntil(

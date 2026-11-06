@@ -9,6 +9,7 @@ import {
   type CatalogProfile,
 } from '@/features/settings/store/SettingsStore'
 import { apiFetch, apiUrl } from '@/lib/api'
+import { FileInput } from '@/shared/ui/FileInput'
 import { modelTestFingerprint } from '@/lib/model-settings'
 import { inputClass, subPanelClass } from './shared'
 import { registryButton, registryPrimary } from './RegistryControls'
@@ -199,11 +200,11 @@ function Preview({ service, profile, model }: Props) {
         <div className="space-y-3">
           <label className="block space-y-2 text-xs font-medium">
             <span>{t('settings.servicePreview.audio')}</span>
-            <input
-              type="file"
+            <FileInput
+              aria-label={t('settings.servicePreview.audio')}
               accept=".wav,.mp3,.m4a,.webm,.ogg,.flac,audio/*"
               disabled={running}
-              className={`${inputClass} file:mr-3 file:rounded-md file:border-0 file:px-3 file:py-1.5 file:text-xs`}
+              className={inputClass}
               onChange={(e) => {
                 clearResult()
                 const next = e.target.files?.[0] || null

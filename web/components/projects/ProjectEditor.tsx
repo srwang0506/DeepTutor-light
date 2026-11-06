@@ -1,9 +1,11 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Check, Layers3, LockKeyhole, ArrowUpRight } from 'lucide-react'
 import { Dialog } from '@/shared/ui/Dialog'
 import { saveWorkspace, workspaceLabel, type ChatWorkspaceRegistration } from '@/lib/workspaces-api'
+import { projectErrorMessage } from './project-feedback'
 
 const colors = ['#477965', '#547b9c', '#8976a8', '#b87b56', '#b5667e', '#78844c']
 export default function ProjectEditor({
@@ -19,6 +21,7 @@ export default function ProjectEditor({
   onClose: () => void
   onSaved: (row: ChatWorkspaceRegistration) => void
 }) {
+  const { t } = useTranslation()
   const [name, setName] = useState(project?.display_name ?? '')
   const [description, setDescription] = useState(project?.description ?? '')
   const [instructions, setInstructions] = useState(project?.instructions ?? '')
@@ -108,7 +111,7 @@ export default function ProjectEditor({
           {zh ? '项目名称' : 'Project name'}
           <input
             data-autofocus
-            value={name}
+            value={project?.kind === 'general' ? workspaceLabel(project, zh) : name}
             onChange={e => setName(e.target.value)}
             maxLength={100}
             disabled={project?.kind === 'general'}
@@ -262,7 +265,7 @@ export default function ProjectEditor({
         )}
         {error && (
           <p className="project-error" role="alert">
-            {error}
+            {projectErrorMessage(error, t)}
           </p>
         )}
       </div>

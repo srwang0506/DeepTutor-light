@@ -102,7 +102,7 @@ export function LearningErrorState({
       className="my-4 flex flex-wrap items-center gap-3 rounded-xl border border-[var(--destructive)]/20 bg-[var(--destructive)]/5 p-4 text-sm"
     >
       <AlertCircle size={16} className="shrink-0 text-[var(--destructive)]" />
-      <span className="min-w-0 flex-1">{message}</span>
+      <span className="min-w-0 flex-1">{typeof message === 'string' ? t(message) : message}</span>
       {onRetry && (
         <button
           type="button"

@@ -33,6 +33,18 @@ test("the locale registry accepts every supported language", () => {
   assert.equal(getLocale("tr"), "tr-TR");
 });
 
+test("display dates use the selected interface language and normalize regional tags", () => {
+  assert.equal(getLocale("zh-Hans"), "zh-CN");
+  assert.equal(getLocale("en-GB"), "en-US");
+  const date = new Date("2026-11-07T08:30:00Z");
+  const options: Intl.DateTimeFormatOptions = {
+    year: "numeric", month: "long", day: "numeric", timeZone: "UTC",
+  };
+  assert.match(formatDate(date, "en", options), /November/);
+  assert.doesNotMatch(formatDate(date, "en", options), /[\u4e00-\u9fff]/);
+  assert.match(formatDate(date, "zh", options), /2026年11月7日/);
+});
+
 test("response language remains independent from the interface language", () => {
   assert.equal(resolveResponseLanguage("zh", "en"), "zh");
   assert.equal(resolveResponseLanguage("en", "zh"), "en");

@@ -2,6 +2,9 @@
 import { useKeyedState } from '@/hooks/useKeyedState'
 import { useLayoutEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { FileInput } from '@/shared/ui/FileInput'
+import { studioLabel } from './display'
+import { getLocale } from '@/lib/datetime'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -68,7 +71,7 @@ export default function WritingPage() {
   return <WritingWorkspace key={workspace} workspace={workspace} />
 }
 function WritingWorkspace({ workspace }: { workspace: string }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
 
   const router = useRouter(),
     search = useSearchParams()
@@ -142,7 +145,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
       ['queued', 'running', 'succeeded'].includes(latest.data.status) ||
       latest.data.outputs?.['build.log']
       ? ''
-      : '构建已中断或取消。可以重试当时的输入快照。',
+      : t('构建已中断或取消。可以重试当时的输入快照。'),
   )
   const previewStale =
     !!successful &&
@@ -221,7 +224,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
       } catch (e) {
         if (mounted.current) {
           setSaveStatus('error')
-          setSaveError(e instanceof Error ? e.message : '保存失败，本地编辑仍保留。')
+          setSaveError(e instanceof Error ? e.message : t('保存失败，本地编辑仍保留。'))
         }
         throw e
       } finally {
@@ -230,7 +233,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     })()
     saving.current = task
     await task
-  }, [draftKey, workspace])
+  }, [draftKey, workspace, t])
   useEffect(() => {
     if (!active || !file || text === savedText || saveStatus === 'error' || conflictState.current)
       return
@@ -254,7 +257,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     await save()
     if (current.current.text !== current.current.savedText) await save()
     if (current.current.text !== current.current.savedText)
-      throw new Error('请等待当前修改保存后再继续。')
+      throw new Error(t('请等待当前修改保存后再继续。'))
   }
   useEffect(() => {
     const switching = (event: Event) => {
@@ -309,7 +312,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
         )
           throw new Error('Draft storage unavailable')
       } catch {
-        setSaveError('浏览器无法暂存草稿，请保存后再离开页面。')
+        setSaveError(t('浏览器无法暂存草稿，请保存后再离开页面。'))
       }
     }
   }
@@ -336,7 +339,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     setText(restored)
     setSavedText(base.text)
     setSaveStatus(conflicting ? 'error' : 'saved')
-    setSaveError(conflicting ? '已恢复未保存的编辑，但磁盘版本也发生变化。请比较后合并。' : '')
+    setSaveError(conflicting ? t('已恢复未保存的编辑，但磁盘版本也发生变化。请比较后合并。') : '')
     if (conflicting) setConflict(source)
     setSelection({ start: 0, end: 0, text: '' })
     current.current = { ...current.current, file: base, text: restored, savedText: base.text }
@@ -430,7 +433,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     const abort = new AbortController()
     apiFetch(studioUrl(`/builds/${latest.id}/build.log`, workspace), { signal: abort.signal })
       .then(async (r) => {
-        if (!r.ok) throw new Error('构建日志暂时无法读取')
+        if (!r.ok) throw new Error(t('构建日志暂时无法读取'))
         return r.text()
       })
       .then(setLog)
@@ -464,7 +467,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     }
     apiFetch(studioUrl(`/builds/${successful.id}/preview.pdf`, workspace), { signal: abort.signal })
       .then(async (response) => {
-        if (!response.ok) throw new Error('无法载入构建预览。')
+        if (!response.ok) throw new Error(t('无法载入构建预览。'))
         return response.blob()
       })
       .then((blob) => {
@@ -502,7 +505,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
       current_source_matches: boolean
     }>(workspace, `/builds/${successful.id}/source-map/locate?${params}`)
     if (!target.current_source_matches)
-      throw new Error('此预览对应旧源码，请重新编译后再定位，避免跳到已变化的行。')
+      throw new Error(t('此预览对应旧源码，请重新编译后再定位，避免跳到已变化的行。'))
     if (direction === 'forward')
       setPdfJump({ locator: target.page, y: Math.max(0, target.y - 0.1), nonce: Date.now() })
     else {
@@ -616,7 +619,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
   }
   async function download(path: string, name: string) {
     const response = await apiFetch(studioUrl(path, workspace))
-    if (!response.ok) throw new Error('下载失败，请重试。')
+    if (!response.ok) throw new Error(t('下载失败，请重试。'))
     const url = URL.createObjectURL(await response.blob())
     const a = document.createElement('a')
     a.href = url
@@ -628,11 +631,11 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     <StudioShell
       workspace={workspace}
       active="writing"
-      title={active ? active.data.title : '让论点与证据，一起成稿。'}
+      title={active ? active.data.title : t('让论点与证据，一起成稿。')}
       description={
         active
-          ? '真实的多文件 LaTeX 工程。编辑自动保存，构建与投稿各自保留版本。'
-          : '从现有模板开始，把原文证据、实验结果和自己的判断，写成可以交付的论文。'
+          ? t('真实的多文件 LaTeX 工程。编辑自动保存，构建与投稿各自保留版本。')
+          : t('从现有模板开始，把原文证据、实验结果和自己的判断，写成可以交付的论文。')
       }
       action={
         active ? (
@@ -706,11 +709,11 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
                 <Play size={13} />
                 {building
                   ? latest?.data.status === 'queued'
-                    ? '等待编译…'
-                    : '正在编译…'
+                    ? t('等待编译…')
+                    : t('正在编译…')
                   : op.busy
-                    ? '处理中…'
-                    : '编译预览'}
+                    ? t('处理中…')
+                    : t('编译预览')}
               </Action>
               {building && (
                 <Action
@@ -799,7 +802,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
             insert={(snippet) => {
               const current = Array.from(text)
               if (current.slice(selection.start, selection.end).join('') !== selection.text) {
-                op.setError('选区已变化，请重新选择插入位置。')
+                op.setError(t('选区已变化，请重新选择插入位置。'))
                 return
               }
               changeText(
@@ -830,7 +833,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
               <p>{t('磁盘文件、保存前版本和待保存版本都已保留。比较后选择需要继续使用的版本。')}</p>
               {recoveries.map((item) => (
                 <Action key={item.journal} secondary onClick={() => setRecovering(item)}>
-                  {item.path || '检查损坏的保存日志'}
+                  {item.path || t('检查损坏的保存日志')}
                 </Action>
               ))}
             </section>
@@ -859,15 +862,15 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
               </aside>
               <div className="studio-editor-main">
                 <div className="studio-editor-toolbar">
-                  <span>{file?.path || '选择文件'}</span>
+                  <span>{file?.path || t('选择文件')}</span>
                   <span className="studio-muted" role="status">
                     {saveStatus === 'saving'
-                      ? '保存中…'
+                      ? t('保存中…')
                       : saveStatus === 'error'
-                        ? '修改保留在编辑器'
+                        ? t('修改保留在编辑器')
                         : text !== savedText
-                          ? '等待保存'
-                          : '已保存'}
+                          ? t('等待保存')
+                          : t('已保存')}
                   </span>
                   <button
                     className="studio-link-button"
@@ -900,14 +903,14 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
                 </button>
                 <span className="studio-muted">
                   {previewStale
-                    ? '源文件已更新，预览来自上次构建'
+                    ? t('源文件已更新，预览来自上次构建')
                     : building
-                      ? '后台构建中，显示上一成功版本'
+                      ? t('后台构建中，显示上一成功版本')
                       : latest && latest.data.status !== 'succeeded'
-                        ? '最近构建未成功，保留上次预览'
+                        ? t('最近构建未成功，保留上次预览')
                         : successful
-                          ? '最近成功构建'
-                          : '尚未编译'}
+                          ? t('最近成功构建')
+                          : t('尚未编译')}
                 </span>
               </header>
               {preview ? (
@@ -947,13 +950,13 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
               </p>
               <div className="studio-form-grid" style={{ marginTop: 18 }}>
                 {[
-                  ['未解析引用', audit.missing_citations],
-                  ['重复引用键', audit.duplicate_keys],
-                  ['未解析交叉引用', audit.unresolved_labels],
+                  [t('未解析引用'), audit.missing_citations],
+                  [t('重复引用键'), audit.duplicate_keys],
+                  [t('未解析交叉引用'), audit.unresolved_labels],
                 ].map(([label, rows]) => (
                   <div key={String(label)}>
                     <h3 style={{ fontSize: 12 }}>{String(label)}</h3>
-                    <p>{((rows as string[]) || []).join(', ') || '未发现'}</p>
+                    <p>{((rows as string[]) || []).join(', ') || t('未发现')}</p>
                   </div>
                 ))}
               </div>
@@ -982,8 +985,8 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
                     <footer>
                       <span className="studio-note">
                         {row.data.fact_changes.length
-                          ? `${row.data.fact_changes.length} 类事实变化需要确认`
-                          : '未检测到规则覆盖的事实变化，仍需审阅'}
+                          ? t("{{value1}} 类事实变化需要确认", { value1: row.data.fact_changes.length })
+                          : t('未检测到规则覆盖的事实变化，仍需审阅')}
                       </span>
                       <Action
                         secondary
@@ -1008,7 +1011,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
                   .filter((s) => s.data.manuscript_id === active.id)
                   .map((row) => (
                     <article className="studio-card" key={row.id}>
-                      <h3>{new Date(row.created * 1000).toLocaleString('zh-CN')}</h3>
+                      <h3>{new Date(row.created * 1000).toLocaleString(getLocale(i18n.resolvedLanguage || i18n.language))}</h3>
                       <p>
                         {Object.keys(row.data.files).length} {t('个源文件 · 固定构建')}{' '}
                         {row.data.build_id.slice(0, 8)}
@@ -1038,7 +1041,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
         open={create}
         onClose={() => !op.busy && setCreate(false)}
         title={t('新建论文工程')}
-        description="可以导入自己的模板 ZIP，也可以先建立一个可编辑的基础工程。"
+        description={t("可以导入自己的模板 ZIP，也可以先建立一个可编辑的基础工程。")}
         size="md"
         className="studio-dialog"
         footer={
@@ -1049,20 +1052,19 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
       >
         <div className="studio-form">
           <ErrorNotice message={op.error} />
-          <Field label="论文或项目名称">
+          <Field label={t("论文或项目名称")}>
             <input value={title} onChange={(e) => setTitle(e.target.value)} />
           </Field>
-          <Field label="现有工程 ZIP · 可选">
-            <input
-              type="file"
-              accept=".zip"
+          <Field label={t("现有工程 ZIP · 可选")}>
+            <FileInput
+                accept=".zip"
               onChange={(e) => setArchive(e.target.files?.[0] || null)}
             />
           </Field>
-          <Field label="主 TeX 文件">
+          <Field label={t("主 TeX 文件")}>
             <input value={mainFile} onChange={(e) => setMainFile(e.target.value)} />
           </Field>
-          <Field label="编译器">
+          <Field label={t("编译器")}>
             <select value={engine} onChange={(e) => setEngine(e.target.value)}>
               <option value="pdflatex">{t('pdfLaTeX')}</option>
               <option value="xelatex">{t('XeLaTeX')}</option>
@@ -1075,7 +1077,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
         open={proposing}
         onClose={() => !op.busy && setProposing(false)}
         title={t('审阅选区修改')}
-        description="修改先生成对照提案，确认后才应用到源文件。"
+        description={t("修改先生成对照提案，确认后才应用到源文件。")}
         size="lg"
         className="studio-dialog"
         footer={
@@ -1086,10 +1088,10 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
       >
         <div className="studio-form">
           <ErrorNotice message={op.error} />
-          <Field label="原文">
+          <Field label={t("原文")}>
             <pre className="studio-diff">{selection.text}</pre>
           </Field>
-          <Field label="建议文本">
+          <Field label={t("建议文本")}>
             <textarea
               rows={8}
               value={replacement}
@@ -1097,7 +1099,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
               spellCheck={false}
             />
           </Field>
-          <Field label="修改理由">
+          <Field label={t("修改理由")}>
             <textarea value={rationale} onChange={(e) => setRationale(e.target.value)} />
           </Field>
         </div>
@@ -1121,9 +1123,9 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
         <pre className="studio-diff">{accepting?.data.diff}</pre>
         {accepting?.data.fact_changes.map((change) => (
           <div className="studio-card" key={change.kind} style={{ marginTop: 12 }}>
-            <h3>{change.kind}</h3>
+            <h3>{studioLabel(t, change.kind)}</h3>
             <p>
-              {change.before.join(' · ') || '无'} → {change.after.join(' · ') || '无'}
+              {change.before.join(' · ') || t('无')} → {change.after.join(' · ') || t('无')}
             </p>
           </div>
         ))}
@@ -1142,7 +1144,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
         open={packing}
         onClose={() => !op.busy && setPacking(false)}
         title={t('导出冻结版本')}
-        description="投稿包包含入口文件、依赖与明确选择的附件，并在干净目录重新编译。内部归档可保留笔记和日志。"
+        description={t("投稿包包含入口文件、依赖与明确选择的附件，并在干净目录重新编译。内部归档可保留笔记和日志。")}
         size="md"
         className="studio-dialog"
         footer={
@@ -1161,7 +1163,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
         }
       >
         <ErrorNotice message={op.error} />
-        <Field label="用途">
+        <Field label={t("用途")}>
           <select
             value={packageKind}
             onChange={(e) => {
@@ -1194,8 +1196,8 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
                 {' '}
                 ·{' '}
                 {packageKind === 'archive'
-                  ? '内部归档'
-                  : packagePlan.reasons[path]?.join('；') || '可选附件 · 默认不导出'}
+                  ? t('内部归档')
+                  : packagePlan.reasons[path]?.join('；') || t('可选附件 · 默认不导出')}
               </small>
             </span>
           </label>
@@ -1237,7 +1239,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
         }
       >
         <ErrorNotice message={op.error} />
-        <Field label="相对路径">
+        <Field label={t("相对路径")}>
           <input
             value={newPath}
             onChange={(e) => setNewPath(e.target.value)}
@@ -1252,9 +1254,9 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
           <div className="studio-form-grid">
             {(
               [
-                ['保存前', recovering?.before_text],
-                ['待保存', recovering?.after_text],
-                ['磁盘当前', recovering?.disk_text],
+                [t('保存前'), recovering?.before_text],
+                [t('待保存'), recovering?.after_text],
+                [t('磁盘当前'), recovering?.disk_text],
               ] as const
             ).map(([label, value]) => (
               <div key={label}>
@@ -1292,7 +1294,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
         open={!!conflict}
         onClose={() => setConflict(null)}
         title={t('外部修改需要合并')}
-        description="当前编辑仍保留，保存已暂停。关闭窗口后仍需解决冲突才能切换文件或继续保存。"
+        description={t("当前编辑仍保留，保存已暂停。关闭窗口后仍需解决冲突才能切换文件或继续保存。")}
         size="lg"
         className="studio-dialog"
         footer={
@@ -1307,7 +1309,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
         <details className="studio-note">
           <summary>{t('编辑基底版本')}</summary>
           <pre className="studio-diff">
-            {conflictView?.base.text || '此旧草稿没有保存基底正文，请仔细比较当前编辑和磁盘版本。'}
+            {conflictView?.base.text || t('此旧草稿没有保存基底正文，请仔细比较当前编辑和磁盘版本。')}
           </pre>
         </details>
         <div className="studio-split">

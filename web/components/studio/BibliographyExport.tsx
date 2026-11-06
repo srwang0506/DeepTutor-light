@@ -91,7 +91,7 @@ export default function BibliographyExport({
                   })
                 }
               >
-                {op.busy ? '正在检查…' : '检查并准备导出'}
+                {op.busy ? t('正在检查…') : t('检查并准备导出')}
               </Action>
             )}
           </div>
@@ -101,7 +101,7 @@ export default function BibliographyExport({
         <p className="studio-note">
           {t('从当前已加载的资料中选择版本。导出前检查转换差异，原始条目会继续保留。')}
         </p>
-        <Field label="文件格式">
+        <Field label={t("文件格式")}>
           <select
             value={format}
             onChange={(e) => {
@@ -133,11 +133,11 @@ export default function BibliographyExport({
         </div>
         {report && (
           <section className="studio-panel" role="status">
-            <h3>{report.lossless ? '已保留原始条目字段' : '格式转换需要核对'}</h3>
+            <h3>{report.lossless ? t('已保留原始条目字段') : t('格式转换需要核对')}</h3>
             <p className="studio-note">
               {report.lossless
-                ? '原有文献类型与字段一并导出。'
-                : '下列来源格式与目标不同；部分字段可能没有等价表示。请核对后下载。'}
+                ? t('原有文献类型与字段一并导出。')
+                : t('下列来源格式与目标不同；部分字段可能没有等价表示。请核对后下载。')}
             </p>
             {report.losses.map((loss) => (
               <p key={loss.edition_id} className="studio-note">

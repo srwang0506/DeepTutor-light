@@ -1,5 +1,6 @@
 'use client'
 import { useTranslation } from 'react-i18next'
+import { studioLabel } from './display'
 import { useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import { Dialog } from '@/shared/ui/Dialog'
@@ -66,7 +67,7 @@ export default function WritingAssistant({
       ),
     ])
     if (Array.from(saved.text).slice(selected.start, selected.end).join('') !== selected.text)
-      throw new Error('选区已变化，请重新选择原文。')
+      throw new Error(t('选区已变化，请重新选择原文。'))
     setSnapshot({ path, hash: saved.hash, selection: selected })
     setPref(settings)
     setOriginalPref(JSON.stringify(settings.data))
@@ -125,7 +126,7 @@ export default function WritingAssistant({
             disabled={op.busy || !pref || !options.options.length}
             onClick={() => op.run(generate)}
           >
-            {op.busy ? '正在生成建议…' : '生成修改建议'}
+            {op.busy ? t('正在生成建议…') : t('生成修改建议')}
           </Action>
         }
       >
@@ -136,16 +137,16 @@ export default function WritingAssistant({
         </p>
         <pre className="studio-diff">{snapshot?.selection.text}</pre>
         <div className="studio-form-grid">
-          <Field label="修改目的">
+          <Field label={t("修改目的")}>
             <select value={mode} onChange={(e) => setMode(e.target.value)}>
               {[
-                ['polish', '学术润色'],
-                ['concise', '压缩篇幅'],
-                ['translate_en', '译为英文'],
-                ['translate_zh', '译为中文'],
-                ['abstract', '整理为摘要草稿'],
-                ['caption', '整理为图注草稿'],
-                ['related_work', '整理为相关工作草稿'],
+                ['polish', t('学术润色')],
+                ['concise', t('压缩篇幅')],
+                ['translate_en', t('译为英文')],
+                ['translate_zh', t('译为中文')],
+                ['abstract', t('整理为摘要草稿')],
+                ['caption', t('整理为图注草稿')],
+                ['related_work', t('整理为相关工作草稿')],
               ].map(([v, l]) => (
                 <option value={v} key={v}>
                   {l}
@@ -168,7 +169,7 @@ export default function WritingAssistant({
             />
           </div>
         </div>
-        <Field label="具体要求">
+        <Field label={t("具体要求")}>
           <textarea
             value={instruction}
             onChange={(e) => setInstruction(e.target.value)}
@@ -179,9 +180,7 @@ export default function WritingAssistant({
         </Field>
         <details>
           <summary>
-            {t('为这次修改附上证据 ·')}
-            {sourceIds.length} 项
-          </summary>
+            {t('为这次修改附上证据 · {{count}} 项', { count: sourceIds.length })}</summary>
           <div className="studio-source-picker">
             {sources.map((source) => (
               <label className="studio-check" key={source.id}>
@@ -202,7 +201,7 @@ export default function WritingAssistant({
                     source.data.label ||
                     source.data.quote?.slice(0, 100) ||
                     source.id}
-                  <small> · {source.data.verification || source.data.status || source.kind}</small>
+                  <small> · {studioLabel(t, source.data.verification || source.data.status || source.kind)}</small>
                 </span>
               </label>
             ))}
@@ -211,7 +210,7 @@ export default function WritingAssistant({
         {pref && (
           <details>
             <summary>{t('此项目的术语、风格与模型范围')}</summary>
-            <Field label="个人术语表">
+            <Field label={t("个人术语表")}>
               <textarea
                 rows={3}
                 value={pref.data.terminology}
@@ -222,7 +221,7 @@ export default function WritingAssistant({
                 placeholder={t('human-object interaction → 人物—物体交互；保留方法缩写。')}
               />
             </Field>
-            <Field label="风格说明或例句">
+            <Field label={t("风格说明或例句")}>
               <textarea
                 rows={3}
                 value={pref.data.style_examples}

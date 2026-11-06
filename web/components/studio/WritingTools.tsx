@@ -1,5 +1,7 @@
 'use client'
 import { useTranslation } from 'react-i18next'
+import { studioLabel } from './display'
+import { getLocale } from '@/lib/datetime'
 import { useState } from 'react'
 import Link from 'next/link'
 import { BookMarked, Link2, ListTree, MessageSquareText, Plus } from 'lucide-react'
@@ -55,7 +57,7 @@ export default function WritingTools({
   openFile: (path: string, line?: number) => Promise<void>
   refreshFiles: () => Promise<void>
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
 
   const [panel, setPanel] = useState<'citations' | 'evidence' | 'reviews' | 'outline' | null>(null)
   const [query, setQuery] = useState(''),
@@ -66,7 +68,10 @@ export default function WritingTools({
     [passages, setPassages] = useState<Passage[]>([])
   const [sourceIds, setSourceIds] = useState<string[]>([]),
     [note, setNote] = useState(''),
-    [notice, setNotice] = useState('')
+    [notice, setNotice] = useState<{
+      key: string
+      values?: Record<string, string | number>
+    } | null>(null)
   const [edition, setEdition] = useState(''),
     [citekey, setCitekey] = useState('')
   const [reviews, setReviews] = useState<Review[]>([]),
@@ -101,8 +106,11 @@ export default function WritingTools({
     setTimeout(() => URL.revokeObjectURL(url), 1000)
     setNotice(
       result.unresolved.length
-        ? `已导出回复草稿，仍有 ${result.unresolved.length} 条意见或证据需要复核。`
-        : '已导出回复草稿，请检查后提交。',
+        ? {
+            key: '已导出回复草稿，仍有 {{value1}} 条意见或证据需要复核。',
+            values: { value1: result.unresolved.length },
+          }
+        : { key: '已导出回复草稿，请检查后提交。' },
     )
   }
   async function loadSources() {
@@ -116,7 +124,7 @@ export default function WritingTools({
   async function show(next: typeof panel) {
     await flush()
     setQuery('')
-    setNotice('')
+    setNotice(null)
     setSourceIds([])
     setNote('')
     setKeys([])
@@ -132,7 +140,10 @@ export default function WritingTools({
       setCitations(a.entries)
       setWorks(b.works)
       if (a.duplicate_keys.length)
-        setNotice(`引用键重复，需要先整理：${a.duplicate_keys.join(', ')}`)
+        setNotice({
+          key: '引用键重复，需要先整理：{{value1}}',
+          values: { value1: a.duplicate_keys.join(', ') },
+        })
     } else if (next === 'evidence') {
       await loadSources()
       setPassages(
@@ -173,9 +184,9 @@ export default function WritingTools({
     setKeys((k) => [...k, citekey])
     setEdition('')
     setCitekey('')
-    setNotice(
-      '已加入 studio-references.bib。请在模板现有的 bibliography / addbibresource 命令中加入此文件；原宏和旧引用键保持不变。',
-    )
+    setNotice({
+      key: '已加入 studio-references.bib。请在模板现有的 bibliography / addbibresource 命令中加入此文件；原宏和旧引用键保持不变。',
+    })
   }
   async function bind() {
     if (!file) return
@@ -191,7 +202,7 @@ export default function WritingTools({
       (await studio<{ passages: Passage[] }>(workspace, `/manuscripts/${manuscript}/passages`))
         .passages,
     )
-    setNotice('已保存这段原文与来源版本。关联本身不表示来源已支持全部结论。')
+    setNotice({ key: '已保存这段原文与来源版本。关联本身不表示来源已支持全部结论。' })
     setSourceIds([])
   }
   async function saveReview() {
@@ -233,7 +244,7 @@ export default function WritingTools({
     setSourceIds([])
     setAttachCurrent(false)
     setStatus('open')
-    setNotice('审稿记录已保存，原投稿快照仍然保留。')
+    setNotice({ key: '审稿记录已保存，原投稿快照仍然保留。' })
   }
   function pickReview(row: Review) {
     setReview(row)
@@ -261,8 +272,8 @@ export default function WritingTools({
           <span>
             <strong>{row.data.title || row.data.label || row.id}</strong>
             <small>
-              {row.kind} ·{' '}
-              {row.data.origin || row.data.verification || row.data.status || '来源记录'} {t('· v')}
+              {studioLabel(t, row.kind)} ·{' '}
+              {studioLabel(t, row.data.origin || row.data.verification || row.data.status) || t('来源记录')} {t('· v')}
               {row.revision}
             </small>
           </span>
@@ -304,24 +315,24 @@ export default function WritingTools({
         className="studio-dialog"
         title={
           panel === 'citations'
-            ? '稿件书目'
+            ? t('稿件书目')
             : panel === 'evidence'
-              ? '把一句话连回证据'
+              ? t('把一句话连回证据')
               : panel === 'reviews'
-                ? '审稿意见与逐条回复'
-                : '章节与标签'
+                ? t('审稿意见与逐条回复')
+                : t('章节与标签')
         }
         onClose={() => setPanel(null)}
       >
         <ErrorNotice message={op.error} />
         {notice && (
           <p className="studio-note" role="status">
-            {notice}
+            {t(notice.key, notice.values || {})}
           </p>
         )}
         {panel === 'citations' && (
           <>
-            <Field label="搜索标题、作者或引用键">
+            <Field label={t("搜索标题、作者或引用键")}>
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
@@ -368,10 +379,10 @@ export default function WritingTools({
                 setPanel(null)
               }}
             >
-              {keys.length ? `插入 ${keys.length} 个引用` : '选择引用后插入'}
+              {keys.length ? t("插入 {{value1}} 个引用", { value1: keys.length }) : t('选择引用后插入')}
             </Action>
             <h3 className="studio-section-title">{t('从资料库加入')}</h3>
-            <Field label="文献版本">
+            <Field label={t("文献版本")}>
               <select
                 value={edition}
                 onChange={(e) => {
@@ -400,7 +411,7 @@ export default function WritingTools({
             </Field>
             {edition && (
               <div className="studio-form-grid">
-                <Field label="在这份稿件中的引用键">
+                <Field label={t("在这份稿件中的引用键")}>
                   <input value={citekey} onChange={(e) => setCitekey(e.target.value)} />
                 </Field>
                 <Action disabled={!citekey || op.busy} onClick={() => op.run(addCitation)}>
@@ -416,11 +427,11 @@ export default function WritingTools({
             {selection.text && file ? (
               <>
                 <blockquote className="studio-passage-quote">{selection.text}</blockquote>
-                <Field label="检索项目来源">
+                <Field label={t("检索项目来源")}>
                   <input value={query} onChange={(e) => setQuery(e.target.value)} />
                 </Field>
                 {sourcePicker}
-                <Field label="这些来源支持或限制了什么">
+                <Field label={t("这些来源支持或限制了什么")}>
                   <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
                 </Field>
                 <Action disabled={!sourceIds.length || op.busy} onClick={() => op.run(bind)}>
@@ -439,11 +450,11 @@ export default function WritingTools({
                 <p className="studio-note">
                   {p.data.path}:{p.location.line || '?'} ·{' '}
                   {p.location.status === 'current'
-                    ? '原位置'
+                    ? t('原位置')
                     : p.location.status === 'exact_relocated'
-                      ? '已按唯一原文重新定位'
-                      : '位置需重新核对'}
-                  {p.stale.length ? ` · ${p.stale.length} 项来源已更新` : ''}
+                      ? t('已按唯一原文重新定位')
+                      : t('位置需重新核对')}
+                  {p.stale.length ? t(" · {{value1}} 项来源已更新", { value1: p.stale.length }) : ''}
                 </p>
                 <p>{p.data.note}</p>
                 <div className="studio-source-links">
@@ -456,7 +467,7 @@ export default function WritingTools({
                           workspace,
                         )}
                       >
-                        {source.data.label || '查看原文'} ↗
+                        {source.data.label || t('查看原文')} ↗
                       </Link>
                     ) : (
                       <Link
@@ -466,7 +477,7 @@ export default function WritingTools({
                           workspace,
                         )}
                       >
-                        {source.data.title || source.kind} {t('· v')}
+                        {source.data.title || studioLabel(t, source.kind)} {t('· v')}
                         {source.revision} ↗
                       </Link>
                     ),
@@ -491,7 +502,7 @@ export default function WritingTools({
               >
                 <span>{row.title}</span>
                 <small>
-                  {row.kind} · {row.path}:{row.line}
+                  {studioLabel(t, row.kind)} · {row.path}:{row.line}
                 </small>
               </button>
             ))}
@@ -519,10 +530,10 @@ export default function WritingTools({
                         <span>{r.data.comment}</span>
                         <small>
                           {r.data.status === 'addressed'
-                            ? '已回应'
+                            ? t('已回应')
                             : r.data.status === 'working'
-                              ? '修订中'
-                              : '待处理'}
+                              ? t('修订中')
+                              : t('待处理')}
                         </small>
                       </button>
                     ))}
@@ -535,8 +546,8 @@ export default function WritingTools({
                 >
                   {t('导出本版审稿回复')}
                 </Action>
-                <h3 className="studio-section-title">{review ? '编辑这条意见' : '记录新意见'}</h3>
-                <Field label="原投稿版本">
+                <h3 className="studio-section-title">{review ? t('编辑这条意见') : t('记录新意见')}</h3>
+                <Field label={t("原投稿版本")}>
                   <select
                     disabled={!!review}
                     value={submission}
@@ -544,22 +555,22 @@ export default function WritingTools({
                   >
                     {submissions.map((s) => (
                       <option value={s.id} key={s.id}>
-                        {new Date(s.created * 1000).toLocaleString()} · {s.id.slice(0, 8)}
+                        {new Date(s.created * 1000).toLocaleString(getLocale(i18n.resolvedLanguage || i18n.language))} · {s.id.slice(0, 8)}
                       </option>
                     ))}
                   </select>
                 </Field>
-                <Field label="审稿意见">
+                <Field label={t("审稿意见")}>
                   <textarea rows={3} value={comment} onChange={(e) => setComment(e.target.value)} />
                 </Field>
-                <Field label="逐条回应草稿">
+                <Field label={t("逐条回应草稿")}>
                   <textarea
                     rows={5}
                     value={response}
                     onChange={(e) => setResponse(e.target.value)}
                   />
                 </Field>
-                <Field label="处理状态">
+                <Field label={t("处理状态")}>
                   <select value={status} onChange={(e) => setStatus(e.target.value)}>
                     <option value="open">{t('待处理')}</option>
                     <option value="working">{t('修订中')}</option>

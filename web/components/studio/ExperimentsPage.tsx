@@ -1,5 +1,7 @@
 'use client'
 import { useTranslation } from 'react-i18next'
+import { FileInput } from '@/shared/ui/FileInput'
+import { studioLabel } from './display'
 import IntegrationSources from './IntegrationSources'
 import LiveRunTimeline from './LiveRunTimeline'
 import { useEffect, useState } from 'react'
@@ -59,33 +61,36 @@ const blank = (): Run => ({
   log: '',
   artifacts: [],
 })
-const statusLabels: Record<string, string> = {
-  planned: '待运行 / 核对',
-  running: '运行中',
-  succeeded: '运行成功',
-  failed: '运行失败',
-  cancelled: '已取消',
-  static_only: '静态检查',
-}
-const fieldLabels: Record<string, string> = {
-  repository: '代码仓库',
-  commit: '运行 commit',
-  command: '运行命令',
-  configuration: '配置',
-  dataset: '数据集',
-  split: '数据划分',
-  environment: '环境',
-  hardware: '硬件',
-  seed: '随机种子',
-  checkpoint: '检查点',
-  log: '原始日志',
-}
+
+
 export default function ExperimentsPage() {
   const workspace = useActiveWorkspaceId()
   return <Experiments key={workspace} workspace={workspace} />
 }
 function Experiments({ workspace }: { workspace: string }) {
   const { t } = useTranslation()
+
+  const statusLabels: Record<string, string> = {
+  planned: t('待运行 / 核对'),
+  running: t('运行中'),
+  succeeded: t('运行成功'),
+  failed: t('运行失败'),
+  cancelled: t('已取消'),
+  static_only: t('静态检查'),
+}
+  const fieldLabels: Record<string, string> = {
+  repository: t('代码仓库'),
+  commit: t('运行 commit'),
+  command: t('运行命令'),
+  configuration: t('配置'),
+  dataset: t('数据集'),
+  split: t('数据划分'),
+  environment: t('环境'),
+  hardware: t('硬件'),
+  seed: t('随机种子'),
+  checkpoint: t('检查点'),
+  log: t('原始日志'),
+}
 
   const op = useOperation(),
     [runs, setRuns] = useState<StudioRecord<Run>[]>([]),
@@ -127,7 +132,7 @@ function Experiments({ workspace }: { workspace: string }) {
   async function save() {
     const configuration = JSON.parse(config)
     if (!configuration || typeof configuration !== 'object' || Array.isArray(configuration))
-      throw new Error('配置需要是 JSON 对象。')
+      throw new Error(t('配置需要是 JSON 对象。'))
     const body = { ...draft, configuration }
     const row = editing
       ? await studio<StudioRecord<Run>>(workspace, `/runs/${editing.id}`, {
@@ -161,7 +166,7 @@ function Experiments({ workspace }: { workspace: string }) {
       workspace={workspace}
       active="experiments"
       title={t('把一次实验，留成可复查的记录。')}
-      description="代码版本、命令、环境和原始产物一起保存。成功、失败与静态检查，都有各自的位置。"
+      description={t("代码版本、命令、环境和原始产物一起保存。成功、失败与静态检查，都有各自的位置。")}
       action={
         <div className="studio-actions">
           <Action
@@ -190,10 +195,10 @@ function Experiments({ workspace }: { workspace: string }) {
       <div className="studio-toolbar">
         <div className="studio-pills">
           {[
-            ['all', '全部'],
-            ['succeeded', '已成功'],
-            ['failed', '需排查'],
-            ['static_only', '静态检查'],
+            ['all', t('全部')],
+            ['succeeded', t('已成功')],
+            ['failed', t('需排查')],
+            ['static_only', t('静态检查')],
           ].map(([key, title]) => (
             <button key={key} aria-pressed={filter === key} onClick={() => setFilter(key)}>
               {title}
@@ -218,7 +223,7 @@ function Experiments({ workspace }: { workspace: string }) {
                   >
                     {statusLabels[row.data.status]}
                     {row.data.status === 'succeeded' && !row.data.execution_verified
-                      ? ' · 来源自述'
+                      ? t(' · 来源自述')
                       : ''}
                   </span>
                   {row.data.remote_source && (
@@ -231,13 +236,13 @@ function Experiments({ workspace }: { workspace: string }) {
                   </button>
                 </h3>
                 <p>
-                  {row.data.dataset || '数据集待确认'} · {row.data.split || '划分待确认'}
+                  {row.data.dataset || t('数据集待确认')} · {row.data.split || t('划分待确认')}
                 </p>
                 <p className="studio-note">
-                  <code>{row.data.commit ? row.data.commit.slice(0, 12) : '运行版本未知'}</code> ·{' '}
+                  <code>{row.data.commit ? row.data.commit.slice(0, 12) : t('运行版本未知')}</code> ·{' '}
                   {row.data.missing?.length
-                    ? `${row.data.missing.length} 项复现信息待补全`
-                    : '元信息已填写，输入可获得性仍需核实'}
+                    ? t("{{value1}} 项复现信息待补全", { value1: row.data.missing.length })
+                    : t('元信息已填写，输入可获得性仍需核实')}
                 </p>
                 <footer>
                   <button className="studio-link-button" onClick={() => setSelected(row)}>
@@ -286,17 +291,17 @@ function Experiments({ workspace }: { workspace: string }) {
               <h3 className="studio-section-title">{t('运行来源')}</h3>
               <p className="studio-note">
                 {selected.data.execution_verified
-                  ? '系统已记录执行见证。'
+                  ? t('系统已记录执行见证。')
                   : selected.data.execution_witness === 'imported_statement' ||
                       selected.data.remote_source
-                    ? '状态来自导入记录；系统未观察该进程执行。'
-                    : '状态来自作者记录；系统未观察该进程执行。'}
+                    ? t('状态来自导入记录；系统未观察该进程执行。')
+                    : t('状态来自作者记录；系统未观察该进程执行。')}
               </p>
               <p style={{ overflowWrap: 'anywhere' }}>
-                {selected.data.repository || '尚未记录仓库'}
+                {selected.data.repository || t('尚未记录仓库')}
               </p>
               <p>
-                <code>{selected.data.commit || '运行 commit 未知'}</code>
+                <code>{selected.data.commit || t('运行 commit 未知')}</code>
               </p>
               {selected.data.tracking_snapshot &&
                 selected.data.tracking_snapshot.adapter !== 'plain_log' && (
@@ -307,9 +312,9 @@ function Experiments({ workspace }: { workspace: string }) {
                     </h3>
                     <p className="studio-note">
                       {t('来源 ID：')}
-                      {selected.data.tracking_snapshot.external_id || '未提供'}{' '}
+                      {selected.data.tracking_snapshot.external_id || t('未提供')}{' '}
                       {t('· 来源声明状态：')}
-                      {selected.data.tracking_snapshot.declared_status || '未知'}
+                      {studioLabel(t, selected.data.tracking_snapshot.declared_status) || t('未知')}
                     </p>
                     <p className="studio-note">
                       {t('指标样本保留原名与步骤；进入比较矩阵前仍需核对评估协议。')}
@@ -322,7 +327,7 @@ function Experiments({ workspace }: { workspace: string }) {
                             {metric.name} · {metric.value}
                             <small>
                               {t('step')}
-                              {metric.step ?? '未知'}
+                              {metric.step ?? t('未知')}
                             </small>
                           </div>
                         ))}
@@ -353,12 +358,12 @@ function Experiments({ workspace }: { workspace: string }) {
               )}
               <h3 className="studio-section-title">{t('命令与配置')}</h3>
               <pre className="studio-diff">
-                {selected.data.command || '运行命令尚未记录'}
+                {selected.data.command || t('运行命令尚未记录')}
                 {'\n\n'}
                 {JSON.stringify(selected.data.configuration, null, 2)}
               </pre>
               <h3 className="studio-section-title">{t('原始日志')}</h3>
-              <pre className="studio-diff">{selected.data.log || '尚无原始日志'}</pre>
+              <pre className="studio-diff">{selected.data.log || t('尚无原始日志')}</pre>
             </div>
           ) : (
             <div className="studio-panel">
@@ -378,8 +383,8 @@ function Experiments({ workspace }: { workspace: string }) {
       <Dialog
         open={dialog}
         onClose={() => !op.busy && setDialog(false)}
-        title={editing ? '补全实验记录' : '记录一次实验'}
-        description="填写真实运行信息。尚未掌握的字段可以留空。"
+        title={editing ? t('补全实验记录') : t('记录一次实验')}
+        description={t("填写真实运行信息。尚未掌握的字段可以留空。")}
         size="lg"
         className="studio-dialog"
         footer={
@@ -390,13 +395,13 @@ function Experiments({ workspace }: { workspace: string }) {
       >
         <div className="studio-form">
           <ErrorNotice message={op.error} />
-          <Field label="名称">
+          <Field label={t("名称")}>
             <input
               value={draft.title}
               onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
             />
           </Field>
-          <Field label="状态">
+          <Field label={t("状态")}>
             <select
               value={draft.status}
               onChange={(e) => setDraft((d) => ({ ...d, status: e.target.value }))}
@@ -419,7 +424,7 @@ function Experiments({ workspace }: { workspace: string }) {
                 </Field>
               ),
             )}
-            <Field label="随机种子">
+            <Field label={t("随机种子")}>
               <input
                 type="number"
                 step="1"
@@ -433,13 +438,13 @@ function Experiments({ workspace }: { workspace: string }) {
               />
             </Field>
           </div>
-          <Field label="运行命令">
+          <Field label={t("运行命令")}>
             <textarea
               value={draft.command}
               onChange={(e) => setDraft((d) => ({ ...d, command: e.target.value }))}
             />
           </Field>
-          <Field label="配置 · JSON">
+          <Field label={t("配置 · JSON")}>
             <textarea
               rows={6}
               value={config}
@@ -447,20 +452,20 @@ function Experiments({ workspace }: { workspace: string }) {
               spellCheck={false}
             />
           </Field>
-          <Field label="环境与依赖">
+          <Field label={t("环境与依赖")}>
             <textarea
               value={draft.environment}
               onChange={(e) => setDraft((d) => ({ ...d, environment: e.target.value }))}
             />
           </Field>
-          <Field label="实际代码补丁">
+          <Field label={t("实际代码补丁")}>
             <textarea
               value={draft.patch}
               onChange={(e) => setDraft((d) => ({ ...d, patch: e.target.value }))}
               spellCheck={false}
             />
           </Field>
-          <Field label="原始日志">
+          <Field label={t("原始日志")}>
             <textarea
               rows={7}
               value={draft.log}
@@ -474,7 +479,7 @@ function Experiments({ workspace }: { workspace: string }) {
         open={importing}
         onClose={() => !op.busy && setImporting(false)}
         title={t('导入实验记录')}
-        description="每行一条记录。字段使用 title、status、repository、commit、command、dataset、split、seed 等名称。"
+        description={t("每行一条记录。字段使用 title、status、repository、commit、command、dataset、split、seed 等名称。")}
         size="lg"
         className="studio-dialog"
         footer={
@@ -485,28 +490,27 @@ function Experiments({ workspace }: { workspace: string }) {
       >
         <div className="studio-form">
           <ErrorNotice message={op.error} />
-          <Field label="文件">
-            <input
-              type="file"
-              accept=".json,.csv"
+          <Field label={t("文件")}>
+            <FileInput
+                accept=".json,.csv"
               onChange={(e) => {
                 const f = e.target.files?.[0]
                 if (f)
                   op.run(async () => {
-                    if (f.size > 5_000_000) throw new Error('请选择 5 MB 以内的文件。')
+                    if (f.size > 5_000_000) throw new Error(t('请选择 5 MB 以内的文件。'))
                     setInput(await f.text())
                     setFormat(f.name.endsWith('.csv') ? 'csv' : 'json')
                   })
               }}
             />
           </Field>
-          <Field label="格式">
+          <Field label={t("格式")}>
             <select value={format} onChange={(e) => setFormat(e.target.value)}>
               <option value="json">{t('JSON')}</option>
               <option value="csv">{t('CSV')}</option>
             </select>
           </Field>
-          <Field label="记录内容">
+          <Field label={t("记录内容")}>
             <textarea
               rows={8}
               value={input}
@@ -521,8 +525,8 @@ function Experiments({ workspace }: { workspace: string }) {
                   key={row.index}
                   className={row.status === 'error' ? 'studio-error' : 'studio-note'}
                 >
-                  第 {row.index + 1} {t('条：')}
-                  {row.status === 'error' ? row.detail : '已导入'}
+                  {t('记录 {{index}}：', { index: row.index + 1 })}
+                  {row.status === 'error' ? row.detail : t('已导入')}
                 </p>
               ))}
             </div>

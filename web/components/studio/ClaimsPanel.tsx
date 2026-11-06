@@ -86,9 +86,9 @@ export default function ClaimsPanel({ workspace }: { workspace: string }) {
               {
                 (
                   {
-                    draft: '研究假设 / 待核实',
-                    confirmed: '证据关系已核对',
-                    disputed: '存在反证',
+                    draft: t('研究假设 / 待核实'),
+                    confirmed: t('证据关系已核对'),
+                    disputed: t('存在反证'),
                   } as Record<string, string>
                 )[c.data.status]
               }
@@ -128,7 +128,7 @@ export default function ClaimsPanel({ workspace }: { workspace: string }) {
       <Dialog
         open={open}
         onClose={() => !op.busy && setOpen(false)}
-        title={editing ? '更新主张与证据关系' : '记录主张与证据关系'}
+        title={editing ? t('更新主张与证据关系') : t('记录主张与证据关系')}
         className="studio-dialog"
         size="lg"
         footer={
@@ -153,14 +153,14 @@ export default function ClaimsPanel({ workspace }: { workspace: string }) {
         }
       >
         <ErrorNotice message={op.error} />
-        <Field label="要检验的具体主张">
+        <Field label={t("要检验的具体主张")}>
           <textarea
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder={t('写明适用数据、条件和范围，避免把局部结果写成普遍结论。')}
           />
         </Field>
-        <Field label="状态">
+        <Field label={t("状态")}>
           <select value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="draft">{t('假设 / 待核实')}</option>
             <option value="disputed">{t('存在反证')}</option>
@@ -170,7 +170,7 @@ export default function ClaimsPanel({ workspace }: { workspace: string }) {
         {edges.map((edge, index) => (
           <div className="studio-panel" key={index} style={{ marginTop: 12 }}>
             <div className="studio-form-grid">
-              <Field label="来源与冻结版本">
+              <Field label={t("来源与冻结版本")}>
                 <select
                   value={edge.source_id}
                   onChange={(e) => {
@@ -193,16 +193,16 @@ export default function ClaimsPanel({ workspace }: { workspace: string }) {
                   ))}
                 </select>
               </Field>
-              <Field label="与这条主张的关系">
+              <Field label={t("与这条主张的关系")}>
                 <select
                   value={edge.role}
                   onChange={(e) => update(index, { role: e.target.value, review: 'unreviewed' })}
                 >
                   {[
-                    ['supports', '支持'],
-                    ['contradicts', '反对'],
-                    ['qualifies', '限定条件'],
-                    ['context', '背景'],
+                    ['supports', t('支持')],
+                    ['contradicts', t('反对')],
+                    ['qualifies', t('限定条件')],
+                    ['context', t('背景')],
                   ].map(([value, label]) => (
                     <option key={value} value={value}>
                       {label}
@@ -211,7 +211,7 @@ export default function ClaimsPanel({ workspace }: { workspace: string }) {
                 </select>
               </Field>
             </div>
-            <Field label="限定条件与核对理由">
+            <Field label={t("限定条件与核对理由")}>
               <textarea
                 value={edge.qualifiers}
                 onChange={(e) => update(index, { qualifiers: e.target.value })}
@@ -252,7 +252,7 @@ export default function ClaimsPanel({ workspace }: { workspace: string }) {
         >
           {t('添加来源关系')}
         </Action>
-        <Field label="说明与相反解释">
+        <Field label={t("说明与相反解释")}>
           <textarea value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
       </Dialog>

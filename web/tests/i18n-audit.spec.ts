@@ -12,6 +12,7 @@ function runAudit(
   en: Record<string, string>,
   zh = en,
   partial: { fr?: Record<string, string>; uk?: Record<string, string> } = {},
+  supplements: Record<string, Record<string, string>> = {},
 ) {
   const root = mkdtempSync(path.join(tmpdir(), "deeptutor-i18n-"));
   try {
@@ -35,6 +36,9 @@ function runAudit(
     })) {
       mkdirSync(path.join(root, "locales", locale), { recursive: true });
       writeFileSync(path.join(root, "locales", locale, "app.json"), JSON.stringify(entries));
+      if (supplements[locale]) {
+        writeFileSync(path.join(root, "locales", locale, "workbench.json"), JSON.stringify(supplements[locale]));
+      }
     }
     mkdirSync(path.join(root, "hooks"));
     writeFileSync(path.join(root, "hooks", "sample.ts"), source);
@@ -99,4 +103,23 @@ it("fails on translated placeholder drift in French and Ukrainian", () => {
   expect(result.status).toBe(1);
   expect(result.stderr).toContain("fr: 1 interpolation placeholder mismatches");
   expect(result.stderr).toContain("uk: 1 interpolation placeholder mismatches");
+});
+
+it("checks lazy workbench copy with the same coverage and placeholder requirements", () => {
+  const key = "Hello {{name}}";
+  const supplements = Object.fromEntries(APP_LANGUAGES.map(({ code }) => [code, { [key]: key }]));
+  supplements.zh = { [key]: "你好，{{name}}" };
+  expect(runAudit(`t("${key}")`, {}, {}, {}, supplements).status).toBe(0);
+  supplements.zh = { [key]: "你好，{{person}}" };
+  const invalid = runAudit(`t("${key}")`, {}, {}, {}, supplements);
+  expect(invalid.status).toBe(1);
+  expect(invalid.stderr).toContain("zh: 1 interpolation placeholder mismatches");
+});
+
+it("rejects ambiguous duplicate keys between the core and lazy copy", () => {
+  const duplicate = runAudit('t("One");', { One: "One" }, { One: "一" }, {}, {
+    en: { One: "Other" },
+  });
+  expect(duplicate.status).toBe(1);
+  expect(duplicate.stderr).toContain("duplicate key across core and workbench");
 });

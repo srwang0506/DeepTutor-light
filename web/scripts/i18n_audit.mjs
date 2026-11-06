@@ -144,7 +144,19 @@ function reportUntranslatedKeys() {
       process.exitCode = 1;
       continue;
     }
-    known.set(locale, JSON.parse(fs.readFileSync(file, "utf8")));
+    const entries = JSON.parse(fs.readFileSync(file, "utf8"));
+    const workbenchFile = path.join(localeDir, locale, "workbench.json");
+    if (fs.existsSync(workbenchFile)) {
+      const workbench = JSON.parse(fs.readFileSync(workbenchFile, "utf8"));
+      for (const [key, value] of Object.entries(workbench)) {
+        if (Object.hasOwn(entries, key)) {
+          console.error(`[i18n:audit] ${locale}: duplicate key across core and workbench: ${JSON.stringify(key)}`);
+          process.exitCode = 1;
+        }
+        entries[key] = value;
+      }
+    }
+    known.set(locale, entries);
   }
   const english = known.get("en");
   if (!english) return;

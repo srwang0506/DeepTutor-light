@@ -1,32 +1,31 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
-    <title>离线学习 · DeepTutor</title>
+    <title>Offline study · DeepTutor</title>
     <link rel="stylesheet" href="/offline/style.css" />
   </head>
   <body>
     <main>
       <header>
         <div>
-          <a href="/today">← 返回工作台</a>
-          <h1>离线学习</h1>
-          <p>已经保存的资料，随时可以继续。答案提交后才会产生评阅记录。</p>
+          <a href="/today" data-copy="back">← Back to workspace</a>
+          <h1 data-copy="title">Offline study</h1>
+          <p data-copy="intro">Continue with your saved materials anytime. Assessment records are created only after you submit an answer.</p>
         </div>
         <span id="network" role="status"></span>
       </header>
       <section class="toolbar">
-        <label>工作区<select id="workspace"></select></label
-        ><button id="sync">联网提交待评阅答案</button
-        ><button id="clear" class="secondary">清除此工作区的离线内容</button>
+        <label><span data-copy="workspace">Workspace</span><select id="workspace"></select></label>
+        <button id="sync" data-copy="sync">Submit queued answers online</button>
+        <button id="clear" class="secondary" data-copy="clear">Clear this workspace’s offline content</button>
       </section>
       <p id="status" role="status" aria-live="polite"></p>
       <div id="items"></div>
-      <p class="footnote">
-        离线内容保存在这个浏览器，包括题目、答案和选中的
-        PDF。请仅在你信任的个人设备保存；清除浏览器数据会移除未提交答案。离线作答的独立性无法核实。
+      <p class="footnote" data-copy="privacy">
+        Offline content is stored in this browser, including questions, answers and selected PDFs. Save it only on a trusted personal device. Clearing browser data removes unsubmitted answers. Independence of offline answers cannot be verified.
       </p>
     </main>
     <script type="module" src="/offline/app.js"></script>

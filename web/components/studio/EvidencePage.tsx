@@ -1,5 +1,7 @@
 'use client'
 import { useTranslation } from 'react-i18next'
+import { studioLabel } from './display'
+import { getLocale } from '@/lib/datetime'
 import ReviewProtocols from './ReviewProtocols'
 import ClaimsPanel from './ClaimsPanel'
 import { useEffect, useState } from 'react'
@@ -24,20 +26,8 @@ import {
   type ArtifactData,
 } from '@/lib/studio-api'
 import { Action, ErrorNotice, Field, StudioEmpty, StudioShell, useOperation } from './StudioShell'
-const states: Record<string, string> = {
-  reported: '有明确数值',
-  no_full_text: '未取得全文',
-  not_found: '尚未找到',
-  not_reported: '原文未报告',
-  not_applicable: '不适用',
-  conflict: '来源冲突',
-}
-const origins: Record<string, string> = {
-  reported: '论文报告',
-  executed: '实际运行',
-  static_check: '静态检查',
-  hypothesis: '研究假设',
-}
+
+
 interface Comparison {
   status: string
   unknown: string[]
@@ -61,7 +51,22 @@ export default function EvidencePage() {
   return <EvidenceWorkspace key={workspace} workspace={workspace} />
 }
 function EvidenceWorkspace({ workspace }: { workspace: string }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+
+  const states: Record<string, string> = {
+  reported: t('有明确数值'),
+  no_full_text: t('未取得全文'),
+  not_found: t('尚未找到'),
+  not_reported: t('原文未报告'),
+  not_applicable: t('不适用'),
+  conflict: t('来源冲突'),
+}
+  const origins: Record<string, string> = {
+  reported: t('论文报告'),
+  executed: t('实际运行'),
+  static_check: t('静态检查'),
+  hypothesis: t('研究假设'),
+}
 
   const op = useOperation(),
     [tab, setTab] = useState('matrix'),
@@ -113,7 +118,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
     const response = await apiFetch(
       studioUrl(`/artifacts/${id}/files/${encodeURIComponent(name)}`, workspace),
     )
-    if (!response.ok) throw new Error('暂时无法读取图表文件。')
+    if (!response.ok) throw new Error(t('暂时无法读取图表文件。'))
     const url = URL.createObjectURL(await response.blob())
     const link = document.createElement('a')
     link.href = url
@@ -147,7 +152,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
   }
   async function generate(kind: string) {
     await post(workspace, '/artifacts', {
-      title: `${kind === 'table' ? '证据比较表' : '结果比较图'} · ${new Date().toLocaleDateString('zh-CN')}`,
+      title: `${kind === 'table' ? t('证据比较表') : t('结果比较图')} · ${new Date().toLocaleDateString(getLocale(i18n.resolvedLanguage || i18n.language))}`,
       kind,
       observation_ids: selected,
     })
@@ -169,20 +174,20 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
     setComparison(null)
   }
   const label = (field: string) =>
-    PROTOCOL_FIELDS.find(([key]) => key === field)?.[1] ||
+    t(PROTOCOL_FIELDS.find(([key]) => key === field)?.[1] ||
     {
-      direction: '指标方向',
-      source_revision: '来源已变化',
-      result_provenance: '结果来源不足',
-      unreviewed_evidence: '原文证据未核实',
+      direction: t('指标方向'),
+      source_revision: t('来源已变化'),
+      result_provenance: t('结果来源不足'),
+      unreviewed_evidence: t('原文证据未核实'),
     }[field] ||
-    field
+    studioLabel(t, field))
   return (
     <StudioShell
       workspace={workspace}
       active="evidence"
       title={t('让每个结论，都找得到来处。')}
-      description="把原文、评估条件和实验结果放在一起。先核对可比性，再讨论差异。"
+      description={t("把原文、评估条件和实验结果放在一起。先核对可比性，再讨论差异。")}
       action={
         <Action onClick={() => edit()}>
           <Plus size={15} />
@@ -195,10 +200,10 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
       <div className="studio-toolbar">
         <div className="studio-pills">
           {[
-            ['matrix', '结果矩阵', observations.length],
-            ['evidence', '原文证据', evidence.length],
-            ['artifacts', '表与图', artifacts.length],
-            ['claims', '主张与反证', ''],
+            ['matrix', t('结果矩阵'), observations.length],
+            ['evidence', t('原文证据'), evidence.length],
+            ['artifacts', t('表与图'), artifacts.length],
+            ['claims', t('主张与反证'), ''],
           ].map(([key, title, count]) => (
             <button key={key} aria-pressed={tab === key} onClick={() => setTab(String(key))}>
               {title} <span className="studio-muted">{count}</span>
@@ -255,7 +260,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                       <td>
                         <input
                           type="checkbox"
-                          aria-label={`选择 ${row.data.title}`}
+                          aria-label={t("选择 {{value1}}", { value1: row.data.title })}
                           checked={selected.includes(row.id)}
                           onChange={(e) => {
                             setSelected((s) =>
@@ -267,13 +272,13 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                       </td>
                       <td>
                         <strong>{row.data.title}</strong>
-                        <small>{row.data.protocol.metric || '指标待补充'}</small>
+                        <small>{row.data.protocol.metric || t('指标待补充')}</small>
                       </td>
                       <td>
-                        {row.data.protocol.dataset || '数据集未知'}
+                        {row.data.protocol.dataset || t('数据集未知')}
                         <small>
-                          {row.data.protocol.split || '划分未知'} ·{' '}
-                          {row.data.protocol.input || '输入条件未知'}
+                          {row.data.protocol.split || t('划分未知')} ·{' '}
+                          {row.data.protocol.input || t('输入条件未知')}
                         </small>
                       </td>
                       <td style={{ fontVariantNumeric: 'tabular-nums' }}>
@@ -285,7 +290,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                         <small>
                           {evidence.find((e) => e.id === row.data.source_id)?.data.label ||
                             runs.find((r) => r.id === row.data.source_id)?.data.title ||
-                            '来源记录'}
+                            t('来源记录')}
                         </small>
                       </td>
                       <td>
@@ -309,17 +314,17 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
             <section className="studio-panel" style={{ marginTop: 22 }}>
               <h2>
                 {comparison.status === 'comparable'
-                  ? '所选结果满足记录中的比较条件'
+                  ? t('所选结果满足记录中的比较条件')
                   : comparison.status === 'incomparable'
-                    ? '评估条件存在差异'
+                    ? t('评估条件存在差异')
                     : comparison.status === 'conflict'
-                      ? '来源之间存在冲突'
-                      : '还有条件需要核对'}
+                      ? t('来源之间存在冲突')
+                      : t('还有条件需要核对')}
               </h2>
               <p>
                 {comparison.status === 'comparable'
-                  ? `第二项相对第一项的数值差为 ${comparison.delta} ${comparison.delta_unit || ''}。此差值不代表统计显著性或因果关系。`
-                  : '在条件核实前，不生成优劣排名或数值提升结论。'}
+                  ? t("第二项相对第一项的数值差为 {{value1}} {{value2}}。此差值不代表统计显著性或因果关系。", { value1: comparison.delta, value2: comparison.delta_unit || '' })
+                  : t('在条件核实前，不生成优劣排名或数值提升结论。')}
               </p>
               {comparison.conversions?.map((item) => (
                 <p className="studio-note" key={item.field}>
@@ -352,8 +357,8 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                       {comparison.differences.map((d) => (
                         <tr key={d.field}>
                           <td>{label(d.field)}</td>
-                          <td>{d.left}</td>
-                          <td>{d.right}</td>
+                          <td>{['profile', 'direction'].includes(d.field) ? studioLabel(t, d.left) : d.left}</td>
+                          <td>{['profile', 'direction'].includes(d.field) ? studioLabel(t, d.right) : d.right}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -388,20 +393,20 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                   className={`studio-badge ${row.data.verification === 'confirmed' ? 'good' : 'warn'}`}
                 >
                   {row.data.verification === 'confirmed'
-                    ? '已核对原文'
+                    ? t('已核对原文')
                     : row.data.verification === 'disputed'
-                      ? '存在争议'
-                      : '待核对'}
+                      ? t('存在争议')
+                      : t('待核对')}
                 </span>
                 <span className="studio-badge">
-                  第 {row.data.page_label || row.data.page} {t('页 ·')}
-                  {row.data.kind}
+                  {t('第 {{page}} 页', { page: row.data.page_label || row.data.page })} ·{' '}
+                  {studioLabel(t, row.data.kind)}
                 </span>
               </div>
               <div className="studio-badges" style={{ marginTop: 8 }}>
                 <span className="studio-badge">
                   {t('定位：')}
-                  {row.data.anchor_valid ? '有效' : '待重核'}
+                  {row.data.anchor_valid ? t('有效') : t('待重核')}
                 </span>
                 <span
                   className={`studio-badge ${row.data.quote_match === 'exact' ? 'good' : 'warn'}`}
@@ -409,14 +414,14 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                   {t('引句：')}
                   {(
                     {
-                      exact: '精确匹配',
-                      approximate: '近似匹配',
-                      unmatched: '未匹配',
-                      no_text: '无文字层',
-                      not_requested: '未摘录文字',
-                      ambiguous: '多处匹配',
+                      exact: t('精确匹配'),
+                      approximate: t('近似匹配'),
+                      unmatched: t('未匹配'),
+                      no_text: t('无文字层'),
+                      not_requested: t('未摘录文字'),
+                      ambiguous: t('多处匹配'),
                     } as Record<string, string>
-                  )[row.data.quote_match || ''] || '待核对'}
+                  )[row.data.quote_match || ''] || t('待核对')}
                 </span>
                 <span className="studio-badge">{t('主张支持需逐项核对')}</span>
               </div>
@@ -425,7 +430,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
               )}
               <h3 style={{ marginTop: 12 }}>{row.data.label}</h3>
               {row.data.quote && <blockquote>{row.data.quote}</blockquote>}
-              <p>{row.data.interpretation || '尚未添加自己的解读。'}</p>
+              <p>{row.data.interpretation || t('尚未添加自己的解读。')}</p>
               <footer>
                 <Link
                   className="studio-outlink"
@@ -474,8 +479,8 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
               <h3>{row.data.title}</h3>
               <p>
                 {row.data.type === 'figure'
-                  ? '可重建的绘图产物，附输入、脚本与样式。'
-                  : '固定输入版本的比较表。未知条件单独保留，不自动排名。'}
+                  ? t('可重建的绘图产物，附输入、脚本与样式。')
+                  : t('固定输入版本的比较表。未知条件单独保留，不自动排名。')}
               </p>
               <div className="studio-actions" style={{ marginTop: 16 }}>
                 {Object.keys(row.data.files).map((name) => (
@@ -503,8 +508,8 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
       <Dialog
         open={dialog}
         onClose={() => !op.busy && setDialog(false)}
-        title={editing ? '核对结果与评估条件' : '记录有来源的结果'}
-        description="空白代表未知。只有确实不适用的条件才勾选“不适用”。"
+        title={editing ? t('核对结果与评估条件') : t('记录有来源的结果')}
+        description={t("空白代表未知。只有确实不适用的条件才勾选“不适用”。")}
         size="lg"
         className="studio-dialog"
         footer={
@@ -518,14 +523,14 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
       >
         <div className="studio-form">
           <ErrorNotice message={op.error} />
-          <Field label="方法或结果名称">
+          <Field label={t("方法或结果名称")}>
             <input
               value={draft.title}
               onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
             />
           </Field>
           <div className="studio-form-grid">
-            <Field label="结果性质">
+            <Field label={t("结果性质")}>
               <select
                 value={draft.origin}
                 onChange={(e) => setDraft((d) => ({ ...d, origin: e.target.value, source_id: '' }))}
@@ -537,7 +542,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                 ))}
               </select>
             </Field>
-            <Field label="来源记录">
+            <Field label={t("来源记录")}>
               <select
                 value={draft.source_id}
                 onChange={(e) => setDraft((d) => ({ ...d, source_id: e.target.value }))}
@@ -564,7 +569,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                       ))}
               </select>
             </Field>
-            <Field label="报告状态">
+            <Field label={t("报告状态")}>
               <select
                 value={draft.state}
                 onChange={(e) =>
@@ -582,7 +587,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                 ))}
               </select>
             </Field>
-            <Field label="数值">
+            <Field label={t("数值")}>
               <input
                 type="number"
                 step="any"
@@ -600,7 +605,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
           <h3 className="studio-section-title" style={{ margin: 0 }}>
             {t('评估协议')}
           </h3>
-          <Field label="任务口径">
+          <Field label={t("任务口径")}>
             <select
               value={draft.protocol.profile || 'general'}
               onChange={(e) =>
@@ -608,11 +613,11 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
               }
             >
               {[
-                ['general', '通用定量比较'],
-                ['hoi_detection', 'HOI 交互检测'],
-                ['hoi_reconstruction', 'HOI 三维重建'],
-                ['trajectory', '轨迹评估'],
-                ['mathematics', '数学与数值方法'],
+                ['general', t('通用定量比较')],
+                ['hoi_detection', t('HOI 交互检测')],
+                ['hoi_reconstruction', t('HOI 三维重建')],
+                ['trajectory', t('轨迹评估')],
+                ['mathematics', t('数学与数值方法')],
               ].map(([id, label]) => (
                 <option key={id} value={id}>
                   {label}
@@ -643,7 +648,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                 } as Record<string, string[]>
               )[draft.protocol.profile || ''] || []
             ).map((key) => (
-              <Field key={key} label={key}>
+              <Field key={key} label={studioLabel(t, key)}>
                 <input
                   value={draft.protocol.extensions?.[key] || ''}
                   onChange={(e) =>
@@ -660,7 +665,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
             ))}
             {PROTOCOL_FIELDS.map(([key, title]) => (
               <div key={key}>
-                <Field label={title}>
+                <Field label={t(title)}>
                   <input
                     disabled={draft.protocol.not_applicable.includes(key)}
                     value={draft.protocol[key]}
@@ -712,7 +717,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
               </div>
             ))}
           </div>
-          <Field label="指标方向">
+          <Field label={t("指标方向")}>
             <select
               value={draft.protocol.direction}
               onChange={(e) =>
@@ -727,7 +732,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
               <option value="lower">{t('越低越好')}</option>
             </select>
           </Field>
-          <Field label="核对备注">
+          <Field label={t("核对备注")}>
             <textarea
               value={draft.note}
               onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
@@ -739,7 +744,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
         open={!!reviewing}
         onClose={() => setReviewing(null)}
         title={t('核对证据原件')}
-        description="核对的是原文或原图；是否支持某个结论，需要在主张中单独审核。"
+        description={t("核对的是原文或原图；是否支持某个结论，需要在主张中单独审核。")}
         className="studio-dialog"
         footer={
           <Action
@@ -773,7 +778,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
             '引句必须在所选区域匹配。扫描页、图表或公式没有文字层时，需要对照原图核验并留下说明。',
           )}
         </p>
-        <Field label="核对说明">
+        <Field label={t("核对说明")}>
           <textarea
             value={reviewNote}
             onChange={(e) => setReviewNote(e.target.value)}

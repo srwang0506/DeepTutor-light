@@ -79,7 +79,8 @@ it("keeps Learning Space in its own collection route with imports and no daily r
 
   fireEvent.click(screen.getByRole("button", { name: "Import questions" }));
   expect(screen.getByRole("combobox", { name: "Import into" })).toHaveValue("mistakes");
-  expect(screen.getByLabelText(/Choose a question file/)).toBeVisible();
+  expect(screen.getByLabelText(/Choose a question file/)).toHaveAttribute("type", "file");
+  expect(screen.getByText("Choose file")).toBeVisible();
   fireEvent.click(screen.getByRole("tab", { name: "Question Bank67" }));
   expect(replace).toHaveBeenLastCalledWith(
     "/space/questions?workspace=work-a&view=bank",

@@ -217,3 +217,33 @@ it("shows an error and permits retry instead of presenting failed data as zero",
   await screen.findByText("Mastery Path");
   expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 });
+
+
+it("formats English statistics independently of a Chinese browser locale", async () => {
+  const formatDate = Date.prototype.toLocaleDateString;
+  const formatNumber = Number.prototype.toLocaleString;
+  const dateSpy = vi
+    .spyOn(Date.prototype, "toLocaleDateString")
+    .mockImplementation(function (this: Date, locales, options) {
+      return formatDate.call(this, locales ?? "zh-CN", options);
+    });
+  const numberSpy = vi
+    .spyOn(Number.prototype, "toLocaleString")
+    .mockImplementation(function (this: number, locales, options) {
+      return formatNumber.call(this, locales ?? "zh-CN", options);
+    });
+  vi.mocked(api.getPracticeAnalytics).mockResolvedValue({
+    ...report,
+    totals: { ...report.totals, questions: 1234 },
+  });
+  try {
+    render(<PracticeInsights revision={0} />);
+    expect(await screen.findByText("Sep 18 – Sep 19")).toBeVisible();
+    expect(screen.getByText("1,234")).toBeVisible();
+    expect(dateSpy).toHaveBeenCalledWith("en-US", { month: "short", day: "numeric" });
+    expect(numberSpy).toHaveBeenCalledWith("en-US");
+  } finally {
+    dateSpy.mockRestore();
+    numberSpy.mockRestore();
+  }
+});

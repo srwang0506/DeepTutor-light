@@ -264,10 +264,10 @@ export function CategoryBody({
         <div className="space-y-1">
           <OverviewRow href="/project" label={t('Projects')} icon={FolderOpen} />
           <OverviewRow href="/learning/practice" label={t('Practice & records')} icon={ListTodo} />
-          <OverviewRow href="/studio/evidence" label="证据与比较" icon={Layers3} />
-          <OverviewRow href="/studio/experiments" label="实验记录" icon={FlaskConical} />
-          <OverviewRow href="/studio/writing" label="论文写作" icon={FilePenLine} />
-          <OverviewRow href="/studio/connections" label="远程工作区" icon={Server} />
+          <OverviewRow href="/studio/evidence" label={t('证据与比较')} icon={Layers3} />
+          <OverviewRow href="/studio/experiments" label={t('实验记录')} icon={FlaskConical} />
+          <OverviewRow href="/studio/writing" label={t('论文写作')} icon={FilePenLine} />
+          <OverviewRow href="/studio/connections" label={t('远程工作区')} icon={Server} />
           <OverviewRow href="/research" label={t('Research workbench')} icon={FlaskConical} />
           <OverviewRow
             href="/chat?capability=deep_research"

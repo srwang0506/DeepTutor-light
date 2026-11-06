@@ -1,5 +1,6 @@
 'use client'
 import { useTranslation } from 'react-i18next'
+import { getLocale } from '@/lib/datetime'
 import { useEffect, useState } from 'react'
 import { BookmarkPlus, RefreshCw, Rss } from 'lucide-react'
 import { post, records, studio, type StudioRecord } from '@/lib/studio-api'
@@ -37,7 +38,7 @@ export default function SubscriptionsPanel({
   yearTo: number | null
   openResult: (id: string) => Promise<void>
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
 
   const [items, setItems] = useState<StudioRecord<Subscription>[]>([]),
     [expanded, setExpanded] = useState(false),
@@ -70,7 +71,7 @@ export default function SubscriptionsPanel({
     })
     await reload()
     setExpanded(true)
-    setNotice('检索已保存。自动刷新默认关闭，可以按需开启。')
+    setNotice(t('检索已保存。自动刷新默认关闭，可以按需开启。'))
   }
   async function saveFeed() {
     await post(workspace, '/subscriptions', { title, kind: 'rss', url })
@@ -78,7 +79,7 @@ export default function SubscriptionsPanel({
     setRss(false)
     setTitle('')
     setUrl('')
-    setNotice('订阅源已保存。点击刷新获取第一份快照。')
+    setNotice(t('订阅源已保存。点击刷新获取第一份快照。'))
   }
   async function toggle(item: StudioRecord<Subscription>) {
     const { title, kind, query, providers, url, interval_hours, order, year_from, year_to } =
@@ -136,16 +137,16 @@ export default function SubscriptionsPanel({
               <h3>{item.data.title}</h3>
               <p className="studio-note">
                 {item.data.kind === 'rss' ? 'RSS / Atom' : item.data.providers.join(' · ')} ·{' '}
-                {item.data.enabled ? '每天自动刷新' : '手动刷新'}
+                {item.data.enabled ? t('每天自动刷新') : t('手动刷新')}
                 {item.data.last_check
-                  ? ` · 上次 ${new Date(item.data.last_check * 1000).toLocaleString()}`
+                  ? t(" · 上次 {{value1}}", { value1: new Date(item.data.last_check * 1000).toLocaleString(getLocale(i18n.resolvedLanguage || i18n.language)) })
                   : ''}
               </p>
               {item.data.last_status && (
                 <p className="studio-note">
                   {item.data.last_status === 'failed'
-                    ? '上次刷新未成功，旧结果仍保留。'
-                    : `${item.data.new_ids?.length || 0} 条此前未见的题录；本次未必覆盖全部结果。`}
+                    ? t('上次刷新未成功，旧结果仍保留。')
+                    : t("{{value1}} 条此前未见的题录；本次未必覆盖全部结果。", { value1: item.data.new_ids?.length || 0 })}
                 </p>
               )}
               <footer>
@@ -164,7 +165,7 @@ export default function SubscriptionsPanel({
                     {t('刷新')}
                   </Action>
                   <Action secondary disabled={op.busy} onClick={() => op.run(() => toggle(item))}>
-                    {item.data.enabled ? '暂停自动刷新' : '开启自动刷新'}
+                    {item.data.enabled ? t('暂停自动刷新') : t('开启自动刷新')}
                   </Action>
                 </div>
                 {item.data.last_discovery_id && (
@@ -181,10 +182,10 @@ export default function SubscriptionsPanel({
           ))}
           {rss ? (
             <div className="studio-panel">
-              <Field label="订阅名称">
+              <Field label={t("订阅名称")}>
                 <input value={title} onChange={(e) => setTitle(e.target.value)} />
               </Field>
-              <Field label="公开 HTTPS RSS / Atom 地址">
+              <Field label={t("公开 HTTPS RSS / Atom 地址")}>
                 <input
                   type="url"
                   value={url}

@@ -1,8 +1,10 @@
-import type { AppLanguage } from "@/i18n/languages";
+import { normalizeLanguage, type AppLanguage } from "@/i18n/languages";
 
 export type Language = AppLanguage;
 
-export function getLocale(lang: Language): string {
+/** Dates and numbers follow the UI language, including regional language tags. */
+export function getLocale(language: unknown): string {
+  const lang = normalizeLanguage(language);
   if (lang === "zh") return "zh-CN";
   if (lang === "fr") return "fr-FR";
   if (lang === "de") return "de-DE";

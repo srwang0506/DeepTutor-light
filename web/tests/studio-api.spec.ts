@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@/lib/api', () => ({ apiFetch: vi.fn(), apiUrl: (s: string) => s }))
 import { apiFetch } from '@/lib/api'
-import { studio } from '@/lib/studio-api'
+import { studio, StudioRequestError } from '@/lib/studio-api'
 describe('Studio command transport', () => {
   beforeEach(() => vi.mocked(apiFetch).mockReset())
   it('preserves project scope and JSON content type for PATCH and PUT commands', async () => {
@@ -16,5 +16,13 @@ describe('Studio command transport', () => {
     vi.mocked(apiFetch).mockResolvedValue(new Response('{}', { status: 200 }))
     await studio('', '/manuscripts/import', { method: 'POST', body: new FormData() })
     expect(new Headers(vi.mocked(apiFetch).mock.calls[0][1]?.headers).has('Content-Type')).toBe(false)
+  })
+  it('keeps non-JSON transport failures translatable and retains their status', async () => {
+    vi.mocked(apiFetch).mockResolvedValue(new Response('<h1>Unavailable</h1>', { status: 503 }))
+    await expect(studio('', '/writing/preferences')).rejects.toMatchObject({
+      message: 'Request failed. Check your input and try again.',
+      status: 503,
+    })
+    await expect(studio('', '/writing/preferences')).rejects.toBeInstanceOf(StudioRequestError)
   })
 })

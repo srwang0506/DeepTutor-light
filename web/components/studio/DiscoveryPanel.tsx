@@ -1,18 +1,12 @@
 'use client'
 import { useTranslation } from 'react-i18next'
+import { getLocale } from '@/lib/datetime'
 import { useEffect, useState } from 'react'
 import SubscriptionsPanel from './SubscriptionsPanel'
 import { ArrowUpRight, History, Search } from 'lucide-react'
 import { post, records, studio, type DiscoveryData, type StudioRecord } from '@/lib/studio-api'
 import { Action, ErrorNotice, Field, useOperation } from './StudioShell'
-const statusText: Record<string, string> = {
-  complete: '本次结果已取完',
-  partial: '还有后续结果',
-  rate_limited: '来源限流',
-  authorization_required: '需要来源授权',
-  failed: '请求失败',
-  running: '读取中',
-}
+
 export default function DiscoveryPanel({
   workspace,
   onCollected,
@@ -20,7 +14,16 @@ export default function DiscoveryPanel({
   workspace: string
   onCollected: () => Promise<void>
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+
+  const statusText: Record<string, string> = {
+  complete: t('本次结果已取完'),
+  partial: t('还有后续结果'),
+  rate_limited: t('来源限流'),
+  authorization_required: t('需要来源授权'),
+  failed: t('请求失败'),
+  running: t('读取中'),
+}
 
   const [query, setQuery] = useState(''),
     [providers, setProviders] = useState(['crossref', 'openalex']),
@@ -75,7 +78,7 @@ export default function DiscoveryPanel({
   async function collect(provider: string, id: string) {
     await post(workspace, `/discover/${found!.id}/collect`, { provider, item_id: id })
     await onCollected()
-    setNotice('已收藏，并保存本次检索式、来源和结果版本。')
+    setNotice(t('已收藏，并保存本次检索式、来源和结果版本。'))
   }
   const safeUrl = (url: string) => (/^https?:\/\//i.test(url) ? url : undefined)
   return (
@@ -100,7 +103,7 @@ export default function DiscoveryPanel({
             disabled={op.busy || !query.trim() || !providers.length}
             onClick={() => op.run(search)}
           >
-            {op.busy ? '正在查询…' : '查询公开题录'}
+            {op.busy ? t('正在查询…') : t('查询公开题录')}
           </Action>
         </div>
         <div className="studio-discovery-options">
@@ -120,13 +123,13 @@ export default function DiscoveryPanel({
               </button>
             ))}
           </div>
-          <Field label="排序">
+          <Field label={t("排序")}>
             <select value={order} onChange={(e) => setOrder(e.target.value)}>
               <option value="relevance">{t('相关度')}</option>
               <option value="newest">{t('最新发表')}</option>
             </select>
           </Field>
-          <Field label="起始年份">
+          <Field label={t("起始年份")}>
             <input
               type="number"
               min="1000"
@@ -135,7 +138,7 @@ export default function DiscoveryPanel({
               onChange={(e) => setFrom(e.target.value)}
             />
           </Field>
-          <Field label="截止年份">
+          <Field label={t("截止年份")}>
             <input
               type="number"
               min="1000"
@@ -201,7 +204,7 @@ export default function DiscoveryPanel({
             >
               <span>{row.data.query}</span>
               <small>
-                {new Date(row.created * 1000).toLocaleString()} · {row.data.pages.length}{' '}
+                {new Date(row.created * 1000).toLocaleString(getLocale(i18n.resolvedLanguage || i18n.language))} · {row.data.pages.length}{' '}
                 {t('页响应 ·')} {statusText[row.data.status]}
               </small>
             </button>
@@ -228,7 +231,7 @@ export default function DiscoveryPanel({
       {found && (
         <p className="studio-note" style={{ marginTop: 20 }}>
           {t('当前快照：')}
-          {found.data.query} · {new Date(found.created * 1000).toLocaleString()}
+          {found.data.query} · {new Date(found.created * 1000).toLocaleString(getLocale(i18n.resolvedLanguage || i18n.language))}
         </p>
       )}
       {latestPages.map((last) => {
@@ -249,10 +252,10 @@ export default function DiscoveryPanel({
             {last.coverage && (
               <p className="studio-note">
                 {t('本次检索最多覆盖')}
-                {last.coverage.maximum.toLocaleString()} {t('条排序结果。')}
-                {last.coverage.limited ? '已到覆盖上限，可缩小年份或检索范围后继续。' : ''}
+                {last.coverage.maximum.toLocaleString(getLocale(i18n.resolvedLanguage || i18n.language))} {t('条排序结果。')}
+                {last.coverage.limited ? t('已到覆盖上限，可缩小年份或检索范围后继续。') : ''}
                 {!last.coverage.snapshot_stable
-                  ? '来源更新可能影响后续页顺序；每页原始响应均已保存。'
+                  ? t('来源更新可能影响后续页顺序；每页原始响应均已保存。')
                   : ''}
               </p>
             )}
@@ -275,7 +278,7 @@ export default function DiscoveryPanel({
               <article className="studio-card" key={item.id} style={{ marginBottom: 10 }}>
                 <h3>{item.title}</h3>
                 <p className="studio-muted">
-                  {item.authors.slice(0, 3).join(' · ')} · {item.year || '年份未知'}
+                  {item.authors.slice(0, 3).join(' · ')} · {item.year || t('年份未知')}
                 </p>
                 <footer>
                   {safeUrl(item.url) && (
@@ -305,7 +308,7 @@ export default function DiscoveryPanel({
                 disabled={op.busy}
                 onClick={() => op.run(() => next(last.provider))}
               >
-                {last.status === 'partial' ? '读取下一页' : '重试这一页'}
+                {last.status === 'partial' ? t('读取下一页') : t('重试这一页')}
               </Action>
             )}
             <details className="studio-note" style={{ margin: '12px 0 24px' }}>

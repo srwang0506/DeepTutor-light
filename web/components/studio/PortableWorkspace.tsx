@@ -1,6 +1,8 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { FileInput } from '@/shared/ui/FileInput'
+import { getLocale } from '@/lib/datetime'
 import { ArrowDownToLine, FileSearch, LockKeyhole, CheckCircle2 } from 'lucide-react'
 import { apiFetch } from '@/lib/api'
 import { post, studio, studioUrl } from '@/lib/studio-api'
@@ -9,7 +11,7 @@ type Item = { resource: string; state: 'unchanged' | 'conflict' | 'new' | 'updat
 type Preview = { batch_id: string; state: string; items: Item[] }
 type Transfer = { id: string; state: string; created: number }
 export default function PortableWorkspace({ workspace }: { workspace: string }) {
-  const { t } = useTranslation(),
+  const { t, i18n } = useTranslation(),
     op = useOperation()
   const [loadError, setLoadError] = useState('')
   const [passphrase, setPassphrase] = useState(''),
@@ -100,8 +102,7 @@ export default function PortableWorkspace({ workspace }: { workspace: string }) 
           />
         </Field>
         <Field label={t('接收另一台设备的项目包')}>
-          <input
-            type="file"
+          <FileInput
             accept=".dtsync"
             onChange={(e) => {
               setFile(e.target.files?.[0] || null)
@@ -196,7 +197,7 @@ export default function PortableWorkspace({ workspace }: { workspace: string }) 
           <summary>{t('最近的传输回执')}</summary>
           {transfers.map((item) => (
             <div key={item.id} className="studio-receipt-row">
-              {new Date(item.created * 1000).toLocaleString()} ·{' '}
+              {new Date(item.created * 1000).toLocaleString(getLocale(i18n.resolvedLanguage || i18n.language))} ·{' '}
               {item.state === 'complete' ? t('已完成') : t('可重新上传原包恢复')} ·{' '}
               <code>{item.id.slice(0, 12)}</code>
             </div>

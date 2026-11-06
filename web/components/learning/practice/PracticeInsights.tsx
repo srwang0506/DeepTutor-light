@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { BarChart3, ChartNoAxesCombined, RefreshCw } from "lucide-react";
 import { practiceRoute } from "@/lib/learning-routes";
+import { getLocale } from "@/lib/datetime";
 import Tooltip from "@/shared/ui/Tooltip";
 import {
   getPracticeAnalytics,
@@ -25,12 +26,13 @@ const SOURCES: Record<string, string> = {
   partner_chat: "Partner Chat",
   import: "Imported",
 };
-const number = (value: number) => value.toLocaleString();
-const dateLabel = (date: string) =>
-  new Date(`${date}T12:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+const number = (value: number, locale: string) => value.toLocaleString(locale);
+const dateLabel = (date: string, locale: string) =>
+  new Date(`${date}T12:00:00`).toLocaleDateString(locale, { month: "short", day: "numeric" });
 
 export function PracticeInsights({ revision }: { revision: number }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = getLocale(i18n.resolvedLanguage || i18n.language);
   const search = useSearchParams();
   const router = useRouter();
   const days = [7, 30, 90].includes(Number(search.get("stats_days")))
@@ -94,7 +96,7 @@ export function PracticeInsights({ revision }: { revision: number }) {
           <h2 className="text-sm font-semibold">{t("Practice activity")}</h2>
           <p className="mt-1 text-xs text-muted-foreground">
             {data
-              ? `${dateLabel(data.start_date)} – ${dateLabel(data.end_date)}`
+              ? `${dateLabel(data.start_date, locale)} – ${dateLabel(data.end_date, locale)}`
               : t("Daily activity and sources")}
           </p>
         </div>
@@ -149,7 +151,7 @@ export function PracticeInsights({ revision }: { revision: number }) {
               {t(item.label)}
             </span>
             <span className="mt-2 block text-2xl font-semibold tabular-nums tracking-tight">
-              {data ? number(data.totals[item.key]) : "—"}
+              {data ? number(data.totals[item.key], locale) : "—"}
             </span>
             {metric.key === item.key && (
               <span
@@ -169,7 +171,7 @@ export function PracticeInsights({ revision }: { revision: number }) {
             {data
               ? t("Could not refresh statistics. Showing the last loaded data.")
               : t("Could not load statistics.")}{" "}
-            {error}
+            {t(error)}
           </span>
           <button
             type="button"
@@ -204,7 +206,7 @@ export function PracticeInsights({ revision }: { revision: number }) {
                     <div className="mb-1.5 flex items-center justify-between gap-3 text-xs">
                       <span>{t(SOURCES[source.source] || "Other")}</span>
                       <span className="whitespace-nowrap tabular-nums">
-                        {number(source[metric.key])}
+                        {number(source[metric.key], locale)}
                         <span className="ml-2 text-muted-foreground">
                           {Math.round((source[metric.key] / total) * 100)}%
                         </span>
@@ -269,7 +271,7 @@ export function PracticeInsights({ revision }: { revision: number }) {
                         {row.date}
                       </th>
                       {METRICS.map(item => (
-                        <td key={item.key}>{number(row[item.key])}</td>
+                        <td key={item.key}>{number(row[item.key], locale)}</td>
                       ))}
                     </tr>
                   ))}
@@ -296,7 +298,8 @@ function DailyChart({
   label: string;
   style: "line" | "bars";
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = getLocale(i18n.resolvedLanguage || i18n.language);
   const id = useId();
   const container = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(600);
@@ -331,10 +334,10 @@ function DailyChart({
   return (
     <div ref={container}>
       <div className="mb-1 flex min-h-6 items-center justify-between gap-2 text-xs">
-        <span className="text-muted-foreground">{dateLabel(active.date)}</span>
+        <span className="text-muted-foreground">{dateLabel(active.date, locale)}</span>
         <span className="font-medium tabular-nums">
           {label}
-          <span className="ml-2">{number(active[metric])}</span>
+          <span className="ml-2">{number(active[metric], locale)}</span>
         </span>
       </div>
       <div
@@ -383,7 +386,7 @@ function DailyChart({
                 fill="currentColor"
                 className="text-muted-foreground"
               >
-                {value}
+                {number(value, locale)}
               </text>
             </g>
           ))}
@@ -448,7 +451,7 @@ function DailyChart({
               fill="currentColor"
               className="text-muted-foreground"
             >
-              {dateLabel(rows[i].date)}
+              {dateLabel(rows[i].date, locale)}
             </text>
           ))}
           {rows.map((row, i) => (
@@ -462,7 +465,7 @@ function DailyChart({
               onPointerMove={() => setSelected(row.date)}
               onClick={() => setSelected(row.date)}
             >
-              <title>{`${row.date}: ${row[metric]}`}</title>
+              <title>{`${dateLabel(row.date, locale)}: ${number(row[metric], locale)}`}</title>
             </rect>
           ))}
         </svg>

@@ -1,5 +1,6 @@
 'use client'
 import { useTranslation } from 'react-i18next'
+import { studioLabel } from './display'
 import { Blocks } from 'lucide-react'
 
 import { useEffect, useState } from 'react'
@@ -17,16 +18,18 @@ interface Connector {
   conflicts: string
   deletion: string
 }
-const modes: Record<string, string> = {
-  native: '原生功能',
-  authorized_read: '授权读取',
-  file_exchange: '文件交换',
-  external_open: '打开外部应用',
-  reviewable_write: '审核后写入',
-}
+
 
 export default function ConnectorCapabilities({ workspace }: { workspace: string }) {
   const { t } = useTranslation()
+
+  const modes: Record<string, string> = {
+  native: t('原生功能'),
+  authorized_read: t('授权读取'),
+  file_exchange: t('文件交换'),
+  external_open: t('打开外部应用'),
+  reviewable_write: t('审核后写入'),
+}
 
   const [items, setItems] = useState<Connector[]>([])
   const [error, setError] = useState('')
@@ -53,13 +56,13 @@ export default function ConnectorCapabilities({ workspace }: { workspace: string
         {items.map((item) => (
           <article className="studio-card" key={item.id}>
             <span className="studio-badge">{modes[item.mode] || item.mode}</span>
-            <h3>{item.name}</h3>
-            <p>{item.authorization}</p>
+            <h3>{t(item.name)}</h3>
+            <p>{t(item.authorization)}</p>
             <p className="studio-note">
-              {item.formats.join(' · ')} · {item.quota}
+              {item.formats.map((format) => studioLabel(t, format)).join(' · ')} · {t(item.quota)}
             </p>
             <p className="studio-note">
-              {item.conflicts}；{item.deletion}。{item.degraded}。
+              {[item.conflicts, item.deletion, item.degraded].map((text) => t(text)).join(' · ')}
             </p>
           </article>
         ))}

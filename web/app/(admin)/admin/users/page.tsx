@@ -1,6 +1,7 @@
 "use client";
 
 import Tooltip from "@/shared/ui/Tooltip";
+import { FileInput } from "@/shared/ui/FileInput";
 import { Fragment, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -929,8 +930,8 @@ export default function AdminUsersPage() {
 
             <label className="mb-3 block text-xs text-[var(--muted-foreground)]">
               {t("CSV file")}
-              <input
-                type="file"
+              <FileInput
+                aria-label={t("CSV file")}
                 accept=".csv,text/csv"
                 onChange={(e) => {
                   setImportFile(e.target.files?.[0] ?? null);

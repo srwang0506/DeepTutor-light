@@ -10,32 +10,8 @@ import { StudioShell, ErrorNotice } from './StudioShell'
 import StudyQuizViewer from '@/components/quiz/StudyQuizViewer'
 import type { QuizQuestion } from '@/lib/quiz-types'
 
-const kinds: Record<string, string> = {
-  activity: '原文练习',
-  evidence: '原文证据',
-  observation: '观测记录',
-  claim: '研究主张',
-  run: '实验记录',
-  proposal: '稿件修改',
-  artifact: '研究图表',
-  remote_snapshot: '读取快照',
-}
-const states: Record<string, string> = {
-  committed: '已保存',
-  prepared: '待完成',
-  running: '进行中',
-  failed: '需要重试',
-  draft: '待核实',
-  confirmed: '已核对',
-  disputed: '存在反证',
-  reported: '已记录数值',
-  pending: '待审阅',
-  accepted: '已接受',
-  rejected: '已拒绝',
-  succeeded: '记录为成功',
-  planned: '尚未运行',
-  static_only: '仅静态检查',
-}
+
+
 
 type Data = {
   source_ref?: { id: string; revision: number }
@@ -92,6 +68,33 @@ function ObjectView({
 }) {
   const { t } = useTranslation()
 
+  const kinds: Record<string, string> = {
+  activity: t('原文练习'),
+  evidence: t('原文证据'),
+  observation: t('观测记录'),
+  claim: t('研究主张'),
+  run: t('实验记录'),
+  proposal: t('稿件修改'),
+  artifact: t('研究图表'),
+  remote_snapshot: t('读取快照'),
+}
+  const states: Record<string, string> = {
+  committed: t('已保存'),
+  prepared: t('待完成'),
+  running: t('进行中'),
+  failed: t('需要重试'),
+  draft: t('待核实'),
+  confirmed: t('已核对'),
+  disputed: t('存在反证'),
+  reported: t('已记录数值'),
+  pending: t('待审阅'),
+  accepted: t('已接受'),
+  rejected: t('已拒绝'),
+  succeeded: t('记录为成功'),
+  planned: t('尚未运行'),
+  static_only: t('仅静态检查'),
+}
+
   const [row, setRow] = useState<(StudioRecord<Data> & { latest_revision: number }) | null>(null),
     [error, setError] = useState('')
   useEffect(() => {
@@ -124,8 +127,8 @@ function ObjectView({
               ? 'writing'
               : 'evidence'
       }
-      title={d?.title || d?.label || '来源与记录'}
-      description="保留当时的版本、来源和核对状态。来源更新时，由你决定何时采用新版本。"
+      title={d?.title || d?.label || t('来源与记录')}
+      description={t("保留当时的版本、来源和核对状态。来源更新时，由你决定何时采用新版本。")}
     >
       <ErrorNotice message={error} />
       {!row && !error && (
@@ -137,11 +140,11 @@ function ObjectView({
         <>
           <div className="studio-badges">
             <span className="studio-badge">
-              {kinds[row.kind] || '项目记录'} {t('· 版本')}
+              {kinds[row.kind] || t('项目记录')} {t('· 版本')}
               {row.revision}
             </span>
             <span className="studio-badge">
-              {states[d?.status || d?.state || ''] || '已保存记录'}
+              {states[d?.status || d?.state || ''] || t('已保存记录')}
             </span>
           </div>
           {row.revision !== row.latest_revision && (
@@ -197,11 +200,11 @@ function ObjectView({
               </h2>
               <p className="studio-note">
                 {d.origin === 'reported'
-                  ? '作者报告'
+                  ? t('作者报告')
                   : d.origin === 'executed'
-                    ? '运行记录'
-                    : '待验证数据'}{' '}
-                · {String(d.protocol?.metric || '指标待核对')}
+                    ? t('运行记录')
+                    : t('待验证数据')}{' '}
+                · {String(d.protocol?.metric || t('指标待核对'))}
               </p>
               <div className="studio-form-grid">
                 {Object.entries(d.protocol || {})
@@ -211,7 +214,7 @@ function ObjectView({
                   .map(([key, value]) => (
                     <div key={key}>
                       <span className="studio-eyebrow">{key}</span>
-                      <p>{String(value || '未知')}</p>
+                      <p>{String(value || t('未知'))}</p>
                     </div>
                   ))}
               </div>
@@ -227,14 +230,14 @@ function ObjectView({
                 {
                   (
                     {
-                      supports: '支持',
-                      contradicts: '反对',
-                      qualifies: '限定',
-                      context: '背景',
+                      supports: t('支持'),
+                      contradicts: t('反对'),
+                      qualifies: t('限定'),
+                      context: t('背景'),
                     } as Record<string, string>
                   )[edge.role]
                 }{' '}
-                · {edge.review === 'confirmed' ? '关系已核对' : '关系待核对'}
+                · {edge.review === 'confirmed' ? t('关系已核对') : t('关系待核对')}
               </span>
               <p>{edge.qualifiers}</p>
               <Link

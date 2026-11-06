@@ -1,6 +1,8 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { FileInput } from '@/shared/ui/FileInput'
+import { getLocale } from '@/lib/datetime'
 import { ClipboardCheck, Download, FileCheck2, Play } from 'lucide-react'
 import { post, studio, type StudioRecord } from '@/lib/studio-api'
 import { Action, ErrorNotice, Field, useOperation } from './StudioShell'
@@ -43,7 +45,7 @@ interface Report {
   independent_certification: boolean
 }
 export default function EvaluationPanel({ workspace }: { workspace: string }) {
-  const { t } = useTranslation(),
+  const { t, i18n } = useTranslation(),
     op = useOperation()
   const [suites, setSuites] = useState<Suite[]>([]),
     [selected, setSelected] = useState(''),
@@ -129,9 +131,8 @@ export default function EvaluationPanel({ workspace }: { workspace: string }) {
         </p>
         <div className="studio-form-row">
           <Field label={t('评测任务集 JSON')}>
-            <input
-              type="file"
-              accept="application/json,.json"
+            <FileInput
+                accept="application/json,.json"
               aria-label={t('评测任务集 JSON')}
               disabled={running}
               onChange={(e) => setFile(e.target.files?.[0] || null)}
@@ -221,8 +222,8 @@ export default function EvaluationPanel({ workspace }: { workspace: string }) {
               {t('调用耗时')} {report.metrics.all.elapsed_seconds.toFixed(1)}
               {' s · '}
               {t('服务方报告的 token')}{' '}
-              {report.metrics.all.reported_tokens?.toLocaleString() ?? t('Unknown')} ·{' '}
-              {t('估算 token')} {report.metrics.all.estimated_tokens.toLocaleString()} ·{' '}
+              {report.metrics.all.reported_tokens?.toLocaleString(getLocale(i18n.resolvedLanguage || i18n.language)) ?? t('Unknown')} ·{' '}
+              {t('估算 token')} {report.metrics.all.estimated_tokens.toLocaleString(getLocale(i18n.resolvedLanguage || i18n.language))} ·{' '}
               {t('费用未知')}
             </p>
             <Action secondary onClick={download}>

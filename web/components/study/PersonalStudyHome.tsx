@@ -115,8 +115,8 @@ function StudyHome({ workspace }: { workspace: string }) {
   const [snapshot, setSnapshot] = useState<StudySnapshot | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [error, setError] = useState<'conflict' | 'save' | ''>('')
+  const [notice, setNotice] = useState<'deferred' | 'saved' | ''>('')
   const busy = useRef(false),
     alive = useRef(true),
     version = useRef(0)
@@ -178,26 +178,10 @@ function StudyHome({ workspace }: { workspace: string }) {
       })
       if (!alive.current) return
       setSnapshot((previous) => (previous ? { ...previous, preferences } : previous))
-      setNotice(
-        patch.deferral?.action === 'tomorrow'
-          ? zh
-            ? '明天再安排；原有成绩和复习记录保持不变。'
-            : 'Deferred until tomorrow. Your learning and review records stay unchanged.'
-          : zh
-            ? '安排已保存。'
-            : 'Plan saved.',
-      )
+      setNotice(patch.deferral?.action === 'tomorrow' ? 'deferred' : 'saved')
     } catch (e) {
       if (alive.current)
-        setError(
-          e instanceof StudyRequestError && e.status === 409
-            ? zh
-              ? '另一个页面修改了安排，请重新加载后再调整。'
-              : 'Another tab changed this plan. Reload before editing.'
-            : zh
-              ? '安排没有保存成功。请重试，你的学习记录仍然保留。'
-              : 'Could not save your plan. Your learning records are still saved.',
-        )
+        setError(e instanceof StudyRequestError && e.status === 409 ? 'conflict' : 'save')
     } finally {
       busy.current = false
       if (alive.current) setSaving(false)
@@ -257,11 +241,20 @@ function StudyHome({ workspace }: { workspace: string }) {
         {(error || !!snapshot?.failed.length) && (
           <div className="study-warning" role="alert">
             <span>
-              {error ||
-                text(
-                  '部分记录暂时无法读取，以下仅展示已加载的内容。',
-                  'Some records are unavailable. Only loaded information is shown below.',
-                )}
+              {error
+                ? error === 'conflict'
+                  ? text(
+                      '另一个页面修改了安排，请重新加载后再调整。',
+                      'Another tab changed this plan. Reload before editing.',
+                    )
+                  : text(
+                      '安排没有保存成功。请重试，你的学习记录仍然保留。',
+                      'Could not save your plan. Your learning records are still saved.',
+                    )
+                : text(
+                    '部分记录暂时无法读取，以下仅展示已加载的内容。',
+                    'Some records are unavailable. Only loaded information is shown below.',
+                  )}
             </span>
             <button
               disabled={saving}
@@ -277,7 +270,12 @@ function StudyHome({ workspace }: { workspace: string }) {
         {notice && (
           <p className="study-notice" role="status">
             <Check size={14} />
-            {notice}
+            {notice === 'deferred'
+              ? text(
+                  '明天再安排；原有成绩和复习记录保持不变。',
+                  'Deferred until tomorrow. Your learning and review records stay unchanged.',
+                )
+              : text('安排已保存。', 'Plan saved.')}
           </p>
         )}
         {loading ? (

@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Download, FileSpreadsheet, Loader2, X } from "lucide-react";
+import { FileInput } from "@/shared/ui/FileInput";
 import {
   commitPracticeImport,
   downloadPracticeTemplate,
@@ -115,16 +116,16 @@ export function PracticeImport({
       </div>
       <label className="mt-4 block rounded-xl border border-dashed border-border bg-muted/20 p-5 text-sm">
         <span className="mb-2 block font-medium">{t("Choose a question file")}</span>
-        <input
+        <FileInput
           key={target}
-          type="file"
+          aria-label={t("Choose a question file")}
           accept=".xlsx,.csv,.tsv,.json"
           disabled={busy}
           onChange={event => {
             void select(event.target.files?.[0]);
             event.target.value = "";
           }}
-          className="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-primary/10 file:px-3 file:py-2 file:text-primary"
+          className="w-full text-sm"
         />
         <span className="mt-2 block text-xs text-muted-foreground">
           {t(
