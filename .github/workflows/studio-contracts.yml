@@ -27,11 +27,12 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
-      DEEPTUTOR_HOME: ${{ runner.temp }}/studio-contract-runtime
       DEEPTUTOR_STUDY_RUNTIME: '1'
       MPLBACKEND: Agg
     steps:
       - uses: actions/checkout@v4
+      - name: Use an isolated runtime
+        run: echo "DEEPTUTOR_HOME=$RUNNER_TEMP/studio-contract-runtime" >> "$GITHUB_ENV"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
