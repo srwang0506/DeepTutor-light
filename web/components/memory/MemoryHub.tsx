@@ -1,6 +1,6 @@
 "use client";
 
-import { PageHeader, pageActionClass, pageGridClass } from '@/components/layout/FeaturePage'
+import { PageHeader, pageActionClass, pageGridClass } from "@/components/layout/FeaturePage";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import {
@@ -37,15 +37,7 @@ interface SnapshotResponse {
   entities: unknown[];
 }
 
-const SURFACES = [
-  "chat",
-  "notebook",
-  "quiz",
-  "kb",
-  "book",
-  "partner",
-  "cowriter",
-] as const;
+const SURFACES = ["chat", "notebook", "quiz", "kb", "book", "partner", "cowriter"] as const;
 
 const L3_VISIBLE = ["recent", "profile", "scope"] as const;
 
@@ -55,8 +47,7 @@ export default function MemoryHub() {
   const [l1Total, setL1Total] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async () => {
     try {
       const [ovRes, ...l1Counts] = await Promise.all([
         apiFetch(apiUrl("/api/memory/overview")).then((r) => r.json()),
@@ -73,15 +64,22 @@ export default function MemoryHub() {
       setLoading(false);
     }
   }, []);
+  const [loadInputs, setLoadInputs] = useState<typeof loadData | null>(null);
+  if (loadInputs !== loadData) {
+    setLoadInputs(() => loadData);
+    setLoading(true);
+  }
+  const load = useCallback(() => {
+    setLoading(true);
+    return loadData();
+  }, [loadData]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadData();
+  }, [loadData]);
 
   const l2Docs = (overview?.docs || []).filter((d) => d.layer === "L2");
-  const l3Docs = (overview?.docs || []).filter(
-    (d) => d.layer === "L3" && d.key !== "preferences",
-  );
+  const l3Docs = (overview?.docs || []).filter((d) => d.layer === "L3" && d.key !== "preferences");
   const l2Total = l2Docs.reduce((acc, d) => acc + d.entry_count, 0);
   const l3Total = l3Docs.reduce((acc, d) => acc + d.entry_count, 0);
   const latestBackup = overview?.backups?.[overview.backups.length - 1] ?? null;
@@ -91,26 +89,28 @@ export default function MemoryHub() {
       <PageHeader
         icon={Brain}
         title={i18n.language.startsWith("zh") ? "本项目记忆" : "Project memory"}
-        description={i18n.language.startsWith("zh") ? "这里的记忆只属于当前项目。可检查、编辑或删除；外部来源在项目主页中管理。" : "Memory belongs to the current project. Inspect, edit or delete it here; manage external sources from the project home."}
+        description={
+          i18n.language.startsWith("zh")
+            ? "这里的记忆只属于当前项目。可检查、编辑或删除；外部来源在项目主页中管理。"
+            : "Memory belongs to the current project. Inspect, edit or delete it here; manage external sources from the project home."
+        }
         action={
-        <div className="flex items-center gap-3 text-[12px] text-[var(--muted-foreground)]">
-          <button
-            type="button"
-            onClick={() => void load()}
-            className={pageActionClass('secondary')}
-          >
-            <RefreshCw
-              className={loading ? "h-3 w-3 animate-spin" : "h-3 w-3"}
-            />
-            {t("Refresh")}
-          </button>
-          <Link
-            href="/settings#memory"
-            className="inline-flex items-center gap-1.5 rounded-md border border-transparent px-2.5 py-1 transition hover:bg-[var(--muted)]"
-          >
-            {t("Memory settings")}
-          </Link>
-        </div>
+          <div className="flex items-center gap-3 text-[12px] text-[var(--muted-foreground)]">
+            <button
+              type="button"
+              onClick={() => void load()}
+              className={pageActionClass("secondary")}
+            >
+              <RefreshCw className={loading ? "h-3 w-3 animate-spin" : "h-3 w-3"} />
+              {t("Refresh")}
+            </button>
+            <Link
+              href="/settings#memory"
+              className="inline-flex items-center gap-1.5 rounded-md border border-transparent px-2.5 py-1 transition hover:bg-[var(--muted)]"
+            >
+              {t("Memory settings")}
+            </Link>
+          </div>
         }
       />
 
@@ -211,15 +211,7 @@ interface LayerCardProps {
   detail: string;
 }
 
-function LayerCard({
-  href,
-  icon: Icon,
-  title,
-  tag,
-  stat,
-  statLabel,
-  detail,
-}: LayerCardProps) {
+function LayerCard({ href, icon: Icon, title, tag, stat, statLabel, detail }: LayerCardProps) {
   return (
     <Link
       href={href}
@@ -234,21 +226,15 @@ function LayerCard({
         </span>
       </div>
       <div className="space-y-1">
-        <h2 className="text-[15px] font-semibold text-[var(--foreground)]">
-          {title}
-        </h2>
+        <h2 className="text-[15px] font-semibold text-[var(--foreground)]">{title}</h2>
       </div>
       <div className="flex items-baseline gap-2">
         <span className="text-[28px] font-semibold tracking-tight text-[var(--foreground)]">
           {stat}
         </span>
-        <span className="text-[12px] text-[var(--muted-foreground)]">
-          {statLabel}
-        </span>
+        <span className="text-[12px] text-[var(--muted-foreground)]">{statLabel}</span>
       </div>
-      <p className="text-[13px] leading-relaxed text-[var(--muted-foreground)]">
-        {detail}
-      </p>
+      <p className="text-[13px] leading-relaxed text-[var(--muted-foreground)]">{detail}</p>
       <div className="mt-auto inline-flex items-center gap-1 text-[12px] font-medium text-[var(--primary)] opacity-0 transition group-hover:opacity-100">
         <span>{tag}</span>
         <ArrowRight className="h-3.5 w-3.5" />

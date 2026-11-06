@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-  Suspense,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useState, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -84,11 +77,7 @@ export default function AppShell({ sidebar, pageBar, children, homeHref = "/" }:
           a vh-sized shell pushes the composer under it. */}
       <div className="flex h-dvh overflow-hidden">
         {drawerOpen ? (
-          <div
-            onClick={close}
-            aria-hidden
-            className="fixed inset-0 z-40 bg-black/40 md:hidden"
-          />
+          <div onClick={close} aria-hidden className="fixed inset-0 z-40 bg-black/40 md:hidden" />
         ) : null}
 
         {/* `inert` (not just translate-x) while closed: a drawer parked
@@ -118,14 +107,14 @@ export default function AppShell({ sidebar, pageBar, children, homeHref = "/" }:
             <Link href={homeHref} className="flex items-center gap-1.5">
               <Image
                 src="/brand/color-logo.png"
-                alt="DeepTutor"
+                alt={t("DeepTutor")}
                 width={20}
                 height={20}
                 className="h-5 w-5"
               />
               <Image
                 src="/brand/color-word.png"
-                alt="DeepTutor"
+                alt={t("DeepTutor")}
                 width={1200}
                 height={310}
                 className="h-[18px] w-auto"
@@ -138,7 +127,9 @@ export default function AppShell({ sidebar, pageBar, children, homeHref = "/" }:
           <PageChromeProvider>
             {pageBar}
             <div className="min-h-0 flex-1 overflow-hidden">
-              <Suspense fallback={<div aria-busy="true" className="h-full bg-[var(--background)]" />}>
+              <Suspense
+                fallback={<div aria-busy="true" className="h-full bg-[var(--background)]" />}
+              >
                 {children}
               </Suspense>
             </div>

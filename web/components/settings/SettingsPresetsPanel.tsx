@@ -4,10 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2, RefreshCcw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import {
-  fetchSettingsPresets,
-  type SettingsPreset,
-} from "@/lib/settings-presets";
+import { fetchSettingsPresets, type SettingsPreset } from "@/lib/settings-presets";
 import { useSettings } from "@/features/settings/store/SettingsStore";
 
 export default function SettingsPresetsPanel({ enabled }: { enabled: boolean }) {
@@ -18,23 +15,34 @@ export default function SettingsPresetsPanel({ enabled }: { enabled: boolean }) 
   const [error, setError] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  const refresh = useCallback(async () => {
+  const refreshData = useCallback(async () => {
+    return fetchSettingsPresets()
+      .then(async (payload) => {
+        setPresets(payload.presets);
+      })
+      .catch(() => {
+        setError(true);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+  const [refreshInputs, setRefreshInputs] = useState<typeof refreshData | null>(null);
+  if (refreshInputs !== refreshData) {
+    setRefreshInputs(() => refreshData);
     setLoading(true);
     setError(false);
-    try {
-      const payload = await fetchSettingsPresets();
-      setPresets(payload.presets);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  }
+  const refresh = useCallback(() => {
+    setLoading(true);
+    setError(false);
+    return refreshData();
+  }, [refreshData]);
 
   useEffect(() => {
     if (!enabled) return;
-    void refresh();
-  }, [enabled, refresh]);
+    void refreshData();
+  }, [enabled, refreshData]);
 
   const load = async (preset: SettingsPreset) => {
     if (saving) return;
@@ -120,12 +128,8 @@ export default function SettingsPresetsPanel({ enabled }: { enabled: boolean }) 
 
               <dl className="mt-3 space-y-1.5 text-[11.5px]">
                 <div className="flex flex-wrap items-baseline gap-x-2">
-                  <dt className="text-[var(--muted-foreground)]">
-                    {t("settings.presets.parser")}
-                  </dt>
-                  <dd className="min-w-0 font-mono text-[var(--foreground)]">
-                    {preset.parser}
-                  </dd>
+                  <dt className="text-[var(--muted-foreground)]">{t("settings.presets.parser")}</dt>
+                  <dd className="min-w-0 font-mono text-[var(--foreground)]">{preset.parser}</dd>
                 </div>
                 <div className="flex flex-wrap items-baseline gap-x-2">
                   <dt className="text-[var(--muted-foreground)]">
@@ -133,9 +137,7 @@ export default function SettingsPresetsPanel({ enabled }: { enabled: boolean }) 
                   </dt>
                   <dd className="min-w-0 text-[var(--foreground)]">
                     {preset.prerequisites
-                      .map((item) =>
-                        t(`settings.presets.prerequisite.${item}`),
-                      )
+                      .map((item) => t(`settings.presets.prerequisite.${item}`))
                       .join(" · ")}
                   </dd>
                 </div>
@@ -167,9 +169,7 @@ export default function SettingsPresetsPanel({ enabled }: { enabled: boolean }) 
                 disabled={saving || !enabled}
                 className="mt-4 inline-flex w-fit items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-[12px] font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--muted)] disabled:opacity-50"
               >
-                {activeId === preset.id && (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                )}
+                {activeId === preset.id && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {t("settings.presets.loadDraft")}
               </button>
             </article>

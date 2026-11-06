@@ -1,26 +1,17 @@
 "use client";
 
-import { pageGridClass } from '@/components/layout/FeaturePage'
+import { pageGridClass } from "@/components/layout/FeaturePage";
 import { navigateTask } from "@/lib/workspace-scope";
 import { sessionWorkspaceId } from "@/lib/session-api";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  History,
-  Loader2,
-  RefreshCw,
-  Search,
-  type LucideIcon,
-} from "lucide-react";
+import { History, Loader2, RefreshCw, Search, type LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import OrganizedSessionList from "@/components/sessions/OrganizedSessionList";
 import ArchivedConversations from "@/components/space/ArchivedConversations";
 import SpaceSectionHeader from "@/components/space/SpaceSectionHeader";
 import { useAppShell } from "@/context/AppShellContext";
-import {
-  fetchMasteryTopicIndex,
-  type MasteryTopicLabel,
-} from "@/lib/learning-api";
+import { fetchMasteryTopicIndex, type MasteryTopicLabel } from "@/lib/learning-api";
 import { sessionRoute } from "@/lib/mastery-session";
 import {
   fetchReadingCollectionIndex,
@@ -64,9 +55,7 @@ export default function ChatHistorySection({
   const { activeSessionId, setActiveSessionId } = useAppShell();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [masteryTopics, setMasteryTopics] = useState<MasteryTopicLabel[]>([]);
-  const [readingCollections, setReadingCollections] = useState<
-    ReadingCollectionLabel[]
-  >([]);
+  const [readingCollections, setReadingCollections] = useState<ReadingCollectionLabel[]>([]);
   const [loading, setLoading] = useState(true);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -81,51 +70,58 @@ export default function ChatHistorySection({
   // ``quiet`` refetches without swapping the panel for its skeleton: a restore
   // acts on one row and says so on that row, so blanking the whole archive
   // underneath it would be the only thing the eye followed.
-  const load = useCallback(async (force = false, quiet = false) => {
-    if (!quiet) setLoading(true);
-    try {
-      // Topic and collection labels only name which surface an archived
-      // conversation came from, so losing them costs that line, never the
-      // conversation.
-      const [nextSessions, nextTopics, nextCollections] = await Promise.all([
-        listAllSessions({ force }),
-        fetchMasteryTopicIndex().catch(() => [] as MasteryTopicLabel[]),
-        fetchReadingCollectionIndex().catch(
-          () => [] as ReadingCollectionLabel[],
-        ),
-      ]);
-      setSessions(nextSessions);
-      setMasteryTopics(nextTopics);
-      setReadingCollections(nextCollections);
-    } finally {
-      if (!quiet) setLoading(false);
-    }
+  const loadData = useCallback(async (force = false, quiet = false) => {
+    return Promise.all([
+      listAllSessions({ force }),
+      fetchMasteryTopicIndex().catch(() => [] as MasteryTopicLabel[]),
+      fetchReadingCollectionIndex().catch(() => [] as ReadingCollectionLabel[]),
+    ])
+      .then(async ([nextSessions, nextTopics, nextCollections]) => {
+        setSessions(nextSessions);
+        setMasteryTopics(nextTopics);
+        setReadingCollections(nextCollections);
+      })
+      .finally(() => {
+        if (!quiet) setLoading(false);
+      });
   }, []);
+
+  const load = useCallback(
+    (force = false, quiet = false) => {
+      if (!quiet) setLoading(true);
+      return loadData(force, quiet);
+    },
+    [loadData],
+  );
 
   const reload = useCallback(
     async (force = false, quiet = false) => {
-      await load(force, quiet);
-      setSearchVersion((version) => version + 1);
+      return load(force, quiet).then(async () => {
+        setSearchVersion((version) => version + 1);
+      });
     },
     [load],
   );
 
   useEffect(() => {
-    void load(true);
-  }, [load]);
+    void loadData(true);
+  }, [loadData]);
 
+  const resourceReset0 = JSON.stringify([query, searchVersion]);
+  const [resourceReset0Previous, resourceReset0Remember] = useState<string | null>(null);
+  if (resourceReset0Previous !== resourceReset0) {
+    resourceReset0Remember(resourceReset0);
+    setSearchError(false);
+    setSearchResults([]);
+    setSearchLoading(!!query.trim());
+  }
   useEffect(() => {
     const generation = ++searchGenerationRef.current;
     const term = query.trim();
-    setSearchError(false);
     if (!term) {
-      setSearchResults([]);
-      setSearchLoading(false);
       return;
     }
 
-    setSearchResults([]);
-    setSearchLoading(true);
     let controller: AbortController | null = null;
     const timer = window.setTimeout(() => {
       controller = new AbortController();
@@ -135,15 +131,13 @@ export default function ChatHistorySection({
           setSearchResults(results);
         })
         .catch((error: unknown) => {
-          if (error instanceof DOMException && error.name === "AbortError")
-            return;
+          if (error instanceof DOMException && error.name === "AbortError") return;
           if (generation !== searchGenerationRef.current) return;
           setSearchResults([]);
           setSearchError(true);
         })
         .finally(() => {
-          if (generation === searchGenerationRef.current)
-            setSearchLoading(false);
+          if (generation === searchGenerationRef.current) setSearchLoading(false);
         });
     }, 300);
 
@@ -159,12 +153,8 @@ export default function ChatHistorySection({
       const prefs = session.preferences ?? {};
       if (archiveFilter === "active" && prefs.archived) return false;
       if (archiveFilter === "archived" && !prefs.archived) return false;
-      if (kindFilter === "chat" && prefs.session_kind === "selection_tutor")
-        return false;
-      if (
-        kindFilter === "selection_tutor" &&
-        prefs.session_kind !== "selection_tutor"
-      )
+      if (kindFilter === "chat" && prefs.session_kind === "selection_tutor") return false;
+      if (kindFilter === "selection_tutor" && prefs.session_kind !== "selection_tutor")
         return false;
       return true;
     });
@@ -173,9 +163,7 @@ export default function ChatHistorySection({
   const handleSelect = useCallback(
     (sessionId: string) => {
       setActiveSessionId(sessionId);
-      const session = filteredSessions.find(
-        (item) => item.session_id === sessionId,
-      );
+      const session = filteredSessions.find((item) => item.session_id === sessionId);
       navigateTask(session ? sessionRoute(session) : `${basePath}/${sessionId}`, router.push);
     },
     [basePath, filteredSessions, router, setActiveSessionId],
@@ -186,9 +174,7 @@ export default function ChatHistorySection({
       await updateSessionTitle(
         sessionId,
         title,
-        sessionWorkspaceId(
-          filteredSessions.find((item) => item.session_id === sessionId),
-        ),
+        sessionWorkspaceId(filteredSessions.find((item) => item.session_id === sessionId)),
       );
       await reload(true);
     },
@@ -197,20 +183,19 @@ export default function ChatHistorySection({
 
   const handleDelete = useCallback(
     async (sessionId: string) => {
-      if (!window.confirm(t("Permanently delete this chat and its tutor threads? This cannot be undone."))) return;
+      if (
+        !window.confirm(
+          t("Permanently delete this chat and its tutor threads? This cannot be undone."),
+        )
+      )
+        return;
       await deleteSession(
         sessionId,
-        sessionWorkspaceId(
-          filteredSessions.find((item) => item.session_id === sessionId),
-        ),
+        sessionWorkspaceId(filteredSessions.find((item) => item.session_id === sessionId)),
       );
       if (activeSessionId === sessionId) setActiveSessionId(null);
-      setSessions((prev) =>
-        prev.filter((session) => session.session_id !== sessionId),
-      );
-      setSearchResults((prev) =>
-        prev.filter((session) => session.session_id !== sessionId),
-      );
+      setSessions((prev) => prev.filter((session) => session.session_id !== sessionId));
+      setSearchResults((prev) => prev.filter((session) => session.session_id !== sessionId));
       setSearchVersion((version) => version + 1);
     },
     [activeSessionId, filteredSessions, setActiveSessionId, t],
@@ -235,9 +220,7 @@ export default function ChatHistorySection({
         await updateSessionOrganization(
           sessionId,
           { archived: false },
-          sessionWorkspaceId(
-            filteredSessions.find((item) => item.session_id === sessionId),
-          ),
+          sessionWorkspaceId(filteredSessions.find((item) => item.session_id === sessionId)),
         );
         // Restoring cascades to the tutor threads under the conversation, so
         // the server's own list is what says which rows are left.
@@ -255,9 +238,7 @@ export default function ChatHistorySection({
       await updateSessionOrganization(
         sessionId,
         patch,
-        sessionWorkspaceId(
-          filteredSessions.find((item) => item.session_id === sessionId),
-        ),
+        sessionWorkspaceId(filteredSessions.find((item) => item.session_id === sessionId)),
       );
       await reload(true);
       // Archiving or restoring here changes what the sidebar beside this page
@@ -271,9 +252,7 @@ export default function ChatHistorySection({
   const headerTitle = title ?? t("Chat History");
   const headerDescription =
     description ??
-    t(
-      "Browse, rename, delete, and reopen previous conversations from your learning space.",
-    );
+    t("Browse, rename, delete, and reopen previous conversations from your learning space.");
 
   return (
     <div className="space-y-6">
@@ -348,14 +327,14 @@ export default function ChatHistorySection({
           {loading || searchLoading ? (
             <div className="space-y-2 p-2">
               {[0, 1, 2, 3].map((item) => (
-                <div
-                  key={item}
-                  className="h-8 animate-pulse rounded bg-[var(--muted)]/45"
-                />
+                <div key={item} className="h-8 animate-pulse rounded bg-[var(--muted)]/45" />
               ))}
             </div>
           ) : searchError ? (
-            <div role="alert" className="flex items-center justify-between gap-3 px-2 py-4 text-[12.5px] text-[var(--muted-foreground)]">
+            <div
+              role="alert"
+              className="flex items-center justify-between gap-3 px-2 py-4 text-[12.5px] text-[var(--muted-foreground)]"
+            >
               <p>{t("Could not search chat history. Try again.")}</p>
               <button
                 type="button"

@@ -3,15 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import {
-  ArrowLeft,
-  Download,
-  Loader2,
-  PanelRight,
-  Pencil,
-  Trash2,
-  X,
-} from "lucide-react";
+import { ArrowLeft, Download, Loader2, PanelRight, Pencil, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import PartnerAvatar from "@/components/partners/PartnerAvatar";
@@ -65,39 +57,56 @@ export default function PartnerGroupPage() {
     downloadChatMarkdown(exportMessages, { title: exportTitle });
   }, [exportMessages, exportTitle]);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await getPartnerGroup(groupId);
-      setGroup(data);
-      // Which thread is open is per-browser state, so it can only be resolved
-      // here on the client — opening the group also decides its discussion.
-      setSessionKey(partnerGroupSessionKey(groupId));
-    } catch {
-      setGroup(null);
-    } finally {
-      setLoading(false);
-    }
+  const loadData = useCallback(async () => {
+    return getPartnerGroup(groupId)
+      .then(async (data) => {
+        setGroup(data);
+        setSessionKey(partnerGroupSessionKey(groupId));
+      })
+      .catch(() => {
+        setGroup(null);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [groupId]);
+  const [loadInputs, setLoadInputs] = useState<typeof loadData | null>(null);
+  if (loadInputs !== loadData) {
+    setLoadInputs(() => loadData);
+    setLoading(true);
+  }
+  const load = useCallback(() => {
+    setLoading(true);
+    return loadData();
+  }, [loadData]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadData();
+  }, [loadData]);
 
   useEffect(() => {
     if (loading || !group || !requestedSession) return;
     let alive = true;
-    void listPartnerGroupSessions(groupId).then(rows => {
-      if (!alive) return;
-      const selected = rows.find(row => row.session_key === requestedSession);
-      if (!selected) { setSelectionError(t("navigation.sessionUnavailable")); return; }
-      setSelectionError("");
-      setGroupMessages([]);
-      setPartnerGroupSessionKey(groupId, selected.session_key);
-      setSessionKey(selected.session_key);
-      setSessionTitle(selected.title);
-    }).catch(() => { if (alive) setSelectionError(t("navigation.loadError")); });
-    return () => { alive = false; };
+    void listPartnerGroupSessions(groupId)
+      .then((rows) => {
+        if (!alive) return;
+        const selected = rows.find((row) => row.session_key === requestedSession);
+        if (!selected) {
+          setSelectionError(t("navigation.sessionUnavailable"));
+          return;
+        }
+        setSelectionError("");
+        setGroupMessages([]);
+        setPartnerGroupSessionKey(groupId, selected.session_key);
+        setSessionKey(selected.session_key);
+        setSessionTitle(selected.title);
+      })
+      .catch(() => {
+        if (alive) setSelectionError(t("navigation.loadError"));
+      });
+    return () => {
+      alive = false;
+    };
   }, [groupId, group, loading, requestedSession, t]);
 
   if (loading) {
@@ -111,9 +120,7 @@ export default function PartnerGroupPage() {
   if (!group) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3">
-        <p className="text-[13px] text-[var(--muted-foreground)]">
-          {t("Partner Group not found")}
-        </p>
+        <p className="text-[13px] text-[var(--muted-foreground)]">{t("Partner Group not found")}</p>
         <Link href="/partners" className="text-[12px] text-[var(--primary)]">
           {t("Back to Partners")}
         </Link>
@@ -123,7 +130,11 @@ export default function PartnerGroupPage() {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {selectionError && <div role="alert" className="border-b border-border px-6 py-2 text-xs text-destructive">{selectionError}</div>}
+      {selectionError && (
+        <div role="alert" className="border-b border-border px-6 py-2 text-xs text-destructive">
+          {selectionError}
+        </div>
+      )}
       <header className="flex shrink-0 items-center justify-between gap-4 border-b border-[var(--border)] px-4 py-3 sm:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <Link
@@ -144,9 +155,7 @@ export default function PartnerGroupPage() {
               {group.name}
             </h1>
             <div className="mt-0.5 flex items-center gap-2 text-[10.5px] text-[var(--muted-foreground)]">
-              <span>
-                {t("{{count}} members", { count: group.member_ids.length })}
-              </span>
+              <span>{t("{{count}} members", { count: group.member_ids.length })}</span>
               <span>·</span>
               <span>{modeLabel(group.discussion_mode)}</span>
               <div className="flex -space-x-1.5">
@@ -175,12 +184,17 @@ export default function PartnerGroupPage() {
                 setGroupMessages([]);
                 setPartnerGroupSessionKey(groupId, key);
                 setSessionKey(key);
-                router.replace(`/partners/groups/${encodeURIComponent(groupId)}?${new URLSearchParams({ session: key })}`, { scroll: false });
+                router.replace(
+                  `/partners/groups/${encodeURIComponent(groupId)}?${new URLSearchParams({ session: key })}`,
+                  { scroll: false },
+                );
               }}
               onCreate={() => {
                 setGroupMessages([]);
                 setSessionKey(createPartnerGroupSessionKey(groupId));
-                router.replace(`/partners/groups/${encodeURIComponent(groupId)}`, { scroll: false });
+                router.replace(`/partners/groups/${encodeURIComponent(groupId)}`, {
+                  scroll: false,
+                });
               }}
               onTitleChange={setSessionTitle}
             />
@@ -257,9 +271,7 @@ function ManageGroupDialog({
   const [partners, setPartners] = useState<PartnerInfo[]>([]);
   const [name, setName] = useState(group.name);
   const [description, setDescription] = useState(group.description);
-  const [members, setMembers] = useState<Set<string>>(
-    new Set(group.member_ids),
-  );
+  const [members, setMembers] = useState<Set<string>>(new Set(group.member_ids));
   const [mode, setMode] = useState(group.discussion_mode);
   const [saving, setSaving] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -350,11 +362,7 @@ function ManageGroupDialog({
         />
 
         <div className="mt-5">
-          <DiscussionModePicker
-            value={mode}
-            onChange={setMode}
-            title={t("How they discuss")}
-          />
+          <DiscussionModePicker value={mode} onChange={setMode} title={t("How they discuss")} />
         </div>
 
         <div className="mt-5 flex items-baseline justify-between">
@@ -394,9 +402,7 @@ function ManageGroupDialog({
           })}
         </div>
 
-        {error ? (
-          <p className="mt-3 text-[11px] text-red-500">{error}</p>
-        ) : null}
+        {error ? <p className="mt-3 text-[11px] text-red-500">{error}</p> : null}
 
         <div className="mt-6 flex items-center justify-between gap-3">
           {confirmingDelete ? (

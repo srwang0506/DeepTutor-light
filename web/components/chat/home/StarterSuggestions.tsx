@@ -1,5 +1,6 @@
 "use client";
 
+import { useKeyedState } from "@/hooks/useKeyedState";
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { m, useReducedMotion } from "framer-motion";
@@ -101,8 +102,10 @@ export default function StarterSuggestions({
   workspaceId?: string;
 }) {
   const { t } = useTranslation();
-  const { value: { chat } } = usePageCustomization();
-  const [view, setView] = useState<View>({ kind: "loading" });
+  const {
+    value: { chat },
+  } = usePageCustomization();
+  const [view, setView] = useKeyedState<View>(workspaceId, { kind: "loading" });
   const [open, setOpen] = useState<string | null>(null);
   const panelId = useId();
   const reduced = useReducedMotion();
@@ -114,16 +117,19 @@ export default function StarterSuggestions({
 
   const load = useCallback(
     async (signal?: AbortSignal): Promise<SuggestionPayload | null> => {
-      try {
-        const response = await apiFetch(apiUrl(scopedUrl("/api/dashboard/suggestions", workspaceId)), {
-          signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)]) : AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-          cache: "no-store",
+      return apiFetch(apiUrl(scopedUrl("/api/dashboard/suggestions", workspaceId)), {
+        signal: signal
+          ? AbortSignal.any([signal, AbortSignal.timeout(REQUEST_TIMEOUT_MS)])
+          : AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        cache: "no-store",
+      })
+        .then(async (response) => {
+          if (!response.ok) return null;
+          return (await response.json()) as SuggestionPayload;
+        })
+        .catch(() => {
+          return null;
         });
-        if (!response.ok) return null;
-        return (await response.json()) as SuggestionPayload;
-      } catch {
-        return null;
-      }
     },
     [workspaceId],
   );
@@ -131,12 +137,15 @@ export default function StarterSuggestions({
   useEffect(() => {
     const generation = ++generationRef.current;
     const controller = new AbortController();
-    setView({ kind: "loading" });
     const deadline = setTimeout(() => {
       if (generation !== generationRef.current) return;
       controller.abort();
       if (timerRef.current) clearTimeout(timerRef.current);
-      setView(current => current.kind === "ready" || current.kind === "idle" ? current : { kind: "idle", note: "error" });
+      setView((current) =>
+        current.kind === "ready" || current.kind === "idle"
+          ? current
+          : { kind: "idle", note: "error" },
+      );
     }, REFRESH_TIMEOUT_MS);
     void (async () => {
       const payload = await load(controller.signal);
@@ -148,7 +157,10 @@ export default function StarterSuggestions({
       // Nothing yet. If the backend says a set is on its way, wait for it and
       // show that something is happening; otherwise hand over the control.
       if (!payload?.stale || payload.status === "error" || payload.status === "no-material") {
-        setView({ kind: "idle", note: payload?.status === "no-material" ? "no-material" : "error" });
+        setView({
+          kind: "idle",
+          note: payload?.status === "no-material" ? "no-material" : "error",
+        });
         return;
       }
       setView({ kind: "working" });
@@ -160,7 +172,12 @@ export default function StarterSuggestions({
             setView(ready(next.suggestions));
             return;
           }
-          if (next?.stale && next.status !== "error" && next.status !== "no-material" && ++attempt < RESETTLE_ATTEMPTS) {
+          if (
+            next?.stale &&
+            next.status !== "error" &&
+            next.status !== "no-material" &&
+            ++attempt < RESETTLE_ATTEMPTS
+          ) {
             timerRef.current = setTimeout(collect, RESETTLE_MS);
             return;
           }
@@ -176,7 +193,7 @@ export default function StarterSuggestions({
       refreshRef.current?.abort();
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [load]);
+  }, [load, setView]);
 
   const generate = useCallback(async () => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -188,19 +205,28 @@ export default function StarterSuggestions({
     try {
       const response = await apiFetch(
         apiUrl(scopedUrl("/api/dashboard/suggestions/refresh", workspaceId)),
-        { method: "POST", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(REFRESH_TIMEOUT_MS)]) },
+        {
+          method: "POST",
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(REFRESH_TIMEOUT_MS)]),
+        },
       );
-      if (!response.ok) throw new Error('Suggestion refresh failed');
+      if (!response.ok) throw new Error("Suggestion refresh failed");
       const payload = (await response.json()) as SuggestionPayload;
       if (controller.signal.aborted || generation !== generationRef.current) return;
-      setView(payload.suggestions.length
-        ? ready(payload.suggestions)
-        : { kind: "idle", note: payload.status === "no-material" ? "no-material" : "error", asked: true });
+      setView(
+        payload.suggestions.length
+          ? ready(payload.suggestions)
+          : {
+              kind: "idle",
+              note: payload.status === "no-material" ? "no-material" : "error",
+              asked: true,
+            },
+      );
     } catch {
       if (!controller.signal.aborted && generation === generationRef.current)
         setView({ kind: "idle", note: "error", asked: true });
     }
-  }, [workspaceId]);
+  }, [setView, workspaceId]);
 
   const suggestion = view.kind === "ready" ? view.item : null;
   let advice: ReactNode = null;
@@ -269,7 +295,7 @@ export default function StarterSuggestions({
       </>
     );
   }
-  const guides = GUIDES.filter(entry => starterPrompts(chat, entry.id, t).length > 0);
+  const guides = GUIDES.filter((entry) => starterPrompts(chat, entry.id, t).length > 0);
   const guide = guides.find((entry) => entry.id === open);
 
   return (
@@ -310,14 +336,26 @@ export default function StarterSuggestions({
           ))}
         </div>
         {guide && (
-          <div id={panelId} role="group" aria-label={t(`starters.${guide.id}`)} className="dt-starter-card">
+          <div
+            id={panelId}
+            role="group"
+            aria-label={t(`starters.${guide.id}`)}
+            className="dt-starter-card"
+          >
             {/* Keyed so switching ways swaps the rows in place: the card stays,
                 only its content changes. */}
             <div key={guide.id} className="dt-starter-card-body">
               {starterPrompts(chat, guide.id, t).map(({ label, prompt }, n) => {
                 return (
                   // The whole request shows on hover: what the box will hold.
-                  <Tooltip key={n} label={prompt} side="top" as="div" className="dt-starter-item" delay={500}>
+                  <Tooltip
+                    key={n}
+                    label={prompt}
+                    side="top"
+                    as="div"
+                    className="dt-starter-item"
+                    delay={500}
+                  >
                     <button
                       type="button"
                       disabled={disabled}
@@ -328,7 +366,12 @@ export default function StarterSuggestions({
                       className="dt-starter-row"
                     >
                       <span className="min-w-0 flex-1 truncate">{label}</span>
-                      <CornerDownLeft size={14} strokeWidth={1.8} aria-hidden className="dt-starter-enter" />
+                      <CornerDownLeft
+                        size={14}
+                        strokeWidth={1.8}
+                        aria-hidden
+                        className="dt-starter-enter"
+                      />
                     </button>
                   </Tooltip>
                 );

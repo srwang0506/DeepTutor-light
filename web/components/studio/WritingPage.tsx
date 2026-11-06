@@ -1,4 +1,7 @@
 'use client'
+import { useKeyedState } from '@/hooks/useKeyedState'
+import { useLayoutEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -21,12 +24,13 @@ import {
   type ProposalData,
   type SubmissionData,
 } from '@/lib/studio-api'
+import StudioLoading from './StudioLoading'
 import type { TextSelection } from './TexEditor'
 import { PdfDocumentView } from '@/components/reading/PdfDocumentView'
 import { Action, ErrorNotice, Field, StudioEmpty, StudioShell, useOperation } from './StudioShell'
 const TexEditor = dynamic(() => import('./TexEditor'), {
   ssr: false,
-  loading: () => <p className="studio-note">正在打开编辑器…</p>,
+  loading: () => <StudioLoading label="正在打开编辑器…" />,
 })
 interface SourceFile {
   path: string
@@ -64,11 +68,15 @@ export default function WritingPage() {
   return <WritingWorkspace key={workspace} workspace={workspace} />
 }
 function WritingWorkspace({ workspace }: { workspace: string }) {
+  const { t } = useTranslation()
+
   const router = useRouter(),
     search = useSearchParams()
   const openedDeepLink = useRef(false)
-  const draftKey = (document: string, path: string) =>
-    `studio-draft:${workspace}:${document}:${path}`
+  const draftKey = useCallback(
+    (document: string, path: string) => `studio-draft:${workspace}:${document}:${path}`,
+    [workspace],
+  )
   const op = useOperation(),
     [documents, setDocuments] = useState<StudioRecord<ManuscriptData>[]>([]),
     [active, setActive] = useState<StudioRecord<ManuscriptData> | null>(null),
@@ -81,11 +89,9 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     [builds, setBuilds] = useState<StudioRecord<BuildData>[]>([]),
     [proposals, setProposals] = useState<StudioRecord<ProposalData>[]>([]),
     [submissions, setSubmissions] = useState<StudioRecord<SubmissionData>[]>([]),
-    [preview, setPreview] = useState(''),
     [pdfJump, setPdfJump] = useState<{ locator: number; nonce: number; y?: number } | null>(null),
     [jump, setJump] = useState<{ line: number; nonce: number } | undefined>(),
     [audit, setAudit] = useState<Audit | null>(null),
-    [log, setLog] = useState(''),
     [recoveries, setRecoveries] = useState<Recovery[]>([]),
     [recovering, setRecovering] = useState<Recovery | null>(null),
     [selection, setSelection] = useState<TextSelection>({ start: 0, end: 0, text: '' })
@@ -113,43 +119,56 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     [newFile, setNewFile] = useState(false),
     [newPath, setNewPath] = useState(''),
     [conflict, setConflict] = useState<OpenFile | null>(null)
+  const [conflictView, setConflictView] = useState<{ base: OpenFile; disk: OpenFile } | null>(null)
   const conflictState = useRef<{ base: OpenFile; disk: OpenFile } | null>(null)
   const current = useRef({ active, file, text, savedText })
-  current.current = { active, file, text, savedText }
+  useLayoutEffect(() => {
+    current.current = { active, file, text, savedText }
+  }, [active, file, text, savedText])
   const saving = useRef<Promise<void> | null>(null),
     mounted = useRef(true),
     previewUrl = useRef('')
-  const latest = builds.find(b => b.data.manuscript_id === active?.id),
+  const latest = builds.find((b) => b.data.manuscript_id === active?.id),
     successful = builds.find(
-      b =>
+      (b) =>
         b.data.manuscript_id === active?.id &&
         b.data.status === 'succeeded' &&
-        b.data.purpose !== 'submission_validation'
+        b.data.purpose !== 'submission_validation',
     )
+  const [preview, setPreview] = useKeyedState(successful?.id ?? '', '')
+  const [log, setLog] = useKeyedState(
+    `${latest?.id}:${latest?.data.status}`,
+    !latest ||
+      ['queued', 'running', 'succeeded'].includes(latest.data.status) ||
+      latest.data.outputs?.['build.log']
+      ? ''
+      : '构建已中断或取消。可以重试当时的输入快照。',
+  )
   const previewStale =
     !!successful &&
     !!file &&
     (text !== savedText || successful.data.input_files[file.path] !== file.hash)
   const building = !!latest && ['queued', 'running'].includes(latest.data.status)
   const localProposals = proposals.filter(
-    p => p.data.manuscript_id === active?.id && p.data.status === 'pending'
+    (p) => p.data.manuscript_id === active?.id && p.data.status === 'pending',
   )
   async function reload(signal?: AbortSignal) {
-    const [a, b, c, d] = await Promise.all([
+    return Promise.all([
       records<ManuscriptData>(workspace, 'manuscript', signal),
       records<BuildData>(workspace, 'build', signal),
       records<ProposalData>(workspace, 'proposal', signal),
       records<SubmissionData>(workspace, 'submission', signal),
-    ])
-    setDocuments(a)
-    setBuilds(b)
-    setProposals(c)
-    setSubmissions(d)
+    ]).then(async ([a, b, c, d]) => {
+      setDocuments(a)
+      setBuilds(b)
+      setProposals(c)
+      setSubmissions(d)
+    })
   }
   useEffect(() => {
     mounted.current = true
     const abort = new AbortController()
-    reload(abort.signal).catch(e => {
+    reload(abort.signal).catch((e) => {
       if (!abort.signal.aborted) op.setError(e.message)
     })
     return () => {
@@ -181,14 +200,14 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
               base_hash: snapshot.file!.hash,
               text: snapshot.text,
             }),
-          }
+          },
         )
         if (!mounted.current) return
         if (
           current.current.file?.path === snapshot.file!.path &&
           current.current.active?.id === snapshot.active!.id
         ) {
-          setFile(f => (f ? { ...f, hash: result.hash, text: snapshot.text } : f))
+          setFile((f) => (f ? { ...f, hash: result.hash, text: snapshot.text } : f))
           setSavedText(snapshot.text)
           current.current = {
             ...current.current,
@@ -211,7 +230,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     })()
     saving.current = task
     await task
-  }, [workspace])
+  }, [draftKey, workspace])
   useEffect(() => {
     if (!active || !file || text === savedText || saveStatus === 'error' || conflictState.current)
       return
@@ -285,7 +304,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
               baseText: c.file.text,
               text: value,
               conflict: conflictState.current,
-            })
+            }),
           )
         )
           throw new Error('Draft storage unavailable')
@@ -298,7 +317,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     await flush()
     const source = await studio<OpenFile>(
       workspace,
-      `/manuscripts/${identifier}/file?path=${encodeURIComponent(path)}`
+      `/manuscripts/${identifier}/file?path=${encodeURIComponent(path)}`,
     )
     let recovered: SavedDraft | null = null
     try {
@@ -312,6 +331,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     const { base, text: restored } = restoredState
     const conflicting = !!restoredState.conflict
     conflictState.current = restoredState.conflict
+    setConflictView(restoredState.conflict)
     setFile(base)
     setText(restored)
     setSavedText(base.text)
@@ -333,25 +353,25 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     setFiles(listing.files)
     const recovery = await studio<{ conflicts: Recovery[] }>(
       workspace,
-      `/manuscripts/${row.id}/recovery`
+      `/manuscripts/${row.id}/recovery`,
     )
     setRecoveries(recovery.conflicts)
     setAudit(null)
     setLog('')
-    if (listing.files.some(f => f.path === row.data.main_file))
+    if (listing.files.some((f) => f.path === row.data.main_file))
       await openFile(row.id, row.data.main_file)
   }
   useEffect(() => {
     const id = search.get('manuscript')
     if (openedDeepLink.current || !id || !documents.length) return
-    const row = documents.find(d => d.id === id)
+    const row = documents.find((d) => d.id === id)
     openedDeepLink.current = true
     void (async () => {
       const target = row || (await studio<StudioRecord<ManuscriptData>>(workspace, `/record/${id}`))
       await openDocument(target)
       const path = search.get('path')
       if (path && path !== target.data.main_file) await openFile(id, path)
-    })().catch(e => op.setError(e.message))
+    })().catch((e) => op.setError(e.message))
   }, [documents, search]) // eslint-disable-line react-hooks/exhaustive-deps
   async function newDocument() {
     let row: StudioRecord<ManuscriptData>
@@ -373,10 +393,10 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     const row = await post<StudioRecord<BuildData>>(
       workspace,
       `/manuscripts/${active.id}/compile`,
-      {}
+      {},
     )
     await reload()
-    setBuilds(current => [row, ...current.filter(b => b.id !== row.id)])
+    setBuilds((current) => [row, ...current.filter((b) => b.id !== row.id)])
     setLog('')
   }
   useEffect(() => {
@@ -388,7 +408,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
       pending = true
       records<BuildData>(workspace, 'build', abort.signal)
         .then(setBuilds)
-        .catch(e => {
+        .catch((e) => {
           if (!abort.signal.aborted) op.setError(e.message)
         })
         .finally(() => {
@@ -402,21 +422,19 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
   }, [building, workspace]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!latest || ['queued', 'running', 'succeeded'].includes(latest.data.status)) {
-      setLog('')
       return
     }
     if (!latest.data.outputs?.['build.log']) {
-      setLog('构建已中断或取消。可以重试当时的输入快照。')
       return
     }
     const abort = new AbortController()
     apiFetch(studioUrl(`/builds/${latest.id}/build.log`, workspace), { signal: abort.signal })
-      .then(async r => {
+      .then(async (r) => {
         if (!r.ok) throw new Error('构建日志暂时无法读取')
         return r.text()
       })
       .then(setLog)
-      .catch(e => {
+      .catch((e) => {
         if (!abort.signal.aborted) op.setError(e.message)
       })
     return () => abort.abort()
@@ -442,22 +460,21 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     if (!successful) {
       URL.revokeObjectURL(previewUrl.current)
       previewUrl.current = ''
-      setPreview('')
       return
     }
     apiFetch(studioUrl(`/builds/${successful.id}/preview.pdf`, workspace), { signal: abort.signal })
-      .then(async response => {
+      .then(async (response) => {
         if (!response.ok) throw new Error('无法载入构建预览。')
         return response.blob()
       })
-      .then(blob => {
+      .then((blob) => {
         if (live) {
           URL.revokeObjectURL(previewUrl.current)
           previewUrl.current = URL.createObjectURL(blob)
           setPreview(previewUrl.current)
         }
       })
-      .catch(e => {
+      .catch((e) => {
         if (!abort.signal.aborted) op.setError(e.message)
       })
     return () => {
@@ -496,7 +513,10 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
   async function inspect() {
     if (!active) return
     await flush()
-    setAudit(await studio(workspace, `/manuscripts/${active.id}/audit`))
+    {
+      const resolvedState0 = await studio<Audit>(workspace, `/manuscripts/${active.id}/audit`)
+      setAudit(resolvedState0)
+    }
   }
   async function propose() {
     if (!active || !file) return
@@ -544,9 +564,12 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path: newPath, base_hash: EMPTY_HASH, text: '' }),
     })
-    setFiles(
-      (await studio<{ files: SourceFile[] }>(workspace, `/manuscripts/${active.id}/files`)).files
-    )
+    {
+      const resolvedState1 = (
+        await studio<{ files: SourceFile[] }>(workspace, `/manuscripts/${active.id}/files`)
+      ).files
+      setFiles(resolvedState1)
+    }
     setNewFile(false)
     await openFile(active.id, newPath)
   }
@@ -554,15 +577,17 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     if (!active || !file) return
     const disk = await studio<OpenFile>(
       workspace,
-      `/manuscripts/${active.id}/file?path=${encodeURIComponent(file.path)}`
+      `/manuscripts/${active.id}/file?path=${encodeURIComponent(file.path)}`,
     )
     conflictState.current = { base: file, disk }
+    setConflictView({ base: file, disk })
     setConflict(disk)
     changeText(current.current.text)
   }
   function useRemote() {
     if (!conflict) return
     conflictState.current = null
+    setConflictView(null)
     setFile(conflict)
     setText(conflict.text)
     setSavedText(conflict.text)
@@ -580,6 +605,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
   function mergeLocal() {
     if (!conflict) return
     conflictState.current = null
+    setConflictView(null)
     setFile(conflict)
     setSavedText(conflict.text)
     current.current = { ...current.current, file: conflict, savedText: conflict.text }
@@ -621,7 +647,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
             }
           >
             <ArrowLeft size={14} />
-            所有论文
+            {t('所有论文')}
           </Action>
         ) : (
           <Action
@@ -632,7 +658,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
             }}
           >
             <Plus size={14} />
-            新建论文工程
+            {t('新建论文工程')}
           </Action>
         )
       }
@@ -641,29 +667,31 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
       <ErrorNotice message={saveError} />
       {saveError && (
         <Action secondary onClick={() => op.run(inspectConflict)}>
-          比较磁盘版本与当前编辑
+          {t('比较磁盘版本与当前编辑')}
         </Action>
       )}
       {!active ? (
         <div className="studio-card-list">
-          {documents.map(row => (
+          {documents.map((row) => (
             <article className="studio-card" key={row.id}>
               <div className="studio-actions">
                 <FileCode2 size={20} />
                 <h3 style={{ margin: 0 }}>{row.data.title}</h3>
               </div>
               <p className="studio-note">
-                {row.data.main_file} · {row.data.engine} · 修订 {row.revision}
+                {row.data.main_file} · {row.data.engine} {t('· 修订')}
+                {row.revision}
               </p>
               <Action secondary onClick={() => op.run(() => openDocument(row))} disabled={op.busy}>
-                打开工程
+                {t('打开工程')}
               </Action>
             </article>
           ))}
           {!documents.length && (
-            <StudioEmpty title="保留你熟悉的论文工程">
-              导入包含 TeX、Bib、样式和图片的
-              ZIP，或新建一个基础工程。源文件保留在本地，可以用外部编辑器继续修改。
+            <StudioEmpty title={t('保留你熟悉的论文工程')}>
+              {t(
+                '导入包含 TeX、Bib、样式和图片的 ZIP，或新建一个基础工程。源文件保留在本地，可以用外部编辑器继续修改。',
+              )}
             </StudioEmpty>
           )}
         </div>
@@ -695,7 +723,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
                     })
                   }
                 >
-                  取消构建
+                  {t('取消构建')}
                 </Action>
               )}
               {latest && ['failed', 'interrupted', 'cancelled'].includes(latest.data.status) && (
@@ -709,11 +737,11 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
                     })
                   }
                 >
-                  重试原快照
+                  {t('重试原快照')}
                 </Action>
               )}
               <Action secondary onClick={() => op.run(inspect)} disabled={op.busy}>
-                检查引用与依赖
+                {t('检查引用与依赖')}
               </Action>
               <Action
                 secondary
@@ -724,7 +752,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
                   setProposing(true)
                 }}
               >
-                审阅选区修改
+                {t('审阅选区修改')}
               </Action>
               <WritingAssistant
                 key={`assist:${active.id}`}
@@ -733,7 +761,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
                 file={file ? { ...file, text } : null}
                 selection={selection}
                 flush={flush}
-                proposed={async row => {
+                proposed={async (row) => {
                   await reload()
                   setFactConfirmed(false)
                   setAccepting(row)
@@ -747,7 +775,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
                 op.run(async () => {
                   const plan = await studio<NonNullable<typeof packagePlan>>(
                     workspace,
-                    `/manuscripts/${active.id}/submission-plan?build_id=${successful!.id}`
+                    `/manuscripts/${active.id}/submission-plan?build_id=${successful!.id}`,
                   )
                   setPackagePlan(plan)
                   setPackageKind('submission')
@@ -758,7 +786,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
               }
             >
               <Download size={13} />
-              投稿快照
+              {t('投稿快照')}
             </Action>
           </div>
           <WritingTools
@@ -768,7 +796,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
             file={file ? { ...file, text } : null}
             selection={selection}
             flush={flush}
-            insert={snippet => {
+            insert={(snippet) => {
               const current = Array.from(text)
               if (current.slice(selection.start, selection.end).join('') !== selection.text) {
                 op.setError('选区已变化，请重新选择插入位置。')
@@ -777,7 +805,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
               changeText(
                 current.slice(0, selection.start).join('') +
                   snippet +
-                  current.slice(selection.end).join('')
+                  current.slice(selection.end).join(''),
               )
             }}
             openFile={async (path, line) => {
@@ -785,21 +813,22 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
               if (line) setJump({ line, nonce: Date.now() })
             }}
             refreshFiles={async () => {
-              setFiles(
-                (
+              {
+                const resolvedState2 = (
                   await studio<{ files: SourceFile[] }>(
                     workspace,
-                    `/manuscripts/${active.id}/files`
+                    `/manuscripts/${active.id}/files`,
                   )
                 ).files
-              )
+                setFiles(resolvedState2)
+              }
             }}
           />
           {!!recoveries.length && (
             <section className="studio-error" role="alert">
-              <strong>发现中断保存后的版本冲突</strong>
-              <p>磁盘文件、保存前版本和待保存版本都已保留。比较后选择需要继续使用的版本。</p>
-              {recoveries.map(item => (
+              <strong>{t('发现中断保存后的版本冲突')}</strong>
+              <p>{t('磁盘文件、保存前版本和待保存版本都已保留。比较后选择需要继续使用的版本。')}</p>
+              {recoveries.map((item) => (
                 <Action key={item.journal} secondary onClick={() => setRecovering(item)}>
                   {item.path || '检查损坏的保存日志'}
                 </Action>
@@ -809,7 +838,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
           <div className="studio-split">
             <section className="studio-editor">
               <aside className="studio-file-tree">
-                {files.map(item => (
+                {files.map((item) => (
                   <button
                     key={item.path}
                     aria-current={file?.path === item.path}
@@ -825,7 +854,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
                     setNewFile(true)
                   }}
                 >
-                  <Plus size={12} style={{ display: 'inline' }} /> 新建文件
+                  <Plus size={12} style={{ display: 'inline' }} /> {t('新建文件')}
                 </button>
               </aside>
               <div className="studio-editor-main">
@@ -842,7 +871,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
                   </span>
                   <button
                     className="studio-link-button"
-                    aria-label="保存源文件"
+                    aria-label={t('保存源文件')}
                     onClick={() => op.run(save)}
                   >
                     <Save size={12} />
@@ -861,13 +890,13 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
             </section>
             <section className="studio-preview">
               <header className="studio-editor-toolbar">
-                <span>PDF 预览</span>
+                <span>{t('PDF 预览')}</span>
                 <button
                   className="studio-link-button"
                   disabled={!successful || op.busy}
                   onClick={() => op.run(() => sourceMap('forward'))}
                 >
-                  定位当前源码 ↗
+                  {t('定位当前源码 ↗')}
                 </button>
                 <span className="studio-muted">
                   {previewStale
@@ -896,23 +925,26 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
                   />
                 </div>
               ) : (
-                <StudioEmpty title="保存，然后编译">
-                  双击 PDF 可定位源码；预览来自固定的源文件快照。编译失败时，上一份成功的 PDF
-                  会继续保留。
+                <StudioEmpty title={t('保存，然后编译')}>
+                  {t(
+                    '双击 PDF 可定位源码；预览来自固定的源文件快照。编译失败时，上一份成功的 PDF 会继续保留。',
+                  )}
                 </StudioEmpty>
               )}
             </section>
           </div>
           {log && (
             <section style={{ marginTop: 20 }}>
-              <h3 className="studio-section-title">编译日志</h3>
+              <h3 className="studio-section-title">{t('编译日志')}</h3>
               <pre className="studio-diff">{log}</pre>
             </section>
           )}
           {audit && (
             <section className="studio-panel" style={{ marginTop: 20 }}>
-              <h2>静态审校</h2>
-              <p>检查引用键、交叉引用、匿名信息和来源版本。仍需核对论点是否准确表达原始证据。</p>
+              <h2>{t('静态审校')}</h2>
+              <p>
+                {t('检查引用键、交叉引用、匿名信息和来源版本。仍需核对论点是否准确表达原始证据。')}
+              </p>
               <div className="studio-form-grid" style={{ marginTop: 18 }}>
                 {[
                   ['未解析引用', audit.missing_citations],
@@ -927,21 +959,23 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
               </div>
               {audit.warnings?.map((warning, i) => (
                 <p className="studio-note" key={i}>
-                  {warning.path}:{warning.line} · 需要核对匿名要求：{warning.excerpt}
+                  {warning.path}:{warning.line} {t('· 需要核对匿名要求：')}
+                  {warning.excerpt}
                 </p>
               ))}
               {!!audit.stale_dependencies?.length && (
                 <p className="studio-error">
-                  {audit.stale_dependencies.length} 项依赖已变化，需要重新核对相关论点或表图。
+                  {audit.stale_dependencies.length}{' '}
+                  {t('项依赖已变化，需要重新核对相关论点或表图。')}
                 </p>
               )}
             </section>
           )}
           {localProposals.length > 0 && (
             <section>
-              <h3 className="studio-section-title">待审阅的修改</h3>
+              <h3 className="studio-section-title">{t('待审阅的修改')}</h3>
               <div className="studio-card-list">
-                {localProposals.map(row => (
+                {localProposals.map((row) => (
                   <article className="studio-card" key={row.id}>
                     <h3>{row.data.path}</h3>
                     <pre className="studio-diff">{row.data.diff}</pre>
@@ -958,7 +992,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
                           setFactConfirmed(false)
                         }}
                       >
-                        审阅并接受
+                        {t('审阅并接受')}
                       </Action>
                     </footer>
                   </article>
@@ -966,31 +1000,31 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
               </div>
             </section>
           )}
-          {submissions.some(s => s.data.manuscript_id === active.id) && (
+          {submissions.some((s) => s.data.manuscript_id === active.id) && (
             <section>
-              <h3 className="studio-section-title">已冻结的投稿版本</h3>
+              <h3 className="studio-section-title">{t('已冻结的投稿版本')}</h3>
               <div className="studio-card-list">
                 {submissions
-                  .filter(s => s.data.manuscript_id === active.id)
-                  .map(row => (
+                  .filter((s) => s.data.manuscript_id === active.id)
+                  .map((row) => (
                     <article className="studio-card" key={row.id}>
                       <h3>{new Date(row.created * 1000).toLocaleString('zh-CN')}</h3>
                       <p>
-                        {Object.keys(row.data.files).length} 个源文件 · 固定构建{' '}
+                        {Object.keys(row.data.files).length} {t('个源文件 · 固定构建')}{' '}
                         {row.data.build_id.slice(0, 8)}
                       </p>
                       <footer>
-                        <span className="studio-note">后续编辑不会改变这份快照。</span>
+                        <span className="studio-note">{t('后续编辑不会改变这份快照。')}</span>
                         <Action
                           secondary
                           onClick={() =>
                             op.run(() =>
-                              download(`/submissions/${row.id}/download`, 'submission.zip')
+                              download(`/submissions/${row.id}/download`, 'submission.zip'),
                             )
                           }
                         >
                           <Download size={13} />
-                          下载 ZIP
+                          {t('下载 ZIP')}
                         </Action>
                       </footer>
                     </article>
@@ -1003,36 +1037,36 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
       <Dialog
         open={create}
         onClose={() => !op.busy && setCreate(false)}
-        title="新建论文工程"
+        title={t('新建论文工程')}
         description="可以导入自己的模板 ZIP，也可以先建立一个可编辑的基础工程。"
         size="md"
         className="studio-dialog"
         footer={
           <Action onClick={() => op.run(newDocument)} disabled={op.busy || !title.trim()}>
-            创建工程
+            {t('创建工程')}
           </Action>
         }
       >
         <div className="studio-form">
           <ErrorNotice message={op.error} />
           <Field label="论文或项目名称">
-            <input value={title} onChange={e => setTitle(e.target.value)} />
+            <input value={title} onChange={(e) => setTitle(e.target.value)} />
           </Field>
           <Field label="现有工程 ZIP · 可选">
             <input
               type="file"
               accept=".zip"
-              onChange={e => setArchive(e.target.files?.[0] || null)}
+              onChange={(e) => setArchive(e.target.files?.[0] || null)}
             />
           </Field>
           <Field label="主 TeX 文件">
-            <input value={mainFile} onChange={e => setMainFile(e.target.value)} />
+            <input value={mainFile} onChange={(e) => setMainFile(e.target.value)} />
           </Field>
           <Field label="编译器">
-            <select value={engine} onChange={e => setEngine(e.target.value)}>
-              <option value="pdflatex">pdfLaTeX</option>
-              <option value="xelatex">XeLaTeX</option>
-              <option value="lualatex">LuaLaTeX</option>
+            <select value={engine} onChange={(e) => setEngine(e.target.value)}>
+              <option value="pdflatex">{t('pdfLaTeX')}</option>
+              <option value="xelatex">{t('XeLaTeX')}</option>
+              <option value="lualatex">{t('LuaLaTeX')}</option>
             </select>
           </Field>
         </div>
@@ -1040,13 +1074,13 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
       <Dialog
         open={proposing}
         onClose={() => !op.busy && setProposing(false)}
-        title="审阅选区修改"
+        title={t('审阅选区修改')}
         description="修改先生成对照提案，确认后才应用到源文件。"
         size="lg"
         className="studio-dialog"
         footer={
           <Action onClick={() => op.run(propose)} disabled={op.busy}>
-            生成修改对照
+            {t('生成修改对照')}
           </Action>
         }
       >
@@ -1059,19 +1093,19 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
             <textarea
               rows={8}
               value={replacement}
-              onChange={e => setReplacement(e.target.value)}
+              onChange={(e) => setReplacement(e.target.value)}
               spellCheck={false}
             />
           </Field>
           <Field label="修改理由">
-            <textarea value={rationale} onChange={e => setRationale(e.target.value)} />
+            <textarea value={rationale} onChange={(e) => setRationale(e.target.value)} />
           </Field>
         </div>
       </Dialog>
       <Dialog
         open={!!accepting}
         onClose={() => !op.busy && setAccepting(null)}
-        title="确认这次修改"
+        title={t('确认这次修改')}
         size="lg"
         className="studio-dialog"
         footer={
@@ -1079,13 +1113,13 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
             onClick={() => op.run(accept)}
             disabled={op.busy || (!!accepting?.data.fact_changes.length && !factConfirmed)}
           >
-            接受并写入源文件
+            {t('接受并写入源文件')}
           </Action>
         }
       >
         <ErrorNotice message={op.error} />
         <pre className="studio-diff">{accepting?.data.diff}</pre>
-        {accepting?.data.fact_changes.map(change => (
+        {accepting?.data.fact_changes.map((change) => (
           <div className="studio-card" key={change.kind} style={{ marginTop: 12 }}>
             <h3>{change.kind}</h3>
             <p>
@@ -1098,16 +1132,16 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
             <input
               type="checkbox"
               checked={factConfirmed}
-              onChange={e => setFactConfirmed(e.target.checked)}
+              onChange={(e) => setFactConfirmed(e.target.checked)}
             />
-            我已核对数值、单位、引用和论断范围的变化。
+            {t('我已核对数值、单位、引用和论断范围的变化。')}
           </label>
         )}
       </Dialog>
       <Dialog
         open={packing}
         onClose={() => !op.busy && setPacking(false)}
-        title="导出冻结版本"
+        title={t('导出冻结版本')}
         description="投稿包包含入口文件、依赖与明确选择的附件，并在干净目录重新编译。内部归档可保留笔记和日志。"
         size="md"
         className="studio-dialog"
@@ -1122,7 +1156,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
                 !dynamicConfirmed)
             }
           >
-            冻结此版本
+            {t('冻结此版本')}
           </Action>
         }
       >
@@ -1130,28 +1164,28 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
         <Field label="用途">
           <select
             value={packageKind}
-            onChange={e => {
+            onChange={(e) => {
               setPackageKind(e.target.value)
               setAllowlist(
                 e.target.value === 'archive'
                   ? packagePlan?.files || []
-                  : packagePlan?.required || []
+                  : packagePlan?.required || [],
               )
               setDynamicConfirmed(false)
             }}
           >
-            <option value="submission">对外投稿 · 干净编译验证</option>
-            <option value="archive">内部研究归档</option>
+            <option value="submission">{t('对外投稿 · 干净编译验证')}</option>
+            <option value="archive">{t('内部研究归档')}</option>
           </select>
         </Field>
-        {packagePlan?.files.map(path => (
+        {packagePlan?.files.map((path) => (
           <label className="studio-check" key={path}>
             <input
               type="checkbox"
               checked={allowlist.includes(path)}
               disabled={packageKind === 'submission' && packagePlan.required.includes(path)}
-              onChange={e =>
-                setAllowlist(a => (e.target.checked ? [...a, path] : a.filter(p => p !== path)))
+              onChange={(e) =>
+                setAllowlist((a) => (e.target.checked ? [...a, path] : a.filter((p) => p !== path)))
               }
             />
             <span>
@@ -1169,7 +1203,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
         {packageKind === 'submission' && !!packagePlan?.unresolved.length && (
           <div>
             <p className="studio-note">
-              以下依赖由动态宏决定，请核对所需附件。选择完成后仍须通过干净编译。
+              {t('以下依赖由动态宏决定，请核对所需附件。选择完成后仍须通过干净编译。')}
             </p>
             {packagePlan.unresolved.map((item, index) => (
               <p key={index} className="studio-note">
@@ -1180,25 +1214,25 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
               <input
                 type="checkbox"
                 checked={dynamicConfirmed}
-                onChange={e => setDynamicConfirmed(e.target.checked)}
+                onChange={(e) => setDynamicConfirmed(e.target.checked)}
               />
-              我已核对动态依赖和对外导出的附件
+              {t('我已核对动态依赖和对外导出的附件')}
             </label>
           </div>
         )}
         <p className="studio-note">
-          这里导出的是成功构建时的源文件。未重新编译的修改不会混入这份投稿快照。
+          {t('这里导出的是成功构建时的源文件。未重新编译的修改不会混入这份投稿快照。')}
         </p>
       </Dialog>
       <Dialog
         open={newFile}
         onClose={() => !op.busy && setNewFile(false)}
-        title="添加源文件"
+        title={t('添加源文件')}
         size="sm"
         className="studio-dialog"
         footer={
           <Action onClick={() => op.run(addFile)} disabled={op.busy || !newPath.trim()}>
-            创建文件
+            {t('创建文件')}
           </Action>
         }
       >
@@ -1206,14 +1240,14 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
         <Field label="相对路径">
           <input
             value={newPath}
-            onChange={e => setNewPath(e.target.value)}
-            placeholder="sections/method.tex"
+            onChange={(e) => setNewPath(e.target.value)}
+            placeholder={t('sections/method.tex')}
           />
         </Field>
       </Dialog>
-      <Dialog open={!!recovering} title="恢复中断的保存" onClose={() => setRecovering(null)}>
+      <Dialog open={!!recovering} title={t('恢复中断的保存')} onClose={() => setRecovering(null)}>
         {recovering?.invalid ? (
-          <p className="studio-note">保存日志无法解析。保留磁盘文件，归档原日志供检查。</p>
+          <p className="studio-note">{t('保存日志无法解析。保留磁盘文件，归档原日志供检查。')}</p>
         ) : (
           <div className="studio-form-grid">
             {(
@@ -1232,7 +1266,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
         )}
         <div className="studio-actions">
           <Action disabled={op.busy} onClick={() => op.run(() => resolveRecovery('disk'))}>
-            保留磁盘版本
+            {t('保留磁盘版本')}
           </Action>
           {!recovering?.invalid && (
             <>
@@ -1241,14 +1275,14 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
                 disabled={op.busy}
                 onClick={() => op.run(() => resolveRecovery('prepared'))}
               >
-                恢复待保存版本
+                {t('恢复待保存版本')}
               </Action>
               <Action
                 secondary
                 disabled={op.busy}
                 onClick={() => op.run(() => resolveRecovery('before'))}
               >
-                恢复保存前版本
+                {t('恢复保存前版本')}
               </Action>
             </>
           )}
@@ -1257,33 +1291,32 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
       <Dialog
         open={!!conflict}
         onClose={() => setConflict(null)}
-        title="外部修改需要合并"
+        title={t('外部修改需要合并')}
         description="当前编辑仍保留，保存已暂停。关闭窗口后仍需解决冲突才能切换文件或继续保存。"
         size="lg"
         className="studio-dialog"
         footer={
           <>
             <Action secondary onClick={useRemote}>
-              使用磁盘版本
+              {t('使用磁盘版本')}
             </Action>
-            <Action onClick={mergeLocal}>以当前编辑覆盖，重新保存</Action>
+            <Action onClick={mergeLocal}>{t('以当前编辑覆盖，重新保存')}</Action>
           </>
         }
       >
         <details className="studio-note">
-          <summary>编辑基底版本</summary>
+          <summary>{t('编辑基底版本')}</summary>
           <pre className="studio-diff">
-            {conflictState.current?.base.text ||
-              '此旧草稿没有保存基底正文，请仔细比较当前编辑和磁盘版本。'}
+            {conflictView?.base.text || '此旧草稿没有保存基底正文，请仔细比较当前编辑和磁盘版本。'}
           </pre>
         </details>
         <div className="studio-split">
           <div>
-            <h3>磁盘版本</h3>
+            <h3>{t('磁盘版本')}</h3>
             <pre className="studio-diff">{conflict?.text}</pre>
           </div>
           <div>
-            <h3>当前编辑</h3>
+            <h3>{t('当前编辑')}</h3>
             <pre className="studio-diff">{text}</pre>
           </div>
         </div>

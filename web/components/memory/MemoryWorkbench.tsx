@@ -28,10 +28,9 @@ import { useTranslation } from "react-i18next";
 import { apiFetch, apiUrl, asJsonOrThrow } from "@/lib/api";
 import MemoryRunPanel from "@/components/memory/MemoryRunPanel";
 
-const MarkdownRenderer = dynamic(
-  () => import("@/components/common/MarkdownRenderer"),
-  { ssr: false },
-);
+const MarkdownRenderer = dynamic(() => import("@/components/common/MarkdownRenderer"), {
+  ssr: false,
+});
 
 type Layer = "L2" | "L3";
 
@@ -62,21 +61,11 @@ const _ENTRY_ANCHOR_RE = /\s*<!--\s*(m_[0-9A-HJKMNP-TV-Z]{26})\s*-->/g;
 // clickable footnotes until the next mode pass migrates them.
 const _FOOTNOTE_DEF_LINKIFY_SURFACE_REF_RE =
   /^(\[\^[^\]]+\]:\s*)([a-z][a-z0-9_-]*):([A-Za-z0-9_-]+)\s*$/gm;
-const _FOOTNOTE_DEF_LINKIFY_ENTRY_RE =
-  /^(\[\^[^\]]+\]:\s*)(m_[0-9A-HJKMNP-TV-Z]{26})\s*$/gm;
+const _FOOTNOTE_DEF_LINKIFY_ENTRY_RE = /^(\[\^[^\]]+\]:\s*)(m_[0-9A-HJKMNP-TV-Z]{26})\s*$/gm;
 // Bare surface name — keep tight (whitelist) so a typo can't accidentally
 // turn into an L2 hub link.
-const _L3_SURFACES = new Set([
-  "chat",
-  "notebook",
-  "quiz",
-  "kb",
-  "book",
-  "partner",
-  "cowriter",
-]);
-const _FOOTNOTE_DEF_LINKIFY_BARE_RE =
-  /^(\[\^[^\]]+\]:\s*)([a-z][a-z0-9_-]*)\s*$/gm;
+const _L3_SURFACES = new Set(["chat", "notebook", "quiz", "kb", "book", "partner", "cowriter"]);
+const _FOOTNOTE_DEF_LINKIFY_BARE_RE = /^(\[\^[^\]]+\]:\s*)([a-z][a-z0-9_-]*)\s*$/gm;
 
 function prepareDocForRender(md: string, layer: Layer): string {
   // Anchor injection MUST come before linkify so that ``m_xxx`` text on
@@ -104,9 +93,7 @@ function prepareDocForRender(md: string, layer: Layer): string {
       // L3: entry id refers to a bullet in some L2 doc → resolver page
       //     does the surface lookup, then redirects.
       const href =
-        layer === "L2"
-          ? `#${entryId}`
-          : `/memory/resolve?id=${encodeURIComponent(entryId)}`;
+        layer === "L2" ? `#${entryId}` : `/memory/resolve?id=${encodeURIComponent(entryId)}`;
       return `${prefix}[${entryId}](${href})`;
     },
   );
@@ -180,19 +167,19 @@ export interface MemoryWorkbenchProps {
   initialFocus?: string;
 }
 
-export default function MemoryWorkbench({
-  layer,
-  initialKey,
-  initialFocus,
-}: MemoryWorkbenchProps) {
+export default function MemoryWorkbench({ layer, initialKey, initialFocus }: MemoryWorkbenchProps) {
   const { t } = useTranslation();
   const router = useRouter();
   const nav = layer === "L2" ? L2_NAV : L3_NAV;
   const [docKey, setDocKey] = useState<string>(initialKey || nav[0].key);
 
-  useEffect(() => {
-    if (initialKey) setDocKey(initialKey);
-  }, [initialKey]);
+  const [derivedInputs0, setDerivedInputs0] = useState<readonly unknown[]>([]);
+  if (derivedInputs0.length !== 1 || !Object.is(derivedInputs0[0], initialKey)) {
+    setDerivedInputs0([initialKey]);
+    (() => {
+      if (initialKey) setDocKey(initialKey);
+    })();
+  }
 
   const [overview, setOverview] = useState<Record<string, DocOverview>>({});
   const [content, setContent] = useState("");
@@ -205,38 +192,41 @@ export default function MemoryWorkbench({
   // Focus is one-shot — once we've scrolled-to + flashed the anchor we
   // don't want subsequent content reloads (e.g. after a Run) to keep
   // re-scrolling. ``initialFocus`` seeds it; the effect clears it.
-  const [pendingFocus, setPendingFocus] = useState<string | null>(
-    initialFocus || null,
-  );
+  const [pendingFocus, setPendingFocus] = useState<string | null>(initialFocus || null);
   const previewRef = useRef<HTMLDivElement | null>(null);
 
-  useEffect(() => {
-    if (initialFocus) setPendingFocus(initialFocus);
-  }, [initialFocus]);
+  const [derivedInputs1, setDerivedInputs1] = useState<readonly unknown[]>([]);
+  if (derivedInputs1.length !== 1 || !Object.is(derivedInputs1[0], initialFocus)) {
+    setDerivedInputs1([initialFocus]);
+    (() => {
+      if (initialFocus) setPendingFocus(initialFocus);
+    })();
+  }
 
   const loadOverview = useCallback(async () => {
-    const res = await apiFetch(apiUrl("/api/memory/overview"));
-    const data = await res.json();
-    const map: Record<string, DocOverview> = {};
-    for (const d of data.docs || []) {
-      if (d.layer === layer) map[d.key] = d;
-    }
-    setOverview(map);
+    return apiFetch(apiUrl("/api/memory/overview")).then(async (res) => {
+      const data = await res.json();
+      const map: Record<string, DocOverview> = {};
+      for (const d of data.docs || []) {
+        if (d.layer === layer) map[d.key] = d;
+      }
+      setOverview(map);
+    });
   }, [layer]);
 
   const loadDoc = useCallback(async () => {
-    const res = await apiFetch(apiUrl(`/api/memory/doc/${layer}/${docKey}`));
-    const data = (await res.json()) as DocResponse;
-    setContent(data?.content || "");
-    setEditorValue(data?.content || "");
+    return apiFetch(apiUrl(`/api/memory/doc/${layer}/${docKey}`)).then(async (res) => {
+      const data = (await res.json()) as DocResponse;
+      setContent(data?.content || "");
+      setEditorValue(data?.content || "");
+    });
   }, [layer, docKey]);
 
   const loadLines = useCallback(async () => {
-    const res = await apiFetch(
-      apiUrl(`/api/memory/doc/${layer}/${docKey}/lines`),
-    );
-    const data = (await res.json()) as { lines: LineRowDTO[] };
-    setLines(data?.lines || []);
+    return apiFetch(apiUrl(`/api/memory/doc/${layer}/${docKey}/lines`)).then(async (res) => {
+      const data = (await res.json()) as { lines: LineRowDTO[] };
+      setLines(data?.lines || []);
+    });
   }, [layer, docKey]);
 
   useEffect(() => {
@@ -259,9 +249,7 @@ export default function MemoryWorkbench({
   useEffect(() => {
     if (!pendingFocus || editing) return;
     if (!content || !previewRef.current) return;
-    const anchorId = pendingFocus.startsWith("m_")
-      ? pendingFocus
-      : `m_${pendingFocus}`;
+    const anchorId = pendingFocus.startsWith("m_") ? pendingFocus : `m_${pendingFocus}`;
     let cancelled = false;
     const id = window.setTimeout(() => {
       if (cancelled) return;
@@ -301,9 +289,7 @@ export default function MemoryWorkbench({
       if (next === docKey) return;
       setDocKey(next);
       // Reflect selection in the URL so refresh + share keep state.
-      router.replace(
-        layer === "L2" ? `/memory/l2/${next}` : `/memory/l3/${next}`,
-      );
+      router.replace(layer === "L2" ? `/memory/l2/${next}` : `/memory/l3/${next}`);
     },
     [docKey, layer, router],
   );
@@ -500,9 +486,7 @@ function Breadcrumb({
         ) : (
           <Network className="h-3.5 w-3.5" />
         )}
-        {layer === "L2"
-          ? t("L2 · Per-surface summaries")
-          : t("L3 · Cross-surface knowledge")}
+        {layer === "L2" ? t("L2 · Per-surface summaries") : t("L3 · Cross-surface knowledge")}
       </span>
       <span className="text-[var(--muted-foreground)]">/</span>
       <span className="text-[var(--foreground)]">{label}</span>
@@ -510,13 +494,7 @@ function Breadcrumb({
   );
 }
 
-function LayerSwitcher({
-  current,
-  t,
-}: {
-  current: Layer;
-  t: (k: string) => string;
-}) {
+function LayerSwitcher({ current, t }: { current: Layer; t: (k: string) => string }) {
   // L1 page is a single workbench (no per-key route); L2/L3 hubs land
   // on /memory/l2 and /memory/l3 which list the surfaces / slots.
   const entries: {
@@ -594,13 +572,7 @@ function ViewSwitch({
   );
 }
 
-function LineNumberedView({
-  lines,
-  t,
-}: {
-  lines: LineRowDTO[];
-  t: (k: string) => string;
-}) {
+function LineNumberedView({ lines, t }: { lines: LineRowDTO[]; t: (k: string) => string }) {
   if (lines.length === 0) return <EmptyState t={t} />;
   const width = Math.max(2, String(lines[lines.length - 1].number).length);
   return (
@@ -611,15 +583,9 @@ function LineNumberedView({
         return (
           <div
             key={line.number}
-            className={
-              muted
-                ? "text-[var(--muted-foreground)]"
-                : "text-[var(--foreground)]"
-            }
+            className={muted ? "text-[var(--muted-foreground)]" : "text-[var(--foreground)]"}
           >
-            <span className="select-none pr-3 text-[var(--muted-foreground)]">
-              {num}:
-            </span>
+            <span className="select-none pr-3 text-[var(--muted-foreground)]">{num}:</span>
             {line.text || " "}
           </div>
         );

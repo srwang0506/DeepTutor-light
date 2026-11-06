@@ -1,4 +1,5 @@
 "use client";
+import { useKeyedState } from "@/hooks/useKeyedState";
 
 import { useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api";
@@ -6,9 +7,7 @@ import { apiFetch } from "@/lib/api";
 const MAX_TEXT_BYTES = 8 * 1024 * 1024; // 8 MB — preview, not a download
 
 export type TextSourceState =
-  | { kind: "loading" }
-  | { kind: "ready"; text: string }
-  | { kind: "error"; message: string };
+  { kind: "loading" } | { kind: "ready"; text: string } | { kind: "error"; message: string };
 
 /**
  * Fetch the text content at *url* (HEAD-checked for size to avoid pulling
@@ -18,34 +17,15 @@ export type TextSourceState =
  * that text instead of fetching. This handles the office-doc case where
  * the backend already extracted plain text.
  */
-export function useTextSource(
-  url: string | null,
-  fallbackText?: string,
-): TextSourceState {
-  const [state, setState] = useState<TextSourceState>(() =>
-    !url && fallbackText !== undefined
-      ? { kind: "ready", text: fallbackText }
-      : { kind: "loading" },
-  );
+export function useTextSource(url: string | null, fallbackText?: string): TextSourceState {
+  const [state, setState] = useKeyedState<TextSourceState>(url, { kind: "loading" });
   const reqIdRef = useRef(0);
 
   useEffect(() => {
-    // Inline fallback (no URL): nothing to fetch.
-    if (!url) {
-      if (fallbackText !== undefined) {
-        setState({ kind: "ready", text: fallbackText });
-      } else {
-        setState({
-          kind: "error",
-          message: "Preview source is not available.",
-        });
-      }
-      return;
-    }
+    if (!url) return;
 
     const reqId = ++reqIdRef.current;
     const controller = new AbortController();
-    setState({ kind: "loading" });
 
     (async () => {
       try {
@@ -55,9 +35,7 @@ export function useTextSource(
         }
         const lengthHeader = res.headers.get("content-length");
         if (lengthHeader && Number(lengthHeader) > MAX_TEXT_BYTES) {
-          throw new Error(
-            "File is too large to preview as text. Use the Download button.",
-          );
+          throw new Error("File is too large to preview as text. Use the Download button.");
         }
         const text = await res.text();
         if (reqIdRef.current !== reqId) return; // superseded
@@ -65,8 +43,7 @@ export function useTextSource(
       } catch (err) {
         if (controller.signal.aborted) return;
         if (reqIdRef.current !== reqId) return;
-        const message =
-          err instanceof Error ? err.message : "Failed to load preview";
+        const message = err instanceof Error ? err.message : "Failed to load preview";
         setState({ kind: "error", message });
       }
     })();
@@ -74,7 +51,11 @@ export function useTextSource(
     return () => {
       controller.abort();
     };
-  }, [url, fallbackText]);
+  }, [url, fallbackText, setState]);
 
-  return state;
+  return !url
+    ? fallbackText !== undefined
+      ? { kind: "ready", text: fallbackText }
+      : { kind: "error", message: "Preview source is not available." }
+    : state;
 }

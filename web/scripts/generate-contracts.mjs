@@ -62,7 +62,10 @@ try {
 
     const target = path.join(generatedRoot, output.name);
     const generated = await format(
-      readFileSync(path.join(temporaryRoot, output.name), "utf8"),
+      readFileSync(path.join(temporaryRoot, output.name), "utf8").replace(
+        /^\/\* eslint-disable \*\/\r?\n/,
+        "",
+      ),
       { filepath: target },
     );
     let current = null;

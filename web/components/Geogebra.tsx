@@ -1,5 +1,6 @@
 'use client'
 
+import { useKeyedState } from '@/hooks/useKeyedState'
 import React, { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { runGeoGebraCommand, type GeoGebraCommandAPI } from '@/lib/geogebra-commands'
@@ -34,7 +35,7 @@ declare global {
   interface Window {
     GGBApplet?: new (
       params: Record<string, unknown>,
-      html5: boolean
+      html5: boolean,
     ) => {
       inject: (containerId: string) => void
     }
@@ -89,8 +90,8 @@ function loadGgbScript(): Promise<void> {
 function parseGgbCommands(raw: string): string[] {
   return raw
     .split(/\r?\n/)
-    .map(line => line.trim())
-    .filter(line => line.length > 0 && !line.startsWith('#'))
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith('#'))
 }
 
 let containerCounter = 0
@@ -107,19 +108,17 @@ const Geogebra: React.FC<GeogebraProps> = ({
 }) => {
   const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const containerIdRef = useRef<string>(`ggb-${++containerCounter}-${Date.now().toString(36)}`)
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [commandErrors, setCommandErrors] = useState<string[]>([])
+  const [containerId] = useState(() => `ggb-${++containerCounter}-${Date.now().toString(36)}`)
+  const resourceKey = JSON.stringify([script, payload, width, height, editable, perspective])
+  const [error, setError] = useKeyedState<string | null>(resourceKey, null)
+  const [loading, setLoading] = useKeyedState(resourceKey, true)
+  const [commandErrors, setCommandErrors] = useKeyedState<string[]>(resourceKey, [])
 
   useEffect(() => {
     let cancelled = false
     // Snapshot the ref now so the cleanup closure sees the same node React
     // mounted with, not whatever the ref points at after a later re-render.
     const containerAtMount = containerRef.current
-    setLoading(true)
-    setError(null)
-    setCommandErrors([])
 
     async function mount() {
       try {
@@ -130,11 +129,11 @@ const Geogebra: React.FC<GeogebraProps> = ({
         }
 
         const commands = payload?.commands?.length
-          ? payload.commands.map(String).filter(command => command.trim())
+          ? payload.commands.map(String).filter((command) => command.trim())
           : parseGgbCommands(script)
         const container = containerRef.current
         if (!container) return
-        container.id = containerIdRef.current
+        container.id = containerId
         container.innerHTML = ''
 
         const applet = new window.GGBApplet(
@@ -159,7 +158,7 @@ const Geogebra: React.FC<GeogebraProps> = ({
                 setAxesVisible?: (x: boolean, y: boolean) => void
                 setGridVisible?: (visible: boolean) => void
                 setCoordSystem?: (xMin: number, xMax: number, yMin: number, yMax: number) => void
-              }
+              },
             ) => {
               if (cancelled) return
               if (payload?.show_axes !== undefined)
@@ -187,10 +186,10 @@ const Geogebra: React.FC<GeogebraProps> = ({
               }
             },
           },
-          true
+          true,
         )
 
-        applet.inject(containerIdRef.current)
+        applet.inject(containerId)
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : String(err))
@@ -207,7 +206,18 @@ const Geogebra: React.FC<GeogebraProps> = ({
         containerAtMount.innerHTML = ''
       }
     }
-  }, [script, payload, width, height, editable, perspective])
+  }, [
+    script,
+    payload,
+    width,
+    height,
+    editable,
+    perspective,
+    setLoading,
+    setError,
+    setCommandErrors,
+    containerId,
+  ])
 
   return (
     <div
@@ -236,7 +246,7 @@ const Geogebra: React.FC<GeogebraProps> = ({
                 :
               </span>
               <ul className="mt-1 list-inside list-disc">
-                {commandErrors.map(cmd => (
+                {commandErrors.map((cmd) => (
                   <li key={cmd} className="truncate font-mono text-[11px]">
                     {cmd}
                   </li>

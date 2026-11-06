@@ -1,10 +1,7 @@
 "use client";
 
 import { browserStorage } from "@/shared/storage";
-import {
-  SUBMIT_CONNECT_RETRY_INTERVAL_MS,
-  SUBMIT_CONNECT_RETRY_LIMIT,
-} from "@/lib/send-retry";
+import { SUBMIT_CONNECT_RETRY_INTERVAL_MS, SUBMIT_CONNECT_RETRY_LIMIT } from "@/lib/send-retry";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type {
@@ -13,35 +10,18 @@ import type {
   KeyboardEvent,
   PointerEvent as ReactPointerEvent,
 } from "react";
-import {
-  FileText,
-  Loader2,
-  MessageSquare,
-  Paperclip,
-  Send,
-  X,
-} from "lucide-react";
+import { FileText, Loader2, MessageSquare, Paperclip, Send, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import AssistantResponse from "@/components/common/AssistantResponse";
 import { useAppShell } from "@/context/AppShellContext";
 import { getSession } from "@/lib/session-api";
-import {
-  ATTACHMENT_ACCEPT,
-  classifyFile,
-  formatBytes,
-} from "@/lib/doc-attachments";
+import { ATTACHMENT_ACCEPT, classifyFile, formatBytes } from "@/lib/doc-attachments";
 import { useAttachmentLimits } from "@/lib/attachment-limits";
-import {
-  extractBase64FromDataUrl,
-  readFileAsDataUrl,
-} from "@/lib/file-attachments";
+import { extractBase64FromDataUrl, readFileAsDataUrl } from "@/lib/file-attachments";
 import { shouldSubmitOnEnter } from "@/lib/composer-keyboard";
 import { useImeComposing } from "@/lib/use-ime-composing";
 import { shouldAppendEventContent } from "@/lib/stream";
-import type {
-  StartTurnMessage,
-  StreamEvent,
-} from "@/features/chat/model/protocol";
+import type { StartTurnMessage, StreamEvent } from "@/features/chat/model/protocol";
 import { UnifiedTurnClient } from "@/features/chat/transport/UnifiedTurnClient";
 import type { MessageAttachment } from "@/features/chat/ChatStateAdapter";
 import type { Page, Book } from "@/lib/book-types";
@@ -76,8 +56,7 @@ function attachmentTypeFor(file: File): PendingAttachment["type"] | null {
   const kind = classifyFile(file);
   if (!kind) return null;
   if (kind === "image") return "image";
-  return file.type === "application/pdf" ||
-    file.name.toLowerCase().endsWith(".pdf")
+  return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
     ? "pdf"
     : "file";
 }
@@ -123,8 +102,7 @@ export default function BookChatPanel({
   const scrollerRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null);
-  const { isComposingRef, onCompositionStart, onCompositionEnd } =
-    useImeComposing();
+  const { isComposingRef, onCompositionStart, onCompositionEnd } = useImeComposing();
 
   useEffect(() => {
     const raw = browserStorage.readRaw("local", "deeptutor.bookChat.width");
@@ -162,7 +140,7 @@ export default function BookChatPanel({
     clientRef.current = null;
     sessionIdRef.current = initialSessionId || null;
     // Reset local chat state when the backing page/session changes.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+
     setMessages([]);
     setAttachments([]);
     setAttachmentError(null);
@@ -252,9 +230,7 @@ export default function BookChatPanel({
     setMessages((prev) => {
       const next = [...prev];
       const last = next[next.length - 1];
-      const contentDelta = shouldAppendEventContent(event)
-        ? event.content || ""
-        : "";
+      const contentDelta = shouldAppendEventContent(event) ? event.content || "" : "";
       if (last && last.role === "assistant" && last.streaming) {
         next[next.length - 1] = {
           ...last,
@@ -281,11 +257,7 @@ export default function BookChatPanel({
     return client;
   }
 
-  function sendWithRetry(
-    client: UnifiedTurnClient,
-    payload: StartTurnMessage,
-    attempt = 0,
-  ) {
+  function sendWithRetry(client: UnifiedTurnClient, payload: StartTurnMessage, attempt = 0) {
     if (client.connected) {
       client.send(payload);
       return;
@@ -317,9 +289,7 @@ export default function BookChatPanel({
   function moveResize(event: ReactPointerEvent<HTMLDivElement>) {
     const drag = dragRef.current;
     if (!drag) return;
-    setWidth(
-      Math.max(300, Math.min(720, drag.startWidth + drag.startX - event.clientX)),
-    );
+    setWidth(Math.max(300, Math.min(720, drag.startWidth + drag.startX - event.clientX)));
   }
 
   function filterFiles(files: File[]): File[] {
@@ -334,9 +304,7 @@ export default function BookChatPanel({
         continue;
       }
       if (file.size > attachmentLimits.maxFileBytes) {
-        setAttachmentError(
-          t("File is too large ({{size}}).", { size: formatBytes(file.size) }),
-        );
+        setAttachmentError(t("File is too large ({{size}}).", { size: formatBytes(file.size) }));
         continue;
       }
       if (nextTotal + file.size > attachmentLimits.maxTotalBytes) {
@@ -386,9 +354,7 @@ export default function BookChatPanel({
     const userContent =
       text ||
       (attachments.some((item) => item.type === "image")
-        ? t(
-            "Please analyze the attached image(s) using this chapter as context.",
-          )
+        ? t("Please analyze the attached image(s) using this chapter as context.")
         : t("Please use the attached file(s) and this chapter as context."));
     const sentAttachments = attachments.map(messageAttachment);
     setMessages((prev) => [
@@ -449,10 +415,7 @@ export default function BookChatPanel({
               if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
                 event.preventDefault();
                 setWidth((current) =>
-                  Math.max(
-                    300,
-                    Math.min(720, current + (event.key === "ArrowLeft" ? 16 : -16)),
-                  ),
+                  Math.max(300, Math.min(720, current + (event.key === "ArrowLeft" ? 16 : -16))),
                 );
               } else if (event.key === "Home" || event.key === "End") {
                 event.preventDefault();
@@ -499,9 +462,7 @@ export default function BookChatPanel({
             {messages.map((m, i) => (
               <div
                 key={i}
-                className={
-                  m.role === "user" ? "flex justify-end" : "flex justify-start"
-                }
+                className={m.role === "user" ? "flex justify-end" : "flex justify-start"}
               >
                 <div
                   className={
@@ -523,9 +484,7 @@ export default function BookChatPanel({
                           className="inline-flex max-w-full items-center gap-1 rounded-lg bg-black/10 px-2 py-1 text-[10px]"
                         >
                           <FileText className="h-3 w-3 shrink-0" />
-                          <span className="truncate">
-                            {attachment.filename || t("Attachment")}
-                          </span>
+                          <span className="truncate">{attachment.filename || t("Attachment")}</span>
                         </span>
                       ))}
                     </div>
@@ -538,9 +497,7 @@ export default function BookChatPanel({
                       isStreaming={Boolean(m.streaming)}
                     />
                   ) : (
-                    <div className="whitespace-pre-wrap break-words">
-                      {m.content}
-                    </div>
+                    <div className="whitespace-pre-wrap break-words">{m.content}</div>
                   )}
                 </div>
               </div>
@@ -577,9 +534,7 @@ export default function BookChatPanel({
                 <span className="truncate">{attachment.filename}</span>
                 <button
                   type="button"
-                  onClick={() =>
-                    setAttachments((prev) => prev.filter((_, i) => i !== index))
-                  }
+                  onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== index))}
                   className="opacity-60 hover:opacity-100"
                 >
                   <X className="h-3 w-3" />
@@ -588,9 +543,7 @@ export default function BookChatPanel({
             ))}
           </div>
         )}
-        {attachmentError && (
-          <div className="mb-2 text-[11px] text-red-500">{attachmentError}</div>
-        )}
+        {attachmentError && <div className="mb-2 text-[11px] text-red-500">{attachmentError}</div>}
         <div className="dt-soft-input flex items-end gap-2 rounded-2xl bg-[var(--background)] px-2 py-2">
           <Tooltip label={t("Attach files")}>
             <button
@@ -620,19 +573,10 @@ export default function BookChatPanel({
           />
           <button
             type="submit"
-            disabled={
-              busy ||
-              (!input.trim() && attachments.length === 0) ||
-              !book ||
-              !page
-            }
+            disabled={busy || (!input.trim() && attachments.length === 0) || !book || !page}
             className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--primary)] text-[var(--primary-foreground)] transition-opacity disabled:opacity-50"
           >
-            {busy ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           </button>
         </div>
       </form>

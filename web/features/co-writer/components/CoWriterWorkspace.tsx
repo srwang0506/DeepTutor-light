@@ -1,5 +1,6 @@
 "use client";
 
+import { useKeyedState } from "@/hooks/useKeyedState";
 import { knowledgeBaseRef } from "@/lib/knowledge-helpers";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -65,11 +66,7 @@ import {
   replaceSelectedText as replaceTextInSnapshot,
   shouldCommitAutosave,
 } from "@/features/co-writer/model/editor-state";
-import {
-  clearDraft,
-  loadDraft,
-  saveDraft,
-} from "@/features/co-writer/storage/drafts";
+import { clearDraft, loadDraft, saveDraft } from "@/features/co-writer/storage/drafts";
 import { useSelectionEdit } from "@/features/co-writer/hooks/useSelectionEdit";
 import type { LLMSelection } from "@/features/chat/model/protocol";
 import { useSplitPane } from "@/features/co-writer/hooks/useSplitPane";
@@ -81,17 +78,13 @@ import ModelSelector from "@/components/chat/home/ModelSelector";
 import { useLLMOptions } from "@/hooks/useLLMOptions";
 import Tooltip from "@/shared/ui/Tooltip";
 
-const MarkdownRenderer = dynamic(
-  () => import("@/components/common/MarkdownRenderer"),
-  {
-    ssr: false,
-  },
-);
+const MarkdownRenderer = dynamic(() => import("@/components/common/MarkdownRenderer"), {
+  ssr: false,
+});
 
-const SaveToNotebookModal = dynamic(
-  () => import("@/components/notebook/SaveToNotebookModal"),
-  { ssr: false },
-);
+const SaveToNotebookModal = dynamic(() => import("@/components/notebook/SaveToNotebookModal"), {
+  ssr: false,
+});
 
 type EditAction = "rewrite" | "shorten" | "expand";
 type SelectionMode = EditAction | "none";
@@ -190,8 +183,8 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState<string>("");
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const [docNotFound, setDocNotFound] = useState(false);
-  const [isLoadingDoc, setIsLoadingDoc] = useState(true);
+  const [docNotFound, setDocNotFound] = useKeyedState(docId, false);
+  const [isLoadingDoc, setIsLoadingDoc] = useKeyedState(docId, true);
   const [isSavingDoc, setIsSavingDoc] = useState(false);
   const [isExportingDocx, setIsExportingDocx] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<number | null>(null);
@@ -216,11 +209,8 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
     scrollSyncSourceRef,
     setSyncScrollEnabled,
   } = useSynchronizedScroll();
-  const {
-    cancelSelectionRequest,
-    finishSelectionRequest,
-    startSelectionRequest,
-  } = useSelectionEdit();
+  const { cancelSelectionRequest, finishSelectionRequest, startSelectionRequest } =
+    useSelectionEdit();
   const selectionPopoverRef = useRef<HTMLDivElement>(null);
   const preserveSelectionTraceRef = useRef(false);
   const selectionDragStateRef = useRef<{
@@ -243,36 +233,29 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [pendingConfirmAction, setPendingConfirmAction] =
-    useState<ConfirmAction | null>(null);
-  const [notebookSavePayload, setNotebookSavePayload] =
-    useState<NotebookSavePayload | null>(null);
-  const [selectedRange, setSelectedRange] = useState<SelectedRange | null>(
-    null,
-  );
-  const [selectionPopover, setSelectionPopover] =
-    useState<SelectionPopoverState>({
-      visible: false,
-      top: 0,
-      left: 0,
-    });
+  const [pendingConfirmAction, setPendingConfirmAction] = useState<ConfirmAction | null>(null);
+  const [notebookSavePayload, setNotebookSavePayload] = useState<NotebookSavePayload | null>(null);
+  const [selectedRange, setSelectedRange] = useState<SelectedRange | null>(null);
+  const [selectionPopover, setSelectionPopover] = useState<SelectionPopoverState>({
+    visible: false,
+    top: 0,
+    left: 0,
+  });
   const [selectionInstruction, setSelectionInstruction] = useState("");
   const [selectionMode, setSelectionMode] = useState<SelectionMode>("rewrite");
   const [selectionTools, setSelectionTools] = useState<ToolName[]>([]);
   const [llmSelection, setLLMSelection] = useState<LLMSelection | null>(null);
   const [isToolMenuOpen, setIsToolMenuOpen] = useState(false);
   const [isModeMenuOpen, setIsModeMenuOpen] = useState(false);
-  const [selectionTrace, setSelectionTrace] =
-    useState<SelectionTraceData | null>(null);
+  const [selectionTrace, setSelectionTrace] = useState<SelectionTraceData | null>(null);
   const [selectionPopoverPinned, setSelectionPopoverPinned] = useState(false);
-  const [isDraggingSelectionPopover, setIsDraggingSelectionPopover] =
-    useState(false);
+  const [isDraggingSelectionPopover, setIsDraggingSelectionPopover] = useState(false);
 
   const [undoStack, setUndoStack] = useState<string[]>([]);
   const [redoStack, setRedoStack] = useState<string[]>([]);
   const undoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingUndoSnapshotRef = useRef<string | null>(null);
-  const [hasLoadedDraft, setHasLoadedDraft] = useState(false);
+  const [hasLoadedDraft, setHasLoadedDraft] = useKeyedState(docId, false);
   const {
     options: llmOptions,
     activeDefault: activeLLMDefault,
@@ -281,10 +264,13 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
     refresh: refreshLLMOptions,
   } = useLLMOptions();
 
-  useEffect(() => {
-    if (llmSelection || !activeLLMDefault) return;
+  const editorYCacheRef = useRef<{
+    signature: string;
+    ys: Map<number, number>;
+  } | null>(null);
+  if (!llmSelection && activeLLMDefault) {
     setLLMSelection(activeLLMDefault);
-  }, [activeLLMDefault, llmSelection]);
+  }
 
   useEffect(() => {
     markdownRef.current = markdown;
@@ -294,9 +280,6 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
   useEffect(() => {
     if (!docId) return;
     let cancelled = false;
-    setIsLoadingDoc(true);
-    setDocNotFound(false);
-    setHasLoadedDraft(false);
     (async () => {
       try {
         const document = await getCoWriterDocument(docId);
@@ -312,9 +295,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
         setMarkdown(content);
         setDocTitle(document.title || "");
         lastSavedContentRef.current = document.content ?? "";
-        setLastSavedAt(
-          document.updated_at ? document.updated_at * 1000 : Date.now(),
-        );
+        setLastSavedAt(document.updated_at ? document.updated_at * 1000 : Date.now());
         setHasLoadedDraft(true);
       } catch (err) {
         if (cancelled) return;
@@ -333,7 +314,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
     return () => {
       cancelled = true;
     };
-  }, [docId]);
+  }, [docId, setDocNotFound, setHasLoadedDraft, setIsLoadingDoc]);
 
   // Mirror the in-flight content to versioned storage so an accidental reload
   // doesn't lose unsaved characters before autosave fires.
@@ -362,9 +343,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
         }
         lastSavedContentRef.current = submittedContent;
         setDocTitle(updated.title || "");
-        setLastSavedAt(
-          updated.updated_at ? updated.updated_at * 1000 : Date.now(),
-        );
+        setLastSavedAt(updated.updated_at ? updated.updated_at * 1000 : Date.now());
         clearDraft(window.localStorage, docId);
         notifyCoWriterChanged();
       } catch (err) {
@@ -383,7 +362,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
         autosaveTimerRef.current = null;
       }
     };
-  }, [docId, hasLoadedDraft, markdown]);
+  }, [docId, hasLoadedDraft, isUnmountedRef, markdown]);
 
   useEffect(() => {
     // Drop the cached editor line positions when the viewport changes width;
@@ -408,9 +387,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
         const list = await listKnowledgeBases();
         setKnowledgeBases(list);
         const defaultKb =
-          list.find((k: KnowledgeBase) => k.is_default)?.name ||
-          list[0]?.name ||
-          "";
+          list.find((k: KnowledgeBase) => k.is_default)?.name || list[0]?.name || "";
         setKbName((prev) => prev || defaultKb);
       } catch {
         setKnowledgeBases([]);
@@ -534,9 +511,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
       const updated = await updateCoWriterDocument(docId, { title: next });
       if (isUnmountedRef.current) return;
       setDocTitle(updated.title || "");
-      setLastSavedAt(
-        updated.updated_at ? updated.updated_at * 1000 : Date.now(),
-      );
+      setLastSavedAt(updated.updated_at ? updated.updated_at * 1000 : Date.now());
       notifyCoWriterChanged();
     } catch (err) {
       if (isUnmountedRef.current) return;
@@ -561,10 +536,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
     // then whitespace-split whatever remains.
     const cjkPattern = /[一-鿿㐀-䶿぀-ヿ가-힯]/g;
     const cjkCount = trimmed.match(cjkPattern)?.length ?? 0;
-    const latinWords = trimmed
-      .replace(cjkPattern, " ")
-      .split(/\s+/)
-      .filter(Boolean).length;
+    const latinWords = trimmed.replace(cjkPattern, " ").split(/\s+/).filter(Boolean).length;
     return cjkCount + latinWords;
   }, [markdown]);
 
@@ -583,69 +555,66 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
     setSelectionTrace(null);
   }, [cancelSelectionRequest]);
 
-  const measureSelectionAnchor = useCallback(
-    (textarea: HTMLTextAreaElement, index: number) => {
-      const rect = textarea.getBoundingClientRect();
-      const computed = window.getComputedStyle(textarea);
-      const mirror = document.createElement("div");
-      const properties = [
-        "box-sizing",
-        "width",
-        "height",
-        "overflow-x",
-        "overflow-y",
-        "border-top-width",
-        "border-right-width",
-        "border-bottom-width",
-        "border-left-width",
-        "padding-top",
-        "padding-right",
-        "padding-bottom",
-        "padding-left",
-        "font-style",
-        "font-variant",
-        "font-weight",
-        "font-stretch",
-        "font-size",
-        "font-size-adjust",
-        "line-height",
-        "font-family",
-        "letter-spacing",
-        "text-align",
-        "text-transform",
-        "text-indent",
-        "text-decoration",
-        "tab-size",
-      ];
+  const measureSelectionAnchor = useCallback((textarea: HTMLTextAreaElement, index: number) => {
+    const rect = textarea.getBoundingClientRect();
+    const computed = window.getComputedStyle(textarea);
+    const mirror = document.createElement("div");
+    const properties = [
+      "box-sizing",
+      "width",
+      "height",
+      "overflow-x",
+      "overflow-y",
+      "border-top-width",
+      "border-right-width",
+      "border-bottom-width",
+      "border-left-width",
+      "padding-top",
+      "padding-right",
+      "padding-bottom",
+      "padding-left",
+      "font-style",
+      "font-variant",
+      "font-weight",
+      "font-stretch",
+      "font-size",
+      "font-size-adjust",
+      "line-height",
+      "font-family",
+      "letter-spacing",
+      "text-align",
+      "text-transform",
+      "text-indent",
+      "text-decoration",
+      "tab-size",
+    ];
 
-      properties.forEach((property) => {
-        mirror.style.setProperty(property, computed.getPropertyValue(property));
-      });
+    properties.forEach((property) => {
+      mirror.style.setProperty(property, computed.getPropertyValue(property));
+    });
 
-      mirror.style.position = "fixed";
-      mirror.style.top = `${rect.top}px`;
-      mirror.style.left = `${rect.left}px`;
-      mirror.style.whiteSpace = "pre-wrap";
-      mirror.style.overflowWrap = "break-word";
-      mirror.style.visibility = "hidden";
-      mirror.style.pointerEvents = "none";
+    mirror.style.position = "fixed";
+    mirror.style.top = `${rect.top}px`;
+    mirror.style.left = `${rect.left}px`;
+    mirror.style.whiteSpace = "pre-wrap";
+    mirror.style.overflowWrap = "break-word";
+    mirror.style.visibility = "hidden";
+    mirror.style.pointerEvents = "none";
 
-      mirror.textContent = textarea.value.slice(0, index);
+    mirror.textContent = textarea.value.slice(0, index);
 
-      const marker = document.createElement("span");
-      marker.textContent = textarea.value.slice(index) || ".";
-      mirror.appendChild(marker);
+    const marker = document.createElement("span");
+    marker.textContent = textarea.value.slice(index) || ".";
+    mirror.appendChild(marker);
 
-      document.body.appendChild(mirror);
+    document.body.appendChild(mirror);
 
-      const top = rect.top + marker.offsetTop - textarea.scrollTop;
-      const left = rect.left + marker.offsetLeft - textarea.scrollLeft;
+    const top = rect.top + marker.offsetTop - textarea.scrollTop;
+    const left = rect.left + marker.offsetLeft - textarea.scrollLeft;
 
-      document.body.removeChild(mirror);
-      return { top, left };
-    },
-    [],
-  );
+    document.body.removeChild(mirror);
+    return { top, left };
+  }, []);
 
   const updateSelectionPopover = useCallback(() => {
     const textarea = textareaRef.current;
@@ -669,10 +638,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
 
     const anchor = measureSelectionAnchor(textarea, end);
     const width = 360;
-    const left = Math.min(
-      Math.max(anchor.left - width / 2, 12),
-      window.innerWidth - width - 12,
-    );
+    const left = Math.min(Math.max(anchor.left - width / 2, 12), window.innerWidth - width - 12);
     const top = Math.max(anchor.top - 98, 12);
 
     setSelectedRange((prev) => {
@@ -697,12 +663,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
       top: selectionPopoverPinned ? prev.top : top,
       left: selectionPopoverPinned ? prev.left : left,
     }));
-  }, [
-    hideSelectionPopover,
-    markdown,
-    measureSelectionAnchor,
-    selectionPopoverPinned,
-  ]);
+  }, [hideSelectionPopover, markdown, measureSelectionAnchor, selectionPopoverPinned]);
 
   const insertSnippet = useCallback(
     (snippet: string) => {
@@ -749,9 +710,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
     commitPendingTypingUndo();
     pushUndo(markdown);
     setMarkdown(CO_WRITER_SAMPLE_TEMPLATE);
-    setStatus(
-      t("Loaded example template. Press Ctrl/Cmd+Z or use Undo to restore it."),
-    );
+    setStatus(t("Loaded example template. Press Ctrl/Cmd+Z or use Undo to restore it."));
     setError("");
   }, [commitPendingTypingUndo, markdown, pushUndo, t]);
 
@@ -780,7 +739,6 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
         ),
         confirmLabel: t("Clear draft"),
         tone: "danger" as const,
-        onConfirm: clearDocument,
       };
     }
 
@@ -792,12 +750,11 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
         ),
         confirmLabel: t("Load template"),
         tone: "warning" as const,
-        onConfirm: loadExampleTemplate,
       };
     }
 
     return null;
-  }, [clearDocument, loadExampleTemplate, pendingConfirmAction, t]);
+  }, [pendingConfirmAction, t]);
 
   const handleDownload = () => {
     const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
@@ -833,11 +790,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
       anchor.click();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : t("Failed to export Word document."),
-      );
+      setError(err instanceof Error ? err.message : t("Failed to export Word document."));
     } finally {
       setIsExportingDocx(false);
     }
@@ -881,10 +834,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
         const textarea = textareaRef.current;
         if (!textarea) return;
         textarea.focus();
-        textarea.setSelectionRange(
-          range.start,
-          range.start + replacement.length,
-        );
+        textarea.setSelectionRange(range.start, range.start + replacement.length);
         updateSelectionPopover();
       });
     },
@@ -893,20 +843,14 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
 
   const toggleSelectionTool = useCallback((tool: ToolName) => {
     setSelectionTools((prev) =>
-      prev.includes(tool)
-        ? prev.filter((item) => item !== tool)
-        : [...prev, tool],
+      prev.includes(tool) ? prev.filter((item) => item !== tool) : [...prev, tool],
     );
   }, []);
 
   const handleSelectionPopoverDragStart = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       const target = event.target as HTMLElement;
-      if (
-        target.closest(
-          "input, textarea, button, select, option, a, [data-no-drag='true']",
-        )
-      ) {
+      if (target.closest("input, textarea, button, select, option, a, [data-no-drag='true']")) {
         return;
       }
       event.preventDefault();
@@ -922,58 +866,55 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
     [selectionPopover.left, selectionPopover.top],
   );
 
-  const updateSelectionTraceFromEvent = useCallback(
-    (event: StreamTraceEvent) => {
-      setSelectionTrace((prev) => {
-        const current = prev ?? { toolTraces: [], response: "" };
-        if (event.type === "tool_call") {
-          return {
-            ...current,
-            toolTraces: [
-              ...current.toolTraces,
-              {
-                kind: "tool_call",
-                name: String(event.content || ""),
-                arguments:
-                  event.metadata && typeof event.metadata.args === "object"
-                    ? (event.metadata.args as Record<string, unknown>)
-                    : {},
-                result: "",
-                success: true,
-                sources: [],
-                metadata: event.metadata || {},
-              },
-            ],
-          };
-        }
-        if (event.type === "tool_result") {
-          return {
-            ...current,
-            toolTraces: [
-              ...current.toolTraces,
-              {
-                kind: "tool_result",
-                name: String(event.metadata?.tool || "result"),
-                arguments: {},
-                result: String(event.content || ""),
-                success: true,
-                sources: [],
-                metadata: event.metadata || {},
-              },
-            ],
-          };
-        }
-        if (event.type === "content" && event.stage === "responding") {
-          return {
-            ...current,
-            response: `${current.response}${event.content || ""}`,
-          };
-        }
-        return current;
-      });
-    },
-    [],
-  );
+  const updateSelectionTraceFromEvent = useCallback((event: StreamTraceEvent) => {
+    setSelectionTrace((prev) => {
+      const current = prev ?? { toolTraces: [], response: "" };
+      if (event.type === "tool_call") {
+        return {
+          ...current,
+          toolTraces: [
+            ...current.toolTraces,
+            {
+              kind: "tool_call",
+              name: String(event.content || ""),
+              arguments:
+                event.metadata && typeof event.metadata.args === "object"
+                  ? (event.metadata.args as Record<string, unknown>)
+                  : {},
+              result: "",
+              success: true,
+              sources: [],
+              metadata: event.metadata || {},
+            },
+          ],
+        };
+      }
+      if (event.type === "tool_result") {
+        return {
+          ...current,
+          toolTraces: [
+            ...current.toolTraces,
+            {
+              kind: "tool_result",
+              name: String(event.metadata?.tool || "result"),
+              arguments: {},
+              result: String(event.content || ""),
+              success: true,
+              sources: [],
+              metadata: event.metadata || {},
+            },
+          ],
+        };
+      }
+      if (event.type === "content" && event.stage === "responding") {
+        return {
+          ...current,
+          response: `${current.response}${event.content || ""}`,
+        };
+      }
+      return current;
+    });
+  }, []);
 
   const applyReactSelectionEdit = useCallback(async () => {
     if (!selectedRange) {
@@ -993,26 +934,21 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
     const controller = startSelectionRequest();
 
     try {
-      const response = await apiFetch(
-        apiUrl("/api/documents/actions/edit-react/stream"),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          signal: controller.signal,
-          body: JSON.stringify({
-            selected_text: selectedRange.text,
-            instruction: selectionInstruction.trim(),
-            mode: selectionMode,
-            tools: selectionTools,
-            kb_name: selectionTools.includes("rag") ? kbName || null : null,
-            llm_selection: llmSelection,
-          }),
-        },
-      );
+      const response = await apiFetch(apiUrl("/api/documents/actions/edit-react/stream"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          selected_text: selectedRange.text,
+          instruction: selectionInstruction.trim(),
+          mode: selectionMode,
+          tools: selectionTools,
+          kb_name: selectionTools.includes("rag") ? kbName || null : null,
+          llm_selection: llmSelection,
+        }),
+      });
       if (!response.ok) {
-        throw new Error(
-          (await response.text()) || t("Failed to edit selected text."),
-        );
+        throw new Error((await response.text()) || t("Failed to edit selected text."));
       }
       if (!response.body) {
         throw new Error(t("Streaming response body is missing."));
@@ -1045,9 +981,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
           return;
         }
         if (eventName === "error") {
-          throw new Error(
-            String(payload?.detail || t("Failed to edit selected text.")),
-          );
+          throw new Error(String(payload?.detail || t("Failed to edit selected text.")));
         }
       };
 
@@ -1074,9 +1008,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
 
       if (markdownRef.current !== selectedRange.snapshot) {
         throw new Error(
-          t(
-            "The draft changed before AI edit finished. Please reselect the text and try again.",
-          ),
+          t("The draft changed before AI edit finished. Please reselect the text and try again."),
         );
       }
 
@@ -1086,9 +1018,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
       if (err instanceof DOMException && err.name === "AbortError") {
         return;
       }
-      setError(
-        err instanceof Error ? err.message : t("Failed to edit selected text."),
-      );
+      setError(err instanceof Error ? err.message : t("Failed to edit selected text."));
     } finally {
       finishSelectionRequest(controller);
       setIsEditing(false);
@@ -1130,12 +1060,9 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
         }),
       });
       const data = await response.json();
-      if (!response.ok)
-        throw new Error(data?.detail || t("Failed to edit document."));
+      if (!response.ok) throw new Error(data?.detail || t("Failed to edit document."));
       if (markdownRef.current !== snapshot) {
-        throw new Error(
-          t("The draft changed while AI edit was running. Please try again."),
-        );
+        throw new Error(t("The draft changed while AI edit was running. Please try again."));
       }
       pushUndo(snapshot);
       setMarkdown(data.edited_text || "");
@@ -1146,9 +1073,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
       );
       setIsEditModalOpen(false);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : t("Failed to edit document."),
-      );
+      setError(err instanceof Error ? err.message : t("Failed to edit document."));
     } finally {
       setIsEditing(false);
     }
@@ -1164,32 +1089,24 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
     setError("");
     setStatus("");
     try {
-      const response = await apiFetch(
-        apiUrl("/api/documents/actions/automark"),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            text: snapshot,
-            llm_selection: llmSelection,
-          }),
-        },
-      );
+      const response = await apiFetch(apiUrl("/api/documents/actions/automark"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: snapshot,
+          llm_selection: llmSelection,
+        }),
+      });
       const data = await response.json();
-      if (!response.ok)
-        throw new Error(data?.detail || t("Failed to auto-mark document."));
+      if (!response.ok) throw new Error(data?.detail || t("Failed to auto-mark document."));
       if (markdownRef.current !== snapshot) {
-        throw new Error(
-          t("The draft changed while AI edit was running. Please try again."),
-        );
+        throw new Error(t("The draft changed while AI edit was running. Please try again."));
       }
       pushUndo(snapshot);
       setMarkdown(data.marked_text || "");
       setStatus(t("Applied auto-mark annotations."));
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : t("Failed to auto-mark document."),
-      );
+      setError(err instanceof Error ? err.message : t("Failed to auto-mark document."));
     } finally {
       setIsAutoMarking(false);
     }
@@ -1197,8 +1114,8 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
 
   const TOOLBAR: ToolbarItem[] = useMemo(
     () => [
-      { id: "undo", icon: Undo2, title: "Undo", action: handleUndo },
-      { id: "redo", icon: Redo2, title: "Redo", action: handleRedo },
+      { id: "undo", icon: Undo2, title: "Undo" },
+      { id: "redo", icon: Redo2, title: "Redo" },
       { id: "sep-1", icon: Minus, title: "", type: "separator" },
       { id: "h1", icon: Heading1, title: "Heading 1", snippet: "\n# " },
       { id: "h2", icon: Heading2, title: "Heading 2", snippet: "\n## " },
@@ -1242,8 +1159,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
         id: "table",
         icon: Table2,
         title: "Table",
-        snippet:
-          "\n| Column | Column |\n| ------ | ------ |\n| Cell   | Cell   |\n",
+        snippet: "\n| Column | Column |\n| ------ | ------ |\n| Cell   | Cell   |\n",
       },
       {
         id: "link",
@@ -1272,16 +1188,12 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
       },
       {
         id: "math",
-        icon: () => (
-          <span className="text-[11px] font-semibold leading-none">
-            &Sigma;
-          </span>
-        ),
+        icon: () => <span className="text-[11px] font-semibold leading-none">&Sigma;</span>,
         title: "Math Block",
         snippet: "\n$$\na^2 + b^2 = c^2\n$$\n",
       },
     ],
-    [handleUndo, handleRedo],
+    [],
   );
 
   useEffect(() => {
@@ -1351,10 +1263,6 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
 
   // Cache: rebuilding the mirror is moderately expensive, so cache by
   // (markdown content, textarea inner width). Both invalidate the cache.
-  const editorYCacheRef = useRef<{
-    signature: string;
-    ys: Map<number, number>;
-  } | null>(null);
 
   const measureEditorLineYs = useCallback((): Map<number, number> => {
     const editor = textareaRef.current;
@@ -1479,8 +1387,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
 
     const editor = textareaRef.current;
     const preview = previewScrollRef.current;
-    const markers: Array<{ line: number; editorY: number; previewY: number }> =
-      [];
+    const markers: Array<{ line: number; editorY: number; previewY: number }> = [];
     for (const line of lines) {
       const editorY = editorYs.get(line);
       const previewY = previewYs.get(line);
@@ -1490,21 +1397,14 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
 
     // Anchor the very top so we don't snap to the first heading when the user
     // is still above it.
-    if (
-      markers.length === 0 ||
-      markers[0].editorY > 0 ||
-      markers[0].previewY > 0
-    ) {
+    if (markers.length === 0 || markers[0].editorY > 0 || markers[0].previewY > 0) {
       markers.unshift({ line: 0, editorY: 0, previewY: 0 });
     }
 
     // Anchor the bottom so the bottom of the document matches.
     if (editor && preview) {
       const editorMax = Math.max(0, editor.scrollHeight - editor.clientHeight);
-      const previewMax = Math.max(
-        0,
-        preview.scrollHeight - preview.clientHeight,
-      );
+      const previewMax = Math.max(0, preview.scrollHeight - preview.clientHeight);
       const last = markers[markers.length - 1];
       if (editorMax > last.editorY + 1 || previewMax > last.previewY + 1) {
         markers.push({
@@ -1611,12 +1511,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
     scrollSyncSourceRef.current = "preview";
     editor.scrollTop = next;
     releaseScrollSyncSource();
-  }, [
-    buildJointMarkers,
-    releaseScrollSyncSource,
-    syncScrollEnabled,
-    scrollSyncSourceRef,
-  ]);
+  }, [buildJointMarkers, releaseScrollSyncSource, syncScrollEnabled, scrollSyncSourceRef]);
 
   // Mermaid diagrams, images, and KaTeX render asynchronously, so the preview's
   // scrollHeight (and the y position of every marker after them) shifts well
@@ -1671,15 +1566,13 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
   if (docNotFound) {
     return (
       <div className="flex h-full min-h-full flex-col items-center justify-center gap-4 bg-[var(--background)] p-10 text-center">
-        <p className="text-lg font-medium text-[var(--foreground)]">
-          {t("Document not found")}
-        </p>
+        <p className="text-lg font-medium text-[var(--foreground)]">{t("Document not found")}</p>
         <p className="text-sm text-[var(--muted-foreground)]">
           {t("This document may have been deleted, or the link is incorrect.")}
         </p>
         <button
           type="button"
-          onClick={() => onBack ? onBack() : router.push("/co-writer")}
+          onClick={() => (onBack ? onBack() : router.push("/co-writer"))}
           className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--primary)] px-3.5 py-2 text-[12.5px] font-medium text-[var(--primary-foreground)] transition-opacity hover:opacity-90"
         >
           <ChevronLeft size={14} />
@@ -1708,7 +1601,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
           <Tooltip label={t("Back to documents")}>
             <button
               type="button"
-              onClick={() => onBack ? onBack() : router.push("/co-writer")}
+              onClick={() => (onBack ? onBack() : router.push("/co-writer"))}
               className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
               aria-label={t("Back to documents")}
             >
@@ -1775,11 +1668,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
           ) : null}
         </div>
         <div className="flex items-center gap-2">
-          <ToolbarIconBtn
-            title={t("Clear")}
-            onClick={requestClearDocument}
-            tone="danger"
-          >
+          <ToolbarIconBtn title={t("Clear")} onClick={requestClearDocument} tone="danger">
             <Eraser size={17} strokeWidth={1.7} />
           </ToolbarIconBtn>
           <ToolbarIconBtn title={t("Export Markdown")} onClick={handleDownload}>
@@ -1798,10 +1687,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
               <FileDown size={17} strokeWidth={1.7} />
             )}
           </ToolbarIconBtn>
-          <ToolbarIconBtn
-            title={t("Save to Notebook")}
-            onClick={handleOpenSaveToNotebook}
-          >
+          <ToolbarIconBtn title={t("Save to Notebook")} onClick={handleOpenSaveToNotebook}>
             <NotebookPen size={17} strokeWidth={1.7} />
           </ToolbarIconBtn>
           <ToolbarIconBtn
@@ -1834,12 +1720,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
       <div className="mx-3 mb-1 flex shrink-0 items-center gap-0.5 overflow-x-auto rounded-xl bg-[rgb(var(--dt-ink,55_53_47)/0.035)] px-2 py-1">
         {TOOLBAR.map((item) => {
           if (item.type === "separator") {
-            return (
-              <div
-                key={item.id}
-                className="mx-1 h-4 w-px shrink-0 bg-[var(--border)]"
-              />
-            );
+            return <div key={item.id} className="mx-1 h-4 w-px shrink-0 bg-[var(--border)]" />;
           }
           const Icon = item.icon;
           return (
@@ -1848,7 +1729,13 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
                 type="button"
                 aria-label={t(item.title)}
                 onClick={() =>
-                  item.action ? item.action() : insertSnippet(item.snippet || "")
+                  item.id === "undo"
+                    ? handleUndo()
+                    : item.id === "redo"
+                      ? handleRedo()
+                      : item.action
+                        ? item.action()
+                        : insertSnippet(item.snippet || "")
                 }
                 className="shrink-0 rounded-md p-1.5 text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)]/55 hover:text-[var(--foreground)] active:scale-[0.97]"
               >
@@ -1880,36 +1767,23 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
               <span
                 aria-hidden="true"
                 className={`inline-block h-1.5 w-1.5 rounded-full ${
-                  syncScrollEnabled
-                    ? "bg-[var(--primary)]"
-                    : "bg-[var(--muted-foreground)]/60"
+                  syncScrollEnabled ? "bg-[var(--primary)]" : "bg-[var(--muted-foreground)]/60"
                 }`}
               />
               {t("Sync Scroll")}
             </button>
           </Tooltip>
-          <span
-            className="mx-0.5 h-3 w-px bg-[var(--border)]"
-            aria-hidden="true"
-          />
-          <span className="rounded-md bg-[var(--muted)] px-1.5 py-0.5">
-            {"GFM"}
-          </span>
-          <span className="rounded-md bg-[var(--muted)] px-1.5 py-0.5">
-            {"KaTeX"}
-          </span>
-          <span className="rounded-md bg-[var(--muted)] px-1.5 py-0.5">
-            {"Mermaid"}
-          </span>
+          <span className="mx-0.5 h-3 w-px bg-[var(--border)]" aria-hidden="true" />
+          <span className="rounded-md bg-[var(--muted)] px-1.5 py-0.5">{"GFM"}</span>
+          <span className="rounded-md bg-[var(--muted)] px-1.5 py-0.5">{"KaTeX"}</span>
+          <span className="rounded-md bg-[var(--muted)] px-1.5 py-0.5">{"Mermaid"}</span>
         </div>
       </div>
 
       {/* ── Editor + Preview ── */}
       <div
         ref={splitContainerRef}
-        className={`relative flex min-h-0 flex-1 ${
-          isResizingSplit ? "select-none" : ""
-        }`}
+        className={`relative flex min-h-0 flex-1 ${isResizingSplit ? "select-none" : ""}`}
       >
         {/* Editor panel */}
         {showEditor && (
@@ -2118,9 +1992,8 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
                     ? t("Tools")
                     : selectionTools.length === 1
                       ? t(
-                          TOOL_OPTIONS.find(
-                            (item) => item.name === selectionTools[0],
-                          )?.label || "Tools",
+                          TOOL_OPTIONS.find((item) => item.name === selectionTools[0])?.label ||
+                            "Tools",
                         )
                       : t("{{count}} tools", { count: selectionTools.length })}
                 </span>
@@ -2140,11 +2013,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
                         className="flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-[12.5px] text-[var(--foreground)] transition-colors hover:bg-[var(--muted)]/45"
                       >
                         <span>{t(tool.label)}</span>
-                        {active ? (
-                          <Check size={12} />
-                        ) : (
-                          <span className="w-3" />
-                        )}
+                        {active ? <Check size={12} /> : <span className="w-3" />}
                       </button>
                     );
                   })}
@@ -2161,10 +2030,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
                 className="flex h-8 w-full items-center justify-between rounded-lg bg-[rgb(var(--dt-ink,55_53_47)/0.045)] px-2.5 text-[12.5px] text-[var(--foreground)] transition-colors hover:bg-[rgb(var(--dt-ink,55_53_47)/0.075)]"
               >
                 <span>
-                  {t(
-                    MODE_OPTIONS.find((item) => item.value === selectionMode)
-                      ?.label || "Mode",
-                  )}
+                  {t(MODE_OPTIONS.find((item) => item.value === selectionMode)?.label || "Mode")}
                 </span>
                 <ChevronDown
                   size={13}
@@ -2235,8 +2101,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
               <ActivityStack alignUnderOrb={false}>
                 {(selectionTrace?.toolTraces ?? []).map((trace, index) => {
                   const label = t(
-                    TOOL_OPTIONS.find((item) => item.name === trace.name)
-                      ?.label || trace.name,
+                    TOOL_OPTIONS.find((item) => item.name === trace.name)?.label || trace.name,
                   );
                   const rows: DetailRow[] = argumentRows(trace.arguments);
                   // The leading argument is this row's content. A tool row
@@ -2248,12 +2113,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
                   if (trace.result) {
                     rows.push({
                       key: "result",
-                      value: (
-                        <MarkdownRenderer
-                          content={trace.result}
-                          variant="trace"
-                        />
-                      ),
+                      value: <MarkdownRenderer content={trace.result} variant="trace" />,
                     });
                   }
                   return (
@@ -2277,23 +2137,14 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
                 })}
 
                 {selectionTrace?.response ? (
-                  <ActivityRow
-                    state="done"
-                    title={t("Response")}
-                    detail={selectionTrace.response}
-                  >
-                    <MarkdownRenderer
-                      content={selectionTrace.response}
-                      variant="trace"
-                    />
+                  <ActivityRow state="done" title={t("Response")} detail={selectionTrace.response}>
+                    <MarkdownRenderer content={selectionTrace.response} variant="trace" />
                   </ActivityRow>
                 ) : null}
 
                 {/* Nothing has come back yet — one live row rather than a
                     sentence that would be replaced a moment later. */}
-                {isEditing &&
-                !selectionTrace?.toolTraces.length &&
-                !selectionTrace?.response ? (
+                {isEditing && !selectionTrace?.toolTraces.length && !selectionTrace?.response ? (
                   <ActivityRow
                     state="running"
                     title={t("Running tools and preparing the final edit...")}
@@ -2478,9 +2329,7 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
 
             <div className="px-4 py-3">
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
-                {t(
-                  "Undo is available with Ctrl/Cmd+Z or the toolbar Undo button.",
-                )}
+                {t("Undo is available with Ctrl/Cmd+Z or the toolbar Undo button.")}
               </div>
             </div>
 
@@ -2495,14 +2344,13 @@ export default function CoWriterWorkspace({ docId, onBack }: CoWriterWorkspacePr
               <button
                 type="button"
                 onClick={() => {
-                  const onConfirm = confirmActionCopy.onConfirm;
+                  const onConfirm =
+                    pendingConfirmAction === "clear" ? clearDocument : loadExampleTemplate;
                   setPendingConfirmAction(null);
                   onConfirm();
                 }}
                 className={`rounded-lg px-3 py-1.5 text-[12.5px] font-medium text-white transition-opacity hover:opacity-90 ${
-                  confirmActionCopy.tone === "danger"
-                    ? "bg-rose-600"
-                    : "bg-amber-600"
+                  confirmActionCopy.tone === "danger" ? "bg-rose-600" : "bg-amber-600"
                 }`}
               >
                 {confirmActionCopy.confirmLabel}

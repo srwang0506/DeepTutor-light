@@ -1,15 +1,7 @@
 "use client";
 
 import Tooltip from "@/shared/ui/Tooltip";
-import {
-  CheckCircle2,
-  ExternalLink,
-  Loader2,
-  LogIn,
-  LogOut,
-  RefreshCw,
-  X,
-} from "lucide-react";
+import { CheckCircle2, ExternalLink, Loader2, LogIn, LogOut, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -30,14 +22,13 @@ export function CodeBuddyAuthCard() {
   const [requestError, setRequestError] = useState("");
 
   const refresh = useCallback(async () => {
-    try {
-      setRequestError("");
-      setStatus(await getCodeBuddyAuthStatus());
-    } catch (error) {
-      setRequestError(error instanceof Error ? error.message : String(error));
-    } finally {
-      setLoading(false);
-    }
+    return getCodeBuddyAuthStatus()
+      .then((value) => {
+        setStatus(value);
+        setRequestError("");
+      })
+      .catch((error) => setRequestError(error instanceof Error ? error.message : String(error)))
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -73,7 +64,10 @@ export function CodeBuddyAuthCard() {
   const cancelLogin = async () => {
     setWorking(true);
     try {
-      setStatus(await cancelCodeBuddyLogin());
+      {
+        const resolvedState1 = await cancelCodeBuddyLogin();
+        setStatus(resolvedState1);
+      }
     } catch (error) {
       setRequestError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -85,7 +79,10 @@ export function CodeBuddyAuthCard() {
     setWorking(true);
     setRequestError("");
     try {
-      setStatus(await logoutCodeBuddy());
+      {
+        const resolvedState2 = await logoutCodeBuddy();
+        setStatus(resolvedState2);
+      }
     } catch (error) {
       setRequestError(error instanceof Error ? error.message : String(error));
     } finally {
@@ -201,9 +198,7 @@ export function CodeBuddyAuthCard() {
       </div>
 
       {(requestError || status?.connection === "error") && (
-        <p className="mt-2 text-[11px] text-red-500">
-          {requestError || t(errorKey)}
-        </p>
+        <p className="mt-2 text-[11px] text-red-500">{requestError || t(errorKey)}</p>
       )}
     </div>
   );

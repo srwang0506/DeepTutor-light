@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Suspense,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -33,26 +27,31 @@ function MasteryPathRoute() {
   const wizardTriggerRef = useRef<HTMLElement | null>(null);
   useCreateRequest(() => setWizardOpen(true));
 
-  const loadTopics = useCallback(async () => {
-    setError(null);
-    try {
-      const result = await learningLibrary<MasteryTopic>("mastery");
-      setTopics(result.items);
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : t("The atlas could not be loaded."),
-      );
-    } finally {
-      setLoading(false);
-    }
+  const loadTopicsData = useCallback(async () => {
+    return learningLibrary<MasteryTopic>("mastery")
+      .then(async (result) => {
+        setTopics(result.items);
+      })
+      .catch((reason) => {
+        setError(reason instanceof Error ? reason.message : t("The atlas could not be loaded."));
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [t]);
+  const [loadTopicsInputs, setLoadTopicsInputs] = useState<typeof loadTopicsData | null>(null);
+  if (loadTopicsInputs !== loadTopicsData) {
+    setLoadTopicsInputs(() => loadTopicsData);
+    setError(null);
+  }
+  const loadTopics = useCallback(() => {
+    setError(null);
+    return loadTopicsData();
+  }, [loadTopicsData]);
 
   useEffect(() => {
-    void loadTopics();
-  }, [loadTopics]);
-
+    void loadTopicsData();
+  }, [loadTopicsData]);
 
   return (
     <>
@@ -81,10 +80,7 @@ function MasteryPathRoute() {
             // reading their materials rather than waiting to be prompted.
             // The button they pressed is the request; the conversation opens
             // by sending it rather than by asking them to phrase it again.
-            setPendingPrompt(
-              masteryOpeningMessage("outline", t),
-              MASTERY_OPENING_SCOPE,
-            );
+            setPendingPrompt(masteryOpeningMessage("outline", t), MASTERY_OPENING_SCOPE);
             router.push(masterySessionRoute(topic.path_id, "outline"));
           }}
         />

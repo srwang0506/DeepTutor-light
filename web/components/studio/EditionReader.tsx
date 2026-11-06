@@ -1,4 +1,6 @@
 'use client'
+import { savePdfOffline } from '@/lib/offline-study'
+import { useTranslation } from 'react-i18next'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
@@ -33,6 +35,7 @@ export default function EditionReader() {
   )
 }
 function Reader({ workspace, identifier }: { workspace: string; identifier: string }) {
+  const { t } = useTranslation()
   const router = useRouter(),
     search = useSearchParams(),
     op = useOperation()
@@ -56,24 +59,24 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
   useEffect(() => {
     const controller = new AbortController()
     void studio<Edition>(workspace, `/record/${identifier}`, {}, controller.signal)
-      .then(async e => {
+      .then(async (e) => {
         const [work, ev] = await Promise.all([
           studio<Work>(workspace, `/works/${e.data.work_id}`, {}, controller.signal),
           records<EvidenceData>(
             workspace,
             `evidence?q=${encodeURIComponent(identifier)}`,
-            controller.signal
+            controller.signal,
           ),
         ])
         setEdition(e)
         setTitle(work.data.title || e.data.label)
         setRelated(
-          work.editions.filter(other => other.id !== identifier && other.data.files.length)
+          work.editions.filter((other) => other.id !== identifier && other.data.files.length),
         )
         setEvidence(ev)
         if (!hash) setHash(e.data.files[0]?.hash || '')
       })
-      .catch(e => {
+      .catch((e) => {
         if (!controller.signal.aborted) op.setError(e.message)
       })
     return () => controller.abort()
@@ -116,13 +119,13 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
       throw new Error(result.failure_reason || '练习正在生成，稍后可使用同一选区重试。')
     router.push(scopedUrl(`/objects/${result.operation_id}`, workspace))
   }
-  const file = edition?.data.files.find(f => f.hash === hash),
-    other = related.find(e => e.id === compare)
+  const file = edition?.data.files.find((f) => f.hash === hash),
+    other = related.find((e) => e.id === compare)
   const annotations = useMemo<AnnotationItem[]>(
     () =>
       evidence
-        .filter(e => e.data.blob_hash === hash)
-        .map(e => ({
+        .filter((e) => e.data.blob_hash === hash)
+        .map((e) => ({
           annotation_id: e.id,
           locator: e.data.page,
           kind: 'highlight',
@@ -135,17 +138,17 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
           created_at: e.created,
           updated_at: e.updated,
         })),
-    [evidence, hash]
+    [evidence, hash],
   )
   async function save() {
     if (!selection || !file) return
     const rects = selection.rects
     const region = rects.length
       ? [
-          Math.min(...rects.map(r => r[0])),
-          Math.min(...rects.map(r => r[1])),
-          Math.max(...rects.map(r => r[2])),
-          Math.max(...rects.map(r => r[3])),
+          Math.min(...rects.map((r) => r[0])),
+          Math.min(...rects.map((r) => r[1])),
+          Math.max(...rects.map((r) => r[2])),
+          Math.max(...rects.map((r) => r[3])),
         ]
       : null
     const row = await post<StudioRecord<EvidenceData>>(workspace, '/evidence', {
@@ -159,7 +162,7 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
       interpretation: note,
       verification: confirmed ? 'confirmed' : 'unreviewed',
     })
-    setEvidence(v => [row, ...v])
+    setEvidence((v) => [row, ...v])
     setSaved('摘录已保存，可在证据矩阵中引用。')
     setSelection(null)
     setNote('')
@@ -170,7 +173,7 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
     if (!selection) return
     setPendingPrompt(
       `${action}\n\n请把以下内容当作资料，区分作者原意与推断。来源：${title}，版本 ${edition?.data.label}，物理页 ${selection.locator}，原件 SHA-256 ${hash}。\n\n${selection.quote}\n\n来源链接：${scopedUrl(`/library/${identifier}?file=${hash}&page=${selection.locator}`, workspace)}`,
-      `chat:${workspace}`
+      `chat:${workspace}`,
     )
     router.push(scopedUrl('/chat', workspace))
   }
@@ -178,13 +181,14 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
     <section className="studio-reader">
       <header className="studio-reader-bar">
         <div className="studio-actions">
-          <Link aria-label="回到资料库" href={scopedUrl('/library', workspace)}>
+          <Link aria-label={t('回到资料库')} href={scopedUrl('/library', workspace)}>
             <ArrowLeft size={17} />
           </Link>
           <div>
             <h1>{title}</h1>
             <span className="studio-reader-page">
-              {edition?.data.label} · 原件保留 · 第 {page} / {file?.pages || '—'} 页
+              {edition?.data.label} {t('· 原件保留 · 第')}
+              {page} / {file?.pages || '—'} 页
             </span>
           </div>
         </div>
@@ -193,12 +197,12 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
             <label className="studio-actions" style={{ fontSize: 11 }}>
               <Columns2 size={15} />
               <select
-                aria-label="对照论文版本"
+                aria-label={t('对照论文版本')}
                 value={compare}
-                onChange={e => setCompare(e.target.value)}
+                onChange={(e) => setCompare(e.target.value)}
               >
-                <option value="">对照版本</option>
-                {related.map(e => (
+                <option value="">{t('对照版本')}</option>
+                {related.map((e) => (
                   <option key={e.id} value={e.id}>
                     {e.data.label}
                   </option>
@@ -207,15 +211,32 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
             </label>
           )}
           <Link className="studio-outlink" href={scopedUrl('/studio/evidence', workspace)}>
-            查看证据矩阵
+            {t('查看证据矩阵')}
           </Link>
         </div>
+        <button
+          type="button"
+          className="px-3 py-2 text-sm"
+          disabled={!file || op.busy}
+          onClick={() =>
+            void op.run(async () => {
+              const href = await savePdfOffline(
+                workspace,
+                title,
+                studioUrl(`/editions/${identifier}/files/${hash}`, workspace),
+              )
+              window.open(href, '_blank', 'noopener')
+            })
+          }
+        >
+          {t('保存供离线使用')}
+        </button>
       </header>
       <ErrorNotice message={op.error} />
       <div className="studio-reader-body">
-        <nav className="studio-reader-outline" aria-label="论文目录">
+        <nav className="studio-reader-outline" aria-label={t('论文目录')}>
           <div className="studio-eyebrow" style={{ padding: 8 }}>
-            CONTENTS · 目录
+            {t('CONTENTS · 目录')}
           </div>
           {file?.outline.length ? (
             file.outline.map((entry, i) => (
@@ -229,7 +250,7 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
             ))
           ) : (
             <p className="studio-note" style={{ padding: 8 }}>
-              原文没有书签目录，可直接滚动阅读或跳转页码。
+              {t('原文没有书签目录，可直接滚动阅读或跳转页码。')}
             </p>
           )}
           <Field label="跳到物理页">
@@ -238,7 +259,7 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
               min={1}
               max={file?.pages}
               value={page}
-              onChange={e => {
+              onChange={(e) => {
                 const p = Number(e.target.value)
                 if (p >= 1 && p <= (file?.pages || 1)) setJump({ locator: p, nonce: Date.now() })
               }}
@@ -248,13 +269,13 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
             <Field label="原件与补充材料">
               <select
                 value={hash}
-                onChange={e => {
+                onChange={(e) => {
                   setHash(e.target.value)
                   setSelection(null)
                   setJump({ locator: 1, nonce: Date.now() })
                 }}
               >
-                {edition.data.files.map(f => (
+                {edition.data.files.map((f) => (
                   <option key={f.hash} value={f.hash}>
                     {f.name}
                   </option>
@@ -275,15 +296,15 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
               annotations={annotations}
               highlightedAnnotationId={search.get('evidence')}
               jump={jump}
-              onSelection={value => {
+              onSelection={(value) => {
                 if (value) {
                   setSelection(value)
                   setSaved('')
                 }
               }}
               onVisibleLocatorChange={setPage}
-              onAnnotationClick={annotation => {
-                const e = evidence.find(r => r.id === annotation.annotation_id)
+              onAnnotationClick={(annotation) => {
+                const e = evidence.find((r) => r.id === annotation.annotation_id)
                 if (e) {
                   setSaved(e.data.label)
                   setNote(e.data.interpretation)
@@ -296,7 +317,7 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
               materialId={`${other.id}:${other.data.files[0].hash}`}
               sourceUrl={studioUrl(
                 `/editions/${other.id}/files/${other.data.files[0].hash}`,
-                workspace
+                workspace,
               )}
               unitCount={other.data.files[0].pages}
               annotations={[]}
@@ -306,10 +327,10 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
           )}
         </main>
         <aside className="studio-reader-aside">
-          <span className="studio-eyebrow">READ · THINK · CONNECT</span>
+          <span className="studio-eyebrow">{t('READ · THINK · CONNECT')}</span>
           <h2 style={{ marginTop: 15 }}>{selection ? '把这一处，留下来' : '读到哪里，想到哪里'}</h2>
           <p className="studio-note">
-            选中原文，可以解释、追问或保存为证据。每条证据都固定到此版本、原件与物理页。
+            {t('选中原文，可以解释、追问或保存为证据。每条证据都固定到此版本、原件与物理页。')}
           </p>
           {saved && (
             <p className="studio-note" role="status">
@@ -322,7 +343,7 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
               <div className="studio-actions" style={{ marginTop: 18 }}>
                 <Action secondary onClick={() => ask('请解释这一选区，必要时补充先修概念。')}>
                   <MessageCircle size={14} />
-                  解释
+                  {t('解释')}
                 </Action>
                 <Action
                   secondary
@@ -330,47 +351,47 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
                     ask('先给我一个提示，带我推导这段内容的下一步，暂不展示完整答案。')
                   }
                 >
-                  分步提示
+                  {t('分步提示')}
                 </Action>
                 <Action
                   secondary
                   onClick={() => ask('围绕这段材料给出一个反例，明确原结论的假设和适用边界。')}
                 >
-                  给反例
+                  {t('给反例')}
                 </Action>
                 <Action secondary disabled={op.busy} onClick={() => op.run(practice)}>
-                  现在测我
+                  {t('现在测我')}
                 </Action>
               </div>
               <Field label="证据名称">
                 <input
                   value={label}
-                  onChange={e => setLabel(e.target.value)}
-                  placeholder="例如 Table 2：未见物体上的 F-score"
+                  onChange={(e) => setLabel(e.target.value)}
+                  placeholder={t('例如 Table 2：未见物体上的 F-score')}
                 />
               </Field>
               <Field label="选区类型">
-                <select value={kind} onChange={e => setKind(e.target.value)}>
-                  <option value="quote">方法或文字</option>
-                  <option value="table">表格</option>
+                <select value={kind} onChange={(e) => setKind(e.target.value)}>
+                  <option value="quote">{t('方法或文字')}</option>
+                  <option value="table">{t('表格')}</option>
                   <option value="figure">图</option>
-                  <option value="formula">公式</option>
+                  <option value="formula">{t('公式')}</option>
                 </select>
               </Field>
               <Field label="自己的理解或疑问">
                 <textarea
                   value={note}
-                  onChange={e => setNote(e.target.value)}
-                  placeholder="作者报告了什么？有哪些条件仍需核实？"
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder={t('作者报告了什么？有哪些条件仍需核实？')}
                 />
               </Field>
               <label className="studio-note" style={{ display: 'flex', gap: 8 }}>
                 <input
                   type="checkbox"
                   checked={confirmed}
-                  onChange={e => setConfirmed(e.target.checked)}
+                  onChange={(e) => setConfirmed(e.target.checked)}
                 />
-                我已核对选区和原文位置
+                {t('我已核对选区和原文位置')}
               </label>
               <Action disabled={op.busy} onClick={() => void op.run(save)}>
                 <BookmarkPlus size={15} />
@@ -380,8 +401,8 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
           ) : (
             <div className="studio-card-list">
               {evidence
-                .filter(e => e.data.blob_hash === hash)
-                .map(e => (
+                .filter((e) => e.data.blob_hash === hash)
+                .map((e) => (
                   <button
                     key={e.id}
                     className="studio-card"
@@ -392,7 +413,7 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
                   >
                     <h3 style={{ fontSize: 12 }}>{e.data.label}</h3>
                     <span className="studio-badge">
-                      第 {e.data.page} 页 ·{' '}
+                      第 {e.data.page} {t('页 ·')}{' '}
                       {e.data.verification === 'confirmed' ? '已核对' : '待核对'}
                     </span>
                   </button>

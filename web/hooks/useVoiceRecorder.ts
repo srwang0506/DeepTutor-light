@@ -1,4 +1,5 @@
 "use client";
+import { useLayoutEffect } from "react";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -19,7 +20,9 @@ export function useVoiceRecorder(onTranscript: (text: string) => void) {
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const onTranscriptRef = useRef(onTranscript);
-  onTranscriptRef.current = onTranscript;
+  useLayoutEffect(() => {
+    onTranscriptRef.current = onTranscript;
+  }, [onTranscript]);
 
   const releaseStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -61,11 +64,7 @@ export function useVoiceRecorder(onTranscript: (text: string) => void) {
       }
       setState("transcribing");
       try {
-        const ext = mimeType.includes("ogg")
-          ? "ogg"
-          : mimeType.includes("mp4")
-            ? "mp4"
-            : "webm";
+        const ext = mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") ? "mp4" : "webm";
         const form = new FormData();
         form.append("file", blob, `recording.${ext}`);
         const resp = await apiFetch(apiUrl("/api/voice/stt"), {
@@ -76,9 +75,7 @@ export function useVoiceRecorder(onTranscript: (text: string) => void) {
           const detail = (await resp.json().catch(() => null)) as {
             detail?: string;
           } | null;
-          throw new Error(
-            detail?.detail || `Transcription failed (HTTP ${resp.status}).`,
-          );
+          throw new Error(detail?.detail || `Transcription failed (HTTP ${resp.status}).`);
         }
         const data = (await resp.json()) as { text?: string };
         const text = (data.text || "").trim();

@@ -1,6 +1,6 @@
 # Personal learning and research Studio
 
-[Handbook](README.md) · [Research](SCIENTIFIC_RESEARCH.md) · [Practice](PRACTICE.md)
+[Continuity and integrations](STUDIO_REVIEW3.md) · [Handbook](README.md) · [Research](SCIENTIFIC_RESEARCH.md) · [Practice](PRACTICE.md)
 
 This fork keeps DeepTutor's modular monolith, model registry, project grants and
 durable session store. Studio connects original documents, practice, evidence,

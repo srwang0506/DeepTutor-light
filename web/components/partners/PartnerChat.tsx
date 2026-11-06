@@ -1,4 +1,5 @@
 "use client";
+import { useLayoutEffect } from "react";
 
 /**
  * Web chat with a partner over `WS /ws/partners/{id}`.
@@ -48,10 +49,9 @@ import {
 } from "@/components/partners/PartnerComposer";
 import PartnerAvatar from "@/components/partners/PartnerAvatar";
 
-const AssistantResponse = dynamic(
-  () => import("@/components/common/AssistantResponse"),
-  { ssr: false },
-);
+const AssistantResponse = dynamic(() => import("@/components/common/AssistantResponse"), {
+  ssr: false,
+});
 
 interface ChatMsg {
   role: "user" | "assistant";
@@ -101,9 +101,7 @@ const CLIENT_COMMANDS = new Set([
   "/stop",
 ]);
 
-function parseClientCommand(
-  content: string,
-): { command: string; arg: string } | null {
+function parseClientCommand(content: string): { command: string; arg: string } | null {
   const trimmed = content.trim();
   if (!trimmed.startsWith("/")) return null;
   const [head, ...rest] = trimmed.split(/\s+/);
@@ -117,9 +115,7 @@ function normalizeHistoryEvents(value: unknown): StreamEvent[] | undefined {
   return value as StreamEvent[];
 }
 
-function normalizeHistoryAttachments(
-  value: unknown,
-): PartnerMessageAttachment[] {
+function normalizeHistoryAttachments(value: unknown): PartnerMessageAttachment[] {
   if (!Array.isArray(value)) return [];
   return value
     .map((item): PartnerMessageAttachment | null => {
@@ -141,14 +137,10 @@ function normalizeHistoryAttachments(
         url: typeof obj.url === "string" ? obj.url : undefined,
         generated: Boolean(obj.generated),
         origin: obj.origin === "workspace" ? "workspace" : undefined,
-        workspaceId:
-          typeof obj.workspace_id === "string" ? obj.workspace_id : undefined,
+        workspaceId: typeof obj.workspace_id === "string" ? obj.workspace_id : undefined,
         workspaceItemId:
-          typeof obj.workspace_item_id === "string"
-            ? obj.workspace_item_id
-            : undefined,
-        relativePath:
-          typeof obj.relative_path === "string" ? obj.relative_path : undefined,
+          typeof obj.workspace_item_id === "string" ? obj.workspace_item_id : undefined,
+        relativePath: typeof obj.relative_path === "string" ? obj.relative_path : undefined,
         sha256: typeof obj.sha256 === "string" ? obj.sha256 : undefined,
         title: typeof obj.title === "string" ? obj.title : undefined,
         caption: typeof obj.caption === "string" ? obj.caption : undefined,
@@ -157,9 +149,7 @@ function normalizeHistoryAttachments(
     .filter((item): item is PartnerMessageAttachment => item !== null);
 }
 
-function workspaceAttachments(
-  attachments?: PartnerMessageAttachment[],
-): MessageAttachment[] {
+function workspaceAttachments(attachments?: PartnerMessageAttachment[]): MessageAttachment[] {
   return (attachments ?? []).map((attachment) => ({
     type: attachment.type,
     filename: attachment.filename,
@@ -194,11 +184,7 @@ function PartnerGeneratedFiles({
       {unlinked.map((file) => (
         <InlineFileCard
           key={file.url || file.relative_path || file.filename}
-          name={
-            file.origin === "workspace"
-              ? file.relative_path || ""
-              : file.filename || ""
-          }
+          name={file.origin === "workspace" ? file.relative_path || "" : file.filename || ""}
         />
       ))}
     </div>
@@ -233,11 +219,7 @@ function sentAttachmentsForMessage(
   }));
 }
 
-function AttachmentStrip({
-  attachments,
-}: {
-  attachments?: PartnerMessageAttachment[];
-}) {
+function AttachmentStrip({ attachments }: { attachments?: PartnerMessageAttachment[] }) {
   if (!attachments?.length) return null;
   return (
     <div className="mt-2 flex flex-wrap gap-1.5">
@@ -362,7 +344,9 @@ export default function PartnerChat({
   const acceptedRef = useRef(false);
   const [streaming, setStreaming] = useState(false);
   const streamingRef = useRef(streaming);
-  streamingRef.current = streaming;
+  useLayoutEffect(() => {
+    streamingRef.current = streaming;
+  }, [streaming]);
   const [connected, setConnected] = useState(false);
   // Live turn snapshot for rendering. The authoritative accumulator is a
   // local variable inside the socket effect (event handlers may mutate it
@@ -376,22 +360,21 @@ export default function PartnerChat({
   // Mirror the active session into a ref so the socket's onopen (which closes
   // over the effect's first render) attaches to the CURRENT session.
   const sessionKeyRef = useRef(sessionKey);
-  sessionKeyRef.current = sessionKey;
+  useLayoutEffect(() => {
+    sessionKeyRef.current = sessionKey;
+  }, [sessionKey]);
   const loadedTotalRef = useRef(0);
   const oldestIndexRef = useRef(0);
   const refreshInFlightRef = useRef(false);
-  const downloadGeneratedAttachment = useCallback(
-    (attachment: MessageAttachment) => {
-      if (!attachment.url) return;
-      const link = document.createElement("a");
-      link.href = attachment.url;
-      link.download = attachment.filename || "download";
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    },
-    [],
-  );
+  const downloadGeneratedAttachment = useCallback((attachment: MessageAttachment) => {
+    if (!attachment.url) return;
+    const link = document.createElement("a");
+    link.href = attachment.url;
+    link.download = attachment.filename || "download";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }, []);
   useEffect(() => onBusyChange?.(streaming), [onBusyChange, streaming]);
   useEffect(() => () => onBusyChange?.(false), [onBusyChange]);
   // Attach to an in-flight turn only AFTER history has loaded, so the replay's
@@ -406,20 +389,16 @@ export default function PartnerChat({
     scrollToBottom,
     handleScroll,
   } = useChatAutoScroll({
-    hasMessages:
-      messages.length > 0 || draft !== null || externalDrafts.length > 0,
+    hasMessages: messages.length > 0 || draft !== null || externalDrafts.length > 0,
     isStreaming: streaming || externalDrafts.length > 0,
     // PartnerComposer sits outside the scrollport and currently exposes no
     // measured-height callback. Sending explicitly re-arms the shared hook
     // below, while streamed content changes drive its normal pin logic.
     composerHeight: 0,
     messageCount: messages.length + (draft ? 1 : 0) + externalDrafts.length,
-    lastMessageContent:
-      externalDrafts.at(-1)?.content ?? draft?.content ?? lastMessage?.content,
+    lastMessageContent: externalDrafts.at(-1)?.content ?? draft?.content ?? lastMessage?.content,
     lastEventCount:
-      externalDrafts.at(-1)?.events.length ??
-      draft?.events.length ??
-      lastMessage?.events?.length,
+      externalDrafts.at(-1)?.events.length ?? draft?.events.length ?? lastMessage?.events?.length,
   });
 
   const tryAttach = useCallback(() => {
@@ -444,6 +423,16 @@ export default function PartnerChat({
   // Restore exactly the active conversation. External-channel activity still
   // arrives live over the activity feed, but must not leak into a resumed or
   // archived web session after refresh.
+  const resourceReset0 = JSON.stringify([partnerId, sessionKey]);
+  const [resourceReset0Previous, resourceReset0Remember] = useState<string | null>(null);
+  if (resourceReset0Previous !== resourceReset0) {
+    resourceReset0Remember(resourceReset0);
+    setMessages([]);
+    setOlderBefore(null);
+    setLoadingOlder(false);
+    setHistoryLoadedKey("");
+    setHistoryLoadError(false);
+  }
   useEffect(() => {
     if (!sessionKey) return;
     let cancelled = false;
@@ -452,11 +441,6 @@ export default function PartnerChat({
     acceptedRef.current = false;
     loadedTotalRef.current = 0;
     oldestIndexRef.current = 0;
-    setMessages([]);
-    setOlderBefore(null);
-    setLoadingOlder(false);
-    setHistoryLoadedKey("");
-    setHistoryLoadError(false);
     void getPartnerHistoryPage(partnerId, sessionKey, { limit: 60 })
       .then((page) => {
         if (cancelled) return;
@@ -489,25 +473,36 @@ export default function PartnerChat({
     const previousTop = container?.scrollTop ?? 0;
     shouldAutoScrollRef.current = false;
     setLoadingOlder(true);
-    try {
-      const page = await getPartnerHistoryPage(partnerId, key, {
-        before: olderBefore,
-        limit: 60,
+    return getPartnerHistoryPage(partnerId, key, {
+      before: olderBefore,
+      limit: 60,
+    })
+      .then(async (page) => {
+        if (sessionKeyRef.current !== key) return;
+        setMessages((current) => [...normalizeHistoryMessages(page.messages), ...current]);
+        setOlderBefore(page.next_before);
+        oldestIndexRef.current = page.start;
+        requestAnimationFrame(() => {
+          if (sessionKeyRef.current !== key || !container) return;
+          container.scrollTop = previousTop + container.scrollHeight - previousHeight;
+        });
+      })
+      .catch((error) => {
+        onToast?.(error instanceof Error ? error.message : t("Load failed"));
+      })
+      .finally(() => {
+        if (sessionKeyRef.current === key) setLoadingOlder(false);
       });
-      if (sessionKeyRef.current !== key) return;
-      setMessages((current) => [...normalizeHistoryMessages(page.messages), ...current]);
-      setOlderBefore(page.next_before);
-      oldestIndexRef.current = page.start;
-      requestAnimationFrame(() => {
-        if (sessionKeyRef.current !== key || !container) return;
-        container.scrollTop = previousTop + container.scrollHeight - previousHeight;
-      });
-    } catch (error) {
-      onToast?.(error instanceof Error ? error.message : t("Load failed"));
-    } finally {
-      if (sessionKeyRef.current === key) setLoadingOlder(false);
-    }
-  }, [olderBefore, loadingOlder, sessionKey, scrollRef, shouldAutoScrollRef, partnerId, onToast, t]);
+  }, [
+    olderBefore,
+    loadingOlder,
+    sessionKey,
+    scrollRef,
+    shouldAutoScrollRef,
+    partnerId,
+    onToast,
+    t,
+  ]);
 
   const refreshSharedHistory = useCallback(async () => {
     if (
@@ -519,50 +514,61 @@ export default function PartnerChat({
       !historyReadyRef.current ||
       historyLoadedKey !== sessionKey ||
       refreshInFlightRef.current
-    ) return;
+    )
+      return;
     refreshInFlightRef.current = true;
     const key = sessionKeyRef.current;
-    try {
-      const latest = await getPartnerHistoryPage(partnerId, key, { limit: 60 });
-      if (
-        sessionKeyRef.current !== key ||
-        streamingRef.current ||
-        pendingSendRef.current ||
-        latest.total === loadedTotalRef.current
-      ) return;
-      const chunks = [latest.messages];
-      let before = latest.next_before;
-      let firstIndex = latest.start;
-      // Preserve already loaded older history while refreshing the newest
-      // segment. Each request remains bounded even for long conversations.
-      while (before !== null && before > oldestIndexRef.current) {
-        const older = await getPartnerHistoryPage(partnerId, key, {
-          before,
-          limit: 60,
-        });
+    return getPartnerHistoryPage(partnerId, key, { limit: 60 })
+      .then(async (latest) => {
+        if (
+          sessionKeyRef.current !== key ||
+          streamingRef.current ||
+          pendingSendRef.current ||
+          latest.total === loadedTotalRef.current
+        )
+          return;
+        const chunks = [latest.messages];
+        let before = latest.next_before;
+        let firstIndex = latest.start;
+        while (before !== null && before > oldestIndexRef.current) {
+          const older = await getPartnerHistoryPage(partnerId, key, {
+            before,
+            limit: 60,
+          });
+          if (sessionKeyRef.current !== key || streamingRef.current || pendingSendRef.current)
+            return;
+          chunks.unshift(older.messages);
+          before = older.next_before;
+          firstIndex = older.start;
+        }
         if (sessionKeyRef.current !== key || streamingRef.current || pendingSendRef.current) return;
-        chunks.unshift(older.messages);
-        before = older.next_before;
-        firstIndex = older.start;
-      }
-      if (sessionKeyRef.current !== key || streamingRef.current || pendingSendRef.current) return;
-      setMessages((current) =>
-        streamingRef.current || pendingSendRef.current
-          ? current
-          : [
-              ...normalizeHistoryMessages(chunks.flat()),
-              ...current.filter((message) => message.error),
-            ],
-      );
-      setOlderBefore(before);
-      loadedTotalRef.current = latest.total;
-      oldestIndexRef.current = firstIndex;
-    } catch {
-      // Keep the visible transcript and retry on the next idle poll.
-    } finally {
-      refreshInFlightRef.current = false;
-    }
-  }, [sharedAcrossBrowsers, streaming, draft, externalDrafts.length, historyLoadedKey, sessionKey, partnerId]);
+        setMessages((current) =>
+          streamingRef.current || pendingSendRef.current
+            ? current
+            : [
+                ...normalizeHistoryMessages(chunks.flat()),
+                ...current.filter((message) => message.error),
+              ],
+        );
+        setOlderBefore(before);
+        loadedTotalRef.current = latest.total;
+        oldestIndexRef.current = firstIndex;
+      })
+      .catch(() => {
+        // Keep the visible transcript and retry on the next idle poll.
+      })
+      .finally(() => {
+        refreshInFlightRef.current = false;
+      });
+  }, [
+    sharedAcrossBrowsers,
+    streaming,
+    draft,
+    externalDrafts.length,
+    historyLoadedKey,
+    sessionKey,
+    partnerId,
+  ]);
 
   useEffect(() => {
     if (!sharedAcrossBrowsers) return;
@@ -630,9 +636,7 @@ export default function PartnerChat({
             content: "",
           });
           setMessages((msgs) =>
-            msgs.some(
-              (msg) => msg.activityId === activityId && msg.role === "user",
-            )
+            msgs.some((msg) => msg.activityId === activityId && msg.role === "user")
               ? msgs
               : [
                   ...msgs,
@@ -662,10 +666,7 @@ export default function PartnerChat({
           const finished = externalLive.get(activityId);
           externalLive.delete(activityId);
           setMessages((msgs) =>
-            msgs.some(
-              (msg) =>
-                msg.activityId === activityId && msg.role === "assistant",
-            )
+            msgs.some((msg) => msg.activityId === activityId && msg.role === "assistant")
               ? msgs
               : [
                   ...msgs,
@@ -674,9 +675,7 @@ export default function PartnerChat({
                     content: data.content || finished?.content || "",
                     activityId,
                     channel: data.channel,
-                    events: finished?.events.length
-                      ? finished.events
-                      : undefined,
+                    events: finished?.events.length ? finished.events : undefined,
                   },
                 ],
           );
@@ -740,10 +739,14 @@ export default function PartnerChat({
         void getPartnerHistoryPage(partnerId, key, { limit: 60 })
           .then((page) => {
             if (sessionKeyRef.current !== key || !orphanPendingRef.current) return;
-            const persisted = pending && page.messages.some((item, index) =>
-              page.start + index >= pending.baselineTotal &&
-              item.role === "user" && item.content === pending.visibleContent,
-            );
+            const persisted =
+              pending &&
+              page.messages.some(
+                (item, index) =>
+                  page.start + index >= pending.baselineTotal &&
+                  item.role === "user" &&
+                  item.content === pending.visibleContent,
+              );
             setMessages(normalizeHistoryMessages(page.messages));
             setOlderBefore(page.next_before);
             loadedTotalRef.current = page.total;
@@ -830,17 +833,12 @@ export default function PartnerChat({
         setStreaming(false);
         publishNow();
       } else if (data.type === "proactive") {
-        setMessages((msgs) => [
-          ...msgs,
-          { role: "assistant", content: data.content ?? "" },
-        ]);
+        setMessages((msgs) => [...msgs, { role: "assistant", content: data.content ?? "" }]);
       } else if (data.type === "error") {
         const rejected = !acceptedRef.current ? pendingSendRef.current : null;
         if (rejected) {
           pendingSendRef.current = null;
-          setMessages((current) =>
-            current.filter((item) => item.optimisticId !== rejected.id),
-          );
+          setMessages((current) => current.filter((item) => item.optimisticId !== rejected.id));
           setRestoreDraft(rejected);
           onToast?.(data.content ?? t("Action failed"));
         } else {
@@ -876,17 +874,13 @@ export default function PartnerChat({
         },
       },
       {
-        shouldReconnect: () =>
-          document.visibilityState === "visible" && navigator.onLine !== false,
+        shouldReconnect: () => document.visibilityState === "visible" && navigator.onLine !== false,
       },
     );
     connectionRef.current = connection;
 
     const wakeWhenActive = () => {
-      if (
-        document.visibilityState === "visible" &&
-        navigator.onLine !== false
-      ) {
+      if (document.visibilityState === "visible" && navigator.onLine !== false) {
         connection.wake();
       }
     };
@@ -923,9 +917,7 @@ export default function PartnerChat({
   }, [messages, onMessagesChange]);
 
   const sendStop = useCallback(() => {
-    connectionRef.current?.send(
-      JSON.stringify({ action: "stop", session_key: sessionKey }),
-    );
+    connectionRef.current?.send(JSON.stringify({ action: "stop", session_key: sessionKey }));
   }, [sessionKey]);
 
   // Escape interrupts a streaming answer. Bound on `window` rather than the
@@ -970,7 +962,8 @@ export default function PartnerChat({
             const result = await archivePartnerSession(partnerId, sessionKey);
             setMessages([]);
             if (sharedAcrossBrowsers) {
-              if (result.active_session_key) await onSessionKeyChange?.(result.active_session_key, true);
+              if (result.active_session_key)
+                await onSessionKeyChange?.(result.active_session_key, true);
               else await onSelectionStale?.();
             } else {
               await onSessionKeyChange?.(next);
@@ -990,7 +983,8 @@ export default function PartnerChat({
               }),
             );
             if (sharedAcrossBrowsers) {
-              if (result.active_session_key) await onSessionKeyChange?.(result.active_session_key, true);
+              if (result.active_session_key)
+                await onSessionKeyChange?.(result.active_session_key, true);
               else await onSelectionStale?.();
             } else {
               await onSessionKeyChange?.(next); // history reload picks up the copy
@@ -1008,7 +1002,8 @@ export default function PartnerChat({
           try {
             const result = await resumePartnerSession(partnerId, arg);
             if (sharedAcrossBrowsers) {
-              if (result.active_session_key) await onSessionKeyChange?.(result.active_session_key, true);
+              if (result.active_session_key)
+                await onSessionKeyChange?.(result.active_session_key, true);
               else await onSelectionStale?.();
             } else {
               await onSessionKeyChange?.(arg);
@@ -1029,7 +1024,8 @@ export default function PartnerChat({
             if (arg === sessionKey) {
               setMessages([]);
               if (sharedAcrossBrowsers) {
-                if (result.active_session_key) await onSessionKeyChange?.(result.active_session_key, true);
+                if (result.active_session_key)
+                  await onSessionKeyChange?.(result.active_session_key, true);
                 else await onSelectionStale?.();
               } else {
                 await onSessionKeyChange?.(freshPartnerSessionKey());
@@ -1092,14 +1088,21 @@ export default function PartnerChat({
 
   const handleSend = useCallback(
     (content: string, attachments: PartnerPendingAttachment[]): boolean | "handled" => {
-      if (streaming || reconciling || commandBusyRef.current || !connected || switchingSession || historyLoadedKey !== sessionKey) return false;
+      if (
+        streaming ||
+        reconciling ||
+        commandBusyRef.current ||
+        !connected ||
+        switchingSession ||
+        historyLoadedKey !== sessionKey
+      )
+        return false;
 
       // A new user-authored turn explicitly returns to live-follow mode.
       // During the answer, the shared hook releases that mode as soon as the
       // user scrolls upward and only re-arms near the bottom.
       shouldAutoScrollRef.current = true;
-      const command =
-        attachments.length === 0 ? parseClientCommand(content) : null;
+      const command = attachments.length === 0 ? parseClientCommand(content) : null;
       if (command) {
         if (command.command !== "/sessions" && command.command !== "/stop") {
           commandBusyRef.current = true;
@@ -1197,9 +1200,7 @@ export default function PartnerChat({
               size={56}
             />
             <div>
-              <p className="text-[15px] font-medium text-[var(--foreground)]">
-                {partnerName}
-              </p>
+              <p className="text-[15px] font-medium text-[var(--foreground)]">{partnerName}</p>
               <p className="mt-1 max-w-sm text-[12.5px] text-[var(--muted-foreground)]">
                 {t(
                   "Say hello — channels are optional, and any connected channel shares this partner's memory.",
@@ -1223,20 +1224,13 @@ export default function PartnerChat({
               msg.role === "user" ? (
                 <div key={i} className="flex justify-end">
                   <div className="max-w-[75%] rounded-2xl bg-[var(--secondary)] px-4 py-2.5 text-[14px] leading-relaxed text-[var(--foreground)] shadow-sm">
-                    {msg.content ? (
-                      <div className="whitespace-pre-wrap">{msg.content}</div>
-                    ) : null}
+                    {msg.content ? <div className="whitespace-pre-wrap">{msg.content}</div> : null}
                     <AttachmentStrip attachments={msg.attachments} />
                   </div>
                 </div>
               ) : (
                 <div key={i} className="flex items-start gap-2.5">
-                  <PartnerAvatar
-                    name={partnerName}
-                    emoji={emoji}
-                    color={color}
-                    size={26}
-                  />
+                  <PartnerAvatar name={partnerName} emoji={emoji} color={color} size={26} />
                   <div className="min-w-0 flex-1">
                     {msg.events && msg.events.length > 0 && (
                       <AssistantActivity
@@ -1250,9 +1244,7 @@ export default function PartnerChat({
                       />
                     )}
                     {msg.error ? (
-                      <p className="text-[13px] text-[var(--destructive)]">
-                        {msg.content}
-                      </p>
+                      <p className="text-[13px] text-[var(--destructive)]">{msg.content}</p>
                     ) : (
                       <InlineFileCardProvider
                         attachments={workspaceAttachments(msg.attachments)}
@@ -1274,12 +1266,7 @@ export default function PartnerChat({
 
             {draft && (
               <div className="flex items-start gap-2.5">
-                <PartnerAvatar
-                  name={partnerName}
-                  emoji={emoji}
-                  color={color}
-                  size={26}
-                />
+                <PartnerAvatar name={partnerName} emoji={emoji} color={color} size={26} />
                 <div className="min-w-0 flex-1">
                   <AssistantActivity
                     events={draft.events}
@@ -1297,10 +1284,7 @@ export default function PartnerChat({
                       onOpen={downloadGeneratedAttachment}
                     >
                       <AssistantResponse content={draft.content} />
-                      <PartnerGeneratedFiles
-                        events={draft.events}
-                        content={draft.content}
-                      />
+                      <PartnerGeneratedFiles events={draft.events} content={draft.content} />
                     </InlineFileCardProvider>
                   ) : null}
                 </div>
@@ -1308,16 +1292,8 @@ export default function PartnerChat({
             )}
 
             {externalDrafts.map((externalDraft) => (
-              <div
-                key={externalDraft.activityId}
-                className="flex items-start gap-2.5"
-              >
-                <PartnerAvatar
-                  name={partnerName}
-                  emoji={emoji}
-                  color={color}
-                  size={26}
-                />
+              <div key={externalDraft.activityId} className="flex items-start gap-2.5">
+                <PartnerAvatar name={partnerName} emoji={emoji} color={color} size={26} />
                 <div className="min-w-0 flex-1">
                   <AssistantActivity
                     events={externalDraft.events}
@@ -1358,7 +1334,13 @@ export default function PartnerChat({
           onSend={handleSend}
           onStop={sendStop}
           streaming={streaming}
-          disabled={!connected || reconciling || commandBusy || switchingSession || historyLoadedKey !== sessionKey}
+          disabled={
+            !connected ||
+            reconciling ||
+            commandBusy ||
+            switchingSession ||
+            historyLoadedKey !== sessionKey
+          }
           restoreDraft={restoreDraft ?? undefined}
         />
       </div>

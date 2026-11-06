@@ -18,6 +18,7 @@
  * page, not like a form to fill in.
  */
 
+import SourceImage from "@/components/common/SourceImage";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -62,10 +63,7 @@ function OptionRow({
       : state === "wrong"
         ? "border-[var(--destructive)] bg-[var(--destructive)] text-[var(--destructive-foreground)]"
         : "border-[var(--border)] text-[var(--muted-foreground)] group-hover:border-[color-mix(in_srgb,var(--foreground)_35%,transparent)] group-hover:text-[var(--foreground)]";
-  const body =
-    state === "wrong"
-      ? "text-[var(--muted-foreground)]"
-      : "text-[var(--foreground)]";
+  const body = state === "wrong" ? "text-[var(--muted-foreground)]" : "text-[var(--foreground)]";
   return (
     <button
       type="button"
@@ -88,7 +86,9 @@ function OptionRow({
       </span>
       {/* The body is the option. It is never printed beside its own letter. */}
       <span className={"min-w-0 flex-1 text-[13.5px] leading-relaxed " + body}>
-        <LearningText size={13.5}><InlineMarkdown content={option.body} /></LearningText>
+        <LearningText size={13.5}>
+          <InlineMarkdown content={option.body} />
+        </LearningText>
       </span>
     </button>
   );
@@ -123,17 +123,33 @@ interface GroupInput {
 }
 
 const SingleMasteryQuestionCard = memo(function SingleMasteryQuestionCard({
-  question, grade, answered, skipped, submittedAnswer, onSubmit, onSkip,
-  onChallenge, groupInput, rejectionKey,
+  question,
+  grade,
+  answered,
+  skipped,
+  submittedAnswer,
+  onSubmit,
+  onSkip,
+  onChallenge,
+  groupInput,
+  rejectionKey,
 }: MasteryQuestionCardProps & { groupInput?: GroupInput }) {
   const { t } = useTranslation();
-  const [picked, setPicked] = useState<string>(() => grade?.final === false ? grade.learnerAnswer : "");
+  const [picked, setPicked] = useState<string>(() =>
+    grade?.final === false ? grade.learnerAnswer : "",
+  );
   const [skipping, setSkipping] = useState(false);
   const [sourceUnavailable, setSourceUnavailable] = useState(false);
-  const [freeText, setFreeText] = useState(() => grade?.final === false ? grade.learnerAnswer : "");
+  const [freeText, setFreeText] = useState(() =>
+    grade?.final === false ? grade.learnerAnswer : "",
+  );
   const [freeSelected, setFreeSelected] = useState(false);
-  const acknowledgementKey = grade ? grade.receiptKey ?? JSON.stringify(grade) : undefined;
-  const { sending, failed: sendFailed, submit } = useCardSubmission(onSubmit, rejectionKey, acknowledgementKey);
+  const acknowledgementKey = grade ? (grade.receiptKey ?? JSON.stringify(grade)) : undefined;
+  const {
+    sending,
+    failed: sendFailed,
+    submit,
+  } = useCardSubmission(onSubmit, rejectionKey, acknowledgementKey);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -178,28 +194,27 @@ const SingleMasteryQuestionCard = memo(function SingleMasteryQuestionCard({
   const meta = [
     question.objectiveName,
     difficultyLabel ? t(difficultyLabel) : "",
-    question.attempt > 1
-      ? t("Attempt {{count}}", { count: question.attempt })
-      : "",
+    question.attempt > 1 ? t("Attempt {{count}}", { count: question.attempt }) : "",
   ].filter(Boolean);
 
   // The rule down the left margin is the whole status indicator.
-  const rule = ungraded ? "border-dashed border-[var(--border)]" : grade
-    ? grade.isCorrect
-      ? "border-[var(--primary)]"
-      : "border-[var(--destructive)]"
-    : skipped
-      ? // Closed, but nothing was judged — a dashed rule says "set aside"
-        // where a solid one would claim a verdict that was never made.
-        "border-dashed border-[var(--border)]"
-      : "border-[var(--border)]";
+  const rule = ungraded
+    ? "border-dashed border-[var(--border)]"
+    : grade
+      ? grade.isCorrect
+        ? "border-[var(--primary)]"
+        : "border-[var(--destructive)]"
+      : skipped
+        ? // Closed, but nothing was judged — a dashed rule says "set aside"
+          // where a solid one would claim a verdict that was never made.
+          "border-dashed border-[var(--border)]"
+        : "border-[var(--border)]";
 
   const optionState = (option: { label: string }): OptionState => {
     if (grade) {
       if (ungraded) return "idle";
       if (option.label && option.label === grade.correctLabel) return "correct";
-      if (option.label && option.label === learnerAnswer && !grade.isCorrect)
-        return "wrong";
+      if (option.label && option.label === learnerAnswer && !grade.isCorrect) return "wrong";
       return "idle";
     }
     if (settled) return option.label === learnerAnswer ? "picked" : "idle";
@@ -215,19 +230,57 @@ const SingleMasteryQuestionCard = memo(function SingleMasteryQuestionCard({
       ) : null}
 
       <div className="mt-0.5 font-serif text-[15.5px] font-semibold leading-relaxed tracking-[-0.01em] text-[var(--foreground)]">
-        <LearningText size={15.5}><InlineMarkdown content={question.prompt} /></LearningText>
+        <LearningText size={15.5}>
+          <InlineMarkdown content={question.prompt} />
+        </LearningText>
       </div>
-      {question.visual && <div className="mt-3 space-y-2 text-xs text-[var(--muted-foreground)]">
-        <p>{grade?.independent === false || question.visual.hintsUsed || question.visual.answerCues !== "none" ? t("Guided visual practice — this does not demonstrate independent mastery.") : t("Visual practice with the original source.")}</p>
-        {sourceUnavailable && <p role="alert">{t("The source image is unavailable. Open the source or ask your tutor to inspect its current version.")}</p>}
-        {question.visual.keyStatus !== "verified" && <p>{t("The reference key is uncertain. This practice will remain ungraded.")}</p>}
-        {question.visual.pixelsInspected === false && <p>{t("Current model input has no verified source pixels. Retrieve the image again with a vision-capable model before grading.")}</p>}
-        {question.visual.sources.map((source, index) => <figure key={`${source.imageUrl}-${index}`}>
-          {/* Authenticated source endpoints need the browser's own cookies. */}
-          <a href={source.imageUrl} target="_blank" rel="noreferrer"><img src={source.imageUrl} alt={t("Original source evidence")} onError={() => setSourceUnavailable(true)} className="max-h-80 max-w-full object-contain" /></a>
-          <figcaption><a className="underline" href={source.url} target="_blank" rel="noreferrer">{source.sourcePath}{source.page ? ` · ${t("Page")} ${source.page}` : ""}</a></figcaption>
-        </figure>)}
-      </div>}
+      {question.visual && (
+        <div className="mt-3 space-y-2 text-xs text-[var(--muted-foreground)]">
+          <p>
+            {grade?.independent === false ||
+            question.visual.hintsUsed ||
+            question.visual.answerCues !== "none"
+              ? t("Guided visual practice — this does not demonstrate independent mastery.")
+              : t("Visual practice with the original source.")}
+          </p>
+          {sourceUnavailable && (
+            <p role="alert">
+              {t(
+                "The source image is unavailable. Open the source or ask your tutor to inspect its current version.",
+              )}
+            </p>
+          )}
+          {question.visual.keyStatus !== "verified" && (
+            <p>{t("The reference key is uncertain. This practice will remain ungraded.")}</p>
+          )}
+          {question.visual.pixelsInspected === false && (
+            <p>
+              {t(
+                "Current model input has no verified source pixels. Retrieve the image again with a vision-capable model before grading.",
+              )}
+            </p>
+          )}
+          {question.visual.sources.map((source, index) => (
+            <figure key={`${source.imageUrl}-${index}`}>
+              {/* Authenticated source endpoints need the browser's own cookies. */}
+              <a href={source.imageUrl} target="_blank" rel="noreferrer">
+                <SourceImage
+                  src={source.imageUrl}
+                  alt={t("Original source evidence")}
+                  onError={() => setSourceUnavailable(true)}
+                  className="max-h-80 max-w-full object-contain"
+                />
+              </a>
+              <figcaption>
+                <a className="underline" href={source.url} target="_blank" rel="noreferrer">
+                  {source.sourcePath}
+                  {source.page ? ` · ${t("Page")} ${source.page}` : ""}
+                </a>
+              </figcaption>
+            </figure>
+          ))}
+        </div>
+      )}
 
       {hasChoices ? (
         <div className="mt-2.5 flex flex-col gap-0.5">
@@ -283,111 +336,169 @@ const SingleMasteryQuestionCard = memo(function SingleMasteryQuestionCard({
             <span
               className={
                 "font-semibold " +
-                (ungraded ? "text-[var(--muted-foreground)]" : grade.isCorrect
-                  ? "text-[var(--primary)]"
-                  : "text-[var(--destructive)]")
+                (ungraded
+                  ? "text-[var(--muted-foreground)]"
+                  : grade.isCorrect
+                    ? "text-[var(--primary)]"
+                    : "text-[var(--destructive)]")
               }
             >
-              {ungraded ? t("Ungraded — mastery unchanged") : grade.result === "partial" ? t("Partially correct") : grade.isCorrect ? t("Correct") : t("Not quite")}
+              {ungraded
+                ? t("Ungraded — mastery unchanged")
+                : grade.result === "partial"
+                  ? t("Partially correct")
+                  : grade.isCorrect
+                    ? t("Correct")
+                    : t("Not quite")}
             </span>
             {!ungraded && !grade.isCorrect && grade.correctLabel ? (
               <span className="text-[var(--foreground)]">
                 {" · "}
-                <LearningText inline size={12.5}>{t("Answer: {{label}}", { label: grade.correctLabel })}</LearningText>
+                <LearningText inline size={12.5}>
+                  {t("Answer: {{label}}", { label: grade.correctLabel })}
+                </LearningText>
               </span>
             ) : null}
           </div>
           {grade.explanation ? (
             <div className="mt-1 text-[12.5px] leading-relaxed text-[var(--muted-foreground)]">
-              <LearningText size={12.5}><InlineMarkdown content={grade.explanation} /></LearningText>
+              <LearningText size={12.5}>
+                <InlineMarkdown content={grade.explanation} />
+              </LearningText>
             </div>
           ) : null}
-          {grade.feedback && grade.feedback !== grade.explanation && <div className="mt-1 text-[12.5px]"><LearningText size={12.5}><InlineMarkdown content={grade.feedback} /></LearningText></div>}
-          {onChallenge && <button type="button" className="mt-2 text-xs underline" onClick={() => onChallenge(question.questionId)}>{t("Review or challenge this assessment")}</button>}
+          {grade.feedback && grade.feedback !== grade.explanation && (
+            <div className="mt-1 text-[12.5px]">
+              <LearningText size={12.5}>
+                <InlineMarkdown content={grade.feedback} />
+              </LearningText>
+            </div>
+          )}
+          {onChallenge && (
+            <button
+              type="button"
+              className="mt-2 text-xs underline"
+              onClick={() => onChallenge(question.questionId)}
+            >
+              {t("Review or challenge this assessment")}
+            </button>
+          )}
         </div>
       ) : null}
 
       {/* Footer: only while the question is still the learner's move. */}
-      {!groupInput && (!settled ? (
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <span
-            className={
-              "text-[11px] " +
-              (sendFailed
-                ? "text-[var(--destructive)]"
-                : "text-[var(--muted-foreground)]")
-            }
-          >
-            {sending
-              ? t("Sending your answers…")
-              : sendFailed
-                ? t(rejectionKey ? MASTERY_ANSWER_REJECTED_MESSAGE : REPLY_NOT_DELIVERED)
-                : hasChoices
-                  ? t("Pick the option you think is right.")
-                  : t("Write your answer to continue.")}
-          </span>
-          <div className="flex shrink-0 items-center gap-1">
-            {/* Not a dead end: the engine holds one open question per path, so
+      {!groupInput &&
+        (!settled ? (
+          <div className="mt-3 flex items-center justify-between gap-3">
+            <span
+              className={
+                "text-[11px] " +
+                (sendFailed ? "text-[var(--destructive)]" : "text-[var(--muted-foreground)]")
+              }
+            >
+              {sending
+                ? t("Sending your answers…")
+                : sendFailed
+                  ? t(rejectionKey ? MASTERY_ANSWER_REJECTED_MESSAGE : REPLY_NOT_DELIVERED)
+                  : hasChoices
+                    ? t("Pick the option you think is right.")
+                    : t("Write your answer to continue.")}
+            </span>
+            <div className="flex shrink-0 items-center gap-1">
+              {/* Not a dead end: the engine holds one open question per path, so
                 without this the tutor's next question is this same one again.
                 Quiet, because skipping is the rarer move. */}
-            {onSkip ? (
+              {onSkip ? (
+                <button
+                  type="button"
+                  onClick={handleSkip}
+                  disabled={locked}
+                  className="rounded-md px-2 py-1.5 text-[12px] text-[var(--muted-foreground)] transition-colors hover:bg-[color-mix(in_srgb,var(--foreground)_4%,transparent)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {skipping ? t("Skipping…") : t("Skip this one")}
+                </button>
+              ) : null}
               <button
                 type="button"
-                onClick={handleSkip}
-                disabled={locked}
-                className="rounded-md px-2 py-1.5 text-[12px] text-[var(--muted-foreground)] transition-colors hover:bg-[color-mix(in_srgb,var(--foreground)_4%,transparent)] hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40"
+                onClick={handleSubmit}
+                disabled={locked || !answer || sourceUnavailable}
+                className="rounded-md bg-[var(--primary)] px-3 py-1.5 text-[12px] font-medium text-[var(--primary-foreground)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {skipping ? t("Skipping…") : t("Skip this one")}
+                {t("Submit")}
               </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={locked || !answer || sourceUnavailable}
-              className="rounded-md bg-[var(--primary)] px-3 py-1.5 text-[12px] font-medium text-[var(--primary-foreground)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {t("Submit")}
-            </button>
+            </div>
           </div>
-        </div>
-      ) : skipped ? (
-        <div className="mt-2.5 text-[11px] text-[var(--muted-foreground)]">
-          {t("Skipped — no attempt was recorded for this question.")}
-        </div>
-      ) : !grade ? (
-        <div className="mt-2.5 text-[11px] text-[var(--muted-foreground)]">
-          {t("Answer submitted — your tutor is checking it.")}
-        </div>
-      ) : null)}
+        ) : skipped ? (
+          <div className="mt-2.5 text-[11px] text-[var(--muted-foreground)]">
+            {t("Skipped — no attempt was recorded for this question.")}
+          </div>
+        ) : !grade ? (
+          <div className="mt-2.5 text-[11px] text-[var(--muted-foreground)]">
+            {t("Answer submitted — your tutor is checking it.")}
+          </div>
+        ) : null)}
     </div>
   );
 });
 
 function GroupedMasteryQuestionCard({
-  question, grade, answered, skipped, onSubmit, onSkip, onChallenge, rejectionKey,
+  question,
+  grade,
+  answered,
+  skipped,
+  onSubmit,
+  onSkip,
+  onChallenge,
+  rejectionKey,
 }: MasteryQuestionCardProps) {
   const { t } = useTranslation();
   const [answers, setAnswers] = useState<Record<string, { text: string; available: boolean }>>({});
   const [skipping, setSkipping] = useState(false);
   const [skipFailed, setSkipFailed] = useState(false);
   const questions = question.questions ?? [];
-  const acknowledgementKey = grade ? grade.receiptKey ?? JSON.stringify(grade.results ?? []) : undefined;
+  const acknowledgementKey = grade
+    ? (grade.receiptKey ?? JSON.stringify(grade.results ?? []))
+    : undefined;
   const { sending, failed, submit } = useCardSubmission(onSubmit, rejectionKey, acknowledgementKey);
-  const settled = ((answered || Boolean(grade)) && grade?.complete !== false && grade?.final !== false) || skipped === true;
+  const settled =
+    ((answered || Boolean(grade)) && grade?.complete !== false && grade?.final !== false) ||
+    skipped === true;
   const locked = settled || sending || skipping;
-  const remaining = questions.filter((part) => !grade?.results?.some((result) => result.questionId === part.questionId && result.final !== false));
+  const remaining = questions.filter(
+    (part) =>
+      !grade?.results?.some(
+        (result) => result.questionId === part.questionId && result.final !== false,
+      ),
+  );
   const drafted = remaining.filter((part) => Boolean(answers[part.questionId]?.text));
-  const ready = questions.length >= 2 && drafted.length > 0 && drafted.every((part) => answers[part.questionId]?.available);
+  const ready =
+    questions.length >= 2 &&
+    drafted.length > 0 &&
+    drafted.every((part) => answers[part.questionId]?.available);
 
   const updateAnswer = useCallback((questionId: string, text: string, available: boolean) => {
-    setAnswers((current) => current[questionId]?.text === text && current[questionId]?.available === available
-      ? current : { ...current, [questionId]: { text, available } });
+    setAnswers((current) =>
+      current[questionId]?.text === text && current[questionId]?.available === available
+        ? current
+        : { ...current, [questionId]: { text, available } },
+    );
   }, []);
 
   const handleSubmit = () => {
     if (locked || !ready) return;
-    const parts = drafted.map((part) => ({ questionId: part.questionId, text: answers[part.questionId].text }));
-    void submit({ text: parts.map((part) => `${questions.findIndex((question) => question.questionId === part.questionId) + 1}. ${part.text}`).join("\n"), answers: parts });
+    const parts = drafted.map((part) => ({
+      questionId: part.questionId,
+      text: answers[part.questionId].text,
+    }));
+    void submit({
+      text: parts
+        .map(
+          (part) =>
+            `${questions.findIndex((question) => question.questionId === part.questionId) + 1}. ${part.text}`,
+        )
+        .join("\n"),
+      answers: parts,
+    });
   };
 
   const handleSkip = async () => {
@@ -395,7 +506,7 @@ function GroupedMasteryQuestionCard({
     setSkipping(true);
     setSkipFailed(false);
     try {
-      if (await onSkip(question.questionId) === false) {
+      if ((await onSkip(question.questionId)) === false) {
         setSkipping(false);
         setSkipFailed(true);
       }
@@ -405,39 +516,89 @@ function GroupedMasteryQuestionCard({
     }
   };
 
-  return <section className="my-4" aria-label={question.prompt}>
-    {question.prompt && <div className="font-serif font-semibold"><LearningText size={16}><InlineMarkdown content={question.prompt} /></LearningText></div>}
-    {questions.map((part) => {
-      const partGrade = grade?.results?.find((result) => result.questionId === part.questionId) ?? null;
-      return <SingleMasteryQuestionCard key={part.questionId} question={part} grade={partGrade}
-        answered={settled || (Boolean(partGrade) && partGrade?.final !== false)} skipped={skipped} submittedAnswer={partGrade?.learnerAnswer ?? ""}
-        onSubmit={onSubmit} onChallenge={onChallenge} groupInput={{ locked, onChange: updateAnswer }} />;
-    })}
-    {!settled ? <div className="mt-3 flex items-center justify-between gap-3">
-      <span className={failed || skipFailed ? "text-xs text-[var(--destructive)]" : "text-xs text-[var(--muted-foreground)]"}>
-        {sending ? t("Sending your answers…") : failed || skipFailed
-          ? t(failed && rejectionKey ? MASTERY_ANSWER_REJECTED_MESSAGE : REPLY_NOT_DELIVERED)
-          : t("Write your answer to continue.")}
-      </span>
-      <div className="flex shrink-0 items-center gap-1">
-        {onSkip && <button type="button" onClick={() => void handleSkip()} disabled={locked}
-          className="rounded-md px-2 py-1.5 text-xs text-[var(--muted-foreground)] disabled:opacity-40">
-          {skipping ? t("Skipping…") : t("Skip this one")}
-        </button>}
-        <button type="button" onClick={handleSubmit} disabled={locked || !ready}
-          className="rounded-md bg-[var(--primary)] px-3 py-1.5 text-xs font-medium text-[var(--primary-foreground)] disabled:opacity-40">
-          {t("Submit")}
-        </button>
-      </div>
-    </div> : skipped ? <p className="text-xs text-[var(--muted-foreground)]">{t("Skipped — no attempt was recorded for this question.")}</p>
-      : !grade ? <p className="text-xs text-[var(--muted-foreground)]">{t("Answer submitted — your tutor is checking it.")}</p> : null}
-  </section>;
+  return (
+    <section className="my-4" aria-label={question.prompt}>
+      {question.prompt && (
+        <div className="font-serif font-semibold">
+          <LearningText size={16}>
+            <InlineMarkdown content={question.prompt} />
+          </LearningText>
+        </div>
+      )}
+      {questions.map((part) => {
+        const partGrade =
+          grade?.results?.find((result) => result.questionId === part.questionId) ?? null;
+        return (
+          <SingleMasteryQuestionCard
+            key={part.questionId}
+            question={part}
+            grade={partGrade}
+            answered={settled || (Boolean(partGrade) && partGrade?.final !== false)}
+            skipped={skipped}
+            submittedAnswer={partGrade?.learnerAnswer ?? ""}
+            onSubmit={onSubmit}
+            onChallenge={onChallenge}
+            groupInput={{ locked, onChange: updateAnswer }}
+          />
+        );
+      })}
+      {!settled ? (
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <span
+            className={
+              failed || skipFailed
+                ? "text-xs text-[var(--destructive)]"
+                : "text-xs text-[var(--muted-foreground)]"
+            }
+          >
+            {sending
+              ? t("Sending your answers…")
+              : failed || skipFailed
+                ? t(failed && rejectionKey ? MASTERY_ANSWER_REJECTED_MESSAGE : REPLY_NOT_DELIVERED)
+                : t("Write your answer to continue.")}
+          </span>
+          <div className="flex shrink-0 items-center gap-1">
+            {onSkip && (
+              <button
+                type="button"
+                onClick={() => void handleSkip()}
+                disabled={locked}
+                className="rounded-md px-2 py-1.5 text-xs text-[var(--muted-foreground)] disabled:opacity-40"
+              >
+                {skipping ? t("Skipping…") : t("Skip this one")}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={locked || !ready}
+              className="rounded-md bg-[var(--primary)] px-3 py-1.5 text-xs font-medium text-[var(--primary-foreground)] disabled:opacity-40"
+            >
+              {t("Submit")}
+            </button>
+          </div>
+        </div>
+      ) : skipped ? (
+        <p className="text-xs text-[var(--muted-foreground)]">
+          {t("Skipped — no attempt was recorded for this question.")}
+        </p>
+      ) : !grade ? (
+        <p className="text-xs text-[var(--muted-foreground)]">
+          {t("Answer submitted — your tutor is checking it.")}
+        </p>
+      ) : null}
+    </section>
+  );
 }
 
-export const MasteryQuestionCard = memo(function MasteryQuestionCard(props: MasteryQuestionCardProps) {
-  return props.question.questionType === "group"
-    ? <GroupedMasteryQuestionCard key={props.question.questionId} {...props} />
-    : <SingleMasteryQuestionCard {...props} />;
+export const MasteryQuestionCard = memo(function MasteryQuestionCard(
+  props: MasteryQuestionCardProps,
+) {
+  return props.question.questionType === "group" ? (
+    <GroupedMasteryQuestionCard key={props.question.questionId} {...props} />
+  ) : (
+    <SingleMasteryQuestionCard {...props} />
+  );
 });
 
 export default MasteryQuestionCard;

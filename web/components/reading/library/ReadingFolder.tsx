@@ -1,6 +1,6 @@
 "use client";
 
-import { FeaturePage, PageHeader, PAGE_SECTION_TITLE_CLASS } from '@/components/layout/FeaturePage'
+import { FeaturePage, PageHeader, PAGE_SECTION_TITLE_CLASS } from "@/components/layout/FeaturePage";
 import {
   ArrowRight,
   BookOpen,
@@ -21,11 +21,7 @@ import { useTranslation } from "react-i18next";
 import Tooltip from "@/shared/ui/Tooltip";
 
 import { LearningSkeleton } from "@/components/learning/LearningShell";
-import {
-  READING_HOME,
-  readingCollectionRoute,
-  readingSessionRoute,
-} from "@/lib/learning-routes";
+import { READING_HOME, readingCollectionRoute, readingSessionRoute } from "@/lib/learning-routes";
 import {
   activateReadingMaterial,
   getReadingWorkspace,
@@ -64,20 +60,18 @@ export function ReadingFolderPage({ folderId }: { folderId: string }) {
   const contentWorkspace = activeWorkspaceId();
 
   const refresh = useCallback(async () => {
-    try {
-      const result = await getReadingWorkspace(folderId);
-      setFolder(result.workspace);
-      setSessions(
-        [...result.sessions].sort((a, b) => b.updated_at - a.updated_at),
-      );
-      setError("");
-    } catch (caught) {
-      setError(
-        caught instanceof Error ? caught.message : t("Could not open this collection."),
-      );
-    } finally {
-      setLoading(false);
-    }
+    return getReadingWorkspace(folderId)
+      .then(async (result) => {
+        setFolder(result.workspace);
+        setSessions([...result.sessions].sort((a, b) => b.updated_at - a.updated_at));
+        setError("");
+      })
+      .catch((caught) => {
+        setError(caught instanceof Error ? caught.message : t("Could not open this collection."));
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [folderId, t]);
 
   useEffect(() => {
@@ -88,9 +82,7 @@ export function ReadingFolderPage({ folderId }: { folderId: string }) {
   // page never shows a spinner that has long since finished.
   const preparing = Boolean(
     folder?.tabs.some(
-      (tab) =>
-        tab.material.status === "processing" ||
-        tab.material.status === "queued",
+      (tab) => tab.material.status === "processing" || tab.material.status === "queued",
     ),
   );
   useEffect(() => {
@@ -114,9 +106,13 @@ export function ReadingFolderPage({ folderId }: { folderId: string }) {
 
   const removeFile = async (tab: ReadingWorkspaceTab) => {
     try {
-      setFolder(
-        await removeReadingWorkspaceMaterial(folderId, tab.material.material_id),
-      );
+      {
+        const resolvedState0 = await removeReadingWorkspaceMaterial(
+          folderId,
+          tab.material.material_id,
+        );
+        setFolder(resolvedState0);
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t("Could not save."));
     }
@@ -157,10 +153,7 @@ export function ReadingFolderPage({ folderId }: { folderId: string }) {
         aria-label={t("Breadcrumb")}
         className="dt-section-back flex min-w-0 items-center gap-1 text-[12px] text-[var(--muted-foreground)]"
       >
-        <Link
-          href={scopedUrl(READING_HOME)}
-          className="shrink-0 hover:text-[var(--foreground)]"
-        >
+        <Link href={scopedUrl(READING_HOME)} className="shrink-0 hover:text-[var(--foreground)]">
           {t("Immersive Reading")}
         </Link>
         <ChevronRight size={12} className="shrink-0 opacity-60" />
@@ -168,77 +161,74 @@ export function ReadingFolderPage({ folderId }: { folderId: string }) {
       </nav>
 
       <div className="mt-5">
-      <PageHeader
-        title={folder.title}
-        description={t("{{count}} files", { count: files.length })}
-        action={
-        <div className="relative flex shrink-0 items-center gap-2">
-          {files.length ? (
-            <Link
-              href={readerHref}
-              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[var(--primary)] px-4 text-[12.5px] font-semibold text-[var(--primary-foreground)] transition hover:opacity-90"
-            >
-              <BookOpen size={14} />
-              {t("Start reading")}
-            </Link>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => setDialog("add")}
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[var(--border)] px-3.5 text-[12.5px] transition hover:bg-[var(--muted)]"
-          >
-            <Plus size={14} />
-            {t("Add material")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setMenuOpen((open) => !open)}
-            aria-label={t("Collection menu")}
-            aria-expanded={menuOpen}
-            className="flex size-9 items-center justify-center rounded-lg text-[var(--muted-foreground)] transition hover:bg-[var(--muted)]"
-          >
-            <MoreHorizontal size={15} />
-          </button>
-          {menuOpen && (
-            <>
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setMenuOpen(false)}
-              />
-              <div
-                role="menu"
-                className="absolute right-0 top-11 z-20 w-44 rounded-lg border border-[var(--border)] bg-[var(--card)] p-1 text-[12px] shadow-md dark:bg-[var(--popover)]"
+        <PageHeader
+          title={folder.title}
+          description={t("{{count}} files", { count: files.length })}
+          action={
+            <div className="relative flex shrink-0 items-center gap-2">
+              {files.length ? (
+                <Link
+                  href={readerHref}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[var(--primary)] px-4 text-[12.5px] font-semibold text-[var(--primary-foreground)] transition hover:opacity-90"
+                >
+                  <BookOpen size={14} />
+                  {t("Start reading")}
+                </Link>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setDialog("add")}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-[var(--border)] px-3.5 text-[12.5px] transition hover:bg-[var(--muted)]"
               >
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setDialog("edit");
-                  }}
-                  className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left hover:bg-[var(--muted)]"
-                >
-                  <Palette size={12} />
-                  {t("Rename or recolor")}
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setDialog("delete");
-                  }}
-                  className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[var(--destructive)] hover:bg-[var(--muted)]"
-                >
-                  <Trash2 size={12} />
-                  {t("Delete collection")}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-        }
-      />
+                <Plus size={14} />
+                {t("Add material")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMenuOpen((open) => !open)}
+                aria-label={t("Collection menu")}
+                aria-expanded={menuOpen}
+                className="flex size-9 items-center justify-center rounded-lg text-[var(--muted-foreground)] transition hover:bg-[var(--muted)]"
+              >
+                <MoreHorizontal size={15} />
+              </button>
+              {menuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-11 z-20 w-44 rounded-lg border border-[var(--border)] bg-[var(--card)] p-1 text-[12px] shadow-md dark:bg-[var(--popover)]"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setDialog("edit");
+                      }}
+                      className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left hover:bg-[var(--muted)]"
+                    >
+                      <Palette size={12} />
+                      {t("Rename or recolor")}
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setDialog("delete");
+                      }}
+                      className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-[var(--destructive)] hover:bg-[var(--muted)]"
+                    >
+                      <Trash2 size={12} />
+                      {t("Delete collection")}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          }
+        />
       </div>
 
       {error && (
@@ -268,9 +258,7 @@ export function ReadingFolderPage({ folderId }: { folderId: string }) {
             className="mt-2 flex w-full flex-col items-center gap-1.5 rounded-xl border border-dashed border-[var(--border)] px-6 py-10 text-center transition hover:border-[var(--ring)]"
           >
             <Plus size={16} className="text-[var(--muted-foreground)]" />
-            <span className="text-[13px] font-medium">
-              {t("This folder is empty")}
-            </span>
+            <span className="text-[13px] font-medium">{t("This folder is empty")}</span>
             <span className="text-[12px] text-[var(--muted-foreground)]">
               {t("Add papers, chapters, web pages or videos to read them together.")}
             </span>
@@ -285,17 +273,10 @@ export function ReadingFolderPage({ folderId }: { folderId: string }) {
             {sessions.map((session) => (
               <li key={session.session_id}>
                 <Link
-                  href={readingSessionRoute(
-                    folderId,
-                    session.session_id,
-                    contentWorkspace,
-                  )}
+                  href={readingSessionRoute(folderId, session.session_id, contentWorkspace)}
                   className="group flex items-center gap-3 px-1 py-2.5 transition hover:bg-[var(--secondary)]"
                 >
-                  <MessageSquare
-                    size={14}
-                    className="shrink-0 text-[var(--muted-foreground)]"
-                  />
+                  <MessageSquare size={14} className="shrink-0 text-[var(--muted-foreground)]" />
                   <span className="min-w-0 flex-1 truncate text-[13px]">
                     {session.title || t("New reading conversation")}
                   </span>
@@ -377,8 +358,7 @@ function FileRow({
 }) {
   const { t } = useTranslation();
   const material = tab.material;
-  const pending =
-    material.status === "processing" || material.status === "queued";
+  const pending = material.status === "processing" || material.status === "queued";
   const failed = material.status === "failed";
   const detail = pending
     ? t("Preparing")
@@ -409,9 +389,7 @@ function FileRow({
               {detail && (
                 <span
                   className={`block truncate text-[11px] ${
-                    failed
-                      ? "text-[var(--destructive)]"
-                      : "text-[var(--muted-foreground)]"
+                    failed ? "text-[var(--destructive)]" : "text-[var(--muted-foreground)]"
                   }`}
                 >
                   {detail}

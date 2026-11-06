@@ -43,7 +43,7 @@ export default function SubagentTabBody({
   );
 
   // The connection's name/kind come from the streamed events' metadata.
-  const { name } = useMemo(() => {
+  const { name } = (() => {
     for (let i = tabEvents.length - 1; i >= 0; i--) {
       const meta = getTraceMeta(tabEvents[i]);
       if (meta.subagent_name) {
@@ -51,12 +51,9 @@ export default function SubagentTabBody({
       }
     }
     return { name: "" };
-  }, [tabEvents]);
+  })();
 
-  const allEvents = useMemo(
-    () => [...tabEvents, ...localEvents],
-    [tabEvents, localEvents],
-  );
+  const allEvents = useMemo(() => [...tabEvents, ...localEvents], [tabEvents, localEvents]);
 
   const append = useCallback(
     (channel: string, text: string, mergeId?: string) => {
@@ -135,9 +132,7 @@ export default function SubagentTabBody({
       </div>
       <div className="shrink-0 border-t border-[var(--border)] bg-[var(--background)] px-3 py-2.5">
         {error && (
-          <div className="mb-1.5 text-[11.5px] text-red-600 dark:text-red-400">
-            {error}
-          </div>
+          <div className="mb-1.5 text-[11.5px] text-red-600 dark:text-red-400">{error}</div>
         )}
         <div className="flex items-end gap-2">
           <textarea
@@ -152,9 +147,7 @@ export default function SubagentTabBody({
               }
             }}
             placeholder={
-              name
-                ? t("Message {{name}} directly…", { name })
-                : t("Message the agent directly…")
+              name ? t("Message {{name}} directly…", { name }) : t("Message the agent directly…")
             }
             className="max-h-32 min-h-[36px] flex-1 resize-none rounded-lg border border-[var(--border)] bg-transparent px-3 py-2 text-[13px] text-[var(--foreground)] outline-none transition-colors placeholder:text-[var(--muted-foreground)]/50 focus:border-[var(--ring)] disabled:opacity-60"
           />
@@ -165,11 +158,7 @@ export default function SubagentTabBody({
             aria-label={busy ? t("Stop") : t("Send")}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--foreground)] text-[var(--background)] transition-opacity disabled:opacity-40"
           >
-            {busy ? (
-              <Square size={13} fill="currentColor" />
-            ) : (
-              <ArrowUp size={16} />
-            )}
+            {busy ? <Square size={13} fill="currentColor" /> : <ArrowUp size={16} />}
           </button>
         </div>
       </div>

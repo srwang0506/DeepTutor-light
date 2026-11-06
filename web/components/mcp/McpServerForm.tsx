@@ -6,11 +6,7 @@ import { useTranslation } from "react-i18next";
 
 import KeyValueEditor from "@/components/mcp/KeyValueEditor";
 import { inputClass, labelClass, selectClass } from "@/components/mcp/styles";
-import {
-  surfaceAllows,
-  testMcpSurfaceServer,
-  type McpSurface,
-} from "@/components/mcp/surface";
+import { surfaceAllows, testMcpSurfaceServer, type McpSurface } from "@/components/mcp/surface";
 import {
   arrayToLines,
   buildMcpServerConfig,
@@ -41,11 +37,7 @@ export default function McpServerForm({
   existingNames: string[];
   saving: boolean;
   onCancel: () => void;
-  onSave: (
-    originalName: string | "",
-    name: string,
-    cfg: McpServerConfig,
-  ) => Promise<boolean>;
+  onSave: (originalName: string | "", name: string, cfg: McpServerConfig) => Promise<boolean>;
 }) {
   const { t } = useTranslation();
 
@@ -53,15 +45,13 @@ export default function McpServerForm({
   const [type, setType] = useState<McpServerConfig["type"]>(initialConfig.type);
   const [command, setCommand] = useState(initialConfig.command);
   const [argsText, setArgsText] = useState(arrayToLines(initialConfig.args));
-  const [envPairs, setEnvPairs] = useState<McpKvPair[]>(
-    dictToPairs(initialConfig.env),
-  );
+  const [envPairs, setEnvPairs] = useState<McpKvPair[]>(dictToPairs(initialConfig.env));
   const [cwd, setCwd] = useState(initialConfig.cwd);
   const [url, setUrl] = useState(initialConfig.url);
-  const [allowPrivateNetwork, setAllowPrivateNetwork] = useState(initialConfig.allow_private_network ?? false);
-  const [headerPairs, setHeaderPairs] = useState<McpKvPair[]>(
-    dictToPairs(initialConfig.headers),
+  const [allowPrivateNetwork, setAllowPrivateNetwork] = useState(
+    initialConfig.allow_private_network ?? false,
   );
+  const [headerPairs, setHeaderPairs] = useState<McpKvPair[]>(dictToPairs(initialConfig.headers));
   const [toolTimeout, setToolTimeout] = useState(initialConfig.tool_timeout);
   const [enabledToolsText, setEnabledToolsText] = useState(
     arrayToLines(initialConfig.enabled_tools),
@@ -106,8 +96,7 @@ export default function McpServerForm({
 
   const stdioAllowed = surfaceAllows(surface, "stdio");
   const effectiveTransport = resolveMcpTransport(buildConfig());
-  const showStdio =
-    stdioAllowed && (effectiveTransport === "stdio" || type === "stdio");
+  const showStdio = stdioAllowed && (effectiveTransport === "stdio" || type === "stdio");
   // A surface without stdio has only one kind of server to describe, so the
   // remote block is shown from the start: an empty form whose URL field appears
   // only after picking a transport is a dead end.
@@ -175,14 +164,7 @@ export default function McpServerForm({
     }
     setFormError(null);
     await onSave(originalName, name.trim(), cfg);
-  }, [
-    validateName,
-    buildConfig,
-    missingTargetMessage,
-    onSave,
-    originalName,
-    name,
-  ]);
+  }, [validateName, buildConfig, missingTargetMessage, onSave, originalName, name]);
 
   return (
     <div className="space-y-5">
@@ -193,7 +175,7 @@ export default function McpServerForm({
             className={inputClass}
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="my-server"
+            placeholder={t("my-server")}
             spellCheck={false}
             autoComplete="off"
           />
@@ -203,9 +185,7 @@ export default function McpServerForm({
           <select
             className={selectClass}
             value={type ?? ""}
-            onChange={(e) =>
-              setType((e.target.value || null) as McpServerConfig["type"])
-            }
+            onChange={(e) => setType((e.target.value || null) as McpServerConfig["type"])}
           >
             <option value="">
               {t("Auto-detect")}
@@ -231,15 +211,13 @@ export default function McpServerForm({
               className={`${inputClass} font-mono`}
               value={command}
               onChange={(e) => setCommand(e.target.value)}
-              placeholder="npx"
+              placeholder={t("npx")}
               spellCheck={false}
               autoComplete="off"
             />
           </div>
           <div>
-            <label className={labelClass}>
-              {t("Arguments (one per line)")}
-            </label>
+            <label className={labelClass}>{t("Arguments (one per line)")}</label>
             <textarea
               className={`${inputClass} min-h-[72px] resize-y font-mono`}
               value={argsText}
@@ -249,14 +227,12 @@ export default function McpServerForm({
             />
           </div>
           <div>
-            <label className={labelClass}>
-              {t("Working directory (optional)")}
-            </label>
+            <label className={labelClass}>{t("Working directory (optional)")}</label>
             <input
               className={`${inputClass} font-mono`}
               value={cwd}
               onChange={(e) => setCwd(e.target.value)}
-              placeholder="/path/to/workdir"
+              placeholder={t("/path/to/workdir")}
               spellCheck={false}
               autoComplete="off"
             />
@@ -282,15 +258,26 @@ export default function McpServerForm({
               className={`${inputClass} font-mono`}
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder="https://example.com/mcp"
+              placeholder={t("https://example.com/mcp")}
               spellCheck={false}
               autoComplete="off"
             />
           </div>
           <label className="flex items-start gap-2 text-xs">
-            <input type="checkbox" checked={allowPrivateNetwork} onChange={(event) => setAllowPrivateNetwork(event.target.checked)} />
-            <span>{surface.writes === "registry" ? t("Approve this MCP origin for private-network connections") : t("Use an administrator-approved private MCP origin")}
-              <span className="mt-1 block text-[var(--muted-foreground)]">{t("Only this scheme, host and port can use private Docker or LAN addresses. Metadata addresses remain blocked.")}</span>
+            <input
+              type="checkbox"
+              checked={allowPrivateNetwork}
+              onChange={(event) => setAllowPrivateNetwork(event.target.checked)}
+            />
+            <span>
+              {surface.writes === "registry"
+                ? t("Approve this MCP origin for private-network connections")
+                : t("Use an administrator-approved private MCP origin")}
+              <span className="mt-1 block text-[var(--muted-foreground)]">
+                {t(
+                  "Only this scheme, host and port can use private Docker or LAN addresses. Metadata addresses remain blocked.",
+                )}
+              </span>
             </span>
           </label>
           <KeyValueEditor
@@ -314,16 +301,12 @@ export default function McpServerForm({
             value={toolTimeout}
             onChange={(e) => {
               const n = Number(e.target.value);
-              setToolTimeout(
-                Number.isFinite(n) ? Math.min(600, Math.max(1, n)) : 30,
-              );
+              setToolTimeout(Number.isFinite(n) ? Math.min(600, Math.max(1, n)) : 30);
             }}
           />
         </div>
         <div>
-          <label className={labelClass}>
-            {t("Enabled tools (one per line, * = all)")}
-          </label>
+          <label className={labelClass}>{t("Enabled tools (one per line, * = all)")}</label>
           <textarea
             className={`${inputClass} min-h-[60px] resize-y font-mono`}
             value={enabledToolsText}

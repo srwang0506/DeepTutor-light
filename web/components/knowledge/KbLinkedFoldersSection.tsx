@@ -2,13 +2,7 @@
 
 import Tooltip from "@/shared/ui/Tooltip";
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  CheckCircle2,
-  FolderSync,
-  Loader2,
-  RefreshCw,
-  Trash2,
-} from "lucide-react";
+import { CheckCircle2, FolderSync, Loader2, RefreshCw, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { TaskState } from "@/hooks/useKnowledgeProgress";
 import {
@@ -17,10 +11,7 @@ import {
   resolveProgressPercent,
   type KnowledgeBase,
 } from "@/lib/knowledge-helpers";
-import type {
-  LinkedFolderInfo,
-  SyncFolderResponse,
-} from "@/features/knowledge/model/types";
+import type { LinkedFolderInfo, SyncFolderResponse } from "@/features/knowledge/model/types";
 import { listLinkedFolders } from "@/features/knowledge/api/folders";
 import ProcessLogs from "@/components/common/ProcessLogs";
 import LinkFolderModal from "./LinkFolderModal";
@@ -49,44 +40,46 @@ export default function KbLinkedFoldersSection({
   const [linkOpen, setLinkOpen] = useState(false);
   const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
   const [syncingId, setSyncingId] = useState<string | null>(null);
-  const [activeSyncFolderId, setActiveSyncFolderId] = useState<string | null>(
-    null,
-  );
-  const [syncResults, setSyncResults] = useState<
-    Record<string, SyncFolderResponse>
-  >({});
+  const [activeSyncFolderId, setActiveSyncFolderId] = useState<string | null>(null);
+  const [syncResults, setSyncResults] = useState<Record<string, SyncFolderResponse>>({});
   const observedSyncTaskRef = useRef<string | null>(null);
 
-  const refresh = useCallback(async () => {
+  const refreshData = useCallback(async () => {
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 15_000);
+    return listLinkedFolders(kbRef, {
+      signal: controller.signal,
+    })
+      .then(async (result) => {
+        setFolders(result);
+        setError(null);
+      })
+      .catch((err) => {
+        let message: string;
+        if (err instanceof DOMException && err.name === "AbortError") {
+          message = t("Timed out loading linked folders. Click retry.");
+        } else {
+          message = err instanceof Error ? err.message : String(err);
+        }
+        setLoadError(message);
+        setError(message);
+      })
+      .finally(() => {
+        window.clearTimeout(timeout);
+        setLoading(false);
+      });
+  }, [kbRef, t]);
+
+  const refresh = useCallback(() => {
     setLoading(true);
     setLoadError(null);
     setError(null);
-    try {
-      const result = await listLinkedFolders(kbRef, {
-        signal: controller.signal,
-      });
-      setFolders(result);
-      setError(null);
-    } catch (err) {
-      let message: string;
-      if (err instanceof DOMException && err.name === "AbortError") {
-        message = t("Timed out loading linked folders. Click retry.");
-      } else {
-        message = err instanceof Error ? err.message : String(err);
-      }
-      setLoadError(message);
-      setError(message);
-    } finally {
-      window.clearTimeout(timeout);
-      setLoading(false);
-    }
-  }, [kbRef, t]);
+    return refreshData();
+  }, [refreshData]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    void refreshData();
+  }, [refreshData]);
 
   // A sync request returns before indexing completes. Refresh only after the
   // shared task stream reaches a terminal state so last_sync comes from disk.
@@ -102,8 +95,7 @@ export default function KbLinkedFoldersSection({
     void refresh();
   }, [refresh, task?.executing, task?.kind, task?.taskId]);
 
-  const activeSync =
-    syncingId !== null || (task?.kind === "sync" && task.executing);
+  const activeSync = syncingId !== null || (task?.kind === "sync" && task.executing);
   const readOnly = Boolean(kb.read_only);
 
   const handleLink = async (folderPath: string) => {
@@ -115,9 +107,7 @@ export default function KbLinkedFoldersSection({
   const handleUnlink = async (folder: LinkedFolderInfo) => {
     if (
       !window.confirm(
-        t(
-          "Unlinking stops future syncs. Files already imported remain in this knowledge base.",
-        ),
+        t("Unlinking stops future syncs. Files already imported remain in this knowledge base."),
       )
     ) {
       return;
@@ -174,10 +164,7 @@ export default function KbLinkedFoldersSection({
       <div className="flex flex-col items-center justify-center gap-2 py-10">
         {loadError ? (
           <>
-            <p
-              role="alert"
-              className="text-center text-[12px] text-red-600 dark:text-red-400"
-            >
+            <p role="alert" className="text-center text-[12px] text-red-600 dark:text-red-400">
               {loadError}
             </p>
             <button
@@ -214,13 +201,16 @@ export default function KbLinkedFoldersSection({
             )}
           </p>
         </div>
-        <Tooltip label={
-          readOnly
-            ? t("Assigned knowledge bases are read-only.")
-            : activeSync
-              ? t("Wait for the current sync to finish.")
-              : t("Link folder")
-        } side="top">
+        <Tooltip
+          label={
+            readOnly
+              ? t("Assigned knowledge bases are read-only.")
+              : activeSync
+                ? t("Wait for the current sync to finish.")
+                : t("Link folder")
+          }
+          side="top"
+        >
           <button
             type="button"
             onClick={() => setLinkOpen(true)}
@@ -260,10 +250,9 @@ export default function KbLinkedFoldersSection({
         </div>
       )}
 
-      {task?.kind === "sync" &&
-        (task.taskId || task.logs.length > 0 || task.executing) && (
-          <SyncProgress task={task} progress={kb.progress} />
-        )}
+      {task?.kind === "sync" && (task.taskId || task.logs.length > 0 || task.executing) && (
+        <SyncProgress task={task} progress={kb.progress} />
+      )}
 
       {folders.length === 0 ? (
         <div className="rounded-lg border border-dashed border-[var(--border)] px-4 py-10 text-center">
@@ -291,8 +280,7 @@ export default function KbLinkedFoldersSection({
               readOnly={readOnly}
               busy={activeSync}
               syncing={
-                activeSync &&
-                (activeSyncFolderId === null || activeSyncFolderId === folder.id)
+                activeSync && (activeSyncFolderId === null || activeSyncFolderId === folder.id)
               }
               unlinking={unlinkingId === folder.id}
               onSync={() => void handleSync(folder)}
@@ -308,11 +296,7 @@ export default function KbLinkedFoldersSection({
         )}
       </p>
 
-      <LinkFolderModal
-        isOpen={linkOpen}
-        onClose={() => setLinkOpen(false)}
-        onSubmit={handleLink}
-      />
+      <LinkFolderModal isOpen={linkOpen} onClose={() => setLinkOpen(false)} onSubmit={handleLink} />
     </div>
   );
 }
@@ -355,9 +339,7 @@ function LinkedFolderCard({
             </code>
           </div>
           <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--muted-foreground)]">
-            <span>
-              {t("{{count}} tracked files", { count: folder.file_count })}
-            </span>
+            <span>{t("{{count}} tracked files", { count: folder.file_count })}</span>
             {addedAt && <span>{t("Linked {{time}}", { time: addedAt })}</span>}
             <span>
               {t("Last successful sync")}: {lastSync || t("Never synced")}
@@ -366,13 +348,16 @@ function LinkedFolderCard({
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-1.5">
-          <Tooltip label={
+          <Tooltip
+            label={
               readOnly
                 ? t("Assigned knowledge bases are read-only.")
                 : busy
                   ? t("Wait for the current sync to finish.")
                   : t("Check this folder for new or modified files")
-            } side="top">
+            }
+            side="top"
+          >
             <button
               type="button"
               onClick={onSync}
@@ -444,25 +429,14 @@ function SyncProgress({
   const percent = resolveProgressPercent(progress);
 
   return (
-    <div
-      className="space-y-2"
-      role="status"
-      aria-live="polite"
-      aria-busy={task.executing}
-    >
+    <div className="space-y-2" role="status" aria-live="polite" aria-busy={task.executing}>
       <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[var(--muted-foreground)]">
         <span>{t(task.label || "Sync linked folder")}</span>
         {task.executing && percent > 0 && (
-          <span className="font-medium text-[var(--foreground)]">
-            {percent}%
-          </span>
+          <span className="font-medium text-[var(--foreground)]">{percent}%</span>
         )}
       </div>
-      <ProcessLogs
-        logs={task.logs}
-        executing={task.executing}
-        title={t("Sync Process")}
-      />
+      <ProcessLogs logs={task.logs} executing={task.executing} title={t("Sync Process")} />
       {task.executing && (
         <div className="h-1.5 overflow-hidden rounded-full bg-[var(--border)]/70">
           <div

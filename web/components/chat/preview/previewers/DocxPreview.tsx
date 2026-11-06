@@ -1,4 +1,5 @@
 "use client";
+import { useKeyedState } from "@/hooks/useKeyedState";
 
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle, Loader2 } from "lucide-react";
@@ -26,10 +27,7 @@ function fitRenderedDocx(viewport: HTMLElement, host: HTMLElement) {
   if (!pageWidth) return;
 
   const availableWidth = Math.max(viewport.clientWidth - 32, 240);
-  const scale = Math.min(
-    1,
-    Math.max(MIN_FIT_SCALE, availableWidth / pageWidth),
-  );
+  const scale = Math.min(1, Math.max(MIN_FIT_SCALE, availableWidth / pageWidth));
   wrapper.style.setProperty("zoom", String(scale));
 }
 
@@ -43,15 +41,12 @@ export default function DocxPreview({ url }: { url: string }) {
   const src = useBinarySource(url);
   const viewportRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const [rendering, setRendering] = useState(true);
-  const [failed, setFailed] = useState(false);
+  const [renderingState, setRendering] = useKeyedState(url, true);
+  const rendering = src.kind === "loading" || (src.kind === "ready" && renderingState);
+  const [failedState, setFailed] = useKeyedState(url, false);
+  const failed = src.kind === "error" || failedState;
 
   useEffect(() => {
-    if (src.kind === "error") {
-      setRendering(false);
-      setFailed(true);
-      return;
-    }
     if (src.kind !== "ready") return;
     const container = containerRef.current;
     if (!container) return;
@@ -70,8 +65,6 @@ export default function DocxPreview({ url }: { url: string }) {
       });
     };
 
-    setRendering(true);
-    setFailed(false);
     (async () => {
       try {
         const { renderAsync } = await import("docx-preview");
@@ -103,13 +96,10 @@ export default function DocxPreview({ url }: { url: string }) {
       resizeObserver?.disconnect();
       if (frame) cancelAnimationFrame(frame);
     };
-  }, [src]);
+  }, [setFailed, setRendering, src]);
 
   return (
-    <div
-      ref={viewportRef}
-      className="relative h-full w-full overflow-auto bg-[var(--muted)]/30"
-    >
+    <div ref={viewportRef} className="relative h-full w-full overflow-auto bg-[var(--muted)]/30">
       {rendering && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
           <div className="flex items-center gap-2 text-[12px] text-[var(--muted-foreground)]">

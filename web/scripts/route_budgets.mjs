@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const WEB_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const NEXT_OUTPUT_DIR = path.join(WEB_ROOT, ".next");
+const NEXT_OUTPUT_DIR = path.resolve(WEB_ROOT, process.env.DEEPTUTOR_NEXT_DIST_DIR || ".next");
 const BUILD_MANIFEST_PATH = path.join(NEXT_OUTPUT_DIR, "build-manifest.json");
 const NEXT_BIN = path.join(WEB_ROOT, "node_modules", "next", "dist", "bin", "next");
 
@@ -36,7 +36,9 @@ const SERVER_TIMEOUT_MS = 20_000;
 
 function assertBuildPresent() {
   if (!fs.existsSync(BUILD_MANIFEST_PATH)) {
-    throw new Error("Missing .next build output. Run `npm run build` before `npm run perf:check`.");
+    throw new Error(
+      "Missing production build output. Run `npm run build` before `npm run perf:check`.",
+    );
   }
 }
 
@@ -124,18 +126,22 @@ async function assertRootRedirect(baseUrl) {
   if (
     ![307, 308].includes(response.status) ||
     destination?.origin !== baseUrl ||
-    destination.pathname !== "/chat"
+    destination.pathname !== "/today"
   ) {
-    throw new Error(`/ must redirect to /chat, got HTTP ${response.status} to ${location || "(none)"}`);
+    throw new Error(
+      `/ must redirect to /today, got HTTP ${response.status} to ${location || "(none)"}`,
+    );
   }
 }
 
 function intersection(sets) {
   if (sets.length === 0) return new Set();
-  return sets.slice(1).reduce(
-    (shared, current) => new Set([...shared].filter((item) => current.has(item))),
-    new Set(sets[0]),
-  );
+  return sets
+    .slice(1)
+    .reduce(
+      (shared, current) => new Set([...shared].filter((item) => current.has(item))),
+      new Set(sets[0]),
+    );
 }
 
 function difference(source, ...excludedSets) {

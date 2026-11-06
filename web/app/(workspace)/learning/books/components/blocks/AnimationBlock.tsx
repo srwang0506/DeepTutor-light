@@ -1,5 +1,6 @@
 "use client";
 
+import SourceImage from "@/components/common/SourceImage";
 import { Download, ExternalLink } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -48,8 +49,7 @@ export default function AnimationBlock({ block }: AnimationBlockProps) {
     primaryRaw.endsWith(".mp4") ||
     primaryRaw.endsWith(".webm") ||
     artifacts.some((a) => (a.content_type || "").startsWith("video/"));
-  const filename =
-    String(payload.filename || "") || artifacts[0]?.filename || "";
+  const filename = String(payload.filename || "") || artifacts[0]?.filename || "";
 
   return (
     <figure className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-3 shadow-sm">
@@ -63,7 +63,7 @@ export default function AnimationBlock({ block }: AnimationBlockProps) {
             className="aspect-video h-auto w-full object-contain"
           />
         ) : (
-          <img
+          <SourceImage
             src={primary}
             alt={description || t("Animation frame")}
             className="h-auto w-full"
@@ -100,10 +100,7 @@ export default function AnimationBlock({ block }: AnimationBlockProps) {
       </div>
       {(summary || description) && (
         <figcaption className="mt-3 text-xs leading-snug text-[var(--muted-foreground)]">
-          <MarkdownRenderer
-            content={summary || description}
-            variant="default"
-          />
+          <MarkdownRenderer content={summary || description} variant="default" />
         </figcaption>
       )}
     </figure>

@@ -23,11 +23,7 @@ export interface UserNoteBlockProps {
  * with nowhere to write: the block type, the payload field and the insert
  * action all existed, but no editor was ever wired up.
  */
-export default function UserNoteBlock({
-  block,
-  onSave,
-  autoEdit = false,
-}: UserNoteBlockProps) {
+export default function UserNoteBlock({ block, onSave, autoEdit = false }: UserNoteBlockProps) {
   const { t } = useTranslation();
   const body = String(block.payload?.body || "");
   const editable = !!onSave;
@@ -38,9 +34,17 @@ export default function UserNoteBlock({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Re-sync when the block changes underneath us (a refresh, another device).
-  useEffect(() => {
-    if (!editing) setDraft(body);
-  }, [body, editing]);
+  const [derivedInputs0, setDerivedInputs0] = useState<readonly unknown[]>([]);
+  if (
+    derivedInputs0.length !== 2 ||
+    !Object.is(derivedInputs0[0], body) ||
+    !Object.is(derivedInputs0[1], editing)
+  ) {
+    setDerivedInputs0([body, editing]);
+    (() => {
+      if (!editing) setDraft(body);
+    })();
+  }
 
   useEffect(() => {
     if (!editing) return;
@@ -98,10 +102,7 @@ export default function UserNoteBlock({
                 if (event.key === "Escape") {
                   event.preventDefault();
                   cancel();
-                } else if (
-                  event.key === "Enter" &&
-                  (event.metaKey || event.ctrlKey)
-                ) {
+                } else if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
                   event.preventDefault();
                   void commit();
                 }

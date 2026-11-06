@@ -31,10 +31,7 @@ import {
   syncLinkedFolder as syncLinkedFolderApi,
   unlinkFolder as unlinkFolderApi,
 } from "@/features/knowledge/api/folders";
-import type {
-  LinkedFolderInfo,
-  SyncFolderResponse,
-} from "@/features/knowledge/model/types";
+import type { LinkedFolderInfo, SyncFolderResponse } from "@/features/knowledge/model/types";
 import {
   DEFAULT_UPLOAD_POLICY,
   type KnowledgeBase,
@@ -60,15 +57,11 @@ interface LoadOptions {
 export function useKnowledgeBases() {
   const [kbs, setKbs] = useState<KnowledgeBase[]>([]);
   const [providers, setProviders] = useState<RagProviderSummary[]>([]);
-  const [uploadPolicy, setUploadPolicy] = useState<KnowledgeUploadPolicy>(
-    DEFAULT_UPLOAD_POLICY,
-  );
+  const [uploadPolicy, setUploadPolicy] = useState<KnowledgeUploadPolicy>(DEFAULT_UPLOAD_POLICY);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const refreshRef = useRef<(opts?: LoadOptions) => Promise<void>>(
-    async () => {},
-  );
+  const refreshRef = useRef<(opts?: LoadOptions) => Promise<void>>(async () => {});
   const history = useKnowledgeHistory();
 
   const progress = useKnowledgeProgress({
@@ -93,60 +86,56 @@ export function useKnowledgeBases() {
     },
   });
 
-  const load = useCallback(
+  const loadData = useCallback(
     async (opts?: LoadOptions) => {
+      const showSpinner = opts?.showSpinner ?? true;
+      return Promise.all([
+        listKnowledgeBases({ force: opts?.force }),
+        listRagProviders({ force: opts?.force }),
+        getKnowledgeUploadPolicy({ force: opts?.force }).catch(() => DEFAULT_UPLOAD_POLICY),
+      ])
+        .then(async ([kbList, providerList, policy]) => {
+          const typedKbs = kbList as KnowledgeBase[];
+          setKbs(typedKbs);
+          setUploadPolicy(policy);
+          setProviders((prev) => {
+            const next = providerList.length ? providerList : DEFAULT_PROVIDER_FALLBACK;
+            return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
+          });
+          for (const kb of typedKbs) {
+            const status = kb.status ?? kb.statistics?.status;
+            const kbProgress = kb.progress ?? kb.statistics?.progress;
+            if (status === "error" && kbProgress) {
+              progress.setProgress(knowledgeBaseRef(kb), kbProgress as ProgressInfo);
+              continue;
+            }
+            if (kbHasLiveProgress({ ...kb, progress: kbProgress as ProgressInfo })) {
+              progress.resumeTask(
+                knowledgeBaseRef(kb),
+                (kbProgress as ProgressInfo) ?? {},
+                kb.name,
+              );
+            }
+          }
+        })
+        .catch((err) => {
+          setError(err instanceof Error ? err.message : String(err));
+        })
+        .finally(() => {
+          if (showSpinner) setLoading(false);
+        });
+    },
+    [progress],
+  );
+
+  const load = useCallback(
+    (opts?: LoadOptions) => {
       const showSpinner = opts?.showSpinner ?? true;
       if (showSpinner) setLoading(true);
       setError(null);
-      try {
-        const [kbList, providerList, policy] = await Promise.all([
-          listKnowledgeBases({ force: opts?.force }),
-          listRagProviders({ force: opts?.force }),
-          getKnowledgeUploadPolicy({ force: opts?.force }).catch(
-            () => DEFAULT_UPLOAD_POLICY,
-          ),
-        ]);
-        const typedKbs = kbList as KnowledgeBase[];
-        setKbs(typedKbs);
-        setUploadPolicy(policy);
-        // Keep the array reference stable across the 4s indexing poll when
-        // nothing changed, so consumers keyed on `providers` don't re-fire.
-        setProviders((prev) => {
-          const next = providerList.length
-            ? providerList
-            : DEFAULT_PROVIDER_FALLBACK;
-          return JSON.stringify(prev) === JSON.stringify(next) ? prev : next;
-        });
-
-        // Auto-resubscribe to progress for KBs that are still live
-        // (e.g. user navigated away and came back mid-indexing).
-        for (const kb of typedKbs) {
-          const status = kb.status ?? kb.statistics?.status;
-          const kbProgress = kb.progress ?? kb.statistics?.progress;
-          if (status === "error" && kbProgress) {
-            progress.setProgress(
-              knowledgeBaseRef(kb),
-              kbProgress as ProgressInfo,
-            );
-            continue;
-          }
-          if (
-            kbHasLiveProgress({ ...kb, progress: kbProgress as ProgressInfo })
-          ) {
-            progress.resumeTask(
-              knowledgeBaseRef(kb),
-              (kbProgress as ProgressInfo) ?? {},
-              kb.name,
-            );
-          }
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
-      } finally {
-        if (showSpinner) setLoading(false);
-      }
+      return loadData(opts);
     },
-    [progress],
+    [loadData],
   );
 
   useEffect(() => {
@@ -154,7 +143,7 @@ export function useKnowledgeBases() {
   }, [load]);
 
   useEffect(() => {
-    void load();
+    void loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -166,9 +155,7 @@ export function useKnowledgeBases() {
         ...kb,
         status: kb.status ?? kb.statistics?.status,
         progress:
-          progress.progressByKb[knowledgeBaseRef(kb)] ||
-          kb.progress ||
-          kb.statistics?.progress,
+          progress.progressByKb[knowledgeBaseRef(kb)] || kb.progress || kb.statistics?.progress,
       })),
     [kbs, progress.progressByKb],
   );
@@ -280,11 +267,7 @@ export function useKnowledgeBases() {
       configFingerprint?: string,
       embeddingModel?: EmbeddingModelSelection,
     ): Promise<KnowledgeTaskResponse> => {
-      const result = await reindexKbApi(
-        kbName,
-        configFingerprint,
-        embeddingModel,
-      );
+      const result = await reindexKbApi(kbName, configFingerprint, embeddingModel);
       if (result.noop) {
         await load({ force: true, showSpinner: false });
         return result;
@@ -316,10 +299,7 @@ export function useKnowledgeBases() {
           taskId: result.task_id,
           kind: "retry",
           label: `Retry ${kbName}`,
-          initialLogs: [
-            `Queued retry task for ${kbName}.`,
-            "Waiting for backend indexing logs...",
-          ],
+          initialLogs: [`Queued retry task for ${kbName}.`, "Waiting for backend indexing logs..."],
         });
       } else {
         progress.subscribeWs(kbName);
@@ -386,10 +366,7 @@ export function useKnowledgeBases() {
           taskId: result.task_id,
           kind: "sync",
           label: "Sync linked folder",
-          initialLogs: [
-            "Queued linked-folder sync.",
-            "Waiting for backend indexing logs...",
-          ],
+          initialLogs: ["Queued linked-folder sync.", "Waiting for backend indexing logs..."],
           seed: {
             stage: "starting",
             message: result.message,
@@ -407,12 +384,7 @@ export function useKnowledgeBases() {
   );
 
   const connectLightRagServer = useCallback(
-    async (params: {
-      name: string;
-      serverUrl: string;
-      apiKey?: string;
-      mode?: string;
-    }) => {
+    async (params: { name: string; serverUrl: string; apiKey?: string; mode?: string }) => {
       await connectLightRagServerApi(params);
       invalidateKnowledgeCaches();
       await load({ force: true, showSpinner: false });
@@ -444,12 +416,7 @@ export function useKnowledgeBases() {
   );
 
   const connectIma = useCallback(
-    async (params: {
-      name: string;
-      clientId: string;
-      apiKey: string;
-      knowledgeBaseId: string;
-    }) => {
+    async (params: { name: string; clientId: string; apiKey: string; knowledgeBaseId: string }) => {
       await connectImaApi(params);
       invalidateKnowledgeCaches();
       await load({ force: true, showSpinner: false });

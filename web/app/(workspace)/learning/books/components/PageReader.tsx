@@ -1,4 +1,5 @@
 "use client";
+import { useKeyedState } from "@/hooks/useKeyedState";
 
 import { bookRoute } from "@/lib/learning-routes";
 
@@ -151,9 +152,7 @@ export default function PageReader({
   /** The chapter outline starts parked so it never covers the prose unasked. */
   const [outlineCollapsed, setOutlineCollapsed] = useState(true);
   const [inserting, setInserting] = useState(false);
-  const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(
-    null,
-  );
+  const [scrollContainer, setScrollContainer] = useState<HTMLDivElement | null>(null);
   const [readingPercent, setReadingPercent] = useState(0);
   const [chapterHasScroll, setChapterHasScroll] = useState(false);
   const pendingScrollPlacementRef = useRef<ChapterScrollPlacement>("start");
@@ -163,14 +162,12 @@ export default function PageReader({
   // ── Collapsible header ──────────────────────────────────────────────
   // Default expanded; collapse on user-initiated scroll-down past threshold;
   // re-expand when user returns to the very top. Manual toggle via button.
-  const [headerCollapsed, setHeaderCollapsed] = useState(false);
-  const [userToggled, setUserToggled] = useState(false);
+  const [headerCollapsed, setHeaderCollapsed] = useKeyedState(page?.id, false);
+  const [userToggled, setUserToggled] = useKeyedState(page?.id, false);
   const lastScrollTopRef = useRef(0);
 
   // Reset header + scroll bookkeeping whenever we load a new page.
   useEffect(() => {
-    setHeaderCollapsed(false);
-    setUserToggled(false);
     lastScrollTopRef.current = 0;
   }, [page?.id]);
 
@@ -189,8 +186,7 @@ export default function PageReader({
       }),
     );
     setChapterHasScroll(
-      scrollContainer.scrollHeight - scrollContainer.clientHeight >
-        SCROLL_EDGE_TOLERANCE_PX,
+      scrollContainer.scrollHeight - scrollContainer.clientHeight > SCROLL_EDGE_TOLERANCE_PX,
     );
   }, [scrollContainer]);
 
@@ -207,14 +203,14 @@ export default function PageReader({
     // State changes before App Router finishes updating the URL. Let the
     // destination route consume this cross-mount intent; the departing page
     // must not clear it during that short transition window.
-    const persistedEnd =
-      pathname === targetPath && hasPendingChapterEnd(page.book_id, page.id);
+    const persistedEnd = pathname === targetPath && hasPendingChapterEnd(page.book_id, page.id);
     const pendingMatchesPage = requestedPageId === page.id || persistedEnd;
-    const placement = requestedPageId === page.id
-      ? pendingScrollPlacementRef.current
-      : persistedEnd
-        ? "end"
-        : "start";
+    const placement =
+      requestedPageId === page.id
+        ? pendingScrollPlacementRef.current
+        : persistedEnd
+          ? "end"
+          : "start";
     if (!pendingMatchesPage) {
       pendingScrollPlacementRef.current = "start";
       pendingScrollPlacementPageIdRef.current = null;
@@ -224,8 +220,7 @@ export default function PageReader({
     // reader. Only a page transition or an explicit pending placement may.
     if (!isNewPage && !pendingMatchesPage) return;
 
-    const waitingForContent =
-      page.blocks.length === 0 && (loading || (page.block_count ?? 0) > 0);
+    const waitingForContent = page.blocks.length === 0 && (loading || (page.block_count ?? 0) > 0);
     // "Start" is safe on an empty summary and keeps its old scroll position
     // from surviving into the hydrated chapter. "End" must wait for content.
     if (waitingForContent && placement === "end") return;
@@ -235,8 +230,7 @@ export default function PageReader({
       window.requestAnimationFrame(() => {
         pendingFrames.push(
           window.requestAnimationFrame(() => {
-            scrollContainer.scrollTop =
-              placement === "end" ? scrollContainer.scrollHeight : 0;
+            scrollContainer.scrollTop = placement === "end" ? scrollContainer.scrollHeight : 0;
             updateReadingProgress();
             // Consume the placement only after it has actually reached the
             // DOM. Hydration can rerun this effect between the two frames;
@@ -260,7 +254,9 @@ export default function PageReader({
   }, [scrollContainer, page, loading, pathname, updateReadingProgress]);
 
   useEffect(() => {
-    updateReadingProgress();
+    // Progress measures layout; sample after the new chapter has been painted.
+    const frame = requestAnimationFrame(updateReadingProgress);
+    return () => cancelAnimationFrame(frame);
   }, [updateReadingProgress, page?.id, page?.blocks.length, loading]);
 
   useEffect(() => {
@@ -285,7 +281,7 @@ export default function PageReader({
     };
     scrollContainer.addEventListener("scroll", handler, { passive: true });
     return () => scrollContainer.removeEventListener("scroll", handler);
-  }, [scrollContainer, userToggled, updateReadingProgress]);
+  }, [scrollContainer, userToggled, updateReadingProgress, setHeaderCollapsed, setUserToggled]);
 
   const normalizeText = useCallback((value: string): string => {
     return (value || "").replace(/\s+/g, " ").trim();
@@ -312,9 +308,7 @@ export default function PageReader({
       anchor && anchor.nodeType === Node.TEXT_NODE
         ? anchor.parentElement
         : (anchor as HTMLElement | null);
-    const blockEl = anchorEl?.closest?.(
-      "[data-block-id]",
-    ) as HTMLElement | null;
+    const blockEl = anchorEl?.closest?.("[data-block-id]") as HTMLElement | null;
     const blockId = blockEl?.getAttribute("data-block-id") || "";
 
     const rawContext = blockEl?.textContent || selection.toString();
@@ -323,12 +317,9 @@ export default function PageReader({
     const sourceStart = normalizedContext.indexOf(sourceText);
     const sourceEnd = sourceStart >= 0 ? sourceStart + sourceText.length : -1;
     const beforeStart = sourceStart >= 0 ? Math.max(0, sourceStart - 120) : 0;
-    const afterEnd =
-      sourceEnd >= 0 ? Math.min(normalizedContext.length, sourceEnd + 120) : 0;
-    const contextBefore =
-      sourceStart >= 0 ? normalizedContext.slice(beforeStart, sourceStart) : "";
-    const contextAfter =
-      sourceEnd >= 0 ? normalizedContext.slice(sourceEnd, afterEnd) : "";
+    const afterEnd = sourceEnd >= 0 ? Math.min(normalizedContext.length, sourceEnd + 120) : 0;
+    const contextBefore = sourceStart >= 0 ? normalizedContext.slice(beforeStart, sourceStart) : "";
+    const contextAfter = sourceEnd >= 0 ? normalizedContext.slice(sourceEnd, afterEnd) : "";
 
     // Persistent content identity consumed by the book API, not a browser URL.
     const sourceLocator = blockId
@@ -352,10 +343,7 @@ export default function PageReader({
       // that state so they cannot skip a chapter before its height is known.
       if (loading && page?.blocks.length === 0) return false;
 
-      if (
-        !scrollContainer ||
-        scrollContainer.clientHeight <= SCROLL_EDGE_TOLERANCE_PX
-      ) {
+      if (!scrollContainer || scrollContainer.clientHeight <= SCROLL_EDGE_TOLERANCE_PX) {
         return false;
       }
 
@@ -387,7 +375,7 @@ export default function PageReader({
       nextPage,
       onNavigate,
       page?.book_id,
-      page?.blocks.length,
+      page?.blocks,
       previousPage,
       scrollContainer,
     ],
@@ -400,8 +388,7 @@ export default function PageReader({
       // Never steal arrow keys from a field the reader is typing in.
       if (
         target &&
-        (target.isContentEditable ||
-          ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+        (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
       ) {
         return;
       }
@@ -435,8 +422,7 @@ export default function PageReader({
    * broken chapter the reader is expected to fill in by hand. The chapter's
    * own status is the honest answer and does not care who started the run.
    */
-  const writing =
-    loading || page.status === "planning" || page.status === "generating";
+  const writing = loading || page.status === "planning" || page.status === "generating";
   /** Owed a run, with nothing working on it — the reader can start one. */
   const queued = !writing && page.status === "pending";
   /**
@@ -448,11 +434,9 @@ export default function PageReader({
    * is a load, not an empty chapter, and rendering it as one leaves a blank
    * page under a chapter the sidebar says is ready.
    */
-  const hydrating =
-    !writing && !queued && page.blocks.length === 0 && (page.block_count ?? 0) > 0;
+  const hydrating = !writing && !queued && page.blocks.length === 0 && (page.block_count ?? 0) > 0;
   const hasFailedBlocks = failedBlocks.length > 0;
-  const canCaptureSelection =
-    !!onCaptureSelection && !loading && page.blocks.length > 0;
+  const canCaptureSelection = !!onCaptureSelection && !loading && page.blocks.length > 0;
 
   return (
     // The outer container is `relative` so the floating outline nav can
@@ -491,9 +475,7 @@ export default function PageReader({
               </span>
             )}
             {onToggleBookmark && (
-              <Tooltip
-                label={bookmarked ? t("Remove bookmark") : t("Bookmark this chapter")}
-              >
+              <Tooltip label={bookmarked ? t("Remove bookmark") : t("Bookmark this chapter")}>
                 <button
                   type="button"
                   onClick={onToggleBookmark}
@@ -618,21 +600,15 @@ export default function PageReader({
                 <div className="space-y-1.5 text-xs opacity-90">
                   {failedBlocks.slice(0, 5).map((block) => {
                     const failure = block.metadata?.failure as
-                      | { kind?: string; message?: string }
-                      | undefined;
+                      { kind?: string; message?: string } | undefined;
                     return (
-                      <div
-                        key={block.id}
-                        className="flex flex-wrap items-center gap-2"
-                      >
+                      <div key={block.id} className="flex flex-wrap items-center gap-2">
                         <code className="rounded bg-white/50 px-1.5 py-0.5 dark:bg-white/10">
                           {block.type}
                         </code>
                         <span>
                           {failure?.kind || t("error")}:{" "}
-                          {block.error ||
-                            failure?.message ||
-                            t("Unknown error")}
+                          {block.error || failure?.message || t("Unknown error")}
                         </span>
                         {onRegenerateBlock && (
                           <button
@@ -649,11 +625,7 @@ export default function PageReader({
               </div>
             )}
             {page.blocks.map((block) => (
-              <div
-                key={block.id}
-                id={`block-${block.id}`}
-                className="scroll-mt-6"
-              >
+              <div key={block.id} id={`block-${block.id}`} className="scroll-mt-6">
                 <BlockRenderer
                   block={block}
                   onRegenerate={onRegenerateBlock}
@@ -815,9 +787,7 @@ function NavButton({
         >
           {!isNext && <ChevronLeft className="h-3.5 w-3.5 shrink-0" />}
           <span className="min-w-0">
-            <span className="block text-[10px] uppercase tracking-wider opacity-70">
-              {label}
-            </span>
+            <span className="block text-[10px] uppercase tracking-wider opacity-70">{label}</span>
             <span className="block truncate">{page.title}</span>
           </span>
           {isNext && <ChevronRight className="h-3.5 w-3.5 shrink-0" />}

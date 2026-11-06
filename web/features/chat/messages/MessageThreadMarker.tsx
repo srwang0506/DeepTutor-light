@@ -13,12 +13,7 @@
  * launcher still lists them.
  */
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { MessagesSquare, Trash2, Unlink } from "lucide-react";
@@ -93,9 +88,11 @@ export default function MessageThreadMarker({
 
   // A popover that outlives its threads (the last one was deleted) has nothing
   // left to say.
-  useEffect(() => {
-    if (open && threads.length === 0) close();
-  }, [close, open, threads.length]);
+  if (open && threads.length === 0) {
+    setOpen(false);
+    setPosition(null);
+    setConfirming(null);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -275,9 +272,7 @@ function ThreadRow({
         aria-label={`${t("Open tutor thread")}: ${title}`}
         className="flex min-w-0 flex-1 flex-col gap-0.5 rounded-lg px-2 py-1.5 text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--ring)]"
       >
-        <span className="truncate text-[12.5px] font-medium text-[var(--foreground)]">
-          {title}
-        </span>
+        <span className="truncate text-[12.5px] font-medium text-[var(--foreground)]">{title}</span>
         {timeLabel ? (
           <span
             className={`text-[11px] ${

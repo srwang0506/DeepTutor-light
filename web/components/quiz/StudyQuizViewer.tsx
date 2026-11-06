@@ -1,4 +1,6 @@
 'use client'
+import dynamic from 'next/dynamic'
+const QuestionFamilyReview = dynamic(() => import('./QuestionFamilyReview'), { ssr: false })
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -41,7 +43,7 @@ async function request<T>(url: string, payload?: unknown): Promise<T> {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
-        }
+        },
   )
   const body = await response.json()
   if (!response.ok) throw new Error(body.detail || `HTTP ${response.status}`)
@@ -87,7 +89,7 @@ export default function StudyQuizViewer({
         <button
           aria-label={t('Previous')}
           disabled={index === 0}
-          onClick={() => setIndex(i => i - 1)}
+          onClick={() => setIndex((i) => i - 1)}
           className="p-1 disabled:opacity-30"
         >
           <ChevronLeft size={16} />
@@ -95,7 +97,7 @@ export default function StudyQuizViewer({
         <button
           aria-label={t('Next')}
           disabled={index >= questions.length - 1}
-          onClick={() => setIndex(i => i + 1)}
+          onClick={() => setIndex((i) => i + 1)}
           className="p-1 disabled:opacity-30"
         >
           <ChevronRight size={16} />
@@ -142,12 +144,12 @@ function QuestionCard({
   const location = `/quiz/${encodeURIComponent(sessionId)}/${encodeURIComponent(turnId)}/${encodeURIComponent(q.question_id)}/${q.question_version || 'legacy'}`
   const endpoint = useCallback(
     (suffix: string) => scopedUrl(`/api/quiz${suffix}`, workspace),
-    [workspace]
+    [workspace],
   )
   const statusUrl = useCallback(
     (id: string) =>
       endpoint(`/attempts/${encodeURIComponent(sessionId)}/${encodeURIComponent(id)}`),
-    [endpoint, sessionId]
+    [endpoint, sessionId],
   )
   const update = useCallback(
     (patch: Partial<Draft>) => {
@@ -157,13 +159,13 @@ function QuestionCard({
       pending.current = pending.current
         .catch(() => {})
         .then(() =>
-          saveWorkspaceDraft({ text: JSON.stringify(next), attachments: [] }, workspace, location)
+          saveWorkspaceDraft({ text: JSON.stringify(next), attachments: [] }, workspace, location),
         )
       void pending.current.catch(() => {
         if (mounted.current) setError(t('Draft could not be saved. Keep this page open.'))
       })
     },
-    [location, t, workspace]
+    [location, t, workspace],
   )
 
   async function expose(level: 'hint' | 'revealed') {
@@ -183,13 +185,13 @@ function QuestionCard({
         void sendMessage(
           t(
             'Give me one hint for {{question}}. Do not reveal the answer. My current idea: {{answer}}',
-            { question: q.question, answer: draftRef.current.answer }
+            { question: q.question, answer: draftRef.current.answer },
           ),
           undefined,
           undefined,
           undefined,
           undefined,
-          { capability: 'chat' }
+          { capability: 'chat' },
         )
     } catch (error) {
       setError(error instanceof Error ? error.message : '无法保存提示记录，请重试。')
@@ -202,7 +204,7 @@ function QuestionCard({
     mounted.current = true
     let cancelled = false
     void readWorkspaceDraft(workspace, location)
-      .then(saved => {
+      .then((saved) => {
         if (cancelled) return
         if (saved?.text) {
           const value = JSON.parse(saved.text) as Draft
@@ -218,7 +220,7 @@ function QuestionCard({
                 level: 'revealed',
                 event_id: 'resume:' + value.attemptId,
               })
-                .then(answer => {
+                .then((answer) => {
                   if (!cancelled) setReference(answer)
                 })
                 .catch(() => {
@@ -226,7 +228,7 @@ function QuestionCard({
                 })
             if (value.submitted)
               void request<Receipt>(statusUrl(value.attemptId))
-                .then(receipt => {
+                .then((receipt) => {
                   if (!cancelled) update({ receipt })
                 })
                 .catch(() => {
@@ -266,7 +268,7 @@ function QuestionCard({
     if (draft.receipt?.state !== 'grading') return
     const timer = window.setTimeout(() => {
       void request<Receipt>(statusUrl(draft.attemptId))
-        .then(receipt => {
+        .then((receipt) => {
           if (mounted.current) update({ receipt })
         })
         .catch(() => {})
@@ -274,6 +276,24 @@ function QuestionCard({
     return () => window.clearTimeout(timer)
   }, [draft.attemptId, draft.receipt, statusUrl, update])
 
+  const offline = async () => {
+    try {
+      const { saveQuizOffline } = await import('@/lib/offline-study')
+      const href = await saveQuizOffline(
+        workspace,
+        {
+          session_id: sessionId,
+          turn_id: turnId,
+          question_id: q.question_id,
+          question_version: q.question_version || '',
+        },
+        { question: q.question, options: q.options, question_type: q.question_type },
+      )
+      window.open(href, '_blank', 'noopener')
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
+  }
   const submit = async () => {
     if (busy || !ready || (!draft.answer.trim() && !draft.images?.length) || q.answerable === false)
       return
@@ -310,7 +330,7 @@ function QuestionCard({
           setError(
             reason instanceof Error
               ? reason.message
-              : t('Assessment unavailable. Your answer is saved.')
+              : t('Assessment unavailable. Your answer is saved.'),
           )
       }
     } finally {
@@ -332,9 +352,9 @@ function QuestionCard({
     if (
       (draftRef.current.images?.length || 0) + selected.length > 4 ||
       selected.some(
-        file =>
+        (file) =>
           file.size > 4 * 1024 * 1024 ||
-          !['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)
+          !['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type),
       )
     ) {
       setError(t('Attach up to four images, at most 4 MB each.'))
@@ -343,7 +363,7 @@ function QuestionCard({
     try {
       const images = await Promise.all(
         selected.map(
-          file =>
+          (file) =>
             new Promise<NonNullable<Draft['images']>[number]>((resolve, reject) => {
               const reader = new FileReader()
               reader.onload = () =>
@@ -355,8 +375,8 @@ function QuestionCard({
                 })
               reader.onerror = () => reject(new Error(t('Image could not be read.')))
               reader.readAsDataURL(file)
-            })
-        )
+            }),
+        ),
       )
       if (mounted.current) update({ images: [...(draftRef.current.images || []), ...images] })
     } catch {
@@ -410,7 +430,9 @@ function QuestionCard({
         <div role="status" className="rounded-xl bg-amber-500/10 p-4 text-sm">
           <p className="font-semibold">{t('Question generation failed')}</p>
           <p className="mt-2 text-[var(--muted-foreground)]">
-            {q.issues?.map(issue => t(`quiz.issue.${issue}`, { defaultValue: issue })).join(' · ')}
+            {q.issues
+              ?.map((issue) => t(`quiz.issue.${issue}`, { defaultValue: issue }))
+              .join(' · ')}
           </p>
           <button
             type="button"
@@ -449,7 +471,7 @@ function QuestionCard({
             <textarea
               value={draft.answer}
               disabled={!ready || Boolean(draft.submitted)}
-              onChange={event => update({ answer: event.target.value })}
+              onChange={(event) => update({ answer: event.target.value })}
               aria-label={t('Your answer')}
               placeholder={t('Write your answer. Your draft is saved automatically.')}
               rows={4}
@@ -467,14 +489,14 @@ function QuestionCard({
                   multiple
                   disabled={!ready || Boolean(draft.submitted)}
                   className="sr-only"
-                  onChange={event => {
+                  onChange={(event) => {
                     void attachImages(event.target.files)
                     event.target.value = ''
                   }}
                 />
               </label>
             )}
-            {(draft.images || []).map(img => (
+            {(draft.images || []).map((img) => (
               <span
                 key={img.id}
                 className="flex items-center gap-2 rounded-lg bg-[var(--muted)] px-3 py-2"
@@ -485,7 +507,7 @@ function QuestionCard({
                     type="button"
                     aria-label={t('Remove image')}
                     onClick={() =>
-                      update({ images: draft.images?.filter(other => other.id !== img.id) })
+                      update({ images: draft.images?.filter((other) => other.id !== img.id) })
                     }
                   >
                     <X size={12} />
@@ -603,13 +625,13 @@ function QuestionCard({
                   void sendMessage(
                     t(
                       'Help me understand my answer to {{question}}. My answer: {{answer}}. Feedback: {{feedback}}',
-                      { question: q.question, answer: draft.answer, feedback: receipt.feedback }
+                      { question: q.question, answer: draft.answer, feedback: receipt.feedback },
                     ),
                     undefined,
                     undefined,
                     undefined,
                     undefined,
-                    { capability: 'chat' }
+                    { capability: 'chat' },
                   )
                 }
                 className="px-3 py-2 text-sm text-[var(--primary)]"
@@ -618,6 +640,28 @@ function QuestionCard({
               </button>
             )}
           </div>
+          {q.question_version && (
+            <button
+              type="button"
+              className="px-3 py-2 text-sm text-[var(--primary)]"
+              onClick={() => void offline()}
+            >
+              {t('保存供离线使用')}
+            </button>
+          )}
+          {(receipt?.assessment_committed || draft.assistance === 'revealed') &&
+            q.question_version && (
+              <QuestionFamilyReview
+                endpoint={endpoint}
+                identity={{
+                  session_id: sessionId,
+                  turn_id: turnId,
+                  question_id: q.question_id,
+                  question_version: q.question_version,
+                }}
+                onDisclosure={() => update({ assistance: 'revealed' })}
+              />
+            )}
           {draft.assistance === 'revealed' && (
             <div className="rounded-xl bg-[var(--muted)] p-4 text-sm">
               <MarkdownRenderer

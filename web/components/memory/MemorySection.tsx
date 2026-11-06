@@ -1,5 +1,6 @@
 "use client";
 
+import { useHydratedState } from "@/hooks/useHydratedState";
 import Tooltip from "@/shared/ui/Tooltip";
 import { browserStorage } from "@/shared/storage";
 
@@ -31,23 +32,15 @@ import { knowledgeBaseRoute, notebookRoute } from "@/lib/resource-routes";
 import { bookRoute } from "@/lib/learning-routes";
 import SpaceSectionHeader from "@/components/space/SpaceSectionHeader";
 
-const MarkdownRenderer = dynamic(
-  () => import("@/components/common/MarkdownRenderer"),
-  { ssr: false },
-);
+const MarkdownRenderer = dynamic(() => import("@/components/common/MarkdownRenderer"), {
+  ssr: false,
+});
 
 // ── Types ────────────────────────────────────────────────────────────
 
 type Layer = "L2" | "L3";
 
-type Surface =
-  | "chat"
-  | "notebook"
-  | "quiz"
-  | "kb"
-  | "book"
-  | "partner"
-  | "cowriter";
+type Surface = "chat" | "notebook" | "quiz" | "kb" | "book" | "partner" | "cowriter";
 
 const SURFACES: readonly Surface[] = [
   "chat",
@@ -166,8 +159,7 @@ const L3_LABELS: Record<string, string> = {
 // Entity refs in L2/L3 docs are written as `<surface>:<entity_id>`.
 // The id portion is intentionally permissive (notebook record_id, doc_id,
 // book_id, bot name, session_id, "session:question" composites, kb_name).
-const ENTITY_REF_RE =
-  /\b(chat|notebook|quiz|kb|book|partner|cowriter):[A-Za-z0-9_.\-:]+/g;
+const ENTITY_REF_RE = /\b(chat|notebook|quiz|kb|book|partner|cowriter):[A-Za-z0-9_.\-:]+/g;
 
 function entityAnchorId(ref: string): string {
   // Anchor IDs can't contain ':' cleanly across CSS selectors — flatten
@@ -191,15 +183,11 @@ function parseEntityAnchor(anchor: string): {
 }
 
 function linkifyEntityRefs(content: string): string {
-  return content.replace(
-    ENTITY_REF_RE,
-    (ref) => `[${ref}](#${entityAnchorId(ref)})`,
-  );
+  return content.replace(ENTITY_REF_RE, (ref) => `[${ref}](#${entityAnchorId(ref)})`);
 }
 
 function labelFor(doc: DocOverview): string {
-  if (doc.layer === "L2")
-    return SURFACE_META[doc.key as Surface]?.label ?? doc.key;
+  if (doc.layer === "L2") return SURFACE_META[doc.key as Surface]?.label ?? doc.key;
   return L3_LABELS[doc.key] ?? doc.key;
 }
 
@@ -237,16 +225,12 @@ function entityDeepLinkUrl(surface: Surface, ent: Entity): string | null {
     case "partner": {
       // Partner entity.id is `partnerId:sessionKey`. Deep-link to the partner.
       const partnerId = asString(m.partner_id) || ent.id.split(":")[0];
-      return partnerId
-        ? `/partners/${encodeURIComponent(partnerId)}`
-        : "/partners";
+      return partnerId ? `/partners/${encodeURIComponent(partnerId)}` : "/partners";
     }
     case "quiz": {
       // Quiz entity.id is `session:question`. Deep-link to the session.
       const sessionId = asString(m.session_id) || ent.id.split(":")[0];
-      return sessionId
-        ? `/chat/${encodeURIComponent(sessionId)}`
-        : "/learning/practice";
+      return sessionId ? `/chat/${encodeURIComponent(sessionId)}` : "/learning/practice";
     }
     case "kb":
       return knowledgeBaseRoute(ent.id);
@@ -261,10 +245,7 @@ interface MemorySectionProps {
   hideHeader?: boolean; // when true, skips the SpaceSectionHeader (parent page renders its own)
 }
 
-export default function MemorySection({
-  forcedTab,
-  hideHeader = false,
-}: MemorySectionProps = {}) {
+export default function MemorySection({ forcedTab, hideHeader = false }: MemorySectionProps = {}) {
   const { t, i18n } = useTranslation();
   const [tab, setTab] = useState<Tab>(forcedTab ?? "L2");
   const [overview, setOverview] = useState<OverviewResponse | null>(null);
@@ -281,14 +262,10 @@ export default function MemorySection({
   const [toast, setToast] = useState("");
   const [l1Surface, setL1Surface] = useState<Surface>("notebook");
   const [l1FocusRef, setL1FocusRef] = useState<string | null>(null);
-  const [dismissedBackup, setDismissedBackup] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setDismissedBackup(
-      browserStorage.readRaw("local", "dt:memory:banner-dismissed") || null,
-    );
-  }, []);
+  const [dismissedBackup, setDismissedBackup] = useHydratedState<string | null>(
+    () => browserStorage.readRaw("local", "dt:memory:banner-dismissed") || null,
+    null,
+  );
 
   const latestBackup = overview?.backups?.[overview.backups.length - 1] ?? null;
   const showArchivedBanner = !!latestBackup && latestBackup !== dismissedBackup;
@@ -296,31 +273,39 @@ export default function MemorySection({
   const dismissArchivedBanner = useCallback(() => {
     if (!latestBackup) return;
     if (typeof window !== "undefined") {
-      browserStorage.writeRaw(
-        "local",
-        "dt:memory:banner-dismissed",
-        latestBackup,
-      );
+      browserStorage.writeRaw("local", "dt:memory:banner-dismissed", latestBackup);
     }
     setDismissedBackup(latestBackup);
-  }, [latestBackup]);
+  }, [latestBackup, setDismissedBackup]);
 
-  const loadOverview = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await apiFetch(apiUrl("/api/memory/overview"));
-      const data = (await res.json()) as OverviewResponse;
-      setOverview(data);
-    } catch (e) {
-      setToast(e instanceof Error ? e.message : "Failed to load overview");
-    } finally {
-      setLoading(false);
-    }
+  const loadOverviewData = useCallback(async () => {
+    return apiFetch(apiUrl("/api/memory/overview"))
+      .then(async (res) => {
+        const data = (await res.json()) as OverviewResponse;
+        setOverview(data);
+      })
+      .catch((e) => {
+        setToast(e instanceof Error ? e.message : "Failed to load overview");
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
+  const [loadOverviewInputs, setLoadOverviewInputs] = useState<typeof loadOverviewData | null>(
+    null,
+  );
+  if (loadOverviewInputs !== loadOverviewData) {
+    setLoadOverviewInputs(() => loadOverviewData);
+    setLoading(true);
+  }
+  const loadOverview = useCallback(() => {
+    setLoading(true);
+    return loadOverviewData();
+  }, [loadOverviewData]);
 
   useEffect(() => {
-    void loadOverview();
-  }, [loadOverview]);
+    void loadOverviewData();
+  }, [loadOverviewData]);
 
   useEffect(() => {
     if (!toast) return;
@@ -332,29 +317,27 @@ export default function MemorySection({
     setSelected({ layer, key });
     setEditing(false);
     setStream([]);
-    try {
-      const res = await apiFetch(apiUrl(`/api/memory/doc/${layer}/${key}`));
-      const data = await res.json();
-      const md = String(data?.content || "");
-      setContent(md);
-      setEditorValue(md);
-    } catch (e) {
-      setToast(e instanceof Error ? e.message : "Failed to load document");
-    }
+    return apiFetch(apiUrl(`/api/memory/doc/${layer}/${key}`))
+      .then(async (res) => {
+        const data = await res.json();
+        const md = String(data?.content || "");
+        setContent(md);
+        setEditorValue(md);
+      })
+      .catch((e) => {
+        setToast(e instanceof Error ? e.message : "Failed to load document");
+      });
   }, []);
 
   const saveDoc = useCallback(async () => {
     if (!selected) return;
     setBusy(true);
     try {
-      await apiFetch(
-        apiUrl(`/api/memory/doc/${selected.layer}/${selected.key}`),
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ content: editorValue }),
-        },
-      );
+      await apiFetch(apiUrl(`/api/memory/doc/${selected.layer}/${selected.key}`), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: editorValue }),
+      });
       setContent(editorValue);
       setEditing(false);
       setToast(t("Saved"));
@@ -369,9 +352,7 @@ export default function MemorySection({
   const runUpdate = useCallback(async () => {
     if (!selected) return;
     if (selected.layer === "L3" && selected.key === "preferences") {
-      setToast(
-        t("Preferences is written by the chat assistant, not consolidated."),
-      );
+      setToast(t("Preferences is written by the chat assistant, not consolidated."));
       return;
     }
     setBusy(true);
@@ -422,29 +403,20 @@ export default function MemorySection({
 
   // Clicking a `<surface>:<entity_id>` ref inside an L2/L3 doc opens
   // the L1 tab focused on that entity.
-  const handleEntityLinkClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      const link = (e.target as HTMLElement | null)?.closest("a");
-      if (!link) return;
-      const href = link.getAttribute("href") || "";
-      if (!href.startsWith("#entity-")) return;
-      const parsed = parseEntityAnchor(href.slice(1));
-      if (!parsed) return;
-      setTab("L1");
-      setL1Surface(parsed.surface);
-      setL1FocusRef(parsed.ref);
-    },
-    [],
-  );
+  const handleEntityLinkClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const link = (e.target as HTMLElement | null)?.closest("a");
+    if (!link) return;
+    const href = link.getAttribute("href") || "";
+    if (!href.startsWith("#entity-")) return;
+    const parsed = parseEntityAnchor(href.slice(1));
+    if (!parsed) return;
+    setTab("L1");
+    setL1Surface(parsed.surface);
+    setL1FocusRef(parsed.ref);
+  }, []);
 
-  const l2Rows = useMemo(
-    () => (overview?.docs || []).filter((d) => d.layer === "L2"),
-    [overview],
-  );
-  const l3Rows = useMemo(
-    () => (overview?.docs || []).filter((d) => d.layer === "L3"),
-    [overview],
-  );
+  const l2Rows = useMemo(() => (overview?.docs || []).filter((d) => d.layer === "L2"), [overview]);
+  const l3Rows = useMemo(() => (overview?.docs || []).filter((d) => d.layer === "L3"), [overview]);
 
   return (
     <div className="space-y-6">
@@ -517,9 +489,7 @@ export default function MemorySection({
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px,1fr]">
           <div className="space-y-4">
             <DocList
-              title={t(
-                tab === "L2" ? "L2 · Per-surface" : "L3 · Cross-surface",
-              )}
+              title={t(tab === "L2" ? "L2 · Per-surface" : "L3 · Cross-surface")}
               rows={tab === "L2" ? l2Rows : l3Rows}
               selected={selected}
               onSelect={loadDoc}
@@ -558,11 +528,7 @@ export default function MemorySection({
             )}
 
             {stream.length > 0 && (
-              <StreamPanel
-                stages={stream}
-                onDismiss={() => setStream([])}
-                t={t}
-              />
+              <StreamPanel stages={stream} onDismiss={() => setStream([])} t={t} />
             )}
           </div>
         </div>
@@ -582,28 +548,25 @@ interface TabStripProps {
 }
 
 function TabStrip({ tab, onChange, l2Count, l3Count, t }: TabStripProps) {
-  const tabs: Array<{ key: Tab; label: string; count?: number; hint: string }> =
-    [
-      {
-        key: "L1",
-        label: t("L1 · Workspace"),
-        hint: t(
-          "Live snapshot of your workspace — one entry per real artifact.",
-        ),
-      },
-      {
-        key: "L2",
-        label: t("L2 · Per-surface"),
-        count: l2Count,
-        hint: t("Per-surface summaries consolidated from L1 content."),
-      },
-      {
-        key: "L3",
-        label: t("L3 · Cross-surface"),
-        count: l3Count,
-        hint: t("Cross-surface knowledge consolidated from L2."),
-      },
-    ];
+  const tabs: Array<{ key: Tab; label: string; count?: number; hint: string }> = [
+    {
+      key: "L1",
+      label: t("L1 · Workspace"),
+      hint: t("Live snapshot of your workspace — one entry per real artifact."),
+    },
+    {
+      key: "L2",
+      label: t("L2 · Per-surface"),
+      count: l2Count,
+      hint: t("Per-surface summaries consolidated from L1 content."),
+    },
+    {
+      key: "L3",
+      label: t("L3 · Cross-surface"),
+      count: l3Count,
+      hint: t("Cross-surface knowledge consolidated from L2."),
+    },
+  ];
   return (
     <div className="border-b border-[var(--border)]">
       <div className="flex gap-1">
@@ -679,62 +642,101 @@ export function L1View({
   // Default mode when switching surfaces:
   //  - kb: prefer "snapshot" but kb-only "queries" mode is accessible.
   //  - others: snapshot.
-  useEffect(() => {
-    if (mode === "queries" && surface !== "kb") {
-      setMode("snapshot");
-    }
-  }, [surface, mode]);
+  const [derivedInputs0, setDerivedInputs0] = useState<readonly unknown[]>([]);
+  if (
+    derivedInputs0.length !== 2 ||
+    !Object.is(derivedInputs0[0], surface) ||
+    !Object.is(derivedInputs0[1], mode)
+  ) {
+    setDerivedInputs0([surface, mode]);
+    (() => {
+      if (mode === "queries" && surface !== "kb") {
+        setMode("snapshot");
+      }
+    })();
+  }
 
-  const loadSnapshot = useCallback(async () => {
+  const loadSnapshotData = useCallback(async () => {
+    return apiFetch(apiUrl(`/api/memory/snapshot/${surface}`))
+      .then(async (res) => {
+        const data = (await res.json()) as SnapshotResponse;
+        setSnapshot(data);
+      })
+      .catch((e) => {
+        onToast(e instanceof Error ? e.message : "Failed to load snapshot");
+      })
+      .finally(() => {
+        setLoadingSnapshot(false);
+      });
+  }, [surface, onToast]);
+  const [loadSnapshotInputs, setLoadSnapshotInputs] = useState<typeof loadSnapshotData | null>(
+    null,
+  );
+  if (loadSnapshotInputs !== loadSnapshotData) {
+    setLoadSnapshotInputs(() => loadSnapshotData);
     setLoadingSnapshot(true);
-    try {
-      const res = await apiFetch(apiUrl(`/api/memory/snapshot/${surface}`));
-      const data = (await res.json()) as SnapshotResponse;
-      setSnapshot(data);
-    } catch (e) {
-      onToast(e instanceof Error ? e.message : "Failed to load snapshot");
-    } finally {
-      setLoadingSnapshot(false);
-    }
-  }, [surface, onToast]);
+  }
+  const loadSnapshot = useCallback(() => {
+    setLoadingSnapshot(true);
+    return loadSnapshotData();
+  }, [loadSnapshotData]);
 
-  const loadChanges = useCallback(async () => {
+  const loadChangesData = useCallback(async () => {
+    return apiFetch(apiUrl(`/api/memory/snapshot/${surface}/changes`))
+      .then(async (res) => {
+        const data = (await res.json()) as ChangesResponse;
+        setChanges(data.changes);
+      })
+      .catch((e) => {
+        onToast(e instanceof Error ? e.message : "Failed to load changes");
+      })
+      .finally(() => {
+        setLoadingChanges(false);
+      });
+  }, [surface, onToast]);
+  const [loadChangesInputs, setLoadChangesInputs] = useState<typeof loadChangesData | null>(null);
+  if (loadChangesInputs !== loadChangesData) {
+    setLoadChangesInputs(() => loadChangesData);
     setLoadingChanges(true);
-    try {
-      const res = await apiFetch(
-        apiUrl(`/api/memory/snapshot/${surface}/changes`),
-      );
-      const data = (await res.json()) as ChangesResponse;
-      setChanges(data.changes);
-    } catch (e) {
-      onToast(e instanceof Error ? e.message : "Failed to load changes");
-    } finally {
-      setLoadingChanges(false);
-    }
-  }, [surface, onToast]);
+  }
+  const loadChanges = useCallback(() => {
+    setLoadingChanges(true);
+    return loadChangesData();
+  }, [loadChangesData]);
 
-  const loadKbQueries = useCallback(async () => {
+  const loadKbQueriesData = useCallback(async () => {
     if (surface !== "kb") return;
-    setLoadingQueries(true);
-    try {
-      const res = await apiFetch(apiUrl("/api/memory/trace/kb?limit=200"));
-      const data = (await res.json()) as KbQueriesResponse;
-      setKbQueries(data.events);
-    } catch (e) {
-      onToast(e instanceof Error ? e.message : "Failed to load queries");
-    } finally {
-      setLoadingQueries(false);
-    }
+    return apiFetch(apiUrl("/api/memory/trace/kb?limit=200"))
+      .then(async (res) => {
+        const data = (await res.json()) as KbQueriesResponse;
+        setKbQueries(data.events);
+      })
+      .catch((e) => {
+        onToast(e instanceof Error ? e.message : "Failed to load queries");
+      })
+      .finally(() => {
+        setLoadingQueries(false);
+      });
   }, [surface, onToast]);
 
-  useEffect(() => {
+  const loadKbQueries = useCallback(() => {
+    setLoadingQueries(true);
+    return loadKbQueriesData();
+  }, [loadKbQueriesData]);
+  const resourceReset0 = JSON.stringify([surface]);
+  const [resourceReset0Previous, resourceReset0Remember] = useState<string | null>(null);
+  if (resourceReset0Previous !== resourceReset0) {
+    resourceReset0Remember(resourceReset0);
     setSnapshot(null);
     setChanges([]);
     setKbQueries([]);
-    void loadSnapshot();
-    void loadChanges();
-    if (surface === "kb") void loadKbQueries();
-  }, [surface, loadSnapshot, loadChanges, loadKbQueries]);
+    setLoadingQueries(surface === "kb");
+  }
+  useEffect(() => {
+    void loadSnapshotData();
+    void loadChangesData();
+    if (surface === "kb") void loadKbQueriesData();
+  }, [surface, loadSnapshotData, loadChangesData, loadKbQueriesData]);
 
   // Auto-refetch snapshot when the tab regains focus or becomes visible —
   // workspace can mutate while the user is in another tab (notebook write,
@@ -742,7 +744,7 @@ export function L1View({
   useEffect(() => {
     const refetch = () => {
       if (typeof document !== "undefined" && document.hidden) return;
-      void loadSnapshot();
+      void loadSnapshotData();
     };
     window.addEventListener("focus", refetch);
     document.addEventListener("visibilitychange", refetch);
@@ -750,7 +752,7 @@ export function L1View({
       window.removeEventListener("focus", refetch);
       document.removeEventListener("visibilitychange", refetch);
     };
-  }, [loadSnapshot]);
+  }, [loadSnapshotData]);
 
   // Auto-scroll to focused entity when snapshot finishes loading.
   useEffect(() => {
@@ -776,10 +778,9 @@ export function L1View({
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      const res = await apiFetch(
-        apiUrl(`/api/memory/snapshot/${surface}/refresh`),
-        { method: "POST" },
-      );
+      const res = await apiFetch(apiUrl(`/api/memory/snapshot/${surface}/refresh`), {
+        method: "POST",
+      });
       const data = await res.json();
       const newChanges: ChangeEntryDTO[] = data?.changes || [];
       onToast(
@@ -1014,10 +1015,7 @@ function SnapshotList({
           )}
         </span>
         {focusRef && (
-          <button
-            onClick={onClearFocus}
-            className="text-[var(--primary)] hover:underline"
-          >
+          <button onClick={onClearFocus} className="text-[var(--primary)] hover:underline">
             {t("Clear focus")}
           </button>
         )}
@@ -1107,10 +1105,7 @@ function EntityRow({ surface, ent, focused, pendingKind, t }: EntityRowProps) {
   const rowClass = `group flex items-start gap-3 border-b border-[var(--border)]/50 px-4 py-2.5 transition-colors last:border-0 ${focusedRing}`;
 
   return (
-    <li
-      id={entityAnchorId(ref)}
-      data-entity-ref={ref}
-    >
+    <li id={entityAnchorId(ref)} data-entity-ref={ref}>
       {url ? (
         <Tooltip label={t("Open in {{label}}", { label: meta.label })} as="div" side="top">
           <Link href={url} className={`${rowClass} border-b-0`}>
@@ -1222,9 +1217,7 @@ function ChangeRow({ c }: { c: ChangeEntryDTO }) {
       <ChangeGlyph kind={c.kind} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 text-[11px] text-[var(--muted-foreground)]">
-          <span className="font-medium text-[var(--foreground)]">
-            {c.label || c.entity_id}
-          </span>
+          <span className="font-medium text-[var(--foreground)]">{c.label || c.entity_id}</span>
           <span className="font-mono opacity-70">{c.entity_id}</span>
           <span>{formatTimestamp(c.ts, "")}</span>
         </div>
@@ -1285,14 +1278,10 @@ function KbQueriesList({ loading, queries, t }: KbQueriesListProps) {
             <GitCommit className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[var(--muted-foreground)]" />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline gap-x-2 text-[11px] text-[var(--muted-foreground)]">
-                <span className="font-medium text-[var(--foreground)]">
-                  {kb}
-                </span>
+                <span className="font-medium text-[var(--foreground)]">{kb}</span>
                 <span>{formatTimestamp(q.ts, "")}</span>
               </div>
-              <p className="mt-0.5 truncate text-[12.5px] text-[var(--foreground)]">
-                {query}
-              </p>
+              <p className="mt-0.5 truncate text-[12.5px] text-[var(--foreground)]">{query}</p>
             </div>
           </li>
         );
@@ -1319,8 +1308,7 @@ function DocList({ title, rows, selected, onSelect }: DocListProps) {
       </div>
       <ul>
         {rows.map((row) => {
-          const isActive =
-            selected?.layer === row.layer && selected.key === row.key;
+          const isActive = selected?.layer === row.layer && selected.key === row.key;
           return (
             <li
               key={`${row.layer}-${row.key}`}
@@ -1328,16 +1316,10 @@ function DocList({ title, rows, selected, onSelect }: DocListProps) {
                 isActive ? "bg-[var(--muted)]" : "hover:bg-[var(--muted)]/50"
               }`}
             >
-              <button
-                onClick={() => onSelect(row.layer, row.key)}
-                className="flex-1 text-left"
-              >
-                <span className="font-medium text-[var(--foreground)]">
-                  {labelFor(row)}
-                </span>
+              <button onClick={() => onSelect(row.layer, row.key)} className="flex-1 text-left">
+                <span className="font-medium text-[var(--foreground)]">{labelFor(row)}</span>
                 <span className="ml-2 text-[11px] text-[var(--muted-foreground)]">
-                  {row.entry_count} ·{" "}
-                  {formatTimestamp(row.updated_at, t("not built"))}
+                  {row.entry_count} · {formatTimestamp(row.updated_at, t("not built"))}
                 </span>
               </button>
             </li>
@@ -1401,11 +1383,7 @@ function DocPane({
               disabled={busy}
               className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--primary)]/40 bg-[var(--primary)]/10 px-2.5 py-1 text-[12px] font-medium text-[var(--primary)] disabled:opacity-50"
             >
-              {busy ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Save className="h-3 w-3" />
-              )}
+              {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
               {t("Save")}
             </button>
           )}
@@ -1435,11 +1413,7 @@ function DocPane({
           />
         ) : content.trim() ? (
           <div onClick={onEntityLinkClick}>
-            <MarkdownRenderer
-              content={renderedContent}
-              variant="prose"
-              className="text-[14px]"
-            />
+            <MarkdownRenderer content={renderedContent} variant="prose" className="text-[14px]" />
           </div>
         ) : (
           <p className="text-[13px] text-[var(--muted-foreground)]">
@@ -1447,9 +1421,7 @@ function DocPane({
               ? t(
                   "Preferences are written when you explicitly tell the chat assistant your preferences (style, language, format).",
                 )
-              : t(
-                  "Empty. Click Update to consolidate from the current snapshot.",
-                )}
+              : t("Empty. Click Update to consolidate from the current snapshot.")}
           </p>
         )}
       </div>
@@ -1479,10 +1451,7 @@ function StreamPanel({ stages, onDismiss, t }: StreamPanelProps) {
       </div>
       <ol className="space-y-2 px-4 py-3 text-[12px]">
         {stages.map((s, i) => (
-          <li
-            key={i}
-            className="rounded bg-[var(--muted)]/50 px-3 py-2 font-mono"
-          >
+          <li key={i} className="rounded bg-[var(--muted)]/50 px-3 py-2 font-mono">
             <span className="font-semibold text-[var(--foreground)]">
               {s.stage}
               {typeof s.turn === "number" ? ` · t${s.turn}` : ""}
@@ -1498,11 +1467,7 @@ function StreamPanel({ stages, onDismiss, t }: StreamPanelProps) {
                 {s.delta}
               </div>
             )}
-            {s.brief && (
-              <div className="mt-1 text-[var(--muted-foreground)]">
-                {s.brief}
-              </div>
-            )}
+            {s.brief && <div className="mt-1 text-[var(--muted-foreground)]">{s.brief}</div>}
             {s.args && Object.keys(s.args).length > 0 && (
               <div className="mt-1 text-[var(--muted-foreground)]">
                 {t("Arguments")}: {JSON.stringify(s.args)}
@@ -1515,7 +1480,10 @@ function StreamPanel({ stages, onDismiss, t }: StreamPanelProps) {
             )}
             {typeof s.ops_emitted === "number" && (
               <div className="mt-1 text-[var(--muted-foreground)]">
-                {t("Emitted operations: {{count}} · Turns: {{turns}}", { count: s.ops_emitted, turns: s.turns_used ?? "?" })}
+                {t("Emitted operations: {{count}} · Turns: {{turns}}", {
+                  count: s.ops_emitted,
+                  turns: s.turns_used ?? "?",
+                })}
                 {s.tools_used
                   ? ` · ${Object.entries(s.tools_used)
                       .map(([k, v]) => `${k}=${v}`)
@@ -1529,16 +1497,8 @@ function StreamPanel({ stages, onDismiss, t }: StreamPanelProps) {
                 {s.report.reason ? ` · ${s.report.reason}` : ""}
               </div>
             )}
-            {s.message && (
-              <div className="mt-1 text-[var(--muted-foreground)]">
-                {s.message}
-              </div>
-            )}
-            {s.summary && (
-              <div className="mt-1 text-[var(--muted-foreground)]">
-                {s.summary}
-              </div>
-            )}
+            {s.message && <div className="mt-1 text-[var(--muted-foreground)]">{s.message}</div>}
+            {s.summary && <div className="mt-1 text-[var(--muted-foreground)]">{s.summary}</div>}
           </li>
         ))}
       </ol>

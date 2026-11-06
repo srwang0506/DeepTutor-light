@@ -27,19 +27,11 @@
  *    "shoots out, then hangs and drifts down" shape confetti actually has.
  */
 
-import { useEffect, useRef } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
 /** Saturated but not neon — these read as paper under both themes. */
-const COLORS = [
-  "#FF4D6D",
-  "#FF8A3D",
-  "#FFC53D",
-  "#3DD68C",
-  "#38BDF8",
-  "#7C7CFF",
-  "#F472B6",
-];
+const COLORS = ["#FF4D6D", "#FF8A3D", "#FFC53D", "#3DD68C", "#38BDF8", "#7C7CFF", "#F472B6"];
 
 /** Total run, ms. */
 const DURATION = 3200;
@@ -98,17 +90,12 @@ function makeParticle(cannon: Cannon): Particle {
   // them the effect empties from the bottom up and looks like it ended
   // early.
   const nearField = Math.random() < 0.18;
-  const speed = nearField
-    ? 6 + Math.random() * 7
-    : 17 + Math.sqrt(Math.random()) * 17;
-  const angle =
-    -Math.PI / 2 + cannon.aim + (Math.random() - 0.5) * cannon.spread;
+  const speed = nearField ? 6 + Math.random() * 7 : 17 + Math.sqrt(Math.random()) * 17;
+  const angle = -Math.PI / 2 + cannon.aim + (Math.random() - 0.5) * cannon.spread;
   const shapeRoll = Math.random();
-  const shape: Shape =
-    shapeRoll < 0.66 ? "paper" : shapeRoll < 0.88 ? "sequin" : "streamer";
+  const shape: Shape = shapeRoll < 0.66 ? "paper" : shapeRoll < 0.88 ? "sequin" : "streamer";
 
-  const w =
-    shape === "streamer" ? 3 + Math.random() * 2 : 7 + Math.random() * 5;
+  const w = shape === "streamer" ? 3 + Math.random() * 2 : 7 + Math.random() * 5;
   const h =
     shape === "streamer"
       ? 14 + Math.random() * 10
@@ -146,13 +133,14 @@ export function LevelUpCelebration({ onDone }: { onDone: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   // Read once, before the effect: a reduced-motion visitor gets no canvas at
   // all rather than a canvas that quietly renders nothing.
-  const reducedMotionRef = useRef(
-    typeof window !== "undefined" &&
+  const [reducedMotion] = useState(
+    () =>
+      typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
 
   useEffect(() => {
-    if (reducedMotionRef.current) {
+    if (reducedMotion) {
       const t = setTimeout(onDone, 400);
       return () => clearTimeout(t);
     }
@@ -240,10 +228,7 @@ export function LevelUpCelebration({ onDone }: { onDone: () => void }) {
       ctx.clearRect(0, 0, width, height);
 
       const tailStart = DURATION - TAIL_FADE;
-      const tailFade =
-        elapsed > tailStart
-          ? Math.max(0, 1 - (elapsed - tailStart) / TAIL_FADE)
-          : 1;
+      const tailFade = elapsed > tailStart ? Math.max(0, 1 - (elapsed - tailStart) / TAIL_FADE) : 1;
 
       for (let i = particles.length - 1; i >= 0; i--) {
         const p = particles[i];
@@ -315,7 +300,7 @@ export function LevelUpCelebration({ onDone }: { onDone: () => void }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (typeof document === "undefined" || reducedMotionRef.current) return null;
+  if (typeof document === "undefined" || reducedMotion) return null;
 
   return createPortal(
     <canvas

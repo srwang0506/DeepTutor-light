@@ -3,15 +3,7 @@
 import Tooltip from "@/shared/ui/Tooltip";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  Ban,
-  Globe,
-  Loader2,
-  Plus,
-  RefreshCw,
-  RotateCcw,
-  Trash2,
-} from "lucide-react";
+import { Ban, Globe, Loader2, Plus, RefreshCw, RotateCcw, Trash2 } from "lucide-react";
 import {
   cancelWebSourceSync,
   addWebSource,
@@ -30,9 +22,7 @@ interface KbWebSourcesSectionProps {
   kbName: string;
 }
 
-export default function KbWebSourcesSection({
-  kbName,
-}: KbWebSourcesSectionProps) {
+export default function KbWebSourcesSection({ kbName }: KbWebSourcesSectionProps) {
   const { t } = useTranslation();
   const [sources, setSources] = useState<WebSource[]>([]);
   const [jobs, setJobs] = useState<WebSourceSyncJob[]>([]);
@@ -45,31 +35,31 @@ export default function KbWebSourcesSection({
   const [maxDepth, setMaxDepth] = useState(3);
   const [submitting, setSubmitting] = useState(false);
   const [busySource, setBusySource] = useState<string | null>(null);
-  const [intervalInputs, setIntervalInputs] = useState<Record<string, number>>(
-    {},
-  );
+  const [intervalInputs, setIntervalInputs] = useState<Record<string, number>>({});
 
   const refresh = useCallback(async () => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 15_000);
-    try {
-      const [nextSources, nextJobs] = await Promise.all([
-        listWebSources(kbName, { signal: controller.signal }),
-        listWebSourceSyncJobs(kbName, { signal: controller.signal }),
-      ]);
-      setSources(nextSources);
-      setJobs(nextJobs);
-      setError(null);
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") {
-        setError("Timed out loading web sources. Click retry.");
-      } else {
-        setError(err instanceof Error ? err.message : String(err));
-      }
-    } finally {
-      clearTimeout(timeout);
-      setLoading(false);
-    }
+    return Promise.all([
+      listWebSources(kbName, { signal: controller.signal }),
+      listWebSourceSyncJobs(kbName, { signal: controller.signal }),
+    ])
+      .then(async ([nextSources, nextJobs]) => {
+        setSources(nextSources);
+        setJobs(nextJobs);
+        setError(null);
+      })
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          setError("Timed out loading web sources. Click retry.");
+        } else {
+          setError(err instanceof Error ? err.message : String(err));
+        }
+      })
+      .finally(() => {
+        clearTimeout(timeout);
+        setLoading(false);
+      });
   }, [kbName]);
 
   useEffect(() => {
@@ -77,9 +67,7 @@ export default function KbWebSourcesSection({
   }, [refresh]);
 
   useEffect(() => {
-    const hasActiveJob = jobs.some(
-      (job) => job.state === "running" || job.state === "pending",
-    );
+    const hasActiveJob = jobs.some((job) => job.state === "running" || job.state === "pending");
     if (!hasActiveJob) return;
     const timer = setInterval(() => void refresh(), 5_000);
     return () => clearInterval(timer);
@@ -159,9 +147,7 @@ export default function KbWebSourcesSection({
       <div className="flex flex-col items-center justify-center gap-2 py-10">
         {error ? (
           <>
-            <p className="text-[12px] text-red-600 dark:text-red-400">
-              {error}
-            </p>
+            <p className="text-[12px] text-red-600 dark:text-red-400">{error}</p>
             <button
               type="button"
               onClick={() => {
@@ -186,13 +172,9 @@ export default function KbWebSourcesSection({
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="text-[13px] font-medium text-[var(--foreground)]">
-            {t("Web Sources")}
-          </div>
+          <div className="text-[13px] font-medium text-[var(--foreground)]">{t("Web Sources")}</div>
           <p className="mt-0.5 text-[11.5px] text-[var(--muted-foreground)]">
-            {t(
-              "Crawl a documentation website on demand with bounded depth and page limits.",
-            )}
+            {t("Crawl a documentation website on demand with bounded depth and page limits.")}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -300,14 +282,10 @@ export default function KbWebSourcesSection({
                 void handleScheduleChange(src, autoSync, hours)
               }
               onCancel={() =>
-                void withSourceAction(src.id, () =>
-                  cancelWebSourceSync(kbName, src.id),
-                )
+                void withSourceAction(src.id, () => cancelWebSourceSync(kbName, src.id))
               }
               onRetry={() =>
-                void withSourceAction(src.id, () =>
-                  retryWebSourceSync(kbName, src.id),
-                )
+                void withSourceAction(src.id, () => retryWebSourceSync(kbName, src.id))
               }
               onRemove={() => void handleRemove(src.id)}
             />
@@ -356,9 +334,7 @@ function WebSourceCard({
           ? "text-amber-600 dark:text-amber-400"
           : "text-[var(--muted-foreground)]";
   const nextRun =
-    job?.state === "pending" && job.next_run_at
-      ? new Date(job.next_run_at).toLocaleString()
-      : "";
+    job?.state === "pending" && job.next_run_at ? new Date(job.next_run_at).toLocaleString() : "";
 
   return (
     <div className="flex items-start justify-between gap-3 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
@@ -404,7 +380,11 @@ function WebSourceCard({
               {t("Schedule")}: {t(job.state === "interrupted" ? "Interrupted" : job.state)}
             </span>
           )}
-          {nextRun && <span>{t("Next run")}: {nextRun}</span>}
+          {nextRun && (
+            <span>
+              {t("Next run")}: {nextRun}
+            </span>
+          )}
           {job?.cancel_requested && <span>{t("Cancelling…")}</span>}
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-3">
@@ -413,9 +393,7 @@ function WebSourceCard({
               type="checkbox"
               checked={source.auto_sync_enabled}
               disabled={busy}
-              onChange={(event) =>
-                onScheduleChange(event.target.checked, intervalValue)
-              }
+              onChange={(event) => onScheduleChange(event.target.checked, intervalValue)}
               aria-label={t("Automatic sync")}
             />
             {t("Automatic sync")}
@@ -430,10 +408,7 @@ function WebSourceCard({
               disabled={busy || !source.auto_sync_enabled}
               onChange={(event) => onIntervalInput(Number(event.target.value) || 24)}
               onBlur={(event) =>
-                onScheduleChange(
-                  source.auto_sync_enabled,
-                  Number(event.target.value) || 24,
-                )
+                onScheduleChange(source.auto_sync_enabled, Number(event.target.value) || 24)
               }
               className="w-16 rounded-md border border-[var(--border)] bg-[var(--card)] px-1.5 py-1 text-[11px] text-[var(--foreground)] outline-none focus:border-[var(--primary)] disabled:opacity-50"
               aria-label={t("Interval hours")}
@@ -446,9 +421,7 @@ function WebSourceCard({
           </p>
         )}
         {job?.error && (
-          <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">
-            {job.error}
-          </p>
+          <p className="mt-1 text-[11px] text-red-600 dark:text-red-400">{job.error}</p>
         )}
       </div>
       <div className="flex shrink-0 items-center gap-1">

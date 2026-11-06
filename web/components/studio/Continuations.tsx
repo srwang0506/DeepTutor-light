@@ -1,4 +1,5 @@
 'use client'
+import { useTranslation } from 'react-i18next'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { ArrowUpRight, BookOpen, CheckCheck, PenLine } from 'lucide-react'
@@ -24,13 +25,15 @@ function subscribeDrafts(listener: () => void) {
   }
 }
 export default function Continuations({ workspace }: { workspace: string }) {
+  const { t } = useTranslation()
+
   const [items, setItems] = useState<Item[]>([]),
     [error, setError] = useState('')
   useEffect(() => {
     const abort = new AbortController()
     void studio<{ items: Item[] }>(workspace, '/continuations', {}, abort.signal)
-      .then(r => setItems(r.items))
-      .catch(e => {
+      .then((r) => setItems(r.items))
+      .catch((e) => {
         if (!abort.signal.aborted) setError(e.message)
       })
     return () => abort.abort()
@@ -39,7 +42,7 @@ export default function Continuations({ workspace }: { workspace: string }) {
   const drafts = useSyncExternalStore(
     subscribeDrafts,
     () => JSON.stringify(browserStorage.listRaw('session', prefix)),
-    () => '[]'
+    () => '[]',
   )
   const conflicts: Item[] = []
   for (const [key, value] of JSON.parse(drafts) as [string, string][]) {
@@ -62,12 +65,17 @@ export default function Continuations({ workspace }: { workspace: string }) {
   return (
     <section className="studio-continuations">
       <header>
-        <span className="studio-eyebrow">CONTINUE · 继续推进</span>
-        <h2>留下的线索，接着往前。</h2>
+        <span className="studio-eyebrow">{t('CONTINUE · 继续推进')}</span>
+        <h2>{t('留下的线索，接着往前。')}</h2>
       </header>
-      {error && <p className="studio-note">暂时无法读取科研续办：{error}</p>}
+      {error && (
+        <p className="studio-note">
+          {t('暂时无法读取科研续办：')}
+          {error}
+        </p>
+      )}
       <div className="studio-continuation-grid">
-        {[...conflicts, ...items].map(item => {
+        {[...conflicts, ...items].map((item) => {
           const href =
             item.kind === 'draft_conflict'
               ? `/studio/writing?manuscript=${item.manuscript_id}&path=${encodeURIComponent(item.path || '')}`

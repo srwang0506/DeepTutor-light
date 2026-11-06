@@ -7,7 +7,7 @@ import { notify } from '@/lib/notifications'
 import { randomUuid } from '@/lib/random-uuid'
 import { learningLibrary } from '@/lib/learning-library'
 import { useCreateRequest, requestedLearningCreation } from '@/components/learning/create-request'
-import { bookRoute } from "@/lib/learning-routes";
+import { bookRoute } from '@/lib/learning-routes'
 import { useTranslation } from 'react-i18next'
 
 import { BookApiError, bookApi, type BookWsEvent } from '@/lib/book-api'
@@ -113,7 +113,9 @@ function BookPageInner() {
   const [canCreateBook, setCanCreateBook] = useState(true)
   const [loadingBooks, setLoadingBooks] = useState(true)
   const [booksError, setBooksError] = useState<string | null>(null)
-  const [view, setView] = useState<View>(requestedBookId ? 'opening' : requestedLearningCreation() ? 'creator' : 'list')
+  const [view, setView] = useState<View>(
+    requestedBookId ? 'opening' : requestedLearningCreation() ? 'creator' : 'list',
+  )
 
   const [selectedBookId, setSelectedBookId] = useState<string | null>(null)
   const selectionRequestRef = useRef(0)
@@ -191,22 +193,32 @@ function BookPageInner() {
         console.error(`${action} failed:`, err)
       }
     },
-    [selectedBookId, t]
+    [selectedBookId, t],
   )
 
-  const refreshBooks = useCallback(async () => {
-    setLoadingBooks(true)
-    try {
-      const data = await learningLibrary<Book>('books')
-      setBooks(data.items)
-      setCanCreateBook(data.can_create)
-      setBooksError(null)
-    } catch {
-      setBooksError(t('Failed to load books'))
-    } finally {
-      setLoadingBooks(false)
-    }
+  const refreshBooksData = useCallback(async () => {
+    return learningLibrary<Book>('books')
+      .then(async (data) => {
+        setBooks(data.items)
+        setCanCreateBook(data.can_create)
+        setBooksError(null)
+      })
+      .catch(() => {
+        setBooksError(t('Failed to load books'))
+      })
+      .finally(() => {
+        setLoadingBooks(false)
+      })
   }, [t])
+  const [refreshBooksInputs, setRefreshBooksInputs] = useState<typeof refreshBooksData | null>(null)
+  if (refreshBooksInputs !== refreshBooksData) {
+    setRefreshBooksInputs(() => refreshBooksData)
+    setLoadingBooks(true)
+  }
+  const refreshBooks = useCallback(() => {
+    setLoadingBooks(true)
+    return refreshBooksData()
+  }, [refreshBooksData])
 
   /**
    * Load a book without its block payloads.
@@ -215,20 +227,24 @@ function BookPageInner() {
    * content to draw a sidebar meant a multi-chapter book cost hundreds of
    * kilobytes per refresh. `hydratePage` fills in the one page that matters.
    */
-  const loadBookDetail = useCallback(async (id: string, shouldApply: () => boolean = () => true) => {
-    const data = await bookApi.get(id, { includeBlocks: false })
-    if (shouldApply()) {
-      revisionRef.current = data.book.revision
-      setDetail(data)
-    }
-    return data
-  }, [])
+  const loadBookDetail = useCallback(
+    async (id: string, shouldApply: () => boolean = () => true) => {
+      return bookApi.get(id, { includeBlocks: false }).then(async (data) => {
+        if (shouldApply()) {
+          revisionRef.current = data.book.revision
+          setDetail(data)
+        }
+        return data
+      })
+    },
+    [],
+  )
 
   /** Replace one page in-place, leaving the rest of the book untouched. */
   const mergePage = useCallback((page: Page) => {
-    setDetail(current => {
+    setDetail((current) => {
       if (!current || current.book.id !== page.book_id) return current
-      const index = current.pages.findIndex(p => p.id === page.id)
+      const index = current.pages.findIndex((p) => p.id === page.id)
       if (index < 0) return current
       const pages = [...current.pages]
       pages[index] = page
@@ -238,7 +254,9 @@ function BookPageInner() {
 
   const applyBookRevision = useCallback((revision: number) => {
     revisionRef.current = revision
-    setDetail(current => (current ? { ...current, book: { ...current.book, revision } } : current))
+    setDetail((current) =>
+      current ? { ...current, book: { ...current.book, revision } } : current,
+    )
   }, [])
 
   const hydratePage = useCallback(
@@ -251,27 +269,35 @@ function BookPageInner() {
         console.error('hydratePage failed:', err)
       }
     },
-    [selectedBookId, mergePage]
+    [selectedBookId, mergePage],
   )
 
+  const capturesGeneration = useRef(0)
+  const invalidateCaptures = useCallback(() => {
+    capturesGeneration.current++
+  }, [])
   const refreshLearningCaptures = useCallback(
     async (bookId: string) => {
-      setLoadingLearningCaptures(true)
-      try {
-        const { captures } = await bookApi.listLearningCaptures(bookId)
-        setLearningCaptures(captures)
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err)
-        notify(t('Could not load learning captures: {{message}}', { message: msg }), {
-          tone: 'error',
-          durationMs: 6000,
+      const generation = ++capturesGeneration.current
+      return bookApi
+        .listLearningCaptures(bookId)
+        .then(async ({ captures }) => {
+          if (generation === capturesGeneration.current) setLearningCaptures(captures)
         })
-        setLearningCaptures([])
-      } finally {
-        setLoadingLearningCaptures(false)
-      }
+        .catch((err) => {
+          if (generation !== capturesGeneration.current) return
+          const msg = err instanceof Error ? err.message : String(err)
+          notify(t('Could not load learning captures: {{message}}', { message: msg }), {
+            tone: 'error',
+            durationMs: 6000,
+          })
+          setLearningCaptures([])
+        })
+        .finally(() => {
+          if (generation === capturesGeneration.current) setLoadingLearningCaptures(false)
+        })
     },
-    [t]
+    [t],
   )
 
   // Debounced per page, so a burst of block events costs one fetch.
@@ -286,10 +312,10 @@ function BookPageInner() {
         setTimeout(() => {
           timers.delete(pageId)
           void hydratePage(pageId)
-        }, PAGE_REFRESH_DEBOUNCE_MS)
+        }, PAGE_REFRESH_DEBOUNCE_MS),
       )
     },
-    [hydratePage]
+    [hydratePage],
   )
 
   const bookRefreshTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -305,15 +331,15 @@ function BookPageInner() {
   useEffect(() => {
     const timers = pageRefreshTimers.current
     return () => {
-      timers.forEach(timer => clearTimeout(timer))
+      timers.forEach((timer) => clearTimeout(timer))
       timers.clear()
       if (bookRefreshTimer.current) clearTimeout(bookRefreshTimer.current)
     }
   }, [])
 
   useEffect(() => {
-    void refreshBooks()
-  }, [refreshBooks])
+    void refreshBooksData()
+  }, [refreshBooksData])
 
   // The generation timeline describes one book's run. Clear it when the reader
   // moves to another book, or the previous book's stages stay on screen.
@@ -348,7 +374,7 @@ function BookPageInner() {
       // BookPausedBanner renders it from `book.status`, which the refresh
       // above has just brought up to date.
     },
-    [scheduleBookRefresh, schedulePageRefresh]
+    [scheduleBookRefresh, schedulePageRefresh],
   )
 
   // One connection per open book, independent of any action in flight —
@@ -365,13 +391,13 @@ function BookPageInner() {
 
   const selectedPage: Page | null = useMemo(() => {
     if (!detail || !selectedPageId) return null
-    return detail.pages.find(p => p.id === selectedPageId) || null
+    return detail.pages.find((p) => p.id === selectedPageId) || null
   }, [detail, selectedPageId])
 
   // Reading order is the page order — the sidebar shows the same sequence.
   const pageNeighbours = useMemo(() => {
     if (!detail || !selectedPageId) return { previous: null, next: null }
-    const index = detail.pages.findIndex(p => p.id === selectedPageId)
+    const index = detail.pages.findIndex((p) => p.id === selectedPageId)
     if (index < 0) return { previous: null, next: null }
     return {
       previous: detail.pages[index - 1] || null,
@@ -385,15 +411,12 @@ function BookPageInner() {
     // The conversation asked for by the URL, when it was held on this page.
     if (requestedChatId && selectedPage.id === requestedPageId) return requestedChatId
     return sessions?.[selectedPage.id] || null
-  }, [detail?.book, selectedPage, requestedChatId, requestedPageId])
+  }, [detail, selectedPage, requestedChatId, requestedPageId])
 
   const canEditBook = detail?.book.can_edit !== false
   const expectedRevision = detail?.book.revision
   /** The freshest revision we know of — see `revisionRef`. */
-  const currentRevision = useCallback(
-    () => revisionRef.current ?? detail?.book.revision,
-    [detail]
-  )
+  const currentRevision = useCallback(() => revisionRef.current ?? detail?.book.revision, [detail])
 
   // ── Handlers ───────────────────────────────────────────────────────
 
@@ -430,7 +453,7 @@ function BookPageInner() {
       const data = await loadBookDetail(id, () => selectionRequestRef.current === requestId)
       if (selectionRequestRef.current !== requestId) return
       const hasReadableContent = data.pages.some(
-        p => p.status !== 'pending' || (p.block_count ?? p.blocks.length) > 0
+        (p) => p.status !== 'pending' || (p.block_count ?? p.blocks.length) > 0,
       )
       const canEdit = data.book.can_edit !== false
       if (canEdit && data.book.status === 'draft' && data.book.proposal) {
@@ -449,18 +472,19 @@ function BookPageInner() {
       } else {
         // Resume where the reader left off — that's what `current_page_id` is
         // for, and until now nothing ever read it.
-        const requested = (openPageId && data.pages.find(p => p.id === openPageId)) || null
-        const resumed = data.pages.find(p => p.id === data.progress.current_page_id) || null
-        const firstReady = data.pages.find(p => p.status === 'ready') || null
+        const requested = (openPageId && data.pages.find((p) => p.id === openPageId)) || null
+        const resumed = data.pages.find((p) => p.id === data.progress.current_page_id) || null
+        const firstReady = data.pages.find((p) => p.status === 'ready') || null
         const target = requested || resumed || firstReady || data.pages[0] || null
         setSelectedPageId(target?.id || null)
         setView('reader')
       }
     },
-    [loadBookDetail, requestedBookId, requestedPageId, router]
+    [loadBookDetail, requestedBookId, requestedPageId, router],
   )
 
   // Resource identity belongs in the path: /books/<book>[/pages/<page>].
+  /* eslint-disable react-hooks/set-state-in-effect -- Consume an external navigation/restoration command through the cancellable imperative controller. Running this transaction during render would repeat I/O or mutate another store. */
   useEffect(() => {
     if (!requestedBookId) {
       lastDeepLinkedBookId.current = null
@@ -473,27 +497,35 @@ function BookPageInner() {
     // The shell is now drawn before the book exists, so a load that fails has
     // to say so and hand the reader back; otherwise the shell is where they
     // stay. Selecting nothing returns to the library and to its URL.
-    void handleSelectBook(requestedBookId, requestedPageId).catch(err => {
+    void handleSelectBook(requestedBookId, requestedPageId).catch((err) => {
       if (lastDeepLinkedBookId.current !== requestedBookId) return
       notify(
         t('{{action}} failed: {{reason}}', {
           action: t('Open book'),
           reason: bookErrorMessage(err, t),
         }),
-        { tone: 'error', durationMs: 8000 }
+        { tone: 'error', durationMs: 8000 },
       )
       console.error('Open book failed:', err)
       void handleSelectBook(null)
     })
   }, [requestedBookId, requestedPageId, selectedBookId, handleSelectBook, t])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
+  const capturesKey = JSON.stringify([selectedBookId, view])
+  const [capturesBook, setCapturesBook] = useState('')
+  if (capturesBook !== capturesKey) {
+    setCapturesBook(capturesKey)
+    setLearningCaptures([])
+    setLoadingLearningCaptures(view === 'reader' && !!selectedBookId)
+  }
   useEffect(() => {
     if (view !== 'reader' || !selectedBookId) {
-      if (!selectedBookId) setLearningCaptures([])
       return
     }
     void refreshLearningCaptures(selectedBookId)
-  }, [view, selectedBookId, refreshLearningCaptures])
+    return invalidateCaptures
+  }, [view, selectedBookId, refreshLearningCaptures, invalidateCaptures])
 
   const handleDeleteBook = async (id: string) =>
     guard('Delete book', async () => {
@@ -606,7 +638,7 @@ function BookPageInner() {
   const handleConfirmSpine = async (
     spine: Spine,
     autoCompile: boolean,
-    blockTypes: string[] | null
+    blockTypes: string[] | null,
   ) => {
     if (!detail || !canEditBook) return
     setConfirmingSpine(true)
@@ -616,7 +648,7 @@ function BookPageInner() {
         spine,
         autoCompile,
         currentRevision(),
-        blockTypes ?? undefined
+        blockTypes ?? undefined,
       )
       // Claim the token this call just advanced before anything else runs.
       // The refresh below would also pick it up, but the compile that starts
@@ -648,7 +680,7 @@ function BookPageInner() {
             selectedBookId,
             pageId,
             force,
-            currentRevision()
+            currentRevision(),
           )
           applyBookRevision(book_revision)
           mergePage(page)
@@ -672,10 +704,10 @@ function BookPageInner() {
         console.error('compilePage failed:', err)
         void loadBookDetail(selectedBookId)
       } finally {
-        setCompilingPageId(current => (current === pageId ? null : current))
+        setCompilingPageId((current) => (current === pageId ? null : current))
       }
     },
-    [selectedBookId, canEditBook, currentRevision, applyBookRevision, mergePage, loadBookDetail, t]
+    [selectedBookId, canEditBook, currentRevision, applyBookRevision, mergePage, loadBookDetail, t],
   )
 
   const handleSelectPage = useCallback(
@@ -686,7 +718,7 @@ function BookPageInner() {
       }
       if (!detail) return
 
-      const page = detail.pages.find(p => p.id === pageId)
+      const page = detail.pages.find((p) => p.id === pageId)
       if (!page) return
       // Hydration is handled by the reader effect below, which fires for
       // every route into a page — including the one that opens the book.
@@ -699,11 +731,12 @@ function BookPageInner() {
         void compilePage(pageId)
       }
     },
-    [detail, canEditBook, compilePage, requestedPageId, router, selectedBookId]
+    [detail, canEditBook, compilePage, requestedPageId, router, selectedBookId],
   )
 
   // A ?page= change on a book that is already open just moves the reader.
   const lastDeepLinkedPageId = useRef<string | null>(null)
+  /* eslint-disable react-hooks/set-state-in-effect -- Consume an external navigation/restoration command through the cancellable imperative controller. Running this transaction during render would repeat I/O or mutate another store. */
   useEffect(() => {
     if (!requestedPageId || !requestedBookId) return
     if (requestedBookId !== selectedBookId) return
@@ -712,11 +745,13 @@ function BookPageInner() {
     lastDeepLinkedPageId.current = routeKey
     if (requestedPageId !== selectedPageId) handleSelectPage(requestedPageId)
   }, [requestedPageId, requestedBookId, selectedBookId, selectedPageId, handleSelectPage])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // Opening a book lands on a page without going through `handleSelectPage`,
   // so hydrate and record the visit here too. The ref keeps recording a visit
   // from re-triggering itself when the updated progress comes back.
   const recordedVisitRef = useRef<string | null>(null)
+  /* eslint-disable react-hooks/set-state-in-effect -- Consume an external navigation/restoration command through the cancellable imperative controller. Running this transaction during render would repeat I/O or mutate another store. */
   useEffect(() => {
     if (view !== 'reader' || !selectedBookId || !selectedPage) return
     if (needsHydration(selectedPage)) void hydratePage(selectedPage.id)
@@ -728,14 +763,15 @@ function BookPageInner() {
     void bookApi
       .markVisited(bookId, selectedPage.id)
       .then(({ progress }) =>
-        setDetail(current =>
-          current && current.book.id === bookId ? { ...current, progress } : current
-        )
+        setDetail((current) =>
+          current && current.book.id === bookId ? { ...current, progress } : current,
+        ),
       )
       .catch(() => {
         // Position tracking is best-effort.
       })
   }, [view, selectedBookId, selectedPage, hydratePage])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleUpdateBody = async (block: Block, body: string) => {
     if (!detail || !selectedPage) return
@@ -768,8 +804,8 @@ function BookPageInner() {
       if (!detail || !selectedPage) return
       const bookId = detail.book.id
       const { progress } = await bookApi.toggleBookmark(bookId, selectedPage.id)
-      setDetail(current =>
-        current && current.book.id === bookId ? { ...current, progress } : current
+      setDetail((current) =>
+        current && current.book.id === bookId ? { ...current, progress } : current,
       )
     })
 
@@ -782,7 +818,7 @@ function BookPageInner() {
         pageId,
         block.id,
         undefined,
-        currentRevision()
+        currentRevision(),
       )
       applyBookRevision(book_revision)
     } catch (err) {
@@ -804,7 +840,7 @@ function BookPageInner() {
         detail.book.id,
         selectedPage.id,
         block.id,
-        currentRevision()
+        currentRevision(),
       )
       applyBookRevision(book_revision)
       await hydratePage(selectedPage.id)
@@ -813,7 +849,7 @@ function BookPageInner() {
   const handleMoveBlock = async (block: Block, direction: 'up' | 'down') =>
     guard('Move block', async () => {
       if (!detail || !selectedPage) return
-      const idx = selectedPage.blocks.findIndex(b => b.id === block.id)
+      const idx = selectedPage.blocks.findIndex((b) => b.id === block.id)
       if (idx < 0) return
       const newPos = direction === 'up' ? idx - 1 : idx + 1
       if (newPos < 0 || newPos >= selectedPage.blocks.length) return
@@ -822,7 +858,7 @@ function BookPageInner() {
         selectedPage.id,
         block.id,
         newPos,
-        currentRevision()
+        currentRevision(),
       )
       applyBookRevision(book_revision)
       await hydratePage(selectedPage.id)
@@ -870,7 +906,7 @@ function BookPageInner() {
         applyBookRevision(result.book_revision)
         // A deep dive adds a page, so the chapter list itself changed.
         const refreshed = await loadBookDetail(detail.book.id)
-        const newPage = refreshed.pages.find(p => p.id === result.page.id)
+        const newPage = refreshed.pages.find((p) => p.id === result.page.id)
         if (newPage) {
           setSelectedPageId(newPage.id)
           mergePage(result.page)
@@ -900,8 +936,8 @@ function BookPageInner() {
       })
       if (pendingQuizSubmissions.current.get(key)?.id === submissionId) {
         pendingQuizSubmissions.current.delete(key)
-        setDetail(current =>
-          current && current.book.id === bookId ? { ...current, progress } : current
+        setDetail((current) =>
+          current && current.book.id === bookId ? { ...current, progress } : current,
         )
       }
     })
@@ -924,7 +960,7 @@ function BookPageInner() {
         detail.book.id,
         pageId,
         topic,
-        currentRevision()
+        currentRevision(),
       )
       applyBookRevision(book_revision)
       await hydratePage(pageId)
@@ -945,15 +981,15 @@ function BookPageInner() {
 
   const applyCapturePatch = useCallback(
     (capture: LearningCapture) => {
-      setLearningCaptures(current =>
+      setLearningCaptures((current) =>
         refreshCapturesSorted(
-          current.some(item => item.id === capture.id)
-            ? current.map(item => (item.id === capture.id ? capture : item))
-            : [capture, ...current]
-        )
+          current.some((item) => item.id === capture.id)
+            ? current.map((item) => (item.id === capture.id ? capture : item))
+            : [capture, ...current],
+        ),
       )
     },
-    [refreshCapturesSorted]
+    [refreshCapturesSorted],
   )
 
   const handleCaptureSelection = async (payload: {
@@ -1003,8 +1039,8 @@ function BookPageInner() {
       const existing = detail.book.metadata?.page_chat_sessions?.[selectedPage.id]
       if (existing === sessionId) return
       const result = await bookApi.setPageChatSession(detail.book.id, selectedPage.id, sessionId)
-      setDetail(current =>
-        current && current.book.id === result.book.id ? { ...current, book: result.book } : current
+      setDetail((current) =>
+        current && current.book.id === result.book.id ? { ...current, book: result.book } : current,
       )
     })
 
@@ -1012,8 +1048,10 @@ function BookPageInner() {
 
   // A client-side route change may arrive before the next book's detail.
   // Keep the previous reader, sidebar, and activity out of the new URL.
-  const displayView = requestedBookId && (selectedBookId !== requestedBookId || detail?.book.id !== requestedBookId)
-    ? 'opening' : view
+  const displayView =
+    requestedBookId && (selectedBookId !== requestedBookId || detail?.book.id !== requestedBookId)
+      ? 'opening'
+      : view
 
   const openBook = detail?.book || pendingBook || null
   return (
@@ -1063,172 +1101,187 @@ function BookPageInner() {
             />
           )}
           <div className="min-h-0 flex-1 overflow-hidden">
-          {displayView === 'opening' && (
-            <div role="status" aria-busy="true" className="flex h-full w-full items-center justify-center gap-2 text-[12px] text-[var(--muted-foreground)]">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <BookLoadingText />
-            </div>
-          )}
+            {displayView === 'opening' && (
+              <div
+                role="status"
+                aria-busy="true"
+                className="flex h-full w-full items-center justify-center gap-2 text-[12px] text-[var(--muted-foreground)]"
+              >
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <BookLoadingText />
+              </div>
+            )}
 
-          {displayView === 'list' && (
-            <BookLibrary
-              books={books}
-              loading={loadingBooks}
-              error={booksError}
-              onRetry={() => void refreshBooks()}
-              canCreate={canCreateBook}
-              onNewBook={handleNewBook}
-              onSelectBook={id => void handleSelectBook(id)}
-              onDeleteBook={id => void handleDeleteBook(id)}
-            />
-          )}
-
-          {displayView === 'creator' && (
-            <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
-              <BookCreator
-                back={<button type="button" onClick={() => void handleSelectBook(null)} className="dt-section-back inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft size={14} />{t('All books')}</button>}
-                book={pendingBook}
-                onCreate={handleCreate}
-                loading={creating}
-                proposal={pendingProposal}
-                onConfirmProposal={handleConfirmProposal}
-                confirmLoading={confirmingProposal}
+            {displayView === 'list' && (
+              <BookLibrary
+                books={books}
+                loading={loadingBooks}
+                error={booksError}
+                onRetry={() => void refreshBooks()}
+                canCreate={canCreateBook}
+                onNewBook={handleNewBook}
+                onSelectBook={(id) => void handleSelectBook(id)}
+                onDeleteBook={(id) => void handleDeleteBook(id)}
               />
-            </div>
-          )}
+            )}
 
-          {displayView === 'spine' && detail?.spine && (
-            <div className="flex h-full flex-col overflow-hidden">
-              <div className="flex-1 overflow-hidden">
-                <SpineEditor
-                  key={`${detail.spine.book_id}:${detail.spine.version}`}
-                  spine={detail.spine}
-                  onConfirm={handleConfirmSpine}
-                  loading={confirmingSpine}
-                  depth={detail.book.depth}
-                  initialBlockTypes={
-                    Array.isArray(detail.book.metadata?.block_types)
-                      ? (detail.book.metadata.block_types as string[])
+            {displayView === 'creator' && (
+              <div className="h-full overflow-y-auto [scrollbar-gutter:stable]">
+                <BookCreator
+                  back={
+                    <button
+                      type="button"
+                      onClick={() => void handleSelectBook(null)}
+                      className="dt-section-back inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <ArrowLeft size={14} />
+                      {t('All books')}
+                    </button>
+                  }
+                  book={pendingBook}
+                  onCreate={handleCreate}
+                  loading={creating}
+                  proposal={pendingProposal}
+                  onConfirmProposal={handleConfirmProposal}
+                  confirmLoading={confirmingProposal}
+                />
+              </div>
+            )}
+
+            {displayView === 'spine' && detail?.spine && (
+              <div className="flex h-full flex-col overflow-hidden">
+                <div className="flex-1 overflow-hidden">
+                  <SpineEditor
+                    key={`${detail.spine.book_id}:${detail.spine.version}`}
+                    spine={detail.spine}
+                    onConfirm={handleConfirmSpine}
+                    loading={confirmingSpine}
+                    depth={detail.book.depth}
+                    initialBlockTypes={
+                      Array.isArray(detail.book.metadata?.block_types)
+                        ? (detail.book.metadata.block_types as string[])
+                        : undefined
+                    }
+                  />
+                </div>
+              </div>
+            )}
+
+            {displayView === 'reader' && (
+              // Column layout so banners push the reader down instead of
+              // overflowing it — `PageReader` fills whatever height is left.
+              <div className="flex h-full flex-col overflow-hidden">
+                <BookPausedBanner
+                  book={detail?.book || null}
+                  onResume={canEditBook ? () => void handleResumeBook() : undefined}
+                  resuming={resumingBook}
+                />
+                <BookHealthBanner
+                  bookId={selectedBookId}
+                  refreshKey={detail?.book.updated_at}
+                  expectedRevision={expectedRevision}
+                  onRevisionChange={applyBookRevision}
+                  explorationFailed={!!detail?.book.metadata?.exploration_failed}
+                  onRecompile={
+                    canEditBook
+                      ? (pageId) => {
+                          setSelectedPageId(pageId)
+                          void compilePage(pageId, true)
+                        }
                       : undefined
                   }
                 />
-              </div>
-            </div>
-          )}
-
-          {displayView === 'reader' && (
-            // Column layout so banners push the reader down instead of
-            // overflowing it — `PageReader` fills whatever height is left.
-            <div className="flex h-full flex-col overflow-hidden">
-              <BookPausedBanner
-                book={detail?.book || null}
-                onResume={canEditBook ? () => void handleResumeBook() : undefined}
-                resuming={resumingBook}
-              />
-              <BookHealthBanner
-                bookId={selectedBookId}
-                refreshKey={detail?.book.updated_at}
-                expectedRevision={expectedRevision}
-                onRevisionChange={applyBookRevision}
-                explorationFailed={!!detail?.book.metadata?.exploration_failed}
-                onRecompile={
-                  canEditBook
-                    ? pageId => {
-                        setSelectedPageId(pageId)
-                        void compilePage(pageId, true)
-                      }
-                    : undefined
-                }
-              />
-              {detail?.book.source === 'shared' && (
-                <div className="mx-6 mt-3 rounded-lg border border-sky-300/60 bg-sky-50 px-3 py-2 text-xs text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100">
-                  {canEditBook
-                    ? t(
-                        'Shared book: content edits affect everyone who can access it. Reading progress and captures remain private to you.'
-                      )
-                    : t(
-                        'Shared book (read only): your reading progress, bookmarks and captures remain private to you.'
-                      )}
-                </div>
-              )}
-              {/* The reader owns the height that is left; the capture inbox
+                {detail?.book.source === 'shared' && (
+                  <div className="mx-6 mt-3 rounded-lg border border-sky-300/60 bg-sky-50 px-3 py-2 text-xs text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100">
+                    {canEditBook
+                      ? t(
+                          'Shared book: content edits affect everyone who can access it. Reading progress and captures remain private to you.',
+                        )
+                      : t(
+                          'Shared book (read only): your reading progress, bookmarks and captures remain private to you.',
+                        )}
+                  </div>
+                )}
+                {/* The reader owns the height that is left; the capture inbox
                   sits under it at its natural height. Both need this to be a
                   flex column — a plain block here collapses `PageReader`'s
                   `h-full` to auto, which stops the body scrolling and pushes
                   the page-turn footer out of view. */}
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <div className="min-h-0 flex-1 overflow-hidden">
-                  <PageReader
-                    page={selectedPage}
-                    bookId={detail?.book.id}
-                    bookLanguage={detail?.book.language}
-                    loading={!!compilingPageId && compilingPageId === selectedPage?.id}
-                    onRegenerateBlock={
-                      canEditBook ? block => void handleRegenerateBlock(block) : undefined
-                    }
-                    onDeleteBlock={canEditBook ? block => void handleDeleteBlock(block) : undefined}
-                    onMoveBlock={(block, dir) =>
-                      canEditBook ? void handleMoveBlock(block, dir) : undefined
-                    }
-                    onChangeBlockType={(block, t) =>
-                      canEditBook ? void handleChangeBlockType(block, t) : undefined
-                    }
-                    onInsertBlock={canEditBook ? t => handleInsertBlock(t) : undefined}
-                    onDeepDive={(topic, blockId) =>
-                      canEditBook ? handleDeepDive(topic, blockId) : undefined
-                    }
-                    onOpenPage={pageId => handleSelectPage(pageId)}
-                    onQuizAttempt={(block, args) => void handleQuizAttempt(block, args)}
-                    onRequestSupplement={
-                      canEditBook ? block => void handleRequestSupplement(block) : undefined
-                    }
-                    supplementingBlockId={supplementingBlockId}
-                    onUpdateBody={canEditBook ? handleUpdateBody : undefined}
-                    attempts={detail?.progress.quiz_attempts}
-                    previousPage={pageNeighbours.previous}
-                    nextPage={pageNeighbours.next}
-                    onNavigate={handleSelectPage}
-                    bookmarked={
-                      !!selectedPage &&
-                      !!detail?.progress.bookmarked_page_ids.includes(selectedPage.id)
-                    }
-                    onToggleBookmark={() => void handleToggleBookmark()}
-                    pendingDeepDiveTopic={pendingDeepDiveTopic}
-                    onRecompile={
-                      canEditBook && selectedPage
-                        ? () => void compilePage(selectedPage.id, true)
-                        : undefined
-                    }
-                    onCaptureSelection={payload =>
-                      void guard('Save selection', () => handleCaptureSelection(payload))
-                    }
-                  />
-                </div>
-                {/* The wrapper goes with the panel: a bordered strip with
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                  <div className="min-h-0 flex-1 overflow-hidden">
+                    <PageReader
+                      page={selectedPage}
+                      bookId={detail?.book.id}
+                      bookLanguage={detail?.book.language}
+                      loading={!!compilingPageId && compilingPageId === selectedPage?.id}
+                      onRegenerateBlock={
+                        canEditBook ? (block) => void handleRegenerateBlock(block) : undefined
+                      }
+                      onDeleteBlock={
+                        canEditBook ? (block) => void handleDeleteBlock(block) : undefined
+                      }
+                      onMoveBlock={(block, dir) =>
+                        canEditBook ? void handleMoveBlock(block, dir) : undefined
+                      }
+                      onChangeBlockType={(block, t) =>
+                        canEditBook ? void handleChangeBlockType(block, t) : undefined
+                      }
+                      onInsertBlock={canEditBook ? (t) => handleInsertBlock(t) : undefined}
+                      onDeepDive={(topic, blockId) =>
+                        canEditBook ? handleDeepDive(topic, blockId) : undefined
+                      }
+                      onOpenPage={(pageId) => handleSelectPage(pageId)}
+                      onQuizAttempt={(block, args) => void handleQuizAttempt(block, args)}
+                      onRequestSupplement={
+                        canEditBook ? (block) => void handleRequestSupplement(block) : undefined
+                      }
+                      supplementingBlockId={supplementingBlockId}
+                      onUpdateBody={canEditBook ? handleUpdateBody : undefined}
+                      attempts={detail?.progress.quiz_attempts}
+                      previousPage={pageNeighbours.previous}
+                      nextPage={pageNeighbours.next}
+                      onNavigate={handleSelectPage}
+                      bookmarked={
+                        !!selectedPage &&
+                        !!detail?.progress.bookmarked_page_ids.includes(selectedPage.id)
+                      }
+                      onToggleBookmark={() => void handleToggleBookmark()}
+                      pendingDeepDiveTopic={pendingDeepDiveTopic}
+                      onRecompile={
+                        canEditBook && selectedPage
+                          ? () => void compilePage(selectedPage.id, true)
+                          : undefined
+                      }
+                      onCaptureSelection={(payload) =>
+                        void guard('Save selection', () => handleCaptureSelection(payload))
+                      }
+                    />
+                  </div>
+                  {/* The wrapper goes with the panel: a bordered strip with
                     nothing in it is the same occupied space by another name. */}
-                {learningCaptures.length > 0 && (
-                <div className="shrink-0 px-8 py-3">
-                  <LearningCapturePanel
-                    captures={learningCaptures}
-                    loading={loadingLearningCaptures}
-                    onApprove={capture =>
-                      void guard('Approve capture', () => handleApproveCapture(capture))
-                    }
-                    onReject={capture =>
-                      void guard('Reject capture', () => handleRejectCapture(capture))
-                    }
-                  />
+                  {learningCaptures.length > 0 && (
+                    <div className="shrink-0 px-8 py-3">
+                      <LearningCapturePanel
+                        captures={learningCaptures}
+                        loading={loadingLearningCaptures}
+                        onApprove={(capture) =>
+                          void guard('Approve capture', () => handleApproveCapture(capture))
+                        }
+                        onReject={(capture) =>
+                          void guard('Reject capture', () => handleRejectCapture(capture))
+                        }
+                      />
+                    </div>
+                  )}
                 </div>
-                )}
               </div>
-            </div>
-          )}
+            )}
 
-          {displayView === 'spine' && !detail?.spine && (
-            <div className="flex h-full items-center justify-center text-[var(--muted-foreground)]">
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('Loading spine…')}
-            </div>
-          )}
+            {displayView === 'spine' && !detail?.spine && (
+              <div className="flex h-full items-center justify-center text-[var(--muted-foreground)]">
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> {t('Loading spine…')}
+              </div>
+            )}
           </div>
         </div>
 
@@ -1249,7 +1302,7 @@ function BookPageInner() {
             open={chatOpen}
             onClose={() => setChatOpen(false)}
             initialSessionId={selectedPageChatSessionId}
-            onSessionResolved={sessionId => void handlePageChatSession(sessionId)}
+            onSessionResolved={(sessionId) => void handlePageChatSession(sessionId)}
           />
         )}
       </main>

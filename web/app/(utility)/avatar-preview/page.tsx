@@ -5,10 +5,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import {
-  SessionAvatar,
-  type SessionMark,
-} from "@/components/sidebar/SessionAvatar";
+import { SessionAvatar, type SessionMark } from "@/components/sidebar/SessionAvatar";
 
 const TITLES = [
   "DeepTutor 模型配置工作台",
@@ -24,22 +21,9 @@ const TITLES = [
  * elsewhere, then you open it. Cycling through that is the only way to judge
  * both transitions without clicking at exactly the right moment.
  */
-const CYCLE: SessionMark[] = [
-  "idle",
-  "running",
-  "unread",
-  "idle",
-  "running",
-  "failed",
-];
+const CYCLE: SessionMark[] = ["idle", "running", "unread", "idle", "running", "failed"];
 
-function SidebarMock({
-  marks,
-  size,
-}: {
-  marks: SessionMark[];
-  size: number;
-}) {
+function SidebarMock({ marks, size }: { marks: SessionMark[]; size: number }) {
   return (
     <div className="w-[268px] rounded-xl border border-[var(--border)]/60 bg-[var(--card)]/40 p-2">
       {TITLES.map((title, i) => (
@@ -69,9 +53,7 @@ export default function AvatarPreview() {
 
   // Each row sits at a different point in the cycle, so every state and both
   // transitions are on screen at once.
-  const marks = TITLES.map(
-    (_, i) => CYCLE[(phase + i) % CYCLE.length] ?? "idle",
-  );
+  const marks = TITLES.map((_, i) => CYCLE[(phase + i) % CYCLE.length] ?? "idle");
 
   return (
     <div className="h-full overflow-y-auto bg-[var(--background)] p-8 text-[var(--foreground)]">
@@ -107,7 +89,8 @@ export default function AvatarPreview() {
                 : "border-[var(--border)] text-[var(--muted-foreground)]"
             }`}
           >
-            {px}px
+            {px}
+            {t("px")}
           </button>
         ))}
       </div>
@@ -125,15 +108,15 @@ export default function AvatarPreview() {
             {t("State snapshots · 4× zoom")}
           </div>
           <div className="flex gap-7 rounded-xl border border-[var(--border)]/60 p-5">
-            {(
-              ["running", "unread", "failed", "idle"] as SessionMark[]
-            ).map((mark) => (
+            {(["running", "unread", "failed", "idle"] as SessionMark[]).map((mark) => (
               <div key={mark} className="flex flex-col items-center gap-3">
                 <span style={{ zoom: 4 }}>
                   <SessionAvatar sessionId={mark} mark={mark} size={size} />
                 </span>
                 <span className="text-[11px] text-[var(--muted-foreground)]/60">
-                  {t({ running: "Running", unread: "Unread", failed: "Failed", idle: "Idle" }[mark])}
+                  {t(
+                    { running: "Running", unread: "Unread", failed: "Failed", idle: "Idle" }[mark],
+                  )}
                 </span>
               </div>
             ))}

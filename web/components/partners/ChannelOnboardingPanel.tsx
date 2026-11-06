@@ -34,17 +34,24 @@ export default function ChannelOnboardingPanel({
   onToast: (message: string) => void;
 }) {
   const { t } = useTranslation();
-  const [session, setSession] =
-    useState<PartnerChannelOnboardingSession | null>(null);
+  const [session, setSession] = useState<PartnerChannelOnboardingSession | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const applyingRef = useRef(false);
 
-  useEffect(() => {
-    setSession(null);
-    setError(null);
-  }, [partnerId, channel]);
+  const [derivedInputs0, setDerivedInputs0] = useState<readonly unknown[]>([]);
+  if (
+    derivedInputs0.length !== 2 ||
+    !Object.is(derivedInputs0[0], partnerId) ||
+    !Object.is(derivedInputs0[1], channel)
+  ) {
+    setDerivedInputs0([partnerId, channel]);
+    (() => {
+      setSession(null);
+      setError(null);
+    })();
+  }
 
   useEffect(() => {
     if (!session || !ACTIVE_STATUSES.has(session.status)) return;
@@ -131,10 +138,7 @@ export default function ChannelOnboardingPanel({
 
   const secondsLeft = useMemo(() => {
     if (!session || !ACTIVE_STATUSES.has(session.status)) return null;
-    return Math.max(
-      0,
-      Math.floor((new Date(session.expires_at).getTime() - nowMs) / 1_000),
-    );
+    return Math.max(0, Math.floor((new Date(session.expires_at).getTime() - nowMs) / 1_000));
   }, [nowMs, session]);
 
   const statusText = useMemo(() => {
@@ -151,8 +155,7 @@ export default function ChannelOnboardingPanel({
   }, [session, t]);
 
   const active = session ? ACTIVE_STATUSES.has(session.status) : false;
-  const canRestart =
-    !session || !active || session.status === "ready" ? session !== null : true;
+  const canRestart = !session || !active || session.status === "ready" ? session !== null : true;
 
   return (
     <div className="space-y-3 border-t border-[var(--border)] pt-3">
@@ -170,14 +173,10 @@ export default function ChannelOnboardingPanel({
                 : "text-[var(--muted-foreground)]"
             }`}
           >
-            {session?.status === "applied" && (
-              <CheckCircle2 className="h-3.5 w-3.5" />
-            )}
+            {session?.status === "applied" && <CheckCircle2 className="h-3.5 w-3.5" />}
             {statusText}
             {secondsLeft !== null && (
-              <span className="font-mono">
-                {t("{{count}}s remaining", { count: secondsLeft })}
-              </span>
+              <span className="font-mono">{t("{{count}}s remaining", { count: secondsLeft })}</span>
             )}
           </span>
         )}
@@ -222,9 +221,7 @@ export default function ChannelOnboardingPanel({
         </a>
       ) : null}
 
-      {error && (
-        <p className="text-[12px] text-red-600 dark:text-red-400">{error}</p>
-      )}
+      {error && <p className="text-[12px] text-red-600 dark:text-red-400">{error}</p>}
 
       <div className="flex flex-wrap items-center gap-2">
         {session && active ? (

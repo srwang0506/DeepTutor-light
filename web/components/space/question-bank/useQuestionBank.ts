@@ -139,9 +139,7 @@ const EMPTY_FILTERS: ReviewFilters = {
  *  - a re-fetch never blanks the list — `refreshing` dims it instead, so
  *    filing a question does not make the page jump.
  */
-export function useQuestionBank(
-  options: { mistakesOnly?: boolean } = {},
-): QuestionBankController {
+export function useQuestionBank(options: { mistakesOnly?: boolean } = {}): QuestionBankController {
   const mistakesOnly = options.mistakesOnly ?? false;
   const [page, setPage] = useState(0);
   const [items, setItems] = useState<NotebookEntry[]>([]);
@@ -173,58 +171,62 @@ export function useQuestionBank(
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  const loadEntries = useCallback(async () => {
+  const loadEntriesData = useCallback(async () => {
     const seq = ++requestSeq.current;
-    if (loadedOnce.current) setRefreshing(true);
-    setError(null);
-    try {
-      const response = await listNotebookEntries({
-        ...buildQuestionBankFilter(scope, reviewFilters, search, sort),
-        mistakes_only: mistakesOnly,
-        offset: page * PAGE_SIZE,
+    return listNotebookEntries({
+      ...buildQuestionBankFilter(scope, reviewFilters, search, sort),
+      mistakes_only: mistakesOnly,
+      offset: page * PAGE_SIZE,
+    })
+      .then(async (response) => {
+        if (seq !== requestSeq.current) return;
+        if (response.items.length === 0 && page > 0 && response.total > 0) {
+          setPage((value) => value - 1);
+          return;
+        }
+        setItems(response.items);
+        setTotal(response.total);
+        const visible = new Set(response.items.map((item) => item.id));
+        setSelectedIds((prev) => {
+          if (prev.size === 0) return prev;
+          const next = new Set([...prev].filter((id) => visible.has(id)));
+          return next.size === prev.size ? prev : next;
+        });
+      })
+      .catch((err) => {
+        if (seq !== requestSeq.current) return;
+        setError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        if (seq === requestSeq.current) {
+          loadedOnce.current = true;
+          setLoading(false);
+          setRefreshing(false);
+        }
       });
-      if (seq !== requestSeq.current) return;
-      if (response.items.length === 0 && page > 0 && response.total > 0) {
-        setPage(value => value - 1);
-        return;
-      }
-      setItems(response.items);
-      setTotal(response.total);
-      // Converge the selection onto the new rows: searching, re-sorting or a
-      // refresh after a write can all drop a selected row out of view, and a
-      // bulk action must never reach something off screen.
-      const visible = new Set(response.items.map(item => item.id));
-      setSelectedIds(prev => {
-        if (prev.size === 0) return prev;
-        const next = new Set([...prev].filter(id => visible.has(id)));
-        return next.size === prev.size ? prev : next;
-      });
-    } catch (err) {
-      if (seq !== requestSeq.current) return;
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      if (seq === requestSeq.current) {
-        loadedOnce.current = true;
-        setLoading(false);
-        setRefreshing(false);
-      }
-    }
   }, [scope, reviewFilters, search, sort, mistakesOnly, page]);
 
   const loadMeta = useCallback(async () => {
-    const [nextCategories, nextStats, nextMaterials] = await Promise.allSettled([
+    return Promise.allSettled([
       listCategories(),
       getQuestionBankStats(),
       listQuestionBankMaterials(),
-    ]);
-    if (nextCategories.status === "fulfilled") setCategories(nextCategories.value);
-    if (nextStats.status === "fulfilled") setStats(nextStats.value);
-    if (nextMaterials.status === "fulfilled") setMaterials(nextMaterials.value);
+    ]).then(async ([nextCategories, nextStats, nextMaterials]) => {
+      if (nextCategories.status === "fulfilled") setCategories(nextCategories.value);
+      if (nextStats.status === "fulfilled") setStats(nextStats.value);
+      if (nextMaterials.status === "fulfilled") setMaterials(nextMaterials.value);
+    });
   }, []);
 
+  const loadEntries = useCallback(() => {
+    if (loadedOnce.current) setRefreshing(true);
+    setError(null);
+    return loadEntriesData();
+  }, [loadEntriesData]);
+
   useEffect(() => {
-    void loadEntries();
-  }, [loadEntries]);
+    void loadEntriesData();
+  }, [loadEntriesData]);
 
   useEffect(() => {
     void loadMeta();
@@ -244,7 +246,7 @@ export function useQuestionBank(
   }, []);
 
   const refresh = useCallback(async () => {
-    await Promise.all([loadEntries(), loadMeta()]);
+    return Promise.all([loadEntries(), loadMeta()]).then(async () => {});
   }, [loadEntries, loadMeta]);
 
   /**
@@ -268,13 +270,13 @@ export function useQuestionBank(
 
   const withPending = useCallback(
     async (ids: number[], action: () => Promise<void>) => {
-      setPendingIds(prev => new Set([...prev, ...ids]));
+      setPendingIds((prev) => new Set([...prev, ...ids]));
       try {
         return await attempt(action);
       } finally {
-        setPendingIds(prev => {
+        setPendingIds((prev) => {
           const next = new Set(prev);
-          ids.forEach(id => next.delete(id));
+          ids.forEach((id) => next.delete(id));
           return next;
         });
       }
@@ -283,7 +285,7 @@ export function useQuestionBank(
   );
 
   const toggleSelected = useCallback((id: number) => {
-    setSelectedIds(prev => {
+    setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
@@ -292,7 +294,7 @@ export function useQuestionBank(
   }, []);
 
   const selectAll = useCallback(() => {
-    setSelectedIds(new Set(items.map(item => item.id)));
+    setSelectedIds(new Set(items.map((item) => item.id)));
   }, [items]);
 
   const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
@@ -303,8 +305,8 @@ export function useQuestionBank(
       return withPending([entry.id], async () => {
         await updateNotebookEntry(entry.id, { bookmarked: next });
         // Optimistic on the row itself; the counters come back from refresh.
-        setItems(prev =>
-          prev.map(item => (item.id === entry.id ? { ...item, bookmarked: next } : item)),
+        setItems((prev) =>
+          prev.map((item) => (item.id === entry.id ? { ...item, bookmarked: next } : item)),
         );
         await refresh();
       });
@@ -317,8 +319,8 @@ export function useQuestionBank(
       const next = !entry.resolved;
       return withPending([entry.id], async () => {
         await updateNotebookEntry(entry.id, { resolved: next });
-        setItems(prev =>
-          prev.map(item => (item.id === entry.id ? { ...item, resolved: next } : item)),
+        setItems((prev) =>
+          prev.map((item) => (item.id === entry.id ? { ...item, resolved: next } : item)),
         );
         await refresh();
       });
@@ -330,7 +332,7 @@ export function useQuestionBank(
     async (entry: NotebookEntry) => {
       return withPending([entry.id], async () => {
         await deleteNotebookEntry(entry.id);
-        setSelectedIds(prev => {
+        setSelectedIds((prev) => {
           const next = new Set(prev);
           next.delete(entry.id);
           return next;
@@ -372,7 +374,7 @@ export function useQuestionBank(
     async (ids: number[], name: string) => {
       const trimmed = name.trim();
       if (!trimmed) return false;
-      let categoryId = categories.find(category => category.name === trimmed)?.id;
+      let categoryId = categories.find((category) => category.name === trimmed)?.id;
       if (categoryId === undefined) {
         const created = await attempt(async () => {
           categoryId = (await createCategory(trimmed)).id;
@@ -415,7 +417,7 @@ export function useQuestionBank(
         await deleteCategory(id);
         // Deleting the category being viewed would otherwise leave the list
         // filtered by an id the server no longer knows.
-        setScopeState(prev =>
+        setScopeState((prev) =>
           prev.kind === "category" && prev.categoryId === id ? DEFAULT_SCOPE : prev,
         );
         await refresh();

@@ -1,4 +1,5 @@
 'use client'
+import { useHydratedState } from '@/hooks/useHydratedState'
 import dynamic from 'next/dynamic'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -13,18 +14,31 @@ export default function ChatMarkdownNoteTab({ sessionId }: { sessionId: string |
   const auth = useAuthStatus()
   const owner =
     !auth.loading && auth.statusAvailable ? (auth.enabled ? auth.userId : 'local') : null
-  const [recoverable, setRecoverable] = useState(false)
-  const [docId, setDocId] = useState<string | null>(null)
-  const [error, setError] = useState('')
-  const [busy, setBusy] = useState(false)
-  useEffect(() => {
-    if (!owner) return
+  return (
+    <ScopedMarkdownNote key={`${owner}:${sessionId}`} owner={owner ?? null} sessionId={sessionId} />
+  )
+}
+function ScopedMarkdownNote({
+  owner,
+  sessionId,
+}: {
+  owner: string | null
+  sessionId: string | null
+}) {
+  const { t } = useTranslation()
+  const [recoverable, setRecoverable] = useHydratedState(() => {
+    if (!owner) return false
     const draft = loadChatMarkdownNoteDraft(owner, sessionId)
-    setDocId(draft.saved?.id || null)
-    setRecoverable(
+    return (
       !!draft.saved && (draft.content !== draft.saved.content || draft.title !== draft.saved.title)
     )
-  }, [owner, sessionId])
+  }, false)
+  const [docId, setDocId] = useHydratedState<string | null>(
+    () => (owner ? loadChatMarkdownNoteDraft(owner, sessionId).saved?.id || null : null),
+    null,
+  )
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
   const create = async () => {
     if (!owner || busy) return
     setBusy(true)

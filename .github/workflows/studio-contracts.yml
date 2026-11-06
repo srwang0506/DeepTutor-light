@@ -10,6 +10,7 @@ on:
       - 'deeptutor/services/session/**'
       - 'deeptutor/learning/quiz.py'
       - 'deeptutor/learning/quiz_views.py'
+      - 'deeptutor/learning/question_families.py'
       - 'deeptutor/api/**'
       - 'deeptutor/runtime/**'
       - 'web/**'
@@ -62,10 +63,12 @@ jobs:
       - name: Verify client contracts and editing state
         working-directory: web
         run: |
-          npm run contracts:check
-          npm run typecheck
-          npm run test:node
-          npm run test:unit
+          npm run check:fast
+      - name: Verify offline reading and replay in a real browser
+        working-directory: web
+        run: |
+          npx playwright install --with-deps chromium
+          node tests/offline-browser.mjs
       - name: Preserve results for this commit
         if: always()
         uses: actions/upload-artifact@v4

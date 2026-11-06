@@ -447,3 +447,53 @@ async def test_exposure_replay_cannot_change_event_payload(quiz):
     await store.record_quiz_exposure("s", contract, "hint", "same-event")
     with pytest.raises(ValueError, match="different event"):
         await store.record_quiz_exposure("s", contract, "revealed", "same-event")
+
+
+@pytest.mark.asyncio
+async def test_offline_receipt_never_claims_independent_mastery(quiz):
+    store, request = quiz
+    receipt = await submit_quiz(store, request.model_copy(update={"offline": True}))
+    assert receipt["result"] == "correct"
+    assert receipt["independent"] is False
+    assert receipt["evidence_kind"] == "unknown"
+    assert "离线" in receipt["feedback"]
+
+
+@pytest.mark.asyncio
+async def test_family_review_reclassifies_exposure_and_replay_is_stable(quiz):
+    from deeptutor.learning import question_families as f
+
+    store, request = quiz
+    first = await question_contract(store, "s", "t", "q")
+    await store.record_quiz_exposure("s", first, "revealed", "review-exposure-1234")
+    command = f.FamilyReview(
+        session_id="s",
+        turn_id="t",
+        question_id="q",
+        question_version=first["question_version"],
+        objective="addition",
+        method="sum integers",
+        conditions="nonnegative integers",
+        rationale="same operation and domain",
+        expected_revision=0,
+    )
+    reviewed = await f.review(store, first, command)
+    assert reviewed["revision"] == 1
+    # Event identity is fixed by question/version/level, not a mutable family review.
+    await store.record_quiz_exposure("s", first, "revealed", "review-exposure-1234")
+    with pytest.raises(ValueError, match="changed"):
+        await f.review(store, first, command)
+    other = await store.register_quiz_question(
+        "s", "t", {**first, "question_id": "q2", "question": "Three plus one?", "metadata": {}}
+    )
+    await store.record_quiz_exposure("s", other, "revealed", "review-other-12345")
+    await f.review(
+        store,
+        other,
+        command.model_copy(
+            update={"question_id": "q2", "question_version": other["question_version"]}
+        ),
+    )
+    with store._connect() as db:
+        result = store._quiz_exposure_in_conn(db, "s", other)
+    assert result["level"] == "revealed"

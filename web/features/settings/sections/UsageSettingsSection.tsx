@@ -28,17 +28,18 @@ export default function UsageSettingsSection() {
   useEffect(() => {
     const controller = new AbortController()
     fetchUsageStatistics(year, controller.signal)
-      .then(value => {
+      .then((value) => {
         if (!controller.signal.aborted) setSnapshot({ key: requestKey, data: value, error: null })
       })
       .catch((failure: unknown) => {
         if (!controller.signal.aborted)
-          setSnapshot(previous => ({
+          setSnapshot((previous) => ({
             key: requestKey,
             data: previous?.data ?? null,
-            error: failure instanceof Error
-              ? `${failure.message}${isApiError(failure) && failure.status ? ` (HTTP ${failure.status})` : ''}`
-              : 'Unable to load usage statistics.',
+            error:
+              failure instanceof Error
+                ? `${failure.message}${isApiError(failure) && failure.status ? ` (HTTP ${failure.status})` : ''}`
+                : 'Unable to load usage statistics.',
           }))
       })
     return () => controller.abort()
@@ -52,13 +53,15 @@ export default function UsageSettingsSection() {
   const percent = (value?: number | null) => (value == null ? '—' : `${(value * 100).toFixed(1)}%`)
   const visible = data?.year === year ? data : null
   const stats = visible?.totals
-  const models = visible?.models.filter(model => model.model) ?? []
-  const historical = visible?.models.filter(model => !model.model) ?? []
+  const models = visible?.models.filter((model) => model.model) ?? []
+  const historical = visible?.models.filter((model) => !model.model) ?? []
   return (
     <div>
       <SettingsPageHeader
         title={t('Usage statistics')}
-        description={t('Model usage across conversations, personalized learning, and background tasks.')}
+        description={t(
+          'Model usage across conversations, personalized learning, and background tasks.',
+        )}
       />
       <div className="mb-6 flex items-center justify-between gap-3">
         <div className="inline-flex items-center gap-3 rounded-lg border border-[var(--border)] px-1 py-1">
@@ -86,7 +89,7 @@ export default function UsageSettingsSection() {
           type="button"
           aria-label={t('Refresh usage')}
           disabled={loading}
-          onClick={() => setRevision(value => value + 1)}
+          onClick={() => setRevision((value) => value + 1)}
           className="rounded-lg p-2 text-[var(--muted-foreground)] hover:bg-[var(--muted)] disabled:opacity-40"
         >
           <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
@@ -103,7 +106,7 @@ export default function UsageSettingsSection() {
           </span>
           <button
             type="button"
-            onClick={() => setRevision(value => value + 1)}
+            onClick={() => setRevision((value) => value + 1)}
             className="px-2 py-1 font-medium"
           >
             {t('Retry')}
@@ -173,7 +176,7 @@ export default function UsageSettingsSection() {
                     </tr>
                   </thead>
                   <tbody>
-                    {models.map(model => (
+                    {models.map((model) => (
                       <tr
                         key={JSON.stringify([model.provider, model.model])}
                         className="border-b border-[var(--border)]/60 last:border-0 hover:bg-[var(--muted)]/30"
@@ -219,7 +222,9 @@ export default function UsageSettingsSection() {
             {historical.length > 0 && (
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-[var(--muted-foreground)]">
                 <span>{t('Historical usage without recoverable model details')}</span>
-                <span className="tabular-nums">{n(historical.reduce((sum, model) => sum + model.total_tokens, 0))} tokens</span>
+                <span className="tabular-nums">
+                  {n(historical.reduce((sum, model) => sum + model.total_tokens, 0))} {t('tokens')}
+                </span>
               </div>
             )}
           </section>

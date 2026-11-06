@@ -28,11 +28,19 @@ export default function PersonaPicker({
 
   // Sync local state with the parent's current selection every time the
   // picker is reopened so the modal always starts from the latest choice.
-  useEffect(() => {
-    if (!open) return;
-    setSelected(initialPersona);
-    setQuery("");
-  }, [open, initialPersona]);
+  const [derivedInputs0, setDerivedInputs0] = useState<readonly unknown[]>([]);
+  if (
+    derivedInputs0.length !== 2 ||
+    !Object.is(derivedInputs0[0], open) ||
+    !Object.is(derivedInputs0[1], initialPersona)
+  ) {
+    setDerivedInputs0([open, initialPersona]);
+    (() => {
+      if (!open) return;
+      setSelected(initialPersona);
+      setQuery("");
+    })();
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -82,9 +90,7 @@ export default function PersonaPicker({
           icon={UserRound}
           titleId="persona-picker-title"
           title={t("Select Persona")}
-          subtitle={t(
-            "Choose a behavior persona to apply, or pick No persona to use the default.",
-          )}
+          subtitle={t("Choose a behavior persona to apply, or pick No persona to use the default.")}
           onClose={onClose}
         />
 
@@ -143,9 +149,7 @@ export default function PersonaPicker({
                       key={persona.name}
                       onClick={() => setSelected(persona.name)}
                       className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors ${
-                        active
-                          ? "bg-[var(--primary)]/8"
-                          : "hover:bg-[var(--muted)]/40"
+                        active ? "bg-[var(--primary)]/8" : "hover:bg-[var(--muted)]/40"
                       }`}
                     >
                       <div
@@ -180,18 +184,14 @@ export default function PersonaPicker({
               </div>
             ) : (
               <div className="px-6 py-14 text-center text-[13px] text-[var(--muted-foreground)]">
-                {personas.length === 0
-                  ? t("No personas yet")
-                  : t("No matching personas found.")}
+                {personas.length === 0 ? t("No personas yet") : t("No matching personas found.")}
               </div>
             )}
           </div>
 
           <div className="mt-4 flex items-center justify-between gap-3">
             <div className="text-[12px] text-[var(--muted-foreground)]">
-              {selected
-                ? t("Persona: {{name}}", { name: selected })
-                : t("No persona selected")}
+              {selected ? t("Persona: {{name}}", { name: selected }) : t("No persona selected")}
             </div>
             <button
               onClick={handleApply}

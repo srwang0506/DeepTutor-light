@@ -34,6 +34,14 @@ def test_host_credentials_are_not_available_to_regular_accounts(tmp_path, monkey
     )
     assert response.status_code == 403
     assert not store.list("connection")
+    for method, url, body in [
+        ('POST', '/api/studio/integrations', {'title':'Host log', 'provider':'local_log', 'path':'/tmp/run.jsonl'}),
+        ('PATCH', '/api/studio/integrations/unknown', {'enabled':False}),
+        ('POST', '/api/studio/integrations/unknown/refresh', {}),
+    ]:
+        assert client.request(method, url, json=body).status_code == 403
+    assert not store.list('integration')
+
     assert (
         client.post("/api/studio/connections/unknown/read", json={"operation": "probe"}).status_code
         == 403

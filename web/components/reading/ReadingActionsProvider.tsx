@@ -1,4 +1,5 @@
 "use client";
+import { useLayoutEffect } from "react";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -56,7 +57,9 @@ export function ReadingActionsProvider({
   const [busyKey, setBusyKey] = useState("");
   const { speak, speaking, stop: stopSpeaking } = useReadAloudSpeech();
   const onStartRef = useRef(onStart);
-  onStartRef.current = onStart;
+  useLayoutEffect(() => {
+    onStartRef.current = onStart;
+  }, [onStart]);
 
   useEffect(() => {
     let active = true;
@@ -75,8 +78,7 @@ export function ReadingActionsProvider({
   useEffect(() => {
     let active = true;
     void fetchAuthStatus().then(async (status) => {
-      const learnerMode =
-        status?.preset === "learner" || Boolean(status?.learning_policy);
+      const learnerMode = status?.preset === "learner" || Boolean(status?.learning_policy);
       if (!learnerMode) return;
       const profile = await getOwnLearnerProfile().catch(() => null);
       if (active) {
@@ -96,9 +98,13 @@ export function ReadingActionsProvider({
 
   // A card answers a question about one document; switching documents leaves
   // it describing a page that is no longer on screen.
-  useEffect(() => {
-    setCards([]);
-  }, [materialId]);
+  const [derivedInputs0, setDerivedInputs0] = useState<readonly unknown[]>([]);
+  if (derivedInputs0.length !== 1 || !Object.is(derivedInputs0[0], materialId)) {
+    setDerivedInputs0([materialId]);
+    (() => {
+      setCards([]);
+    })();
+  }
 
   // Speech stops the moment the reader leaves the passage being read, the
   // same promise the standalone toolbar makes.
@@ -109,12 +115,7 @@ export function ReadingActionsProvider({
       extensions
         .flatMap((extension) =>
           extension.actions
-            .filter(
-              (action) =>
-                !CHAT_ROUTED_READING_ACTIONS.has(
-                  `${extension.id}:${action.id}`,
-                ),
-            )
+            .filter((action) => !CHAT_ROUTED_READING_ACTIONS.has(`${extension.id}:${action.id}`))
             .map((action) => {
               const key = `${extension.id}:${action.id}`;
               const builtIn = builtInActionLabel(extension.id, action.id);
@@ -130,9 +131,7 @@ export function ReadingActionsProvider({
         .sort((left, right) => {
           const leftRank = primaryReadingActionRank(left.key);
           const rightRank = primaryReadingActionRank(right.key);
-          return (
-            (leftRank < 0 ? 3 : leftRank) - (rightRank < 0 ? 3 : rightRank)
-          );
+          return (leftRank < 0 ? 3 : leftRank) - (rightRank < 0 ? 3 : rightRank);
         }),
     [extensions, t],
   );
@@ -171,16 +170,11 @@ export function ReadingActionsProvider({
         );
       };
       try {
-        const next = await runReadingExtension(
-          materialId,
-          entry.extension.id,
-          entry.action.id,
-          {
-            locator: requestedLocator,
-            selection,
-            locale: i18n.language,
-          },
-        );
+        const next = await runReadingExtension(materialId, entry.extension.id, entry.action.id, {
+          locator: requestedLocator,
+          selection,
+          locale: i18n.language,
+        });
         if (next.type === "browser_speech") {
           const text = String(next.payload.text || "");
           const played = await speak({
@@ -228,9 +222,5 @@ export function ReadingActionsProvider({
     [actions, ageMode, busyKey, cards, dismiss, run, speaking, stopSpeaking],
   );
 
-  return (
-    <ReadingActionsContext.Provider value={value}>
-      {children}
-    </ReadingActionsContext.Provider>
-  );
+  return <ReadingActionsContext.Provider value={value}>{children}</ReadingActionsContext.Provider>;
 }

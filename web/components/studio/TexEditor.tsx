@@ -1,4 +1,5 @@
 'use client'
+import { useTranslation } from 'react-i18next'
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { EditorView, basicSetup } from 'codemirror'
 import { EditorState } from '@codemirror/state'
@@ -22,6 +23,8 @@ export default function TexEditor({
   onSelection: (selection: TextSelection) => void
   jump?: { line: number; nonce: number }
 }) {
+  const { t } = useTranslation()
+
   const parent = useRef<HTMLDivElement>(null),
     view = useRef<EditorView | null>(null),
     callbacks = useRef({ onChange, onSelection }),
@@ -53,7 +56,7 @@ export default function TexEditor({
             '.cm-content': { padding: '16px 0' },
             '.cm-line': { padding: '0 18px' },
           }),
-          EditorView.updateListener.of(update => {
+          EditorView.updateListener.of((update) => {
             if (update.docChanged) callbacks.current.onChange(update.state.doc.toString())
             if (update.selectionSet || update.docChanged) {
               const selection = update.state.selection.main
@@ -83,7 +86,7 @@ export default function TexEditor({
   useEffect(() => {
     if (!view.current || !jump) return
     const line = view.current.state.doc.line(
-      Math.max(1, Math.min(view.current.state.doc.lines, jump.line))
+      Math.max(1, Math.min(view.current.state.doc.lines, jump.line)),
     )
     view.current.dispatch({
       selection: { anchor: line.from },
@@ -91,5 +94,5 @@ export default function TexEditor({
     })
     view.current.focus()
   }, [jump, identity])
-  return <div ref={parent} className="studio-code" aria-label="LaTeX 源文件编辑器" />
+  return <div ref={parent} className="studio-code" aria-label={t('LaTeX 源文件编辑器')} />
 }

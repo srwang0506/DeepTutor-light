@@ -1,4 +1,5 @@
 'use client'
+import { useTranslation } from 'react-i18next'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
@@ -89,6 +90,8 @@ function ObjectView({
   id: string
   revision: string | null
 }) {
+  const { t } = useTranslation()
+
   const [row, setRow] = useState<(StudioRecord<Data> & { latest_revision: number }) | null>(null),
     [error, setError] = useState('')
   useEffect(() => {
@@ -97,10 +100,10 @@ function ObjectView({
       workspace,
       `/record/${id}${revision ? `?revision=${encodeURIComponent(revision)}` : ''}`,
       {},
-      abort.signal
+      abort.signal,
     )
       .then(setRow)
-      .catch(e => {
+      .catch((e) => {
         if (!abort.signal.aborted) setError(e.message)
       })
     return () => abort.abort()
@@ -127,14 +130,15 @@ function ObjectView({
       <ErrorNotice message={error} />
       {!row && !error && (
         <p role="status" className="studio-note">
-          正在读取冻结版本…
+          {t('正在读取冻结版本…')}
         </p>
       )}
       {row && (
         <>
           <div className="studio-badges">
             <span className="studio-badge">
-              {kinds[row.kind] || '项目记录'} · 版本 {row.revision}
+              {kinds[row.kind] || '项目记录'} {t('· 版本')}
+              {row.revision}
             </span>
             <span className="studio-badge">
               {states[d?.status || d?.state || ''] || '已保存记录'}
@@ -142,9 +146,10 @@ function ObjectView({
           </div>
           {row.revision !== row.latest_revision && (
             <p className="studio-note">
-              这是被引用的旧版本。
+              {t('这是被引用的旧版本。')}
               <Link href={scopedUrl(`/objects/${row.id}`, workspace)}>
-                查看最新版本 {row.latest_revision} ↗
+                {t('查看最新版本')}
+                {row.latest_revision} ↗
               </Link>
             </p>
           )}
@@ -154,10 +159,11 @@ function ObjectView({
                 className="studio-outlink"
                 href={scopedUrl(
                   `/library/${original.id}?file=${original.locator.blob_hash || ''}&page=${original.locator.page || 1}`,
-                  workspace
+                  workspace,
                 )}
               >
-                回到原件 · 第 {original.locator.page || 1} 页 ↗
+                {t('回到原件 · 第')}
+                {original.locator.page || 1} {t('页 ↗')}
               </Link>
             )}
             {d?.manuscript_id && (
@@ -165,10 +171,10 @@ function ObjectView({
                 className="studio-outlink"
                 href={scopedUrl(
                   `/studio/writing?manuscript=${d.manuscript_id}&path=${encodeURIComponent(d.path || '')}`,
-                  workspace
+                  workspace,
                 )}
               >
-                打开对应稿件 ↗
+                {t('打开对应稿件 ↗')}
               </Link>
             )}
             {d?.source_id && (
@@ -176,16 +182,16 @@ function ObjectView({
                 className="studio-outlink"
                 href={scopedUrl(
                   `/objects/${d.source_id}${d.source_ref ? `?revision=${d.source_ref.revision}` : ''}`,
-                  workspace
+                  workspace,
                 )}
               >
-                查看底层来源 ↗
+                {t('查看底层来源 ↗')}
               </Link>
             )}
           </div>
           {typeof d?.value === 'number' && (
             <section className="studio-panel">
-              <span className="studio-eyebrow">OBSERVATION · 原始观测</span>
+              <span className="studio-eyebrow">{t('OBSERVATION · 原始观测')}</span>
               <h2 style={{ fontSize: 36, margin: '12px 0' }}>
                 {d.value} <small style={{ fontSize: 16 }}>{String(d.protocol?.unit || '')}</small>
               </h2>
@@ -200,7 +206,7 @@ function ObjectView({
               <div className="studio-form-grid">
                 {Object.entries(d.protocol || {})
                   .filter(
-                    ([key]) => !['extensions', 'not_applicable', 'field_states'].includes(key)
+                    ([key]) => !['extensions', 'not_applicable', 'field_states'].includes(key),
                   )
                   .map(([key, value]) => (
                     <div key={key}>
@@ -215,7 +221,7 @@ function ObjectView({
           {(d?.interpretation || d?.note) && (
             <p style={{ whiteSpace: 'pre-wrap' }}>{d.interpretation || d.note}</p>
           )}
-          {d?.edges?.map(edge => (
+          {d?.edges?.map((edge) => (
             <article className="studio-card" key={edge.source_id}>
               <span className="studio-badge">
                 {
@@ -235,10 +241,11 @@ function ObjectView({
                 className="studio-outlink"
                 href={scopedUrl(
                   `/objects/${edge.source_id}?revision=${edge.source_revision}`,
-                  workspace
+                  workspace,
                 )}
               >
-                查看证据版本 {edge.source_revision} ↗
+                {t('查看证据版本')}
+                {edge.source_revision} ↗
               </Link>
             </article>
           ))}
@@ -246,7 +253,7 @@ function ObjectView({
             <StudyQuizViewer questions={d.questions} sessionId={d.session_id} turnId={d.turn_id} />
           )}
           <details className="studio-panel" style={{ marginTop: 24 }}>
-            <summary>完整记录与复核细节</summary>
+            <summary>{t('完整记录与复核细节')}</summary>
             <pre className="studio-diff">{JSON.stringify(d, null, 2)}</pre>
           </details>
         </>

@@ -1,5 +1,6 @@
 """Bibliographic identity and immutable originals, independent of project use."""
 
+from contextlib import nullcontext
 import json
 from pathlib import Path
 import re
@@ -303,7 +304,7 @@ def parse_bibliography(text, format):
     raise ValueError("Supported formats: bibtex, ris, csl.")
 
 
-def import_bibliography(store, text, format):
+def import_bibliography(store, text, format, *, connection=None, edition_id=None, strict=False):
     parsed = parse_bibliography(text, format)
     if not parsed or len(parsed) > 1000:
         raise ValueError("Import between 1 and 1,000 entries at a time.")
@@ -333,7 +334,7 @@ def import_bibliography(store, text, format):
                 raise ValueError("Source URLs must use HTTP or HTTPS.")
             arrival = {"format": format, "record": item["original"]}
             arrival_key = sha(encoded(arrival).encode())
-            with store.db(write=True) as db:
+            with nullcontext(connection) if connection is not None else store.db(write=True) as db:
                 received = import_receipts.lookup(
                     store, db, "bibliography", arrival_key, arrival_key
                 )
@@ -351,6 +352,9 @@ def import_bibliography(store, text, format):
                     (doi, arxiv),
                 ).fetchall()
                 identities = {r[0] for r in known}
+                if edition_id:
+                    store.record(db, edition_id, "edition")
+                    identities.add(edition_id)
                 if len(identities) > 1:
                     raise Conflict("Identifiers refer to different editions. Resolve manually.")
                 if identities:
@@ -418,6 +422,8 @@ def import_bibliography(store, text, format):
                 )
             results.append({"index": index, "status": "imported", "edition_id": edition["id"]})
         except (ValueError, KeyError, TypeError) as exc:
+            if strict:
+                raise
             results.append({"index": index, "status": "error", "detail": str(exc)})
     return {"entries": results, "total": len(parsed)}
 

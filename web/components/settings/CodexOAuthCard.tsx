@@ -31,8 +31,7 @@ import { useSettings } from "@/features/settings/store/SettingsStore";
 
 export function CodexOAuthCard() {
   const { t } = useTranslation();
-  const { catalogEditable, reloadSettings, hasUnsavedChanges, setToast } =
-    useSettings();
+  const { catalogEditable, reloadSettings, hasUnsavedChanges, setToast } = useSettings();
   const [liveEfforts, setLiveEfforts] = useState<Record<string, string | null>>({});
   const [efforts, setEfforts] = useStagedSettings("codex-reasoning", liveEfforts, setLiveEfforts);
   const [status, setStatus] = useState<CodexOAuthStatus | null>(null);
@@ -46,12 +45,15 @@ export function CodexOAuthCard() {
   const reloadedOperation = useRef<string | null>(null);
   const statusRequestSequence = useRef(0);
   const remoteAccess =
-    typeof window !== "undefined" &&
-    !isLoopbackHostname(window.location.hostname);
+    typeof window !== "undefined" && !isLoopbackHostname(window.location.hostname);
 
   const recordStatus = useCallback((nextStatus: CodexOAuthStatus) => {
     setStatus(nextStatus);
-    setLiveEfforts(Object.fromEntries(nextStatus.models.map((model) => [model.model, model.reasoning_effort || null])));
+    setLiveEfforts(
+      Object.fromEntries(
+        nextStatus.models.map((model) => [model.model, model.reasoning_effort || null]),
+      ),
+    );
     const terminalOperation =
       nextStatus.operation_state === "completed" ||
       nextStatus.operation_state === "cancelled" ||
@@ -60,9 +62,7 @@ export function CodexOAuthCard() {
     if (!terminalOperation) return;
     setCallbackUrl("");
     setLoginStart((loginStart) =>
-      loginStart && nextStatus.operation_id === loginStart.operation_id
-        ? null
-        : loginStart,
+      loginStart && nextStatus.operation_id === loginStart.operation_id ? null : loginStart,
     );
   }, []);
 
@@ -74,31 +74,24 @@ export function CodexOAuthCard() {
     async (shouldApply: () => boolean = () => true) => {
       statusRequestSequence.current += 1;
       const requestSequence = statusRequestSequence.current;
-      try {
-        const next = await getCodexStatus();
-        if (
-          requestSequence !== statusRequestSequence.current ||
-          !shouldApply()
-        ) {
+      return getCodexStatus()
+        .then(async (next) => {
+          if (requestSequence !== statusRequestSequence.current || !shouldApply()) {
+            return null;
+          }
+          recordStatus(next);
+          setErrorKey(null);
+          return next;
+        })
+        .catch((error) => {
+          if (requestSequence !== statusRequestSequence.current || !shouldApply()) {
+            return null;
+          }
+          setErrorKey(
+            codexErrorMessageKey(error instanceof CodexOAuthApiError ? error.code : null),
+          );
           return null;
-        }
-        recordStatus(next);
-        setErrorKey(null);
-        return next;
-      } catch (error) {
-        if (
-          requestSequence !== statusRequestSequence.current ||
-          !shouldApply()
-        ) {
-          return null;
-        }
-        setErrorKey(
-          codexErrorMessageKey(
-            error instanceof CodexOAuthApiError ? error.code : null,
-          ),
-        );
-        return null;
-      }
+        });
     },
     [recordStatus],
   );
@@ -174,11 +167,7 @@ export function CodexOAuthCard() {
       await loadStatus();
     } catch (error) {
       authWindow?.close();
-      setErrorKey(
-        codexErrorMessageKey(
-          error instanceof CodexOAuthApiError ? error.code : null,
-        ),
-      );
+      setErrorKey(codexErrorMessageKey(error instanceof CodexOAuthApiError ? error.code : null));
     } finally {
       setPending(false);
     }
@@ -193,11 +182,7 @@ export function CodexOAuthCard() {
       setLoginStart(started);
       await loadStatus();
     } catch (error) {
-      setErrorKey(
-        codexErrorMessageKey(
-          error instanceof CodexOAuthApiError ? error.code : null,
-        ),
-      );
+      setErrorKey(codexErrorMessageKey(error instanceof CodexOAuthApiError ? error.code : null));
     } finally {
       setPending(false);
     }
@@ -237,11 +222,7 @@ export function CodexOAuthCard() {
       invalidateStatusRequests();
       recordStatus(nextStatus);
     } catch (error) {
-      setErrorKey(
-        codexErrorMessageKey(
-          error instanceof CodexOAuthApiError ? error.code : null,
-        ),
-      );
+      setErrorKey(codexErrorMessageKey(error instanceof CodexOAuthApiError ? error.code : null));
     } finally {
       setLoginStart(null);
       setPending(false);
@@ -258,11 +239,7 @@ export function CodexOAuthCard() {
       await syncCatalog();
       setErrorKey(null);
     } catch (error) {
-      setErrorKey(
-        codexErrorMessageKey(
-          error instanceof CodexOAuthApiError ? error.code : null,
-        ),
-      );
+      setErrorKey(codexErrorMessageKey(error instanceof CodexOAuthApiError ? error.code : null));
     } finally {
       setPending(false);
     }
@@ -279,11 +256,7 @@ export function CodexOAuthCard() {
       await syncCatalog();
       setErrorKey(null);
     } catch (error) {
-      setErrorKey(
-        codexErrorMessageKey(
-          error instanceof CodexOAuthApiError ? error.code : null,
-        ),
-      );
+      setErrorKey(codexErrorMessageKey(error instanceof CodexOAuthApiError ? error.code : null));
     } finally {
       setPending(false);
     }
@@ -291,7 +264,6 @@ export function CodexOAuthCard() {
 
   const updateReasoningEffort = (model: CodexReasoningModel, value: string) => {
     setEfforts((current) => ({ ...current, [model.model]: value || null }));
-
   };
 
   const submitCallbackUrl = async () => {
@@ -305,11 +277,7 @@ export function CodexOAuthCard() {
       recordStatus(nextStatus);
       setCallbackUrl("");
     } catch (error) {
-      setErrorKey(
-        codexErrorMessageKey(
-          error instanceof CodexOAuthApiError ? error.code : null,
-        ),
-      );
+      setErrorKey(codexErrorMessageKey(error instanceof CodexOAuthApiError ? error.code : null));
     } finally {
       setPending(false);
     }
@@ -317,8 +285,7 @@ export function CodexOAuthCard() {
 
   const polling = Boolean(status && shouldPollCodexStatus(status));
   const connected = status?.connection === "connected";
-  const messageKey =
-    errorKey || (status ? codexStatusMessageKey(status) : null);
+  const messageKey = errorKey || (status ? codexStatusMessageKey(status) : null);
   const callbackPort = status?.callback_port ?? loginStart?.callback_port;
   const displayMessageKey =
     messageKey === "codex.oauth.callbackMissing" && callbackPort == null
@@ -331,9 +298,7 @@ export function CodexOAuthCard() {
         <ShieldCheck className="mt-0.5 h-5 w-5 text-[var(--primary)]" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">{t("codex.oauth.title")}</p>
-          <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-            {t("codex.oauth.isolated")}
-          </p>
+          <p className="mt-1 text-xs text-[var(--muted-foreground)]">{t("codex.oauth.isolated")}</p>
           <p className="mt-1 text-xs text-[var(--muted-foreground)]">
             {t("codex.oauth.ownerBound")}
           </p>
@@ -357,67 +322,51 @@ export function CodexOAuthCard() {
               {t("codex.oauth.modelCount", { count: status.model_count })}
             </p>
           )}
-          {connected &&
-            catalogEditable === false &&
-            status.models.length > 0 && (
-              <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
-                <p className="text-sm font-medium">
-                  {t("codex.oauth.reasoningTitle")}
-                </p>
-                <p className="mt-1 text-xs text-[var(--muted-foreground)]">
-                  {t("codex.oauth.reasoningDescription")}
-                </p>
-                <div className="mt-3 space-y-3">
-                  {status.models.map((model) => {
-                    const options = reasoningEffortOptionsFromSupportedLevels(
-                      model.supported_reasoning_levels,
-                    );
-                    if (options.length === 0) return null;
-                    return (
-                      <label key={model.model} className="block">
-                        <span className="mb-1 block truncate text-xs font-medium">
-                          {model.name}
-                        </span>
-                        <select
-                          className="h-9 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] outline-none focus:border-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-60"
-                          value={model.model in efforts ? efforts[model.model] || "" : model.reasoning_effort || ""}
-                          disabled={pending}
-                          onChange={(event) =>
-                            void updateReasoningEffort(
-                              model,
-                              event.target.value,
-                            )
-                          }
-                        >
-                          {options.map((option) => (
-                            <option
-                              key={option.value || "auto"}
-                              value={option.value}
-                            >
-                              {t(option.label)}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    );
-                  })}
-                </div>
+          {connected && catalogEditable === false && status.models.length > 0 && (
+            <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
+              <p className="text-sm font-medium">{t("codex.oauth.reasoningTitle")}</p>
+              <p className="mt-1 text-xs text-[var(--muted-foreground)]">
+                {t("codex.oauth.reasoningDescription")}
+              </p>
+              <div className="mt-3 space-y-3">
+                {status.models.map((model) => {
+                  const options = reasoningEffortOptionsFromSupportedLevels(
+                    model.supported_reasoning_levels,
+                  );
+                  if (options.length === 0) return null;
+                  return (
+                    <label key={model.model} className="block">
+                      <span className="mb-1 block truncate text-xs font-medium">{model.name}</span>
+                      <select
+                        className="h-9 w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 text-sm text-[var(--foreground)] outline-none focus:border-[var(--ring)] disabled:cursor-not-allowed disabled:opacity-60"
+                        value={
+                          model.model in efforts
+                            ? efforts[model.model] || ""
+                            : model.reasoning_effort || ""
+                        }
+                        disabled={pending}
+                        onChange={(event) => void updateReasoningEffort(model, event.target.value)}
+                      >
+                        {options.map((option) => (
+                          <option key={option.value || "auto"} value={option.value}>
+                            {t(option.label)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  );
+                })}
               </div>
-            )}
+            </div>
+          )}
           {remoteAccess && remoteGuidance && (
             <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
-              <p className="text-sm font-medium">
-                {t("codex.oauth.remoteTitle")}
-              </p>
+              <p className="text-sm font-medium">{t("codex.oauth.remoteTitle")}</p>
               <p className="mt-2 text-xs text-[var(--muted-foreground)]">
                 {t("codex.oauth.remoteSteps")}
               </p>
-              <p className="mt-3 text-xs font-medium">
-                {t("codex.oauth.callbackAddress")}
-              </p>
-              <code className="mt-1 block break-all text-xs">
-                {remoteGuidance.redirect_uri}
-              </code>
+              <p className="mt-3 text-xs font-medium">{t("codex.oauth.callbackAddress")}</p>
+              <code className="mt-1 block break-all text-xs">{remoteGuidance.redirect_uri}</code>
               <p className="mt-2 text-xs text-[var(--muted-foreground)]">
                 {t("codex.oauth.expiresIn", {
                   seconds: remoteGuidance.expires_in,
@@ -457,16 +406,11 @@ export function CodexOAuthCard() {
           )}
           {remoteGuidance && (
             <div className="mt-4 rounded-lg border border-[var(--border)] bg-[var(--background)] p-3">
-              <p className="text-sm font-medium">
-                {t("codex.oauth.callbackRecoveryTitle")}
-              </p>
+              <p className="text-sm font-medium">{t("codex.oauth.callbackRecoveryTitle")}</p>
               <p className="mt-2 text-xs text-[var(--muted-foreground)]">
                 {t("codex.oauth.callbackRecoveryHint")}
               </p>
-              <label
-                className="mt-3 block text-xs font-medium"
-                htmlFor="codex-callback-url"
-              >
+              <label className="mt-3 block text-xs font-medium" htmlFor="codex-callback-url">
                 {t("codex.oauth.callbackUrlLabel")}
               </label>
               <input

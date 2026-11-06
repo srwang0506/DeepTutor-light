@@ -13,10 +13,7 @@ import { Loader2 } from "lucide-react";
 import { useKnowledgeBases } from "@/hooks/useKnowledgeBases";
 import { updateRagProviderMode } from "@/features/knowledge/api/engines";
 import KnowledgeHome, { type KnowledgeHomeSection } from "./KnowledgeHome";
-import {
-  decodeResourceSegment,
-  knowledgeBaseRoute,
-} from "@/lib/resource-routes";
+import { decodeResourceSegment, knowledgeBaseRoute } from "@/lib/resource-routes";
 import type {
   IndexingLLMSelection,
   LinkedFolderInfo,
@@ -24,10 +21,7 @@ import type {
 } from "@/features/knowledge/model/types";
 
 const panelLoading = () => (
-  <div
-    className="flex min-h-0 flex-1 items-center justify-center"
-    aria-busy="true"
-  >
+  <div className="flex min-h-0 flex-1 items-center justify-center" aria-busy="true">
     <Loader2 className="h-5 w-5 animate-spin text-[var(--muted-foreground)]" />
   </div>
 );
@@ -38,12 +32,9 @@ const panelLoading = () => (
 const KnowledgeBaseDetail = dynamic(() => import("./KnowledgeBaseDetail"), {
   loading: panelLoading,
 });
-const EngineDetail = dynamic(
-  () => import("@/features/knowledge/components/engines/EngineDetail"),
-  {
-    loading: panelLoading,
-  },
-);
+const EngineDetail = dynamic(() => import("@/features/knowledge/components/engines/EngineDetail"), {
+  loading: panelLoading,
+});
 const CreateKbModal = dynamic(() => import("./CreateKbModal"));
 const ConnectKiwixModal = dynamic(() => import("./ConnectKiwixModal"));
 
@@ -91,19 +82,11 @@ export default function KnowledgePage() {
   // Connected subagents are stored as ``type: subagent`` KBs so the chat
   // composer can select them, but they are agents, not knowledge bases — keep
   // them out of the Knowledge Center entirely.
-  const kbs = useMemo(
-    () => allKbs.filter((kb) => kb.metadata?.type !== "subagent"),
-    [allKbs],
-  );
+  const kbs = useMemo(() => allKbs.filter((kb) => kb.metadata?.type !== "subagent"), [allKbs]);
 
-  const [explicitSelection, setExplicitSelection] = useState<string | null>(
-    initialKb,
-  );
-  const [selectedEngineId, setSelectedEngineId] = useState<string | null>(
-    initialEngine,
-  );
-  const [homeSection, setHomeSection] =
-    useState<KnowledgeHomeSection>(initialHomeSection);
+  const [explicitSelection, setExplicitSelection] = useState<string | null>(initialKb);
+  const [selectedEngineId, setSelectedEngineId] = useState<string | null>(initialEngine);
+  const [homeSection, setHomeSection] = useState<KnowledgeHomeSection>(initialHomeSection);
   const [createOpen, setCreateOpen] = useState(false);
   const [kiwixOpen, setKiwixOpen] = useState(false);
   const [createPreset, setCreatePreset] = useState<{
@@ -131,17 +114,20 @@ export default function KnowledgePage() {
   // Dynamic segment changes do not necessarily remount this client page.
   // Follow the route on browser history navigation instead of restoring a
   // stale in-memory selection over it.
-  useEffect(() => {
-    if (initialKb) {
-      setExplicitSelection(initialKb);
-      setView("kb");
-    } else if (view === "kb") {
-      setExplicitSelection(null);
-      setView("home");
-    }
-    // Only a route transition should drive this synchronization.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialKb]);
+  const [derivedInputs0, setDerivedInputs0] = useState<readonly unknown[]>([]);
+  if (derivedInputs0.length !== 1 || !Object.is(derivedInputs0[0], initialKb)) {
+    setDerivedInputs0([initialKb]);
+    (() => {
+      if (initialKb) {
+        setExplicitSelection(initialKb);
+        setView("kb");
+      } else if (view === "kb") {
+        setExplicitSelection(null);
+        setView("home");
+      }
+      // Only a route transition should drive this synchronization.
+    })();
+  }
 
   const openKb = useCallback((name: string) => {
     setHomeSection("knowledge-bases");
@@ -184,19 +170,22 @@ export default function KnowledgePage() {
       loading ||
       !explicitSelection ||
       kbs.some((kb) => knowledgeBaseRef(kb) === explicitSelection || kb.name === explicitSelection)
-    ) return;
+    )
+      return;
     let cancelled = false;
     void apiFetch(
       apiUrl(`/api/knowledge-bases/${encodeURIComponent(explicitSelection)}?resource_library=true`),
     )
-      .then((response) => response.ok ? response.json() : null)
+      .then((response) => (response.ok ? response.json() : null))
       .then((detail: { id?: string } | null) => {
         if (!cancelled && detail?.id && kbs.some((kb) => knowledgeBaseRef(kb) === detail.id)) {
           setExplicitSelection(detail.id);
         }
       })
       .catch(() => undefined);
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [explicitSelection, kbs, loading]);
 
   // The effective engine selection: respect the pick if it still exists.
@@ -209,8 +198,7 @@ export default function KnowledgePage() {
   // remain query state because they are views/filters, not KB resources.
   const urlKb = view === "kb" ? (selectedKbName ?? null) : null;
   const urlEngine = view === "engine" ? (selectedProvider?.id ?? null) : null;
-  const urlSection =
-    view === "home" && homeSection === "knowledge-engines" ? "engines" : null;
+  const urlSection = view === "home" && homeSection === "knowledge-engines" ? "engines" : null;
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (
@@ -283,15 +271,9 @@ export default function KnowledgePage() {
       try {
         const workspaces = await resourceUsage("knowledge_bases", name);
         const impact = workspaces.length
-          ? "\n\n" +
-            t("Used by workspaces: {{names}}", { names: workspaces.join(", ") })
+          ? "\n\n" + t("Used by workspaces: {{names}}", { names: workspaces.join(", ") })
           : "";
-        if (
-          !window.confirm(
-            t('Delete knowledge base "{{name}}"?', { name }) + impact,
-          )
-        )
-          return;
+        if (!window.confirm(t('Delete knowledge base "{{name}}"?', { name }) + impact)) return;
         await deleteKb(name);
         if (explicitSelection === name) {
           setExplicitSelection(null);
@@ -461,14 +443,8 @@ export default function KnowledgePage() {
             <KnowledgeBaseDetail
               kb={selectedKb}
               uploadPolicy={uploadPolicy}
-              task={
-                selectedKb ? tasksByKb[knowledgeBaseRef(selectedKb)] : undefined
-              }
-              history={
-                selectedKb
-                  ? (historyByKb[knowledgeBaseRef(selectedKb)] ?? [])
-                  : []
-              }
+              task={selectedKb ? tasksByKb[knowledgeBaseRef(selectedKb)] : undefined}
+              history={selectedKb ? (historyByKb[knowledgeBaseRef(selectedKb)] ?? []) : []}
               onCreate={openCreate}
               onUpload={handleUpload}
               onLinkFolder={handleLinkFolder}

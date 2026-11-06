@@ -1,13 +1,7 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useHydratedState } from "@/hooks/useHydratedState";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { apiFetch, apiUrl } from "@/lib/api";
 import {
   getStoredTheme,
@@ -54,10 +48,7 @@ import {
   type AppLanguage,
 } from "@/context/app-shell-storage";
 import { fetchAuthStatus } from "@/lib/auth";
-import {
-  recoveryPrincipal,
-  RECOVERY_PRINCIPAL_CHANGED,
-} from "@/lib/recovery-principal";
+import { recoveryPrincipal, RECOVERY_PRINCIPAL_CHANGED } from "@/lib/recovery-principal";
 import {
   DEFAULT_LEARNING_DISPLAY,
   CONTENT_LINE_SPACING,
@@ -88,29 +79,36 @@ interface AppShellContextValue {
 const AppShellContext = createContext<AppShellContextValue | null>(null);
 
 export function AppShellProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    return getStoredTheme() ?? getSystemTheme();
-  });
+  const [theme, setThemeState] = useHydratedState<Theme>(
+    () => getStoredTheme() ?? getSystemTheme(),
+    "light",
+  );
   // Always start with "en" to match SSR; hydrate from localStorage after mount
   const [language, setLanguageState] = useState<AppLanguage>("en");
   const [languageReady, setLanguageReady] = useState(false);
-  const [activeSessionId, setActiveSessionIdState] = useState<string | null>(
-    () => readStoredActiveSessionId(),
+  const [activeSessionId, setActiveSessionIdState] = useState<string | null>(() =>
+    readStoredActiveSessionId(),
   );
   // Always start expanded to match SSR; hydrate from localStorage after mount
-  const [sidebarCollapsed, setSidebarCollapsedState] = useState<boolean>(false);
+  const [sidebarCollapsed, setSidebarCollapsedState] = useHydratedState<boolean>(
+    readStoredSidebarCollapsed,
+    false,
+  );
   // Code block settings - start with defaults, hydrate from localStorage after mount
-  const [codeBlockTheme, setCodeBlockThemeState] = useState<string>(
+  const [codeBlockTheme, setCodeBlockThemeState] = useHydratedState<string>(
+    readStoredCodeBlockTheme,
     DEFAULT_CODE_BLOCK_THEME,
   );
-  const [codeBlockShowLineNumbers, setCodeBlockShowLineNumbersState] =
-    useState<boolean>(DEFAULT_CODE_BLOCK_SHOW_LINE_NUMBERS);
-  const [codeBlockWrapLongLines, setCodeBlockWrapLongLinesState] =
-    useState<boolean>(DEFAULT_CODE_BLOCK_WRAP_LONG_LINES);
-
-  const [learningDisplay, setLearningDisplay] = useState(
-    DEFAULT_LEARNING_DISPLAY,
+  const [codeBlockShowLineNumbers, setCodeBlockShowLineNumbersState] = useHydratedState<boolean>(
+    readStoredCodeBlockShowLineNumbers,
+    DEFAULT_CODE_BLOCK_SHOW_LINE_NUMBERS,
   );
+  const [codeBlockWrapLongLines, setCodeBlockWrapLongLinesState] = useHydratedState<boolean>(
+    readStoredCodeBlockWrapLongLines,
+    DEFAULT_CODE_BLOCK_WRAP_LONG_LINES,
+  );
+
+  const [learningDisplay, setLearningDisplay] = useState(DEFAULT_LEARNING_DISPLAY);
 
   useEffect(() => {
     let generation = 0;
@@ -144,8 +142,7 @@ export function AppShellProvider({ children }: { children: React.ReactNode }) {
           principal: string | null;
         }>
       ).detail;
-      if (!recoveryPrincipal() || detail?.principal !== recoveryPrincipal())
-        return;
+      if (!recoveryPrincipal() || detail?.principal !== recoveryPrincipal()) return;
       // A successful Apply supersedes any in-flight bootstrap response.
       generation += 1;
       setLearningDisplay(normalizeLearningDisplay(detail.preferences));
@@ -177,14 +174,6 @@ export function AppShellProvider({ children }: { children: React.ReactNode }) {
       root.style.removeProperty("--learning-line-height");
     };
   }, [learningDisplay]);
-
-  useEffect(() => {
-    // Hydrate client-only preferences after SSR-safe first render.
-    setSidebarCollapsedState(readStoredSidebarCollapsed());
-    setCodeBlockThemeState(readStoredCodeBlockTheme());
-    setCodeBlockShowLineNumbersState(readStoredCodeBlockShowLineNumbers());
-    setCodeBlockWrapLongLinesState(readStoredCodeBlockWrapLongLines());
-  }, []);
 
   useEffect(() => {
     // The saved languages live in the backend's ui settings, but only the
@@ -242,9 +231,7 @@ export function AppShellProvider({ children }: { children: React.ReactNode }) {
           // what the server does for a legacy interface.json.
           writeStoredResponseLanguage(
             resolveResponseLanguage(
-              typeof payload.response_language === "string"
-                ? payload.response_language
-                : null,
+              typeof payload.response_language === "string" ? payload.response_language : null,
               payload.language,
             ),
           );
@@ -267,14 +254,14 @@ export function AppShellProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // ThemeScript paints before hydration. This starts the live
     // prefers-color-scheme listener when the choice is system or unset.
-    setThemeState(initializeTheme());
+    initializeTheme();
   }, []);
 
   useEffect(() => {
     return subscribeToThemeChanges((nextTheme) => {
       setThemeState(nextTheme);
     });
-  }, []);
+  }, [setThemeState]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -293,14 +280,10 @@ export function AppShellProvider({ children }: { children: React.ReactNode }) {
         setCodeBlockThemeState(normalizeCodeBlockTheme(event.newValue));
       }
       if (event.key === CODE_BLOCK_SHOW_LINE_NUMBERS_STORAGE_KEY) {
-        setCodeBlockShowLineNumbersState(
-          normalizeCodeBlockShowLineNumbers(event.newValue),
-        );
+        setCodeBlockShowLineNumbersState(normalizeCodeBlockShowLineNumbers(event.newValue));
       }
       if (event.key === CODE_BLOCK_WRAP_LONG_LINES_STORAGE_KEY) {
-        setCodeBlockWrapLongLinesState(
-          normalizeCodeBlockWrapLongLines(event.newValue),
-        );
+        setCodeBlockWrapLongLinesState(normalizeCodeBlockWrapLongLines(event.newValue));
       }
     };
 
@@ -310,8 +293,7 @@ export function AppShellProvider({ children }: { children: React.ReactNode }) {
     };
 
     const onActiveSession = (event: Event) => {
-      const detail = (event as CustomEvent<{ sessionId?: string | null }>)
-        .detail;
+      const detail = (event as CustomEvent<{ sessionId?: string | null }>).detail;
       setActiveSessionIdState(detail?.sessionId ?? null);
     };
 
@@ -333,9 +315,7 @@ export function AppShellProvider({ children }: { children: React.ReactNode }) {
         setCodeBlockThemeState(normalizeCodeBlockTheme(detail.codeBlockTheme));
       }
       if (detail?.codeBlockShowLineNumbers !== undefined) {
-        setCodeBlockShowLineNumbersState(
-          Boolean(detail.codeBlockShowLineNumbers),
-        );
+        setCodeBlockShowLineNumbersState(Boolean(detail.codeBlockShowLineNumbers));
       }
       if (detail?.codeBlockWrapLongLines !== undefined) {
         setCodeBlockWrapLongLinesState(Boolean(detail.codeBlockWrapLongLines));
@@ -353,17 +333,22 @@ export function AppShellProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener(LANGUAGE_EVENT, onLanguage);
       window.removeEventListener(ACTIVE_SESSION_EVENT, onActiveSession);
       window.removeEventListener(SIDEBAR_COLLAPSED_EVENT, onSidebarCollapsed);
-      window.removeEventListener(
-        CODE_BLOCK_SETTINGS_EVENT,
-        onCodeBlockSettings,
-      );
+      window.removeEventListener(CODE_BLOCK_SETTINGS_EVENT, onCodeBlockSettings);
     };
-  }, []);
+  }, [
+    setCodeBlockShowLineNumbersState,
+    setCodeBlockThemeState,
+    setCodeBlockWrapLongLinesState,
+    setSidebarCollapsedState,
+  ]);
 
-  const setTheme = useCallback((nextTheme: Theme) => {
-    applyThemePreference(nextTheme);
-    setThemeState(nextTheme);
-  }, []);
+  const setTheme = useCallback(
+    (nextTheme: Theme) => {
+      applyThemePreference(nextTheme);
+      setThemeState(nextTheme);
+    },
+    [setThemeState],
+  );
 
   const setLanguage = useCallback((nextLanguage: AppLanguage) => {
     writeStoredLanguage(nextLanguage);
@@ -376,26 +361,38 @@ export function AppShellProvider({ children }: { children: React.ReactNode }) {
     setActiveSessionIdState(sessionId);
   }, []);
 
-  const setSidebarCollapsed = useCallback((collapsed: boolean) => {
-    writeStoredSidebarCollapsed(collapsed);
-    setSidebarCollapsedState(collapsed);
-  }, []);
+  const setSidebarCollapsed = useCallback(
+    (collapsed: boolean) => {
+      writeStoredSidebarCollapsed(collapsed);
+      setSidebarCollapsedState(collapsed);
+    },
+    [setSidebarCollapsedState],
+  );
 
-  const setCodeBlockTheme = useCallback((nextTheme: string) => {
-    const normalizedTheme = normalizeCodeBlockTheme(nextTheme);
-    writeStoredCodeBlockTheme(normalizedTheme);
-    setCodeBlockThemeState(normalizedTheme);
-  }, []);
+  const setCodeBlockTheme = useCallback(
+    (nextTheme: string) => {
+      const normalizedTheme = normalizeCodeBlockTheme(nextTheme);
+      writeStoredCodeBlockTheme(normalizedTheme);
+      setCodeBlockThemeState(normalizedTheme);
+    },
+    [setCodeBlockThemeState],
+  );
 
-  const setCodeBlockShowLineNumbers = useCallback((show: boolean) => {
-    writeStoredCodeBlockShowLineNumbers(show);
-    setCodeBlockShowLineNumbersState(show);
-  }, []);
+  const setCodeBlockShowLineNumbers = useCallback(
+    (show: boolean) => {
+      writeStoredCodeBlockShowLineNumbers(show);
+      setCodeBlockShowLineNumbersState(show);
+    },
+    [setCodeBlockShowLineNumbersState],
+  );
 
-  const setCodeBlockWrapLongLines = useCallback((wrap: boolean) => {
-    writeStoredCodeBlockWrapLongLines(wrap);
-    setCodeBlockWrapLongLinesState(wrap);
-  }, []);
+  const setCodeBlockWrapLongLines = useCallback(
+    (wrap: boolean) => {
+      writeStoredCodeBlockWrapLongLines(wrap);
+      setCodeBlockWrapLongLinesState(wrap);
+    },
+    [setCodeBlockWrapLongLinesState],
+  );
 
   const value = useMemo<AppShellContextValue>(
     () => ({
@@ -434,11 +431,7 @@ export function AppShellProvider({ children }: { children: React.ReactNode }) {
     ],
   );
 
-  return (
-    <AppShellContext.Provider value={value}>
-      {children}
-    </AppShellContext.Provider>
-  );
+  return <AppShellContext.Provider value={value}>{children}</AppShellContext.Provider>;
 }
 
 export function useAppShell() {

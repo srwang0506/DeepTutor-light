@@ -1,4 +1,5 @@
 "use client";
+import { useLayoutEffect } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { SettingRow, SettingSection, inputClass } from "./shared";
@@ -20,14 +21,9 @@ import {
  */
 export default function ChatResponseTimeoutSection() {
   const { t } = useTranslation();
-  const { registerExtension, pendingExtensionPayload, draftRevision } =
-    useSettings();
-  const [seconds, setSeconds] = useState<number>(
-    DEFAULT_CHAT_RESPONSE_TIMEOUT_SECONDS,
-  );
-  const [initial, setInitial] = useState<number>(
-    DEFAULT_CHAT_RESPONSE_TIMEOUT_SECONDS,
-  );
+  const { registerExtension, pendingExtensionPayload, draftRevision } = useSettings();
+  const [seconds, setSeconds] = useState<number>(DEFAULT_CHAT_RESPONSE_TIMEOUT_SECONDS);
+  const [initial, setInitial] = useState<number>(DEFAULT_CHAT_RESPONSE_TIMEOUT_SECONDS);
   const [message, setMessage] = useState("");
   const [loaded, setLoaded] = useState(false);
 
@@ -41,8 +37,7 @@ export default function ChatResponseTimeoutSection() {
           ui?: { chat_response_timeout?: number };
         };
         const value = clampChatResponseTimeout(
-          Number(data?.ui?.chat_response_timeout) ||
-            DEFAULT_CHAT_RESPONSE_TIMEOUT_SECONDS,
+          Number(data?.ui?.chat_response_timeout) || DEFAULT_CHAT_RESPONSE_TIMEOUT_SECONDS,
         );
         if (cancelled) return;
         const pending = pendingExtensionPayload("chat-timeout") as
@@ -52,8 +47,7 @@ export default function ChatResponseTimeoutSection() {
         setLoaded(true);
         writeStoredChatResponseTimeout(value);
       } catch (err) {
-        if (!cancelled)
-          setMessage(err instanceof Error ? err.message : String(err));
+        if (!cancelled) setMessage(err instanceof Error ? err.message : String(err));
       }
     })();
     return () => {
@@ -65,19 +59,18 @@ export default function ChatResponseTimeoutSection() {
 
   // Flush through the global Apply (top toolbar) instead of a local button.
   const secondsRef = useRef(seconds);
-  secondsRef.current = seconds;
+  useLayoutEffect(() => {
+    secondsRef.current = seconds;
+  }, [seconds]);
   const save = useCallback(async () => {
     setMessage("");
     try {
       const value = clampChatResponseTimeout(secondsRef.current);
-      const response = await apiFetch(
-        apiUrl("/api/settings/chat-response-timeout"),
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ chat_response_timeout: value }),
-        },
-      );
+      const response = await apiFetch(apiUrl("/api/settings/chat-response-timeout"), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ chat_response_timeout: value }),
+      });
       if (!response.ok) throw new Error(t("Failed to save."));
       setSeconds(value);
       setInitial(value);
@@ -127,9 +120,7 @@ export default function ChatResponseTimeoutSection() {
         }
       />
       {message && (
-        <p className="px-1 pb-3 text-[11.5px] text-[var(--muted-foreground)]">
-          {message}
-        </p>
+        <p className="px-1 pb-3 text-[11.5px] text-[var(--muted-foreground)]">{message}</p>
       )}
     </SettingSection>
   );

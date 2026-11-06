@@ -1,6 +1,6 @@
 "use client";
 
-import { pageActionClass, pageGridClass } from '@/components/layout/FeaturePage'
+import { pageActionClass, pageGridClass } from "@/components/layout/FeaturePage";
 import Tooltip from "@/shared/ui/Tooltip";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -23,11 +23,7 @@ import ImportWizard from "@/components/space/ImportWizard";
 import ScopeEditorModal from "@/components/space/ScopeEditorModal";
 import { useAppShell } from "@/context/AppShellContext";
 import { formatRelativeTime } from "@/lib/relative-time";
-import {
-  deleteSession,
-  updateSessionTitle,
-  type SessionSummary,
-} from "@/lib/session-api";
+import { deleteSession, updateSessionTitle, type SessionSummary } from "@/lib/session-api";
 import { importChatHistory, listImportedSessions } from "@/lib/imports-api";
 import {
   deleteAgent,
@@ -36,10 +32,7 @@ import {
   saveAgent,
   type ImportAgent,
 } from "@/lib/chat-import/agent-store";
-import {
-  assignSessionsToAgents,
-  readImportMeta,
-} from "@/lib/chat-import/attribution";
+import { assignSessionsToAgents, readImportMeta } from "@/lib/chat-import/attribution";
 import {
   filterRefsByScope,
   parseSessions,
@@ -79,10 +72,8 @@ function scopeSummary(
   scope: AgentScope,
   t: (key: string, opts?: Record<string, unknown>) => string,
 ): string {
-  if (scope.kind === "projects")
-    return t("{{count}} projects", { count: scope.cwds.length });
-  if (scope.kind === "dates")
-    return t("{{count}} days", { count: scope.days.length });
+  if (scope.kind === "projects") return t("{{count}} projects", { count: scope.cwds.length });
+  if (scope.kind === "dates") return t("{{count}} days", { count: scope.days.length });
   return t("All conversations");
 }
 
@@ -101,23 +92,28 @@ export default function MyAgentsSection() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [scopeAgent, setScopeAgent] = useState<ImportAgent | null>(null);
 
-  const load = useCallback(async (force = false) => {
-    setLoading(true);
-    try {
-      const [imported, reg] = await Promise.all([
-        listImportedSessions(200, 0, { force }),
-        getAgents(),
-      ]);
-      setSessions(imported);
-      setRegistry(reg);
-    } finally {
-      setLoading(false);
-    }
+  const loadData = useCallback(async (force = false) => {
+    return Promise.all([listImportedSessions(200, 0, { force }), getAgents()])
+      .then(async ([imported, reg]) => {
+        setSessions(imported);
+        setRegistry(reg);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
+  const load = useCallback(
+    (force = false) => {
+      setLoading(true);
+      return loadData(force);
+    },
+    [loadData],
+  );
+
   useEffect(() => {
-    void load(true);
-  }, [load]);
+    void loadData(true);
+  }, [loadData]);
 
   const { cards, byCard } = useMemo(() => {
     const ordered = [...registry].sort(
@@ -159,10 +155,18 @@ export default function MyAgentsSection() {
   }, [registry, sessions]);
 
   // Keep a valid selection as cards load/change.
-  useEffect(() => {
-    if (selectedKey && cards.some((c) => c.key === selectedKey)) return;
-    setSelectedKey(cards[0]?.key ?? null);
-  }, [cards, selectedKey]);
+  const [derivedInputs0, setDerivedInputs0] = useState<readonly unknown[]>([]);
+  if (
+    derivedInputs0.length !== 2 ||
+    !Object.is(derivedInputs0[0], cards) ||
+    !Object.is(derivedInputs0[1], selectedKey)
+  ) {
+    setDerivedInputs0([cards, selectedKey]);
+    (() => {
+      if (selectedKey && cards.some((c) => c.key === selectedKey)) return;
+      setSelectedKey(cards[0]?.key ?? null);
+    })();
+  }
 
   const visibleSessions = useMemo(() => {
     const list = selectedKey ? (byCard.get(selectedKey) ?? []) : [];
@@ -193,12 +197,15 @@ export default function MyAgentsSection() {
 
   const handleDeleteSession = useCallback(
     async (sessionId: string) => {
-      if (!window.confirm(t("Permanently delete this chat and its tutor threads? This cannot be undone."))) return;
+      if (
+        !window.confirm(
+          t("Permanently delete this chat and its tutor threads? This cannot be undone."),
+        )
+      )
+        return;
       await deleteSession(sessionId);
       if (activeSessionId === sessionId) setActiveSessionId(null);
-      setSessions((prev) =>
-        prev.filter((session) => session.session_id !== sessionId),
-      );
+      setSessions((prev) => prev.filter((session) => session.session_id !== sessionId));
     },
     [activeSessionId, setActiveSessionId, t],
   );
@@ -260,9 +267,7 @@ export default function MyAgentsSection() {
         : t("Delete “{{name}}”?", { name: agent.name });
       if (!window.confirm(message)) return;
       await deleteAgent(agent.id);
-      await Promise.allSettled(
-        owned.map((s) => deleteSession(s.session_id || s.id)),
-      );
+      await Promise.allSettled(owned.map((s) => deleteSession(s.session_id || s.id)));
       await load(true);
     },
     [byCard, load, t],
@@ -280,11 +285,7 @@ export default function MyAgentsSection() {
         )}
         action={
           !isEmpty ? (
-            <button
-              type="button"
-              onClick={() => setWizardOpen(true)}
-              className={pageActionClass()}
-            >
+            <button type="button" onClick={() => setWizardOpen(true)} className={pageActionClass()}>
               <Plus className="h-3.5 w-3.5" />
               {t("Import conversations")}
             </button>
@@ -328,11 +329,7 @@ export default function MyAgentsSection() {
             )}
           </div>
 
-          {note && (
-            <p className="text-[11.5px] text-[var(--muted-foreground)]">
-              {note}
-            </p>
-          )}
+          {note && <p className="text-[11.5px] text-[var(--muted-foreground)]">{note}</p>}
 
           <section className="rounded-2xl border border-[var(--border)] bg-[var(--card)] shadow-sm">
             <div className="border-b border-[var(--border)]/60 px-4 py-3">
@@ -455,11 +452,7 @@ function AgentCard({
       </span>
       <div className="min-w-0 flex-1">
         {renaming ? (
-          <RenameInput
-            initial={agent.name}
-            onCommit={onCommitRename}
-            onCancel={onCancelRename}
-          />
+          <RenameInput initial={agent.name} onCommit={onCommitRename} onCancel={onCancelRename} />
         ) : (
           <div className="truncate text-[13.5px] font-semibold tracking-tight text-[var(--foreground)]">
             {agent.name}

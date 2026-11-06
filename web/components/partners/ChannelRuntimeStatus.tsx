@@ -1,12 +1,10 @@
 "use client";
 
+import { useKeyedState } from "@/hooks/useKeyedState";
 import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, Loader2, QrCode, Wifi } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import {
-  getPartnerChannelRuntime,
-  type PartnerChannelRuntimeEntry,
-} from "@/lib/partners-api";
+import { getPartnerChannelRuntime, type PartnerChannelRuntimeEntry } from "@/lib/partners-api";
 
 const REFRESH_MS = 2500;
 
@@ -20,11 +18,13 @@ export default function ChannelRuntimeStatus({
   enabled: boolean;
 }) {
   const { t } = useTranslation();
-  const [entry, setEntry] = useState<PartnerChannelRuntimeEntry | null>(null);
+  const [entry, setEntry] = useKeyedState<PartnerChannelRuntimeEntry | null>(
+    JSON.stringify([partnerId, channel, enabled]),
+    null,
+  );
 
   useEffect(() => {
     if (!enabled) {
-      setEntry(null);
       return;
     }
 
@@ -47,7 +47,7 @@ export default function ChannelRuntimeStatus({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [channel, enabled, partnerId]);
+  }, [channel, enabled, partnerId, setEntry]);
 
   const setup = entry?.setup;
   const label = useMemo(() => {
@@ -62,9 +62,7 @@ export default function ChannelRuntimeStatus({
       case "waiting_for_scan":
         return t("Waiting for scan");
       case "action_required":
-        return channel === "weixin"
-          ? t("Waiting for scan")
-          : t("Configuration required");
+        return channel === "weixin" ? t("Waiting for scan") : t("Configuration required");
       case "unavailable":
         return t("Unavailable");
       case "error":
@@ -80,8 +78,7 @@ export default function ChannelRuntimeStatus({
 
   const isError = setup.status === "error" || setup.status === "unavailable";
   const isBusy = setup.status === "connecting" || setup.status === "starting";
-  const isConnected =
-    setup.status === "connected" || setup.status === "running";
+  const isConnected = setup.status === "connected" || setup.status === "running";
 
   return (
     <div
@@ -105,9 +102,7 @@ export default function ChannelRuntimeStatus({
           {t("Status")}: {label}
         </span>
       </div>
-      {setup.message && (
-        <p className="mt-1.5 leading-relaxed">{t(setup.message)}</p>
-      )}
+      {setup.message && <p className="mt-1.5 leading-relaxed">{t(setup.message)}</p>}
       {setup.qr_data_url ? (
         /* QR data URLs are generated in-process and cannot use Next's image
            optimizer; this mirrors the existing channel-onboarding panel. */
@@ -118,9 +113,7 @@ export default function ChannelRuntimeStatus({
           className="mt-2 h-[148px] w-[148px] rounded-md bg-white p-1.5"
         />
       ) : setup.qr_payload ? (
-        <p className="mt-2 break-all font-mono text-[10px]">
-          {setup.qr_payload}
-        </p>
+        <p className="mt-2 break-all font-mono text-[10px]">{setup.qr_payload}</p>
       ) : null}
     </div>
   );

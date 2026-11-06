@@ -60,13 +60,9 @@ function messageOf(error: unknown): string {
   return String(error);
 }
 
-export function useNotebookLibrary(
-  initialId?: string | null,
-): NotebookLibrary {
+export function useNotebookLibrary(initialId?: string | null): NotebookLibrary {
   const [notebooks, setNotebooks] = useState<NotebookSummary[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(
-    initialId ?? null,
-  );
+  const [selectedId, setSelectedId] = useState<string | null>(initialId ?? null);
   const [selected, setSelected] = useState<NotebookDetailState | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -79,46 +75,68 @@ export function useNotebookLibrary(
   // response can overwrite the notebook the user is actually looking at.
   const detailRequestRef = useRef(0);
 
-  const loadDetail = useCallback(async (notebookId: string) => {
+  const loadDetailData = useCallback(async (notebookId: string) => {
     const requestId = ++detailRequestRef.current;
-    setDetailLoading(true);
-    setDetailError(null);
-    try {
-      const data = await getNotebook(notebookId);
-      if (detailRequestRef.current !== requestId) return;
-      setSelected({ ...data, records: data.records ?? [] });
-    } catch (err) {
-      if (detailRequestRef.current !== requestId) return;
-      setSelected(null);
-      setDetailError(messageOf(err));
-    } finally {
-      if (detailRequestRef.current === requestId) setDetailLoading(false);
-    }
+    return getNotebook(notebookId)
+      .then(async (data) => {
+        if (detailRequestRef.current !== requestId) return;
+        setSelected({ ...data, records: data.records ?? [] });
+      })
+      .catch((err) => {
+        if (detailRequestRef.current !== requestId) return;
+        setSelected(null);
+        setDetailError(messageOf(err));
+      })
+      .finally(() => {
+        if (detailRequestRef.current === requestId) setDetailLoading(false);
+      });
   }, []);
 
-  const reload = useCallback(async () => {
-    setError(null);
-    try {
-      const next = await listNotebooks();
-      setNotebooks(next);
-      // Only the route opens a notebook: `/notebooks` itself is the list.
-      setSelectedId((current) =>
-        current &&
-        (current === previousRouteIdRef.current ||
-          next.some((n) => n.id === current))
-          ? current
-          : null,
-      );
-    } catch (err) {
-      setError(messageOf(err));
-    } finally {
-      setLoading(false);
-    }
+  const loadDetail = useCallback(
+    (notebookId: string) => {
+      setDetailLoading(true);
+      setDetailError(null);
+      return loadDetailData(notebookId);
+    },
+    [loadDetailData],
+  );
+  const [detailKey, setDetailKey] = useState<string | null | undefined>(undefined);
+  if (detailKey !== selectedId) {
+    setDetailKey(selectedId);
+    setSelected(null);
+    setDetailError(null);
+    setDetailLoading(!!selectedId);
+  }
+  const reloadData = useCallback(async () => {
+    return listNotebooks()
+      .then(async (next) => {
+        setNotebooks(next);
+        setSelectedId((current) =>
+          current && (current === previousRouteIdRef.current || next.some((n) => n.id === current))
+            ? current
+            : null,
+        );
+      })
+      .catch((err) => {
+        setError(messageOf(err));
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
+  const [reloadInputs, setReloadInputs] = useState<typeof reloadData | null>(null);
+  if (reloadInputs !== reloadData) {
+    setReloadInputs(() => reloadData);
+    setError(null);
+  }
+  const reload = useCallback(() => {
+    setError(null);
+    return reloadData();
+  }, [reloadData]);
 
   useEffect(() => {
-    void reload();
-  }, [reload]);
+    void reloadData();
+  }, [reloadData]);
 
   // App Router can reuse this client component while only the dynamic segment
   // changes. Treat that segment as authoritative so browser back/forward and
@@ -137,13 +155,10 @@ export function useNotebookLibrary(
       // starts no fetch, so without this an in-flight response lands after the
       // clear and puts the notebook straight back on screen.
       detailRequestRef.current += 1;
-      setSelected(null);
-      setDetailError(null);
-      setDetailLoading(false);
       return;
     }
-    void loadDetail(selectedId);
-  }, [selectedId, loadDetail]);
+    void loadDetailData(selectedId);
+  }, [selectedId, loadDetailData]);
 
   const select = useCallback((notebookId: string | null) => {
     setSelectedId(notebookId);
@@ -171,24 +186,17 @@ export function useNotebookLibrary(
       changes: { name?: string; description?: string; color?: string },
     ) => {
       const updated = await updateNotebook(notebookId, changes);
-      setNotebooks((prev) =>
-        prev.map((n) => (n.id === notebookId ? { ...n, ...updated } : n)),
-      );
-      setSelected((prev) =>
-        prev && prev.id === notebookId ? { ...prev, ...updated } : prev,
-      );
+      setNotebooks((prev) => prev.map((n) => (n.id === notebookId ? { ...n, ...updated } : n)));
+      setSelected((prev) => (prev && prev.id === notebookId ? { ...prev, ...updated } : prev));
     },
     [],
   );
 
-  const remove = useCallback(
-    async (notebookId: string) => {
-      await deleteNotebook(notebookId);
-      setNotebooks((prev) => prev.filter((n) => n.id !== notebookId));
-      setSelectedId((current) => (current === notebookId ? null : current));
-    },
-    [],
-  );
+  const remove = useCallback(async (notebookId: string) => {
+    await deleteNotebook(notebookId);
+    setNotebooks((prev) => prev.filter((n) => n.id !== notebookId));
+    setSelectedId((current) => (current === notebookId ? null : current));
+  }, []);
 
   // Keep the sidebar's record count honest after any record-level change
   // without paying for a full list refetch.
@@ -203,19 +211,14 @@ export function useNotebookLibrary(
   }, []);
 
   const editRecord = useCallback(
-    async (
-      recordId: string,
-      changes: { title?: string; summary?: string; output?: string },
-    ) => {
+    async (recordId: string, changes: { title?: string; summary?: string; output?: string }) => {
       if (!selectedId) return;
       const updated = await updateNotebookRecord(selectedId, recordId, changes);
       setSelected((prev) =>
         prev
           ? {
               ...prev,
-              records: prev.records.map((r) =>
-                r.id === recordId ? { ...r, ...updated } : r,
-              ),
+              records: prev.records.map((r) => (r.id === recordId ? { ...r, ...updated } : r)),
             }
           : prev,
       );
@@ -228,9 +231,7 @@ export function useNotebookLibrary(
       if (!selectedId) return;
       await deleteNotebookRecord(selectedId, recordId);
       setSelected((prev) =>
-        prev
-          ? { ...prev, records: prev.records.filter((r) => r.id !== recordId) }
-          : prev,
+        prev ? { ...prev, records: prev.records.filter((r) => r.id !== recordId) } : prev,
       );
       adjustCount(selectedId, -1);
     },
@@ -238,18 +239,9 @@ export function useNotebookLibrary(
   );
 
   const relocateRecord = useCallback(
-    async (
-      recordId: string,
-      targetNotebookId: string,
-      mode: "move" | "copy",
-    ) => {
+    async (recordId: string, targetNotebookId: string, mode: "move" | "copy") => {
       if (!selectedId) return;
-      await relocateNotebookRecord(
-        selectedId,
-        recordId,
-        targetNotebookId,
-        mode,
-      );
+      await relocateNotebookRecord(selectedId, recordId, targetNotebookId, mode);
       if (mode === "move") {
         setSelected((prev) =>
           prev

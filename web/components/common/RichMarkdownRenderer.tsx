@@ -1,5 +1,6 @@
 "use client";
 
+import SourceImage from "@/components/common/SourceImage";
 import React, { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
@@ -55,10 +56,10 @@ const LazyCodeBlock = dynamic(() => import("./RichCodeBlock"), {
   loading: () => null,
 });
 
-const GeogebraOpenCTA = dynamic(
-  () => import("@/components/common/GeogebraOpenCTA"),
-  { ssr: false, loading: () => null },
-);
+const GeogebraOpenCTA = dynamic(() => import("@/components/common/GeogebraOpenCTA"), {
+  ssr: false,
+  loading: () => null,
+});
 
 type PluginBundle = {
   remarkMath?: unknown;
@@ -131,11 +132,7 @@ export default function RichMarkdownRenderer({
   const [plugins, setPlugins] = useState<PluginBundle>({});
   const isTrace = variant === "trace";
   const gap = isTrace ? "my-1" : variant === "compact" ? "my-2" : "my-4";
-  const cellPad = isTrace
-    ? "px-1.5 py-1"
-    : variant === "compact"
-      ? "px-2 py-1.5"
-      : "px-3 py-2";
+  const cellPad = isTrace ? "px-1.5 py-1" : variant === "compact" ? "px-2 py-1.5" : "px-3 py-2";
   const headingSpacing = variant === "compact" ? "mt-4 mb-2" : "mt-6 mb-3";
   const textColor = "text-[var(--foreground)]";
 
@@ -186,40 +183,22 @@ export default function RichMarkdownRenderer({
   }, [enableMath, enableMermaid, normalizedContent, trackSourceLines]);
 
   const traceComponents: Record<string, React.ComponentType<any>> = {
-    p: ({ node, ...props }: any) => (
-      <p className="mb-1.5 last:mb-0" {...props} />
-    ),
-    h1: ({ node, children }: any) => (
-      <p className="mb-1.5 font-semibold">{children}</p>
-    ),
-    h2: ({ node, children }: any) => (
-      <p className="mb-1.5 font-semibold">{children}</p>
-    ),
-    h3: ({ node, children }: any) => (
-      <p className="mb-1.5 font-semibold">{children}</p>
-    ),
-    h4: ({ node, children }: any) => (
-      <p className="mb-1.5 font-semibold">{children}</p>
-    ),
-    h5: ({ node, children }: any) => (
-      <p className="mb-1.5 font-semibold">{children}</p>
-    ),
-    h6: ({ node, children }: any) => (
-      <p className="mb-1.5 font-semibold">{children}</p>
-    ),
+    p: ({ node, ...props }: any) => <p className="mb-1.5 last:mb-0" {...props} />,
+    h1: ({ node, children }: any) => <p className="mb-1.5 font-semibold">{children}</p>,
+    h2: ({ node, children }: any) => <p className="mb-1.5 font-semibold">{children}</p>,
+    h3: ({ node, children }: any) => <p className="mb-1.5 font-semibold">{children}</p>,
+    h4: ({ node, children }: any) => <p className="mb-1.5 font-semibold">{children}</p>,
+    h5: ({ node, children }: any) => <p className="mb-1.5 font-semibold">{children}</p>,
+    h6: ({ node, children }: any) => <p className="mb-1.5 font-semibold">{children}</p>,
     strong: ({ node, children }: any) => (
-      <strong className="font-semibold text-[var(--foreground)]">
-        {children}
-      </strong>
+      <strong className="font-semibold text-[var(--foreground)]">{children}</strong>
     ),
     em: ({ node, children }: any) => <em className="italic">{children}</em>,
     a: ({ node, children }: any) => (
       <span className="underline underline-offset-2">{children}</span>
     ),
     blockquote: ({ node, children }: any) => (
-      <div className="border-l border-current/20 pl-3 opacity-80">
-        {children}
-      </div>
+      <div className="border-l border-current/20 pl-3 opacity-80">{children}</div>
     ),
     pre: ({ children }: any) => <div dir="ltr">{children}</div>,
     code: ({ node, children }: any) => (
@@ -229,12 +208,8 @@ export default function RichMarkdownRenderer({
     ),
     img: () => null,
     hr: () => <div className="my-1 h-px bg-current opacity-10" />,
-    ul: ({ node, ...props }: any) => (
-      <ul className="my-1 ml-4 list-disc" {...props} />
-    ),
-    ol: ({ node, ...props }: any) => (
-      <ol className="my-1 ml-4 list-decimal" {...props} />
-    ),
+    ul: ({ node, ...props }: any) => <ul className="my-1 ml-4 list-disc" {...props} />,
+    ol: ({ node, ...props }: any) => <ol className="my-1 ml-4 list-decimal" {...props} />,
     li: ({ node, ...props }: any) => <li className="my-0.5 pl-0" {...props} />,
     table: ({ node, children, ...props }: any) =>
       hasRenderableChildren(children) ? (
@@ -244,9 +219,7 @@ export default function RichMarkdownRenderer({
           </table>
         </div>
       ) : null,
-    thead: ({ node, ...props }: any) => (
-      <thead className="bg-[var(--muted)]/50" {...props} />
-    ),
+    thead: ({ node, ...props }: any) => <thead className="bg-[var(--muted)]/50" {...props} />,
     th: ({ node, ...props }: any) => (
       <th
         className="border-b border-[var(--border)]/50 px-1.5 py-0.5 text-left font-medium"
@@ -255,20 +228,12 @@ export default function RichMarkdownRenderer({
     ),
     tbody: ({ node, ...props }: any) => <tbody {...props} />,
     td: ({ node, ...props }: any) => (
-      <td
-        className="border-b border-[var(--border)]/30 px-1.5 py-0.5"
-        {...props}
-      />
+      <td className="border-b border-[var(--border)]/30 px-1.5 py-0.5" {...props} />
     ),
     tr: ({ node, ...props }: any) => <tr {...props} />,
     input: ({ node, type, ...props }: any) =>
       type === "checkbox" ? (
-        <input
-          type="checkbox"
-          readOnly
-          className="mr-1 align-middle"
-          {...props}
-        />
+        <input type="checkbox" readOnly className="mr-1 align-middle" {...props} />
       ) : null,
     progress: () => null,
     meter: () => null,
@@ -282,8 +247,7 @@ export default function RichMarkdownRenderer({
       hasRenderableChildren(children) ? <span>{children}</span> : null,
   };
 
-  const lineAttr = (node: any) =>
-    trackSourceLines ? sourceLineAttr(node) : {};
+  const lineAttr = (node: any) => (trackSourceLines ? sourceLineAttr(node) : {});
 
   const headingComponents = {
     h1: ({ node, children, className: headingClassName, ...props }: any) => {
@@ -389,17 +353,12 @@ export default function RichMarkdownRenderer({
           className={`overflow-x-auto rounded-lg border border-[var(--border)] shadow-sm ${gap}`}
           {...lineAttr(node)}
         >
-          <table
-            className="min-w-full divide-y divide-[var(--border)] text-sm"
-            {...props}
-          >
+          <table className="min-w-full divide-y divide-[var(--border)] text-sm" {...props}>
             {children}
           </table>
         </div>
       ) : null,
-    thead: ({ node, ...props }: any) => (
-      <thead className="bg-[var(--muted)]" {...props} />
-    ),
+    thead: ({ node, ...props }: any) => <thead className="bg-[var(--muted)]" {...props} />,
     th: ({ node, ...props }: any) => (
       <th
         className={`border-b border-[var(--border)] text-start font-semibold text-[var(--foreground)] ${cellPad}`}
@@ -407,10 +366,7 @@ export default function RichMarkdownRenderer({
       />
     ),
     tbody: ({ node, ...props }: any) => (
-      <tbody
-        className="divide-y divide-[var(--border)] bg-[var(--card)]"
-        {...props}
-      />
+      <tbody className="divide-y divide-[var(--border)] bg-[var(--card)]" {...props} />
     ),
     td: ({ node, ...props }: any) => (
       <td
@@ -424,9 +380,7 @@ export default function RichMarkdownRenderer({
     pre: ({ children }: any) => <div dir="ltr">{children}</div>,
     code: ({ node, className: blockClassName, children, ...props }: any) => {
       const raw = String(children).replace(/\n$/, "");
-      const langMatch = /language-([A-Za-z0-9_+#.-]+)/.exec(
-        blockClassName || "",
-      );
+      const langMatch = /language-([A-Za-z0-9_+#.-]+)/.exec(blockClassName || "");
       const lang = langMatch?.[1]?.toLowerCase() || "";
       const isMultiline = raw.includes("\n");
       const lineProps = isMultiline ? lineAttr(node) : {};
@@ -442,14 +396,9 @@ export default function RichMarkdownRenderer({
       // editor.md style fences. With `trackSourceLines` the preprocess
       // pipeline is bypassed (it would shift line numbers), so the raw
       // fence reaches us here and we convert at render time instead.
-      if (
-        (lang === "flow" || lang === "seq" || lang === "sequence") &&
-        enableMermaid
-      ) {
+      if ((lang === "flow" || lang === "seq" || lang === "sequence") && enableMermaid) {
         const converted =
-          lang === "flow"
-            ? convertFlowFenceToMermaid(raw)
-            : convertSequenceFenceToMermaid(raw);
+          lang === "flow" ? convertFlowFenceToMermaid(raw) : convertSequenceFenceToMermaid(raw);
         if (converted) {
           return (
             <div className="learning-text-excluded" {...lineProps}>
@@ -532,8 +481,7 @@ export default function RichMarkdownRenderer({
       }
       const isCitation = title === "citation";
       const isHashLink = href?.startsWith("#");
-      const external =
-        href?.startsWith("http://") || href?.startsWith("https://");
+      const external = href?.startsWith("http://") || href?.startsWith("https://");
 
       if (isCitation) {
         const label = extractText(children);
@@ -552,8 +500,7 @@ export default function RichMarkdownRenderer({
             {ids.map((id, idx) => {
               const prefixMatch = id.match(/^(web|rag|code|src)-/);
               const prefix = prefixMatch?.[1] ?? "";
-              const num =
-                prefix && prefixMatch ? id.slice(prefixMatch[0].length) : id;
+              const num = prefix && prefixMatch ? id.slice(prefixMatch[0].length) : id;
               const citationAnchor = citationAnchorIdFor(id);
               return (
                 <React.Fragment key={`${id}-${idx}`}>
@@ -585,9 +532,7 @@ export default function RichMarkdownRenderer({
       return (
         <a
           href={href}
-          {...(external
-            ? { target: "_blank", rel: "noopener noreferrer" }
-            : {})}
+          {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
           onClick={(event) => {
             if (!isHashLink || !href) return;
 
@@ -608,16 +553,10 @@ export default function RichMarkdownRenderer({
       const attachmentName = parseAttachmentHref(src);
       const className = `${gap} inline-block max-w-full rounded-lg border border-[var(--border)]`;
       if (attachmentName) {
-        return (
-          <InlineWorkspaceImage
-            name={attachmentName}
-            alt={alt || ""}
-            className={className}
-          />
-        );
+        return <InlineWorkspaceImage name={attachmentName} alt={alt || ""} className={className} />;
       }
       return (
-        <img
+        <SourceImage
           src={src}
           alt={alt || ""}
           loading="lazy"
@@ -635,11 +574,7 @@ export default function RichMarkdownRenderer({
       />
     ),
     hr: ({ node, ...props }: any) => (
-      <hr
-        className={`${gap} h-px border-none bg-[var(--border)]`}
-        {...lineAttr(node)}
-        {...props}
-      />
+      <hr className={`${gap} h-px border-none bg-[var(--border)]`} {...lineAttr(node)} {...props} />
     ),
     input: ({ node, type, checked, ...props }: any) =>
       type === "checkbox" ? (
@@ -680,14 +615,7 @@ export default function RichMarkdownRenderer({
   const components = useMemo(
     () => (isTrace ? traceComponents : normalComponents),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- components only change with variant/feature flags
-    [
-      isTrace,
-      variant,
-      enableMermaid,
-      enableCode,
-      enableImages,
-      trackSourceLines,
-    ],
+    [isTrace, variant, enableMermaid, enableCode, enableImages, trackSourceLines],
   );
 
   const rootClasses = isTrace
@@ -700,11 +628,7 @@ export default function RichMarkdownRenderer({
   // clickable file links (no-op outside a chat message — fileCtx is null).
   const fileCtx = useInlineFileCardContext();
   const fileLinkPlugin = useMemo(
-    () =>
-      makeFileLinkRemarkPlugin(
-        fileCtx?.files ?? [],
-        fileCtx?.unresolvedRelativeLinksAsText,
-      ),
+    () => makeFileLinkRemarkPlugin(fileCtx?.files ?? [], fileCtx?.unresolvedRelativeLinksAsText),
     [fileCtx?.files, fileCtx?.unresolvedRelativeLinksAsText],
   );
   const remarkPlugins = useMemo(() => {

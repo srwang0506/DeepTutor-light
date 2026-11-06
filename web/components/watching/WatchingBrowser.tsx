@@ -1,6 +1,7 @@
 'use client'
 
-import { scopedUrl } from "@/lib/workspace-scope";
+import { useKeyedState } from '@/hooks/useKeyedState'
+import { scopedUrl } from '@/lib/workspace-scope'
 import { LearningCardContent } from '@/components/learning/LearningCard'
 
 import {
@@ -9,7 +10,6 @@ import {
   LearningErrorState,
   LearningSkeleton,
 } from '@/components/learning/LearningShell'
-
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -38,7 +38,10 @@ export function WatchingBrowser({
 }) {
   const { t } = useTranslation()
   const auth = useAuthStatus()
-  const [account, setAccount] = useState<InvidiousAccountStatus | null>(null)
+  const [account, setAccount] = useKeyedState<InvidiousAccountStatus | null>(
+    JSON.stringify([auth.userId, auth.enabled, auth.statusAvailable]),
+    null,
+  )
   const [view, setView] = useState<BrowserView>('search')
   const [input, setInput] = useState('')
   const [query, setQuery] = useState('')
@@ -56,10 +59,9 @@ export function WatchingBrowser({
   useEffect(() => {
     if (auth.loading || !auth.statusAvailable) return
     let alive = true
-    setItems([])
-    setAccount(null)
+    restored.current = false
     void invidiousAccount('status')
-      .then(status => {
+      .then((status) => {
         if (!alive) return
         setAccount(status)
         let saved: {
@@ -89,18 +91,25 @@ export function WatchingBrowser({
     return () => {
       alive = false
     }
-  }, [auth.loading, auth.statusAvailable, key, t])
+  }, [auth.loading, auth.statusAvailable, key, setAccount, t])
 
+  const contentKey = JSON.stringify([key, account, view, query, page, playlist, reload])
+  const [previousContentKey, setPreviousContentKey] = useState('')
+  if (contentKey !== previousContentKey) {
+    setPreviousContentKey(contentKey)
+    setItems([])
+    setError('')
+    setBusy(
+      !!account &&
+        ((view !== 'search' && account.connected) || (view === 'search' && !!query.trim())),
+    )
+  }
   useEffect(() => {
     if (!account) return
     const controller = new AbortController()
-    setItems([])
-    setError('')
-    setBusy(false)
     if ((view !== 'search' && !account.connected) || (view === 'search' && !query.trim())) return
-    setBusy(true)
     void browseInvidious(view, query, page, playlist, controller.signal)
-      .then(data => {
+      .then((data) => {
         if (controller.signal.aborted) return
         setItems(Array.isArray(data) ? data : data.videos || [])
         requestAnimationFrame(() => {
@@ -127,7 +136,7 @@ export function WatchingBrowser({
       browserStorage.writeRaw(
         'session',
         key,
-        JSON.stringify({ view, query, page, playlist, scroll: position })
+        JSON.stringify({ view, query, page, playlist, scroll: position }),
       )
     } catch {
       /* Optional. */
@@ -209,13 +218,13 @@ export function WatchingBrowser({
           {account && !account.connected && (
             <p className="mb-4 text-sm text-[var(--muted-foreground)]">
               {t(
-                'Sign in with your Invidious account, then approve read-only access to return here. Your DeepTutor login is separate.'
+                'Sign in with your Invidious account, then approve read-only access to return here. Your DeepTutor login is separate.',
               )}
             </p>
           )}
           <form
             className="flex gap-2"
-            onSubmit={event => {
+            onSubmit={(event) => {
               event.preventDefault()
               if (/^https?:\/\//i.test(input.trim())) {
                 select(input.trim())
@@ -231,7 +240,7 @@ export function WatchingBrowser({
               aria-label={t('Search videos or paste a video link')}
               placeholder={t('Search videos or paste a video link')}
               value={input}
-              onChange={e => setInput(e.target.value)}
+              onChange={(e) => setInput(e.target.value)}
             />
             <button className="watching-browser-button" type="submit" disabled={!input.trim()}>
               <Search size={18} />
@@ -266,7 +275,7 @@ export function WatchingBrowser({
             <LearningErrorState
               message={error}
               onRetry={() => {
-                setReload(value => value + 1)
+                setReload((value) => value + 1)
                 if (!account)
                   void invidiousAccount('status')
                     .then(setAccount)
@@ -303,11 +312,11 @@ export function WatchingBrowser({
                 </button>
               )}
               <div className="watching-video-grid">
-                {items.map(item => {
+                {items.map((item) => {
                   const isPlaylist = 'playlistId' in item
                   const video = isPlaylist ? item.videos?.[0] : item
-                  const thumbnail = video?.videoThumbnails?.find(thumb =>
-                    /^https?:\/\//.test(thumb.url)
+                  const thumbnail = video?.videoThumbnails?.find((thumb) =>
+                    /^https?:\/\//.test(thumb.url),
                   )?.url
                   return (
                     <button
@@ -320,7 +329,7 @@ export function WatchingBrowser({
                           setPage(1)
                         } else
                           select(
-                            `https://www.youtube.com/watch?v=${encodeURIComponent(item.videoId)}`
+                            `https://www.youtube.com/watch?v=${encodeURIComponent(item.videoId)}`,
                           )
                       }}
                     >

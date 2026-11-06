@@ -22,10 +22,7 @@ import {
   fetchReadingCollectionIndex,
   type ReadingCollectionLabel,
 } from "@/lib/reading-workspace-api";
-import {
-  fetchMasteryTopicIndex,
-  type MasteryTopicLabel,
-} from "@/lib/learning-api";
+import { fetchMasteryTopicIndex, type MasteryTopicLabel } from "@/lib/learning-api";
 import { sessionRoute } from "@/lib/mastery-session";
 import { subscribeSessionChanges } from "@/lib/session-events";
 
@@ -35,9 +32,7 @@ export default function UtilitySidebar() {
   const { activeSessionId, setActiveSessionId } = useAppShell();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [masteryTopics, setMasteryTopics] = useState<MasteryTopicLabel[]>([]);
-  const [readingCollections, setReadingCollections] = useState<
-    ReadingCollectionLabel[]
-  >([]);
+  const [readingCollections, setReadingCollections] = useState<ReadingCollectionLabel[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
   const hasLoadedSessionsRef = useRef(false);
 
@@ -45,23 +40,23 @@ export default function UtilitySidebar() {
     if (!hasLoadedSessionsRef.current) {
       setLoadingSessions(true);
     }
-    try {
-      // Labels only name a heading, so losing them costs grouping, not the list.
-      const [nextSessions, nextTopics, nextCollections] =
-        await Promise.all([
-          listAllSessions({ force: true }),
-          fetchMasteryTopicIndex().catch(() => [] as MasteryTopicLabel[]),
-          fetchReadingCollectionIndex().catch(() => [] as ReadingCollectionLabel[]),
-        ]);
-      setSessions(nextSessions);
-      setMasteryTopics(nextTopics);
-      setReadingCollections(nextCollections);
-      hasLoadedSessionsRef.current = true;
-    } catch (error) {
-      console.error("Failed to load sessions", error);
-    } finally {
-      setLoadingSessions(false);
-    }
+    return Promise.all([
+      listAllSessions({ force: true }),
+      fetchMasteryTopicIndex().catch(() => [] as MasteryTopicLabel[]),
+      fetchReadingCollectionIndex().catch(() => [] as ReadingCollectionLabel[]),
+    ])
+      .then(async ([nextSessions, nextTopics, nextCollections]) => {
+        setSessions(nextSessions);
+        setMasteryTopics(nextTopics);
+        setReadingCollections(nextCollections);
+        hasLoadedSessionsRef.current = true;
+      })
+      .catch((error) => {
+        console.error("Failed to load sessions", error);
+      })
+      .finally(() => {
+        setLoadingSessions(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -72,10 +67,7 @@ export default function UtilitySidebar() {
   // sidebar knows nothing about — Settings › Archive being the reason this
   // exists. Without it the list keeps hiding a conversation that was just
   // restored two panes away.
-  useEffect(
-    () => subscribeSessionChanges(() => void refreshSessions()),
-    [refreshSessions],
-  );
+  useEffect(() => subscribeSessionChanges(() => void refreshSessions()), [refreshSessions]);
 
   // A study conversation opens on its own path — see ``sessionRoute``.
   const handleSelectSession = useCallback(
@@ -89,7 +81,11 @@ export default function UtilitySidebar() {
 
   const handleRenameSession = useCallback(
     async (sessionId: string, title: string) => {
-      const updated = await updateSessionTitle(sessionId, title, sessionWorkspaceId(sessions.find(item => item.session_id === sessionId)));
+      const updated = await updateSessionTitle(
+        sessionId,
+        title,
+        sessionWorkspaceId(sessions.find((item) => item.session_id === sessionId)),
+      );
       setSessions((prev) =>
         prev.map((session) =>
           session.session_id === sessionId
@@ -107,11 +103,17 @@ export default function UtilitySidebar() {
 
   const handleDeleteSession = useCallback(
     async (sessionId: string) => {
-      if (!window.confirm(t("Permanently delete this chat and its tutor threads? This cannot be undone."))) return;
-      await deleteSession(sessionId, sessionWorkspaceId(sessions.find(item => item.session_id === sessionId)));
-      setSessions((prev) =>
-        prev.filter((session) => session.session_id !== sessionId),
+      if (
+        !window.confirm(
+          t("Permanently delete this chat and its tutor threads? This cannot be undone."),
+        )
+      )
+        return;
+      await deleteSession(
+        sessionId,
+        sessionWorkspaceId(sessions.find((item) => item.session_id === sessionId)),
       );
+      setSessions((prev) => prev.filter((session) => session.session_id !== sessionId));
       if (activeSessionId === sessionId) {
         setActiveSessionId(null);
       }
@@ -121,9 +123,14 @@ export default function UtilitySidebar() {
 
   const handleOrganizeSession = useCallback(
     async (sessionId: string, patch: SessionOrganizationPatch) => {
-      const updated = await updateSessionOrganization(sessionId, patch, sessionWorkspaceId(sessions.find(item => item.session_id === sessionId)));
+      const updated = await updateSessionOrganization(
+        sessionId,
+        patch,
+        sessionWorkspaceId(sessions.find((item) => item.session_id === sessionId)),
+      );
       // A conversation moved to another workspace has left this list.
-      const movedAway = "workspace_id" in patch &&
+      const movedAway =
+        "workspace_id" in patch &&
         (updated.preferences?.workspace_id || "") !== activeWorkspaceId();
       setSessions((previous) =>
         movedAway

@@ -1,10 +1,19 @@
 "use client";
 
+import { useHydratedState } from "@/hooks/useHydratedState";
 import dynamic from "next/dynamic";
 import { browserStorage } from "@/shared/storage";
 import Tooltip from "@/shared/ui/Tooltip";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowLeft,
@@ -43,20 +52,10 @@ import {
 import { AnnotationList } from "./AnnotationList";
 import { AnnotationPopover, type PopoverAiAction } from "./AnnotationPopover";
 import { passagePrompts } from "@/lib/reading-passage-prompts";
-import {
-  PdfDocumentView,
-  type JumpRequest,
-  type SelectionPayload,
-} from "./PdfDocumentView";
+import { PdfDocumentView, type JumpRequest, type SelectionPayload } from "./PdfDocumentView";
 import { ReadingExtensionBar } from "./ReadingExtensionBar";
-import {
-  useReadingActions,
-  type ReadingActionEntry,
-} from "./reading-actions-context";
-import {
-  useWorkspaceMenuSection,
-  type WorkspaceMenuItem,
-} from "./workspace-menu-context";
+import { useReadingActions, type ReadingActionEntry } from "./reading-actions-context";
+import { useWorkspaceMenuSection, type WorkspaceMenuItem } from "./workspace-menu-context";
 import { TextUnitView, unitLabel } from "./TextUnitView";
 import type { ReaderHeading } from "@/lib/reading-outline";
 import {
@@ -74,14 +73,18 @@ import {
 function EpubLoading() {
   const { t } = useTranslation();
   return (
-    <div role="status" aria-label={t("Loading")} className="flex h-full items-center justify-center">
+    <div
+      role="status"
+      aria-label={t("Loading")}
+      className="flex h-full items-center justify-center"
+    >
       <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin text-[var(--muted-foreground)]" />
     </div>
   );
 }
 
 const EpubDocumentView = dynamic(
-  () => import("./EpubDocumentView").then(module => module.EpubDocumentView),
+  () => import("./EpubDocumentView").then((module) => module.EpubDocumentView),
   { ssr: false, loading: EpubLoading },
 );
 
@@ -89,10 +92,7 @@ const EpubDocumentView = dynamic(
 export const READER_ASK_EVENT = "dt:reader-ask";
 const AUTO_JUMP_KEY = "dt.reader.autoJump";
 
-function locationEntry(
-  material: MaterialDetail,
-  locator: number,
-): ReadingLocationEntry {
+function locationEntry(material: MaterialDetail, locator: number): ReadingLocationEntry {
   return {
     materialId: material.material_id,
     locator,
@@ -208,9 +208,7 @@ export function ReaderPane({
     reportViewport,
   } = useReading();
 
-  const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(
-    null,
-  );
+  const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(null);
   const [selection, setSelection] = useState<SelectionPayload | null>(null);
   // Whether the annotation popover is showing, kept apart from whether there
   // IS a selection. They used to be the same flag, and the popover dismisses
@@ -240,30 +238,33 @@ export function ReaderPane({
   // a layout bug rather than an affordance. An explicit true/false means the
   // user decided, and that wins from then on.
   const [annotationPanel, setAnnotationPanel] = useState<boolean | null>(null);
-  const [autoJump, setAutoJump] = useState(true);
+  const [autoJump, setAutoJump] = useHydratedState(
+    () => browserStorage.readRaw("local", AUTO_JUMP_KEY) !== "0",
+    true,
+  );
   const [exporting, setExporting] = useState(false);
   const [currentLocator, setCurrentLocator] = useState(1);
   const [epubPosition, setEpubPosition] = useState<{
-    materialId: string; percentage: number | null;
+    materialId: string;
+    percentage: number | null;
   } | null>(null);
-  const handleEpubProgress = useCallback((percentage: number | null) => {
-    if (material) setEpubPosition({ materialId: material.material_id, percentage });
-  }, [material]);
+  const handleEpubProgress = useCallback(
+    (percentage: number | null) => {
+      if (material) setEpubPosition({ materialId: material.material_id, percentage });
+    },
+    [material],
+  );
   const nonceRef = useRef(0);
   const headingLocatorRef = useRef(1);
-  const jumpMaterialIdRef = useRef<string | null>(null);
+  const [jumpMaterialId, setJumpMaterialId] = useState<string | null>(null);
   const [locationHistory, setLocationHistory] =
     useState<ReadingLocationHistory>(EMPTY_READING_HISTORY);
-  const [historySessionId, setHistorySessionId] = useState<
-    string | null | undefined
-  >(undefined);
+  const [historySessionId, setHistorySessionId] = useState<string | null | undefined>(undefined);
   const [showHistory, setShowHistory] = useState(false);
   const [showMoreTools, setShowMoreTools] = useState(false);
   const moreToolsButtonRef = useRef<HTMLButtonElement>(null);
   const moreToolsMenuRef = useRef<HTMLDivElement>(null);
-  const [unavailableMaterials, setUnavailableMaterials] = useState<Set<string>>(
-    new Set(),
-  );
+  const [unavailableMaterials, setUnavailableMaterials] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!showMoreTools) return;
@@ -336,15 +337,6 @@ export function ReaderPane({
 
   // -- persisted auto-jump preference --------------------------------------
 
-  useEffect(() => {
-    try {
-      const stored = browserStorage.readRaw("local", AUTO_JUMP_KEY);
-      if (stored !== null) setAutoJump(stored === "1");
-    } catch {
-      // Private mode / storage disabled — keep the default.
-    }
-  }, []);
-
   const toggleAutoJump = useCallback(() => {
     setAutoJump((current) => {
       const next = !current;
@@ -355,7 +347,7 @@ export function ReaderPane({
       }
       return next;
     });
-  }, []);
+  }, [setAutoJump]);
 
   // -- viewport reporting --------------------------------------------------
 
@@ -387,16 +379,12 @@ export function ReaderPane({
       }
       if (material && historyReady) {
         const pending = pendingNavigationRef.current;
-        if (
-          pending?.materialId === material.material_id &&
-          pending.locator !== locator
-        ) {
+        if (pending?.materialId === material.material_id && pending.locator !== locator) {
           return;
         }
         setLocationHistory((current) => {
           const entry = locationEntry(material, locator);
-          return current.entries[current.index]?.materialId ===
-            material.material_id
+          return current.entries[current.index]?.materialId === material.material_id
             ? replaceCurrentReadingLocation(current, entry)
             : pushReadingLocation(current, entry);
         });
@@ -415,8 +403,7 @@ export function ReaderPane({
     (locator: number, quote?: string, targetMaterialId?: string) => {
       nonceRef.current += 1;
       setJump({ locator, quote, nonce: nonceRef.current });
-      jumpMaterialIdRef.current =
-        targetMaterialId ?? material?.material_id ?? null;
+      setJumpMaterialId(targetMaterialId ?? material?.material_id ?? null);
     },
     [material?.material_id],
   );
@@ -449,9 +436,7 @@ export function ReaderPane({
         const opened = await openMaterial(candidate ?? entry.materialId);
         if (navigationNonce !== navigationNonceRef.current) return false;
         if (!opened) {
-          setUnavailableMaterials((current) =>
-            new Set(current).add(entry.materialId),
-          );
+          setUnavailableMaterials((current) => new Set(current).add(entry.materialId));
           pendingNavigationRef.current = null;
           return false;
         }
@@ -494,6 +479,7 @@ export function ReaderPane({
     [locationHistory, openHistoryEntry],
   );
 
+  /* eslint-disable react-hooks/set-state-in-effect -- Consume an external navigation/restoration command through the cancellable imperative controller. Running this transaction during render would repeat I/O or mutate another store. */
   useEffect(() => {
     const scopedSessionId = sessionId ?? null;
     if (loadingMaterial) return;
@@ -505,9 +491,7 @@ export function ReaderPane({
     const hadPendingNavigation = pendingNavigationRef.current !== null;
     navigationNonceRef.current += 1;
     pendingNavigationRef.current = null;
-    const restored = scopedSessionId
-      ? loadReadingHistory(scopedSessionId)
-      : EMPTY_READING_HISTORY;
+    const restored = scopedSessionId ? loadReadingHistory(scopedSessionId) : EMPTY_READING_HISTORY;
     setLocationHistory(restored);
     setUnavailableMaterials(new Set());
     setHistorySessionId(sessionId ?? null);
@@ -519,7 +503,7 @@ export function ReaderPane({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId, loadingMaterial]);
 
-  useEffect(() => {
+  /* eslint-enable react-hooks/set-state-in-effect */ useEffect(() => {
     if (!historyReady || !sessionId || historySessionId !== sessionId) return;
     saveReadingHistory(sessionId, locationHistory);
   }, [historyReady, historySessionId, locationHistory, sessionId]);
@@ -532,10 +516,7 @@ export function ReaderPane({
       setCurrentLocator(pending.locator);
       if (pending.mode === "push") {
         setLocationHistory((current) =>
-          pushReadingLocation(
-            current,
-            locationEntry(material, pending.locator),
-          ),
+          pushReadingLocation(current, locationEntry(material, pending.locator)),
         );
       }
       return;
@@ -543,9 +524,7 @@ export function ReaderPane({
     if (pending) return;
     setJump(null);
     setCurrentLocator(1);
-    setLocationHistory((current) =>
-      pushReadingLocation(current, locationEntry(material, 1)),
-    );
+    setLocationHistory((current) => pushReadingLocation(current, locationEntry(material, 1)));
   }, [historyReady, material]);
 
   // -- resume where the reader left off ------------------------------------
@@ -597,10 +576,7 @@ export function ReaderPane({
       if (target.materialId && target.materialId !== material?.material_id) {
         try {
           const candidate = await getMaterial(target.materialId);
-          if (
-            target.materialRevision &&
-            candidate.revision !== target.materialRevision
-          ) {
+          if (target.materialRevision && candidate.revision !== target.materialRevision) {
             setError(
               "This citation points to an older material revision that is not available in the reader.",
             );
@@ -616,10 +592,7 @@ export function ReaderPane({
           );
           return true;
         }
-      } else if (
-        target.materialRevision &&
-        material?.revision !== target.materialRevision
-      ) {
+      } else if (target.materialRevision && material?.revision !== target.materialRevision) {
         setError(
           "This citation points to an older material revision that is not available in the reader.",
         );
@@ -639,7 +612,7 @@ export function ReaderPane({
     ],
   );
 
-  const followedSource = useRef('');
+  const followedSource = useRef("");
   useEffect(() => {
     const follow = () => {
       const href = window.location.hash;
@@ -648,8 +621,8 @@ export function ReaderPane({
       void navigateCitation(href);
     };
     follow();
-    window.addEventListener('hashchange', follow);
-    return () => window.removeEventListener('hashchange', follow);
+    window.addEventListener("hashchange", follow);
+    return () => window.removeEventListener("hashchange", follow);
   }, [material, navigateCitation]);
 
   useEffect(() => {
@@ -677,8 +650,7 @@ export function ReaderPane({
       if (!detail || !material) return;
       // Ignore actions aimed at a document that is no longer open — a stale
       // event replayed from an earlier turn must not move the current view.
-      if (detail.material_id && detail.material_id !== material.material_id)
-        return;
+      if (detail.material_id && detail.material_id !== material.material_id) return;
 
       if (detail.reader_action === "annotate" && detail.annotation) {
         const incoming = detail.annotation as unknown as AnnotationItem;
@@ -694,8 +666,7 @@ export function ReaderPane({
       }
     };
     window.addEventListener(READER_ACTION_EVENT, onReaderAction);
-    return () =>
-      window.removeEventListener(READER_ACTION_EVENT, onReaderAction);
+    return () => window.removeEventListener(READER_ACTION_EVENT, onReaderAction);
   }, [material, autoJump, requestJump, mergeMark, rememberExplicitLocation]);
 
   /**
@@ -746,8 +717,7 @@ export function ReaderPane({
       // Leave modified clicks to the browser — a user opening a citation in a
       // new tab is asking for the link, not for the reader to move.
       if (event.button !== 0) return;
-      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
-        return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const element = event.target as HTMLElement | null;
       const anchor = element?.closest?.("a[href]") as HTMLAnchorElement | null;
       const citation = citationTargetFromHref(anchor?.getAttribute("href"));
@@ -763,11 +733,7 @@ export function ReaderPane({
   // -- annotations ---------------------------------------------------------
 
   const commitSelection = useCallback(
-    (
-      kind: "highlight" | "underline" | "note" | "citation",
-      color: AnnotationColor,
-      note = "",
-    ) => {
+    (kind: "highlight" | "underline" | "note" | "citation", color: AnnotationColor, note = "") => {
       if (!selection || !material) return;
       const temporaryId = `pending-${Date.now()}-${Math.round(Math.random() * 1e6)}`;
       const now = Date.now() / 1000;
@@ -848,18 +814,16 @@ export function ReaderPane({
     );
     const extensions = readingActions.actions
       .filter((entry) => entry.needsSelection)
-      .map(
-        (entry: ReadingActionEntry): PopoverAiAction => ({
-          key: entry.key,
-          label: entry.label,
-          title: entry.label,
-          onClick: () => {
-            void readingActions.run(entry, target);
-            clearSelection();
-            window.getSelection()?.removeAllRanges();
-          },
-        }),
-      );
+      .map((entry: ReadingActionEntry): PopoverAiAction => ({
+        key: entry.key,
+        label: entry.label,
+        title: entry.label,
+        onClick: () => {
+          void readingActions.run(entry, target);
+          clearSelection();
+          window.getSelection()?.removeAllRanges();
+        },
+      }));
     return [...prompts, ...extensions];
   }, [
     readingActions,
@@ -905,71 +869,69 @@ export function ReaderPane({
   const currentUnitTitle = isEpub
     ? material?.unit_refs.find((row) => row.locator === currentLocator)?.title
     : undefined;
-  const epubProgress = epubPosition?.materialId === material?.material_id
-    && epubPosition?.percentage != null
-    ? Math.round(epubPosition.percentage * 100) : null;
-  const bookmarkedHere = bookmarks.some(
-    (row) => row.locator === currentLocator,
-  );
-  const materialJump =
-    material && jumpMaterialIdRef.current === material.material_id
-      ? jump
+  const epubProgress =
+    epubPosition?.materialId === material?.material_id && epubPosition?.percentage != null
+      ? Math.round(epubPosition.percentage * 100)
       : null;
+  const bookmarkedHere = bookmarks.some((row) => row.locator === currentLocator);
+  const materialJump = material && jumpMaterialId === material.material_id ? jump : null;
 
   // Inside a workspace these go to the top bar's ⋯, next to the collection's
   // and the conversation's actions; standing alone, the pane keeps its own.
   const hasHistory = locationHistory.entries.length > 0;
   const menuItems = useMemo<WorkspaceMenuItem[] | null>(() => {
     if (!material) return null;
-    const items: WorkspaceMenuItem[] = [];
-    if (hasHistory) {
-      items.push({
-        key: "history",
-        icon: History,
-        label: t("History"),
-        onSelect: () => setShowHistory(true),
-      });
-      // The header's Forward button is desktop-only; on a phone the menu is
-      // where a learner comes back to it after following a citation.
-      items.push({
-        key: "forward",
-        icon: ArrowRight,
-        label: t("Forward"),
-        disabled:
-          locationHistory.index < 0 ||
-          locationHistory.index >= locationHistory.entries.length - 1,
-        onSelect: () => stepHistory(1),
-        mobileOnly: true,
-      });
-    }
-    items.push({
-      key: "follow",
-      icon: Crosshair,
-      label: t("Follow the assistant"),
-      hint: autoJump
-        ? t("Auto-jump on — the view follows what the assistant reads")
-        : t("Auto-jump off — the assistant will not move your view"),
-      active: autoJump,
-      onSelect: toggleAutoJump,
-    });
-    if (ownAnnotationList) {
-      items.push({
-        key: "annotations",
-        icon: showAnnotations ? PanelRightClose : PanelRightOpen,
-        label: t("Annotations"),
-        active: showAnnotations,
-        onSelect: () => setAnnotationPanel(!showAnnotations),
-      });
-    }
-    items.push({
-      key: "export",
-      icon: exporting ? Loader2 : Download,
-      label: t("Export annotated file"),
-      spinning: exporting,
-      disabled: exporting,
-      onSelect: () => void runExport(),
-    });
-    return items;
+    return [
+      ...(hasHistory
+        ? [
+            {
+              key: "history",
+              icon: History,
+              label: t("History"),
+              onSelect: () => setShowHistory(true),
+            },
+            {
+              key: "forward",
+              icon: ArrowRight,
+              label: t("Forward"),
+              disabled:
+                locationHistory.index < 0 ||
+                locationHistory.index >= locationHistory.entries.length - 1,
+              onSelect: () => stepHistory(1),
+              mobileOnly: true,
+            },
+          ]
+        : []),
+      {
+        key: "follow",
+        icon: Crosshair,
+        label: t("Follow the assistant"),
+        hint: autoJump
+          ? t("Auto-jump on — the view follows what the assistant reads")
+          : t("Auto-jump off — the assistant will not move your view"),
+        active: autoJump,
+        onSelect: toggleAutoJump,
+      },
+      ...(ownAnnotationList
+        ? [
+            {
+              key: "annotations",
+              icon: showAnnotations ? PanelRightClose : PanelRightOpen,
+              label: t("Annotations"),
+              active: showAnnotations,
+              onSelect: () => setAnnotationPanel(!showAnnotations),
+            },
+          ]
+        : []),
+      {
+        key: "export",
+        icon: exporting ? Loader2 : Download,
+        label: t("Export annotated file"),
+        spinning: exporting,
+        disabled: exporting,
+        onSelect: () => void runExport(),
+      },
+    ];
   }, [
     autoJump,
     exporting,
@@ -1169,7 +1131,8 @@ export function ReaderPane({
       {showHistory && locationHistory.entries.length > 0 && (
         <div
           ref={historyPanelRef}
-          className={`absolute ${headSlot ? "top-2" : "top-11"} right-2 z-30 max-h-72 w-72 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--background)] p-1.5 shadow-xl`}>
+          className={`absolute ${headSlot ? "top-2" : "top-11"} right-2 z-30 max-h-72 w-72 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--background)] p-1.5 shadow-xl`}
+        >
           {[...locationHistory.entries]
             .map((entry, index) => ({ entry, index }))
             .reverse()
@@ -1179,9 +1142,7 @@ export function ReaderPane({
                 <button
                   key={`${entry.materialId}:${entry.locator}:${index}`}
                   type="button"
-                  aria-current={
-                    index === locationHistory.index ? "location" : undefined
-                  }
+                  aria-current={index === locationHistory.index ? "location" : undefined}
                   onClick={() => selectHistoryEntry(index)}
                   className={`flex w-full items-start gap-2 rounded-lg px-2.5 py-2 text-left transition hover:bg-[var(--muted)] ${
                     index === locationHistory.index
@@ -1190,12 +1151,9 @@ export function ReaderPane({
                   }`}
                 >
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[11.5px] font-medium">
-                      {entry.title}
-                    </span>
+                    <span className="block truncate text-[11.5px] font-medium">{entry.title}</span>
                     <span className="block truncate font-mono text-[10px] text-[var(--muted-foreground)]">
-                      {t(unitLabel(entry.source?.unit || "section"))}{" "}
-                      {entry.locator}
+                      {t(unitLabel(entry.source?.unit || "section"))} {entry.locator}
                       {unavailable ? ` · ${t("Unavailable")}` : ""}
                     </span>
                   </span>
@@ -1210,9 +1168,7 @@ export function ReaderPane({
           role="alert"
           className="flex items-start gap-2 border-b border-[color-mix(in_srgb,var(--destructive)_25%,transparent)] bg-[var(--destructive)]/[0.06] px-3 py-2"
         >
-          <p className="flex-1 text-[11.5px] leading-relaxed text-[var(--destructive)]">
-            {notice}
-          </p>
+          <p className="flex-1 text-[11.5px] leading-relaxed text-[var(--destructive)]">{notice}</p>
           <button
             type="button"
             onClick={dismissError}
@@ -1265,9 +1221,7 @@ export function ReaderPane({
               jump={materialJump}
               highlightedAnnotationId={activeAnnotationId}
               onSelection={openSelection}
-              onAnnotationClick={(annotation) =>
-                setActiveAnnotationId(annotation.annotation_id)
-              }
+              onAnnotationClick={(annotation) => setActiveAnnotationId(annotation.annotation_id)}
               onVisibleLocatorChange={handleVisibleLocator}
               onProgressChange={handleEpubProgress}
               onHeadingsChange={onHeadingsChange}
@@ -1283,9 +1237,7 @@ export function ReaderPane({
               jump={materialJump}
               highlightedAnnotationId={activeAnnotationId}
               onSelection={openSelection}
-              onAnnotationClick={(annotation) =>
-                setActiveAnnotationId(annotation.annotation_id)
-              }
+              onAnnotationClick={(annotation) => setActiveAnnotationId(annotation.annotation_id)}
               onVisibleLocatorChange={handleVisibleLocator}
             />
           ) : (
@@ -1300,9 +1252,7 @@ export function ReaderPane({
               jump={materialJump}
               highlightedAnnotationId={activeAnnotationId}
               onSelection={openSelection}
-              onAnnotationClick={(annotation) =>
-                setActiveAnnotationId(annotation.annotation_id)
-              }
+              onAnnotationClick={(annotation) => setActiveAnnotationId(annotation.annotation_id)}
               onVisibleLocatorChange={handleVisibleLocator}
               onHeadingsChange={onHeadingsChange}
               onActiveHeadingChange={onActiveHeadingChange}
@@ -1334,7 +1284,13 @@ export function ReaderPane({
         <AnnotationPopover
           anchor={selection.anchor}
           quote={selection.quote}
-          noteSource={{title: `${material.title} · ${unitLabel(material.unit)} ${selection.locator}`, url: scopedUrl(window.location.pathname + window.location.search) + readingPassageHref(material.material_id, selection.locator, material.revision), id: `${material.material_id}:${selection.locator}`}}
+          noteSource={{
+            title: `${material.title} · ${unitLabel(material.unit)} ${selection.locator}`,
+            url:
+              scopedUrl(window.location.pathname + window.location.search) +
+              readingPassageHref(material.material_id, selection.locator, material.revision),
+            id: `${material.material_id}:${selection.locator}`,
+          }}
           onHighlight={(color) => commitSelection("highlight", color)}
           onUnderline={(color) => commitSelection("underline", color)}
           onNote={(note, color) => commitSelection("note", color, note)}
@@ -1440,11 +1396,7 @@ function MenuToolButton({
       />
       <span className="min-w-0 flex-1">
         <span className="block truncate">{label}</span>
-        {hint ? (
-          <span className="block text-[10.5px] leading-snug opacity-75">
-            {hint}
-          </span>
-        ) : null}
+        {hint ? <span className="block text-[10.5px] leading-snug opacity-75">{hint}</span> : null}
       </span>
     </button>
   );

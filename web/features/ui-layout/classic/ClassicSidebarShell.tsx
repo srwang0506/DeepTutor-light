@@ -25,40 +25,27 @@ import SessionList from "@/components/SessionList";
 import { useSidebarDrawer } from "@/components/layout/AppShell";
 import { useDevice } from "@/hooks/useDevice";
 import { VersionBadge } from "@/components/sidebar/VersionBadge";
-import type {
-  SessionOrganizationPatch,
-  SessionSummary,
-} from "@/lib/session-api";
+import type { SessionOrganizationPatch, SessionSummary } from "@/lib/session-api";
 import type { MasteryTopicLabel } from "@/lib/learning-api";
 import type { ReadingCollectionLabel } from "@/lib/reading-workspace-api";
 import { useSidebarResize } from "@/hooks/useSidebarResize";
 import { SidebarHome, SidebarNav } from "@/components/sidebar/SidebarNav";
 import { SECONDARY_NAV, isNavActive } from "@/components/sidebar/nav-entries";
 import Tooltip from "@/shared/ui/Tooltip";
-import {
-  mergeManualOrder,
-  readSessionOrder,
-  writeSessionOrder,
-} from "@/lib/sidebar-layout";
+import { mergeManualOrder, readSessionOrder, writeSessionOrder } from "@/lib/sidebar-layout";
 
 // Session data arrives after mount; defer its organization UI with it so
 // every workspace route does not download it as part of the initial shell.
-const OrganizedSessionList = dynamic(
-  () => import("@/components/sessions/OrganizedSessionList"),
-  {
-    ssr: false,
-    loading: () => (
-      <div aria-busy="true" className="space-y-1.5 px-2 py-1">
-        {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="h-4 w-3/4 animate-pulse rounded bg-muted/40"
-          />
-        ))}
-      </div>
-    ),
-  },
-);
+const OrganizedSessionList = dynamic(() => import("@/components/sessions/OrganizedSessionList"), {
+  ssr: false,
+  loading: () => (
+    <div aria-busy="true" className="space-y-1.5 px-2 py-1">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="h-4 w-3/4 animate-pulse rounded bg-muted/40" />
+      ))}
+    </div>
+  ),
+});
 
 export interface SidebarShellProps {
   sessions?: SessionSummary[];
@@ -76,10 +63,7 @@ export interface SidebarShellProps {
   masteryTopics?: MasteryTopicLabel[];
   /** Collection labels for grouping reading conversations under their shelf. */
   readingCollections?: ReadingCollectionLabel[];
-  onOrganizeSession?: (
-    sessionId: string,
-    patch: SessionOrganizationPatch,
-  ) => void | Promise<void>;
+  onOrganizeSession?: (sessionId: string, patch: SessionOrganizationPatch) => void | Promise<void>;
   /**
    * Footer content rendered below the nav. Pass a render function to receive
    * the current ``collapsed`` state so footer items (e.g. Admin / Sign out) can
@@ -122,13 +106,11 @@ export function ClassicSidebarShell({
 
   /** Dismiss the drawer on nav clicks that actually navigate in-place. */
   const closeDrawerOnNav = (event: React.MouseEvent) => {
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1)
-      return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1) return;
     drawer?.close();
   };
 
-  const renderedFooter =
-    typeof footerSlot === "function" ? footerSlot(collapsed) : footerSlot;
+  const renderedFooter = typeof footerSlot === "function" ? footerSlot(collapsed) : footerSlot;
   // The order the learner dragged the history region into — conversation ids
   // and group ids in one list, since the two are peers there. Like the
   // collapse preference above it is per-machine view state, hydrated after
@@ -162,8 +144,7 @@ export function ClassicSidebarShell({
     // Always reset to a fresh session (mirrors the old "New Chat" affordance);
     // let modifier-clicks fall through to default Link behavior so middle-click
     // open-in-new-tab still works.
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1)
-      return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1) return;
     event.preventDefault();
     drawer?.close();
     onNewChat?.();
@@ -176,8 +157,7 @@ export function ClassicSidebarShell({
   // Keep the complete index here. OrganizedSessionList limits the initial
   // rendering and exposes older conversations through Show more.
   const visibleSessions = sessions.filter(
-    (session) =>
-      !session.preferences?.archived && !session.preferences?.parent_session_id,
+    (session) => !session.preferences?.archived && !session.preferences?.parent_session_id,
   );
 
   /* ---- Collapsed state ---- */
@@ -189,12 +169,12 @@ export function ClassicSidebarShell({
           <Link
             href="/"
             prefetch={false}
-            aria-label="DeepTutor"
+            aria-label={t("DeepTutor")}
             className="flex items-center justify-center transition-opacity duration-150 group-hover/sb:opacity-0"
           >
             <Image
               src="/brand/color-logo.png"
-              alt="DeepTutor"
+              alt={t("DeepTutor")}
               width={22}
               height={22}
               className="h-[22px] w-[22px] rounded-md"
@@ -211,11 +191,7 @@ export function ClassicSidebarShell({
 
         <SidebarHome collapsed onHomeClick={handleHomeClick} />
         <div className="min-h-0 w-full flex-1 overflow-y-auto overscroll-contain">
-          <SidebarNav
-            collapsed
-            onHomeClick={handleHomeClick}
-            onNavigate={closeDrawerOnNav}
-          />
+          <SidebarNav collapsed onHomeClick={handleHomeClick} onNavigate={closeDrawerOnNav} />
         </div>
 
         {/* Secondary nav + footer */}
@@ -258,14 +234,14 @@ export function ClassicSidebarShell({
         <Link href="/" prefetch={false} className="group flex items-center gap-1.5">
           <Image
             src="/brand/color-logo.png"
-            alt="DeepTutor"
+            alt={t("DeepTutor")}
             width={22}
             height={22}
             className="h-[22px] w-[22px] transition-transform duration-200 group-hover:scale-105"
           />
           <Image
             src="/brand/color-word.png"
-            alt="DeepTutor"
+            alt={t("DeepTutor")}
             width={1200}
             height={310}
             priority
@@ -298,12 +274,11 @@ export function ClassicSidebarShell({
         />
 
         {/* Conversation history follows the module entries in the same scroller. */}
-        {showSessions &&
-        onSelectSession &&
-        onRenameSession &&
-        onDeleteSession ? (
+        {showSessions && onSelectSession && onRenameSession && onDeleteSession ? (
           <section className="mt-3 px-2 pt-0.5">
-            {!onOrganizeSession && <div className="mb-2 px-2 text-xs text-[var(--muted-foreground)]">{t("Recent")}</div>}
+            {!onOrganizeSession && (
+              <div className="mb-2 px-2 text-xs text-[var(--muted-foreground)]">{t("Recent")}</div>
+            )}
             {loadingSessions ? (
               <SessionList
                 sessions={[]}

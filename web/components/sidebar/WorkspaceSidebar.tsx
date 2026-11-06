@@ -24,10 +24,7 @@ import {
   fetchReadingCollectionIndex,
   type ReadingCollectionLabel,
 } from "@/lib/reading-workspace-api";
-import {
-  fetchMasteryTopicIndex,
-  type MasteryTopicLabel,
-} from "@/lib/learning-api";
+import { fetchMasteryTopicIndex, type MasteryTopicLabel } from "@/lib/learning-api";
 import { readingWorkspaceIdOf, sessionRoute } from "@/lib/mastery-session";
 import { readingCollectionRoute } from "@/lib/learning-routes";
 import { subscribeSessionChanges } from "@/lib/session-events";
@@ -45,9 +42,7 @@ export default function WorkspaceSidebar() {
   } = useChatStateAdapter();
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [masteryTopics, setMasteryTopics] = useState<MasteryTopicLabel[]>([]);
-  const [readingCollections, setReadingCollections] = useState<
-    ReadingCollectionLabel[]
-  >([]);
+  const [readingCollections, setReadingCollections] = useState<ReadingCollectionLabel[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(false);
   const hasLoadedSessionsRef = useRef(false);
 
@@ -55,25 +50,23 @@ export default function WorkspaceSidebar() {
     if (!hasLoadedSessionsRef.current) {
       setLoadingSessions(true);
     }
-    try {
-      // Only this workspace's conversations: switching workspace is switching
-      // stores. Topic labels only name a group heading, so a failure to load
-      // them must not cost the session list.
-      const [nextSessions, nextTopics, nextCollections] =
-        await Promise.all([
-          listAllSessions({ force: true }),
-          fetchMasteryTopicIndex().catch(() => [] as MasteryTopicLabel[]),
-          fetchReadingCollectionIndex().catch(() => [] as ReadingCollectionLabel[]),
-        ]);
-      setSessions(nextSessions);
-      setMasteryTopics(nextTopics);
-      setReadingCollections(nextCollections);
-      hasLoadedSessionsRef.current = true;
-    } catch (error) {
-      console.error("Failed to load sessions", error);
-    } finally {
-      setLoadingSessions(false);
-    }
+    return Promise.all([
+      listAllSessions({ force: true }),
+      fetchMasteryTopicIndex().catch(() => [] as MasteryTopicLabel[]),
+      fetchReadingCollectionIndex().catch(() => [] as ReadingCollectionLabel[]),
+    ])
+      .then(async ([nextSessions, nextTopics, nextCollections]) => {
+        setSessions(nextSessions);
+        setMasteryTopics(nextTopics);
+        setReadingCollections(nextCollections);
+        hasLoadedSessionsRef.current = true;
+      })
+      .catch((error) => {
+        console.error("Failed to load sessions", error);
+      })
+      .finally(() => {
+        setLoadingSessions(false);
+      });
   }, []);
 
   // First mount shows the skeleton; subsequent refreshes triggered by
@@ -88,10 +81,7 @@ export default function WorkspaceSidebar() {
   // The token above covers mutations made through the chat runtime. A restore
   // from Settings › Archive, or a delete from another surface, arrives on the
   // bus instead.
-  useEffect(
-    () => subscribeSessionChanges(() => void refreshSessions()),
-    [refreshSessions],
-  );
+  useEffect(() => subscribeSessionChanges(() => void refreshSessions()), [refreshSessions]);
 
   // What the runtime knows about turns in flight, folded onto the server's
   // list so a row's avatar spins for the turn it is actually running.
@@ -115,10 +105,7 @@ export default function WorkspaceSidebar() {
       }),
     [sessionStatuses, sessions],
   );
-  const liveSessionIds = useMemo(
-    () => new Set(Object.keys(sessionStatuses)),
-    [sessionStatuses],
-  );
+  const liveSessionIds = useMemo(() => new Set(Object.keys(sessionStatuses)), [sessionStatuses]);
 
   // Track which sessions finished while the reader was elsewhere. This lives
   // here rather than in a list component because the lists unmount as the
@@ -160,7 +147,11 @@ export default function WorkspaceSidebar() {
 
   const handleRenameSession = useCallback(
     async (sessionId: string, title: string) => {
-      const updated = await updateSessionTitle(sessionId, title, sessionWorkspaceId(sessions.find(item => item.session_id === sessionId)));
+      const updated = await updateSessionTitle(
+        sessionId,
+        title,
+        sessionWorkspaceId(sessions.find((item) => item.session_id === sessionId)),
+      );
       setSessions((prev) =>
         prev.map((session) =>
           session.session_id === sessionId
@@ -178,12 +169,15 @@ export default function WorkspaceSidebar() {
 
   const handleDeleteSession = useCallback(
     async (sessionId: string) => {
-      if (!window.confirm(t("Permanently delete this chat and its tutor threads? This cannot be undone."))) return;
-      const deleted = sessions.find(item => item.session_id === sessionId);
+      if (
+        !window.confirm(
+          t("Permanently delete this chat and its tutor threads? This cannot be undone."),
+        )
+      )
+        return;
+      const deleted = sessions.find((item) => item.session_id === sessionId);
       await deleteSession(sessionId, sessionWorkspaceId(deleted));
-      setSessions((prev) =>
-        prev.filter((session) => session.session_id !== sessionId),
-      );
+      setSessions((prev) => prev.filter((session) => session.session_id !== sessionId));
       if (selectedSessionId === sessionId) {
         cancelStreamingTurn();
         newSession({ workspaceId: activeWorkspaceId() || null });
@@ -191,9 +185,7 @@ export default function WorkspaceSidebar() {
         // should leave the reader on that material, not throw them to /chat.
         const readingId = deleted ? readingWorkspaceIdOf(deleted) : "";
         navigateTask(
-          readingId
-            ? readingCollectionRoute(readingId, sessionWorkspaceId(deleted))
-            : "/chat",
+          readingId ? readingCollectionRoute(readingId, sessionWorkspaceId(deleted)) : "/chat",
           router.push,
         );
       }
@@ -203,16 +195,27 @@ export default function WorkspaceSidebar() {
 
   const handleOrganizeSession = useCallback(
     async (sessionId: string, patch: SessionOrganizationPatch) => {
-      const updated = await updateSessionOrganization(sessionId, patch, sessionWorkspaceId(sessions.find(item => item.session_id === sessionId)));
+      const updated = await updateSessionOrganization(
+        sessionId,
+        patch,
+        sessionWorkspaceId(sessions.find((item) => item.session_id === sessionId)),
+      );
       if ("workspace_id" in patch) {
         configureSession({ workspaceId: updated.preferences?.workspace_id ?? null }, sessionId);
         if (selectedSessionId === sessionId) {
-          navigateTask(sessionRoute({ ...sessions.find(row => row.session_id === sessionId)!,
-            preferences: updated.preferences, content_workspace_id: updated.preferences?.workspace_id || "" }), router.push);
+          navigateTask(
+            sessionRoute({
+              ...sessions.find((row) => row.session_id === sessionId)!,
+              preferences: updated.preferences,
+              content_workspace_id: updated.preferences?.workspace_id || "",
+            }),
+            router.push,
+          );
         }
       }
       // A conversation moved to another workspace has left this list.
-      const movedAway = "workspace_id" in patch &&
+      const movedAway =
+        "workspace_id" in patch &&
         (updated.preferences?.workspace_id || "") !== activeWorkspaceId();
       setSessions((previous) =>
         movedAway

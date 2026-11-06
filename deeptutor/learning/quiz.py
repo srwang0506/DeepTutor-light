@@ -26,6 +26,7 @@ class QuizSubmission(BaseModel):
     answer_images: list[dict[str, str | None]] = Field(default_factory=list, max_length=4)
     assistance: Literal["independent", "hint", "revealed"] = "independent"
     retry: bool = False
+    offline: bool = False
 
 
 class QuizReceipt(BaseModel):

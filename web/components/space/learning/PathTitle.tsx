@@ -1,6 +1,6 @@
 "use client";
 
-import { PAGE_TITLE_CLASS } from '@/components/layout/FeaturePage'
+import { PAGE_TITLE_CLASS } from "@/components/layout/FeaturePage";
 import { Check, Pencil, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useEffect, useRef, useState } from "react";
@@ -50,9 +50,17 @@ export function PathTitle({
 
   // Reopen on a different path (or after a rename lands) with that path's name,
   // never with whatever was half-typed for the previous one.
-  useEffect(() => {
-    if (!editing) setDraft(storedName);
-  }, [storedName, editing]);
+  const [derivedInputs0, setDerivedInputs0] = useState<readonly unknown[]>([]);
+  if (
+    derivedInputs0.length !== 2 ||
+    !Object.is(derivedInputs0[0], storedName) ||
+    !Object.is(derivedInputs0[1], editing)
+  ) {
+    setDerivedInputs0([storedName, editing]);
+    (() => {
+      if (!editing) setDraft(storedName);
+    })();
+  }
 
   useEffect(() => {
     if (editing) inputRef.current?.select();

@@ -27,8 +27,7 @@ export function TurnCoordinationSettings({
   const [secretError, setSecretError] = useState("");
   const errors = validateTurnCoordination(value, redisConfigured);
   const readOnly = !onChange;
-  const update = (patch: Partial<TurnCoordinationDraft>) =>
-    onChange?.({ ...value, ...patch });
+  const update = (patch: Partial<TurnCoordinationDraft>) => onChange?.({ ...value, ...patch });
 
   const saveSecret = async () => {
     if (!onSaveRedisUrl || !redisUrl.trim()) return;
@@ -38,9 +37,7 @@ export function TurnCoordinationSettings({
       await onSaveRedisUrl(redisUrl.trim());
       setRedisUrl("");
     } catch (error) {
-      setSecretError(
-        error instanceof Error ? error.message : t("Failed to save."),
-      );
+      setSecretError(error instanceof Error ? error.message : t("Failed to save."));
     } finally {
       setSavingSecret(false);
     }
@@ -48,9 +45,7 @@ export function TurnCoordinationSettings({
 
   return (
     <section className="mt-6 rounded-2xl border border-border bg-card p-5">
-      <h2 className="text-sm font-semibold text-foreground">
-        {t("Turn coordination")}
-      </h2>
+      <h2 className="text-sm font-semibold text-foreground">{t("Turn coordination")}</h2>
       <p className="mt-1 text-xs leading-5 text-muted-foreground">
         {readOnly
           ? t("These startup settings are shown from the active runtime.")
@@ -66,9 +61,7 @@ export function TurnCoordinationSettings({
             max={32}
             disabled={readOnly}
             value={value.backendWorkers}
-            onChange={(event) =>
-              update({ backendWorkers: Number(event.target.value) })
-            }
+            onChange={(event) => update({ backendWorkers: Number(event.target.value) })}
           />
         </Field>
         <Field label={t("Coordination backend")}>
@@ -83,7 +76,7 @@ export function TurnCoordinationSettings({
             }
           >
             <option value="memory">{t("In process")}</option>
-            <option value="redis">Redis</option>
+            <option value="redis">{t("Redis")}</option>
           </select>
         </Field>
       </div>
@@ -94,12 +87,8 @@ export function TurnCoordinationSettings({
             label={t("Redis URL")}
             hint={
               redisConfigured
-                ? t(
-                    "A Redis secret is configured. Enter a new value only to replace it.",
-                  )
-                : t(
-                    "The value is encrypted at rest and is never returned by the server.",
-                  )
+                ? t("A Redis secret is configured. Enter a new value only to replace it.")
+                : t("The value is encrypted at rest and is never returned by the server.")
             }
             error={secretError || undefined}
             className="min-w-0 flex-1"
@@ -135,9 +124,7 @@ export function TurnCoordinationSettings({
               max={300}
               disabled={readOnly}
               value={value.leaseTtlSeconds}
-              onChange={(event) =>
-                update({ leaseTtlSeconds: Number(event.target.value) })
-              }
+              onChange={(event) => update({ leaseTtlSeconds: Number(event.target.value) })}
             />
           </Field>
           <Field label={t("Recovery interval (seconds)")}>
@@ -148,20 +135,14 @@ export function TurnCoordinationSettings({
               max={60}
               disabled={readOnly}
               value={value.recoveryIntervalSeconds}
-              onChange={(event) =>
-                update({ recoveryIntervalSeconds: Number(event.target.value) })
-              }
+              onChange={(event) => update({ recoveryIntervalSeconds: Number(event.target.value) })}
             />
           </Field>
         </div>
       </details>
 
       {errors.length ? (
-        <InlineAlert
-          tone="warning"
-          title={t("Check runtime settings")}
-          className="mt-4"
-        >
+        <InlineAlert tone="warning" title={t("Check runtime settings")} className="mt-4">
           <ul className="list-disc space-y-1 pl-4">
             {errors.map((error) => (
               <li key={error}>{t(error)}</li>

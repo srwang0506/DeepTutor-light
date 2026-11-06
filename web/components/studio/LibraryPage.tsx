@@ -1,4 +1,7 @@
 'use client'
+import { useKeyedState } from '@/hooks/useKeyedState'
+import { useTranslation } from 'react-i18next'
+import IntegrationSources from './IntegrationSources'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import DiscoveryPanel from './DiscoveryPanel'
@@ -22,13 +25,15 @@ export default function LibraryPage() {
   return <LibraryHome key={workspace} workspace={workspace} />
 }
 function LibraryHome({ workspace }: { workspace: string }) {
+  const { t } = useTranslation()
+
   const [works, setWorks] = useState<Work[]>([]),
-    [loading, setLoading] = useState(true),
     [cursor, setCursor] = useState(''),
     [query, setQuery] = useState(''),
     [filter, setFilter] = useState('all')
+  const [loading, setLoading] = useKeyedState(JSON.stringify([workspace, query, filter]), true)
   const [dialog, setDialog] = useState<'add' | 'import' | 'discover' | 'attach' | 'edition' | null>(
-      null
+      null,
     ),
     [selected, setSelected] = useState<Edition | null>(null),
     [parent, setParent] = useState<Work | null>(null)
@@ -54,24 +59,23 @@ function LibraryHome({ workspace }: { workspace: string }) {
       workspace,
       `/library?${params}`,
       {},
-      signal
+      signal,
     )
-    setWorks(previous => (after ? [...previous, ...r.works] : r.works))
+    setWorks((previous) => (after ? [...previous, ...r.works] : r.works))
     setCursor(r.next_cursor)
     setLoading(false)
   }
   useEffect(() => {
     const abort = new AbortController()
-    setLoading(true)
     const timer = setTimeout(
       () =>
-        void reload(abort.signal).catch(e => {
+        void reload(abort.signal).catch((e) => {
           if (!abort.signal.aborted) {
             op.setError(e.message)
             setLoading(false)
           }
         }),
-      200
+      200,
     )
     return () => {
       clearTimeout(timer)
@@ -103,7 +107,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
         title: title.trim() || file?.name.replace(/\.pdf$/i, '') || '',
         authors: authors
           .split(/;|；/)
-          .map(v => v.trim())
+          .map((v) => v.trim())
           .filter(Boolean),
         year: year ? Number(year) : null,
       })
@@ -118,34 +122,35 @@ function LibraryHome({ workspace }: { workspace: string }) {
     setDialog(null)
   }
   const list = works
-  const originals = works.flatMap(w => w.editions).filter(e => e.data.files.length).length
+  const originals = works.flatMap((w) => w.editions).filter((e) => e.data.files.length).length
   return (
     <StudioShell
       workspace={workspace}
       active="library"
-      title="资料，慢慢成为理解。"
+      title={t('资料，慢慢成为理解。')}
       description="把论文、讲义与自己的问题放在一起。原文只收藏一次，版本与证据清楚地留在身边。"
       action={
         <div className="studio-actions">
           <Action secondary onClick={() => open('discover')}>
             <Compass size={15} />
-            发现文献
+            {t('发现文献')}
           </Action>
           <Action onClick={() => open('add')}>
             <Plus size={15} />
-            收藏资料
+            {t('收藏资料')}
           </Action>
         </div>
       }
     >
+      <IntegrationSources workspace={workspace} provider="zotero" />
       <div className="studio-toolbar">
         <label className="studio-search">
           <Search size={16} />
           <input
-            aria-label="搜索资料"
-            placeholder="标题、作者、DOI、引用键或科学符号"
+            aria-label={t('搜索资料')}
+            placeholder={t('标题、作者、DOI、引用键或科学符号')}
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={(e) => setQuery(e.target.value)}
           />
         </label>
         <div className="studio-pills">
@@ -170,11 +175,11 @@ function LibraryHome({ workspace }: { workspace: string }) {
         <main>
           {loading ? (
             <p role="status" className="studio-note">
-              正在打开资料库…
+              {t('正在打开资料库…')}
             </p>
           ) : list.length ? (
             <div className="studio-library-list">
-              {list.map(w => (
+              {list.map((w) => (
                 <article className="studio-work" key={w.id}>
                   <div className="studio-work-icon">
                     <BookOpen size={18} />
@@ -186,7 +191,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
                       {w.data.year ? ` · ${w.data.year}` : ''}
                     </p>
                     <div className="studio-badges">
-                      {w.editions.map(e => (
+                      {w.editions.map((e) => (
                         <span
                           className={`studio-badge ${e.data.files.length ? 'good' : ''}`}
                           key={e.id}
@@ -195,7 +200,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
                           {e.project_role ? ' · 本项目' : ''}
                         </span>
                       ))}
-                      {w.data.tags.map(tag => (
+                      {w.data.tags.map((tag) => (
                         <span className="studio-badge" key={tag}>
                           {tag}
                         </span>
@@ -203,14 +208,15 @@ function LibraryHome({ workspace }: { workspace: string }) {
                     </div>
                   </div>
                   <div className="studio-work-tools">
-                    {w.editions.map(e => (
+                    {w.editions.map((e) => (
                       <div className="studio-actions" key={e.id}>
                         {e.data.files.length ? (
                           <Link
                             className="studio-outlink"
                             href={scopedUrl(`/library/${e.id}`, workspace)}
                           >
-                            阅读{w.editions.length > 1 ? ` · ${e.data.label}` : ''}
+                            {t('阅读')}
+                            {w.editions.length > 1 ? ` · ${e.data.label}` : ''}
                             <ArrowUpRight size={13} />
                           </Link>
                         ) : (
@@ -221,23 +227,31 @@ function LibraryHome({ workspace }: { workspace: string }) {
                               setSelected(e)
                             }}
                           >
-                            添加原文
+                            {t('添加原文')}
                             <Upload size={13} />
                           </button>
                         )}
                         {!!e.data.bibliographic_sources?.length && (
                           <details className="studio-note">
                             <summary>
-                              导入来源 {e.data.bibliographic_sources.length} · 字段冲突{' '}
+                              {t('导入来源')}
+                              {e.data.bibliographic_sources.length} {t('· 字段冲突')}{' '}
                               {e.data.bibliographic_conflicts?.length || 0}
                             </summary>
-                            <p>引用键：{e.data.citekey_aliases?.join('、') || e.data.citekey}</p>
+                            <p>
+                              {t('引用键：')}
+                              {e.data.citekey_aliases?.join('、') || e.data.citekey}
+                            </p>
                             {e.data.bibliographic_conflicts?.map((c, i) => (
                               <p key={i}>
-                                {c.field}：保留 {String(c.retained)}；新来件 {String(c.incoming)}
+                                {c.field}
+                                {t('：保留')}
+                                {String(c.retained)}
+                                {t('；新来件')}
+                                {String(c.incoming)}
                               </p>
                             ))}
-                            <p>原始来件均已保留；冲突字段不会自动覆盖。</p>
+                            <p>{t('原始来件均已保留；冲突字段不会自动覆盖。')}</p>
                           </details>
                         )}
                         {!e.project_role && (
@@ -253,7 +267,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
                               })
                             }
                           >
-                            加入项目
+                            {t('加入项目')}
                           </button>
                         )}
                       </div>
@@ -265,7 +279,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
                         setParent(w)
                       }}
                     >
-                      添加另一版本
+                      {t('添加另一版本')}
                     </button>
                   </div>
                 </article>
@@ -273,8 +287,9 @@ function LibraryHome({ workspace }: { workspace: string }) {
             </div>
           ) : (
             <StudioEmpty title={query ? '没有匹配的资料' : '从一份想读懂的资料开始'}>
-              收藏 PDF
-              或题录，留下疑问，再把原文里的线索整理成自己的理解。已有阅读资料仍可从右侧打开。
+              {t(
+                '收藏 PDF 或题录，留下疑问，再把原文里的线索整理成自己的理解。已有阅读资料仍可从右侧打开。',
+              )}
             </StudioEmpty>
           )}
           {cursor && (
@@ -283,7 +298,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
               disabled={op.busy}
               onClick={() => op.run(() => reload(undefined, cursor))}
             >
-              加载更多资料
+              {t('加载更多资料')}
             </Action>
           )}
         </main>
@@ -291,24 +306,26 @@ function LibraryHome({ workspace }: { workspace: string }) {
           <section className="studio-panel">
             <Library size={19} />
             <div className="studio-stat">{works.length}</div>
-            <h2>属于你的资料库</h2>
+            <h2>{t('属于你的资料库')}</h2>
             <p>
               {originals}{' '}
-              个版本已保存原文。题录和原件在个人资料库中共享，项目里的筛选与证据独立保存。
+              {t('个版本已保存原文。题录和原件在个人资料库中共享，项目里的筛选与证据独立保存。')}
             </p>
           </section>
           <section className="studio-panel">
-            <h2>把已有积累带进来</h2>
-            <p>支持 BibTeX、RIS、CSL-JSON。保留已有引用键，精确标识去重，相似标题留给你判断。</p>
+            <h2>{t('把已有积累带进来')}</h2>
+            <p>
+              {t('支持 BibTeX、RIS、CSL-JSON。保留已有引用键，精确标识去重，相似标题留给你判断。')}
+            </p>
             <div className="studio-actions" style={{ marginTop: 17 }}>
               <Action secondary onClick={() => open('import')}>
-                导入书目
+                {t('导入书目')}
               </Action>
               <BibliographyExport workspace={workspace} works={works} />
             </div>
             <p className="studio-note">
               <Link className="studio-outlink" href={scopedUrl('/learning/reading', workspace)}>
-                打开已有阅读资料
+                {t('打开已有阅读资料')}
                 <ArrowUpRight size={13} />
               </Link>
             </p>
@@ -336,7 +353,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
           dialog === 'discover' ? undefined : (
             <div className="studio-actions">
               <Action secondary onClick={() => setDialog(null)} disabled={op.busy}>
-                取消
+                {t('取消')}
               </Action>
               <Action
                 disabled={op.busy || (dialog === 'attach' && !file)}
@@ -352,9 +369,9 @@ function LibraryHome({ workspace }: { workspace: string }) {
                         }[]
                       }>(workspace, '/bibliography/import', { text: bibliography, format })
                       await reload()
-                      const errors = result.entries.filter(e => e.status === 'error')
+                      const errors = result.entries.filter((e) => e.status === 'error')
                       setNotice(
-                        `已处理 ${result.entries.length} 条；补全 ${result.entries.filter(e => e.enriched).length} 条；${result.entries.reduce((n, e) => n + (e.conflicts || 0), 0)} 项字段冲突已保留；${errors.length} 条需要检查。${errors.map(e => e.detail).join('；')}`
+                        `已处理 ${result.entries.length} 条；补全 ${result.entries.filter((e) => e.enriched).length} 条；${result.entries.reduce((n, e) => n + (e.conflicts || 0), 0)} 项字段冲突已保留；${errors.length} 条需要检查。${errors.map((e) => e.detail).join('；')}`,
                       )
                       if (!errors.length) setDialog(null)
                     } else if (dialog === 'attach' && selected && file) {
@@ -384,42 +401,42 @@ function LibraryHome({ workspace }: { workspace: string }) {
                 <Field label="标题">
                   <input
                     value={title}
-                    onChange={e => setTitle(e.target.value)}
-                    placeholder="也可以先选择 PDF"
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder={t('也可以先选择 PDF')}
                   />
                 </Field>
                 <div className="studio-form-grid">
                   <Field label="作者（用分号分隔）">
-                    <input value={authors} onChange={e => setAuthors(e.target.value)} />
+                    <input value={authors} onChange={(e) => setAuthors(e.target.value)} />
                   </Field>
                   <Field label="年份">
-                    <input type="number" value={year} onChange={e => setYear(e.target.value)} />
+                    <input type="number" value={year} onChange={(e) => setYear(e.target.value)} />
                   </Field>
                 </div>
               </>
             )}
             <Field label="版本名称" hint="例如 arXiv v1、会议正式版；版本不会互相覆盖。">
-              <input value={label} onChange={e => setLabel(e.target.value)} />
+              <input value={label} onChange={(e) => setLabel(e.target.value)} />
             </Field>
             <div className="studio-form-grid">
               <Field label="DOI（可选）">
-                <input value={doi} onChange={e => setDoi(e.target.value)} />
+                <input value={doi} onChange={(e) => setDoi(e.target.value)} />
               </Field>
               <Field label="arXiv ID（可选）">
                 <input
                   value={arxiv}
-                  onChange={e => setArxiv(e.target.value)}
-                  placeholder="包含 v1 / v2 可精确区分版本"
+                  onChange={(e) => setArxiv(e.target.value)}
+                  placeholder={t('包含 v1 / v2 可精确区分版本')}
                 />
               </Field>
             </div>
             <label className="studio-upload">
               <Upload size={23} />
-              <span>保存 PDF 原文，或稍后再补</span>
+              <span>{t('保存 PDF 原文，或稍后再补')}</span>
               <input
                 type="file"
                 accept="application/pdf"
-                onChange={e => setFile(e.target.files?.[0] || null)}
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
               />
             </label>
           </div>
@@ -427,28 +444,28 @@ function LibraryHome({ workspace }: { workspace: string }) {
         {dialog === 'attach' && (
           <label className="studio-upload">
             <Upload size={23} />
-            <span>原件按内容保存，同一文件更名不会重复入库。</span>
+            <span>{t('原件按内容保存，同一文件更名不会重复入库。')}</span>
             <input
               type="file"
               accept="application/pdf"
-              onChange={e => setFile(e.target.files?.[0] || null)}
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
             />
           </label>
         )}
         {dialog === 'import' && (
           <div className="studio-form">
             <Field label="书目格式">
-              <select value={format} onChange={e => setFormat(e.target.value)}>
-                <option value="bibtex">BibTeX / BibLaTeX</option>
-                <option value="ris">RIS</option>
-                <option value="csl">CSL-JSON</option>
+              <select value={format} onChange={(e) => setFormat(e.target.value)}>
+                <option value="bibtex">{t('BibTeX / BibLaTeX')}</option>
+                <option value="ris">{t('RIS')}</option>
+                <option value="csl">{t('CSL-JSON')}</option>
               </select>
             </Field>
             <input
-              aria-label="选择书目文件"
+              aria-label={t('选择书目文件')}
               type="file"
               accept=".bib,.ris,.json"
-              onChange={e => {
+              onChange={(e) => {
                 const f = e.target.files?.[0]
                 if (f) void f.text().then(setBibliography)
               }}
@@ -457,7 +474,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
               <textarea
                 rows={12}
                 value={bibliography}
-                onChange={e => setBibliography(e.target.value)}
+                onChange={(e) => setBibliography(e.target.value)}
               />
             </Field>
           </div>

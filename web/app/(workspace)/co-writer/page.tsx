@@ -17,11 +17,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
-import {
-  FeaturePage,
-  PageHeader,
-  pageActionClass,
-} from "@/components/layout/FeaturePage";
+import { FeaturePage, PageHeader, pageActionClass } from "@/components/layout/FeaturePage";
 import { deleteCoWriterDocument, importCoWriterDocx } from "@/lib/co-writer-api";
 import { notifyCoWriterChanged } from "@/lib/co-writer-events";
 import { createNote, listNotes, saveNote, type NoteSummary } from "@/lib/notes-api";
@@ -61,9 +57,13 @@ function PageCard({
   const menu = useMenuPopover<HTMLDivElement>(open, setOpen);
   const title = page.title || t("Untitled");
   return (
-    <article className={`dt-notes-card ${page.cover ? "has-cover" : ""} ${open ? "is-menu-open" : ""}`}>
+    <article
+      className={`dt-notes-card ${page.cover ? "has-cover" : ""} ${open ? "is-menu-open" : ""}`}
+    >
       <Link href={`/co-writer/${page.id}`} className="dt-notes-card-link" aria-label={title}>
-        {page.cover ? <div className="dt-notes-card-cover" style={{ background: page.cover }} /> : null}
+        {page.cover ? (
+          <div className="dt-notes-card-cover" style={{ background: page.cover }} />
+        ) : null}
         <div className="dt-notes-card-body">
           <span className="dt-notes-card-icon" aria-hidden>
             {page.icon || <FileText size={18} strokeWidth={1.6} />}
@@ -129,7 +129,11 @@ function PageCard({
                 </button>
               </>
             ) : (
-              <button role="menuitem" className="dt-menu-item is-danger" onClick={() => setConfirming(true)}>
+              <button
+                role="menuitem"
+                className="dt-menu-item is-danger"
+                onClick={() => setConfirming(true)}
+              >
                 <Trash2 size={14} />
                 {t("Delete")}
               </button>
@@ -153,20 +157,32 @@ export default function CoWriterHomePage() {
   const [error, setError] = useState("");
   const importInputRef = useRef<HTMLInputElement>(null);
 
-  const refresh = useCallback(async () => {
-    setError("");
-    try {
-      setPages((await listNotes()).documents);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
+  const refreshData = useCallback(async () => {
+    return listNotes()
+      .then(async (responseValue) => {
+        const resolvedState0 = responseValue.documents;
+        setPages(resolvedState0);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
+  const [refreshInputs, setRefreshInputs] = useState<typeof refreshData | null>(null);
+  if (refreshInputs !== refreshData) {
+    setRefreshInputs(() => refreshData);
+    setError("");
+  }
+  const refresh = useCallback(() => {
+    setError("");
+    return refreshData();
+  }, [refreshData]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    void refreshData();
+  }, [refreshData]);
 
   const handleCreate = useCallback(async () => {
     if (creating) return;
@@ -235,9 +251,7 @@ export default function CoWriterHomePage() {
   const needle = query.trim().toLocaleLowerCase();
   // Browsing shows the notebook's top level; a search reaches every page.
   const visible = needle
-    ? pages.filter((page) =>
-        `${page.title} ${page.preview}`.toLocaleLowerCase().includes(needle),
-      )
+    ? pages.filter((page) => `${page.title} ${page.preview}`.toLocaleLowerCase().includes(needle))
     : pages.filter((page) => !page.parent_id || !byId.has(page.parent_id));
   const pinned = visible.filter((page) => page.pinned);
   const rest = visible.filter((page) => !page.pinned);
@@ -297,7 +311,11 @@ export default function CoWriterHomePage() {
         }
       />
 
-      {error ? <div className="dt-notes-error" role="alert">{error}</div> : null}
+      {error ? (
+        <div className="dt-notes-error" role="alert">
+          {error}
+        </div>
+      ) : null}
 
       {loading ? (
         <div className="dt-notes-skeleton" aria-busy="true" aria-label={t("Loading pages…")}>
@@ -309,7 +327,11 @@ export default function CoWriterHomePage() {
         <div className="dt-notes-empty">
           <span aria-hidden>📓</span>
           <h2>{t("Your notebook is empty")}</h2>
-          <p>{t("Start a page for a topic, a lecture or a paper. Dito can help you write and turn it into practice.")}</p>
+          <p>
+            {t(
+              "Start a page for a topic, a lecture or a paper. Dito can help you write and turn it into practice.",
+            )}
+          </p>
           <div>
             <button
               type="button"
@@ -344,12 +366,12 @@ export default function CoWriterHomePage() {
                 aria-label={t("Search pages")}
               />
             </label>
-            <span className="dt-notes-count">
-              {t("{{count}} pages", { count: pages.length })}
-            </span>
+            <span className="dt-notes-count">{t("{{count}} pages", { count: pages.length })}</span>
           </div>
           {!visible.length && (
-            <p className="dt-notes-none">{t("No pages match “{{query}}”.", { query: query.trim() })}</p>
+            <p className="dt-notes-none">
+              {t("No pages match “{{query}}”.", { query: query.trim() })}
+            </p>
           )}
           {!!pinned.length && (
             <section className="dt-notes-section" aria-label={t("Pinned pages")}>
@@ -358,8 +380,13 @@ export default function CoWriterHomePage() {
             </section>
           )}
           {!!rest.length && (
-            <section className="dt-notes-section" aria-label={t(needle ? "Results" : "Recently edited")}>
-              {(pinned.length > 0 || needle) && <h2>{t(needle ? "Results" : "Recently edited")}</h2>}
+            <section
+              className="dt-notes-section"
+              aria-label={t(needle ? "Results" : "Recently edited")}
+            >
+              {(pinned.length > 0 || needle) && (
+                <h2>{t(needle ? "Results" : "Recently edited")}</h2>
+              )}
               <div className="dt-notes-grid">{rest.map(card)}</div>
             </section>
           )}

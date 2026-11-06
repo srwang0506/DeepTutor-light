@@ -38,10 +38,9 @@ summary = f"First twenty Fibonacci values rendered with the selected syntax them
 print(summary)
 `;
 
-const RichCodeBlockPreview = dynamic(
-  () => import("@/components/common/RichCodeBlock"),
-  { ssr: false },
-);
+const RichCodeBlockPreview = dynamic(() => import("@/components/common/RichCodeBlock"), {
+  ssr: false,
+});
 
 export default function AppearanceSettingsPage() {
   const { t } = useTranslation();
@@ -136,9 +135,7 @@ export default function AppearanceSettingsPage() {
               aria-label={t("Learning text size")}
               value={contentFontScale}
               onChange={(event) =>
-                void updateContentFontScale(
-                  Number(event.target.value) as ContentFontScale,
-                )
+                void updateContentFontScale(Number(event.target.value) as ContentFontScale)
               }
               className={selectClass}
             >
@@ -158,9 +155,7 @@ export default function AppearanceSettingsPage() {
               aria-label={t("Learning line spacing")}
               value={contentLineSpacing}
               onChange={(event) =>
-                void updateContentLineSpacing(
-                  event.target.value as ContentLineSpacing,
-                )
+                void updateContentLineSpacing(event.target.value as ContentLineSpacing)
               }
               className={selectClass}
             >
@@ -177,9 +172,7 @@ export default function AppearanceSettingsPage() {
           }
         />
         <div className="border-t border-[var(--border)]/50 py-4">
-          <div className="mb-3 text-[13.5px] font-medium">
-            {t("Learning text preview")}
-          </div>
+          <div className="mb-3 text-[13.5px] font-medium">{t("Learning text preview")}</div>
           <div
             data-testid="learning-text-preview"
             className="learning-text space-y-3 rounded-lg bg-[var(--muted)]/40 p-4 font-serif [overflow-wrap:anywhere]"
@@ -187,17 +180,19 @@ export default function AppearanceSettingsPage() {
               {
                 "--learning-text-base": "16px",
                 "--learning-font-scale": contentFontScale / 100,
-                "--learning-line-height":
-                  CONTENT_LINE_SPACING[contentLineSpacing],
+                "--learning-line-height": CONTENT_LINE_SPACING[contentLineSpacing],
               } as CSSProperties
             }
           >
             <p lang="en">
-              Learning starts with a question. Explore an idea, connect it to
-              what you know, and explain it in your own words.
+              {t(
+                "Learning starts with a question. Explore an idea, connect it to what you know, and explain it in your own words.",
+              )}
             </p>
             <p lang="zh">
-              学习从一个问题开始。探索新的想法，将它与已有的知识联系起来，再用自己的语言解释。
+              {t(
+                "学习从一个问题开始。探索新的想法，将它与已有的知识联系起来，再用自己的语言解释。",
+              )}
             </p>
           </div>
           <button
@@ -212,44 +207,29 @@ export default function AppearanceSettingsPage() {
 
       <SettingSection
         title={t("Code blocks")}
-        description={t(
-          "Choose how code snippets look across the app after you apply changes.",
-        )}
+        description={t("Choose how code snippets look across the app after you apply changes.")}
       >
         <div className="border-t border-[var(--border)]/50 py-3.5 first:border-t-0">
-          <div className="text-[13.5px] font-medium text-[var(--foreground)]">
-            {t("Preview")}
-          </div>
+          <div className="text-[13.5px] font-medium text-[var(--foreground)]">{t("Preview")}</div>
           <p className="mb-3 mt-1 text-[12px] leading-relaxed text-[var(--muted-foreground)]">
             {t("Updates live as you change the settings below.")}
           </p>
-          <RichCodeBlockPreview
-            raw={CODE_BLOCK_PREVIEW_SNIPPET}
-            lang="python"
-          />
+          <RichCodeBlockPreview raw={CODE_BLOCK_PREVIEW_SNIPPET} lang="python" />
         </div>
 
         <SettingRow
           title={t("Syntax theme")}
-          description={t(
-            "Select the Prism theme used for highlighted code blocks.",
-          )}
+          description={t("Select the Prism theme used for highlighted code blocks.")}
           control={
             <select
               value={codeBlockTheme}
               onChange={(event) =>
-                void updateCodeBlockTheme(
-                  event.target.value as CodeBlockThemeId,
-                )
+                void updateCodeBlockTheme(event.target.value as CodeBlockThemeId)
               }
               className={`${selectClass} min-w-[220px] pr-8`}
             >
               {CODE_BLOCK_THEME_OPTIONS.map((option) => (
-                <option
-                  key={option.id}
-                  value={option.id}
-                  className={selectOptionClass}
-                >
+                <option key={option.id} value={option.id} className={selectOptionClass}>
                   {option.label}
                 </option>
               ))}
@@ -259,28 +239,16 @@ export default function AppearanceSettingsPage() {
 
         <SettingRow
           title={t("Show line numbers")}
-          description={t(
-            "Display a gutter with line numbers beside each code block.",
-          )}
+          description={t("Display a gutter with line numbers beside each code block.")}
           control={
-            <Toggle
-              checked={codeBlockShowLineNumbers}
-              onChange={handleShowLineNumbersChange}
-            />
+            <Toggle checked={codeBlockShowLineNumbers} onChange={handleShowLineNumbersChange} />
           }
         />
 
         <SettingRow
           title={t("Wrap long lines")}
-          description={t(
-            "Wrap long code lines instead of forcing horizontal scrolling.",
-          )}
-          control={
-            <Toggle
-              checked={codeBlockWrapLongLines}
-              onChange={handleWrapLongLinesChange}
-            />
-          }
+          description={t("Wrap long code lines instead of forcing horizontal scrolling.")}
+          control={<Toggle checked={codeBlockWrapLongLines} onChange={handleWrapLongLinesChange} />}
         />
       </SettingSection>
     </div>

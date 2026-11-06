@@ -48,15 +48,8 @@ import {
 export function ProvidersWorkspace() {
   const { t, i18n } = useTranslation();
   const uiLanguage = i18n?.resolvedLanguage ?? i18n?.language ?? "en";
-  const {
-    catalog,
-    draft,
-    providers,
-    connectionTargets,
-    catalogEditable,
-    mutateCatalog,
-    applying,
-  } = useSettings();
+  const { catalog, draft, providers, connectionTargets, catalogEditable, mutateCatalog, applying } =
+    useSettings();
   const stageRegistry = async (edit: RegistryEdit) => {
     mutateCatalog((next) => stageRegistryAction(next, edit));
     return true;
@@ -68,14 +61,11 @@ export function ProvidersWorkspace() {
   // it shows has to bring it into view.
   const revealDetail = () => {
     if (window.matchMedia("(max-width: 1279px)").matches)
-      requestAnimationFrame(() =>
-        scrollToSettingsElement(editorRef.current),
-      );
+      requestAnimationFrame(() => scrollToSettingsElement(editorRef.current));
   };
   const [adding, setAdding] = useState(false);
   useEffect(() => {
-    if (adding)
-      requestAnimationFrame(() => scrollToSettingsElement(editorRef.current));
+    if (adding) requestAnimationFrame(() => scrollToSettingsElement(editorRef.current));
     else if (selected) revealDetail();
   }, [adding, selected]);
   const [vendor, setVendor] = useState("");
@@ -90,47 +80,59 @@ export function ProvidersWorkspace() {
       else params.delete(key);
     }
     const query = params.toString();
-    window.history.replaceState(
-      null,
-      "",
-      `${window.location.pathname}${query ? `?${query}` : ""}`,
-    );
+    window.history.replaceState(null, "", `${window.location.pathname}${query ? `?${query}` : ""}`);
   };
+  /* eslint-disable react-hooks/set-state-in-effect -- Consume an external navigation/restoration command through the cancellable imperative controller. Running this transaction during render would repeat I/O or mutate another store. */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("add") === "1") setAdding(true);
     const id = params.get("provider");
-    if (id && sources.some((p) => p.id === id))
-      setSelected((current) => current || id);
+    if (id && sources.some((p) => p.id === id)) setSelected((current) => current || id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sources.length]);
-  const options = [
+  /* eslint-enable react-hooks/set-state-in-effect */ const options = [
     ...new Map(
-      REGISTRY_SERVICES.flatMap((service) => (providers[service] ?? [])
-        .filter(p => p.value !== "none" && p.status !== "deprecated")
-        .map(option => [option.value, { ...option, service }] as const)).reverse(),
+      REGISTRY_SERVICES.flatMap((service) =>
+        (providers[service] ?? [])
+          .filter((p) => p.value !== "none" && p.status !== "deprecated")
+          .map((option) => [option.value, { ...option, service }] as const),
+      ).reverse(),
     ).values(),
-  ].map(option => ({ ...option, services: PROVIDER_SERVICES.filter(service =>
-    providers[service]?.some(p => p.value === option.value && p.status !== "deprecated") ||
-    Boolean(connectionTargets.find(target => target.provider === option.value)?.services[service]))
-  })).sort((a, b) => a.label.localeCompare(b.label));
+  ]
+    .map((option) => ({
+      ...option,
+      services: PROVIDER_SERVICES.filter(
+        (service) =>
+          providers[service]?.some((p) => p.value === option.value && p.status !== "deprecated") ||
+          Boolean(
+            connectionTargets.find((target) => target.provider === option.value)?.services[service],
+          ),
+      ),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
   // Protocol-specific aliases still resolve saved accounts, but new accounts
   // use the vendor once and select their protocol in the connection editor.
   const addableOptions = options.filter((p) => p.status !== "legacy");
-  const optionLabel = (provider: string) => formatProviderLabel(provider, options.find(p => p.value === provider)?.label ?? provider, uiLanguage);
+  const optionLabel = (provider: string) =>
+    formatProviderLabel(
+      provider,
+      options.find((p) => p.value === provider)?.label ?? provider,
+      uiLanguage,
+    );
   const source = sources.find((p) => p.id === selected);
   const option = options.find((p) => p.value === source?.provider);
   const managed = source?.provider === "openai_codex";
   const connection = source?.source;
-  const apiFormat = connection?.api_format ||
-    (option?.default_api_format as CatalogConnection["api_format"]) || "auto";
+  const apiFormat =
+    connection?.api_format ||
+    (option?.default_api_format as CatalogConnection["api_format"]) ||
+    "auto";
   const defaultBaseUrl = option?.base_urls?.[apiFormat] || option?.base_url || "";
   const change = (field: string, value: unknown) => {
     if (source)
       mutateCatalog((next) => {
         updateProvider(next, source.ref, field, value);
-        if (field === "name" && managed)
-          updateProvider(next, source.ref, "user_name", value);
+        if (field === "name" && managed) updateProvider(next, source.ref, "user_name", value);
       });
   };
   const create = (custom?: CustomProviderInput) => {
@@ -174,10 +176,21 @@ export function ProvidersWorkspace() {
   const savedIds = new Set(providerRegistry(catalog).map((p) => p.id));
   const saved = Boolean(source && savedIds.has(source.id));
   const filtered = sources.filter((p) =>
-    `${formatConfiguredProviderName(p.provider, p.name, uiLanguage)} ${optionLabel(p.provider)} ${p.provider}`.toLowerCase().includes(query.toLowerCase()),
+    `${formatConfiguredProviderName(p.provider, p.name, uiLanguage)} ${optionLabel(p.provider)} ${p.provider}`
+      .toLowerCase()
+      .includes(query.toLowerCase()),
   );
-  const hints = source ? PROVIDER_SERVICES.filter(service => providerServiceSupport(source, service, connectionTargets, providers).enabled)
-    .map(service => ["tts", "stt"].includes(service) ? "voice" : ["imagegen", "videogen"].includes(service) ? "generation" : service) : [];
+  const hints = source
+    ? PROVIDER_SERVICES.filter(
+        (service) => providerServiceSupport(source, service, connectionTargets, providers).enabled,
+      ).map((service) =>
+        ["tts", "stt"].includes(service)
+          ? "voice"
+          : ["imagegen", "videogen"].includes(service)
+            ? "generation"
+            : service,
+      )
+    : [];
   if (adding)
     return (
       <div ref={editorRef} className="min-w-0 scroll-mt-4">
@@ -255,7 +268,17 @@ export function ProvidersWorkspace() {
                     {!savedIds.has(p.id) && ` · ${t("Not saved")}`}
                   </span>
                   <span className="mt-2 flex flex-wrap gap-1 pl-6">
-                    {PROVIDER_SERVICES.filter(service => providerServiceSupport(p, service, connectionTargets, providers).enabled).map(service => <span key={service} className="rounded bg-[var(--muted)] px-1.5 py-0.5 text-[11px] text-[var(--muted-foreground)]">{t(SERVICE_TITLES[service])}</span>)}
+                    {PROVIDER_SERVICES.filter(
+                      (service) =>
+                        providerServiceSupport(p, service, connectionTargets, providers).enabled,
+                    ).map((service) => (
+                      <span
+                        key={service}
+                        className="rounded bg-[var(--muted)] px-1.5 py-0.5 text-[11px] text-[var(--muted-foreground)]"
+                      >
+                        {t(SERVICE_TITLES[service])}
+                      </span>
+                    ))}
                   </span>
                 </button>
               );
@@ -303,9 +326,7 @@ export function ProvidersWorkspace() {
                             label={t("Provider URL")}
                             value={connection.base_url}
                             onChange={(v) => change("base_url", v)}
-                            placeholder={
-                              defaultBaseUrl || "https://api.example.com/v1"
-                            }
+                            placeholder={defaultBaseUrl || "https://api.example.com/v1"}
                           />
                           <p className="text-[13px] leading-relaxed text-[var(--muted-foreground)]">
                             {t(
@@ -316,26 +337,28 @@ export function ProvidersWorkspace() {
                         {option?.requires_api_key !== false && (
                           <div className="space-y-4">
                             {Array.isArray(connection.api_key) ? (
-                              connection.api_key.map(
-                                (key: string, index: number) => (
-                                  <RegistryField
-                                    key={index}
-                                    label={t("API key {{number}}", {
-                                      number: index + 1,
-                                    })}
-                                    value={key}
-                                    type="password"
-                                    onChange={(value) => {
-                                      const keys = [...connection.api_key];
-                                      keys[index] = value;
-                                      change("api_key", keys);
-                                    }}
-                                  />
-                                ),
-                              )
+                              connection.api_key.map((key: string, index: number) => (
+                                <RegistryField
+                                  key={index}
+                                  label={t("API key {{number}}", {
+                                    number: index + 1,
+                                  })}
+                                  value={key}
+                                  type="password"
+                                  onChange={(value) => {
+                                    const keys = [...connection.api_key];
+                                    keys[index] = value;
+                                    change("api_key", keys);
+                                  }}
+                                />
+                              ))
                             ) : (
                               <RegistryField
-                                label={t(source.provider === "volcengine_speech" && connection.app_id ? "Speech access token" : "API key")}
+                                label={t(
+                                  source.provider === "volcengine_speech" && connection.app_id
+                                    ? "Speech access token"
+                                    : "API key",
+                                )}
                                 value={connection.api_key}
                                 type="password"
                                 onChange={(value) => change("api_key", value)}
@@ -346,35 +369,50 @@ export function ProvidersWorkspace() {
                       </div>
                       {source.provider === "volcengine_speech" && (
                         <div className="space-y-2">
-                          <RegistryField label={t("Speech App ID (legacy console only)")}
-                            value={connection.app_id ?? ""} onChange={v => change("app_id", v)} />
+                          <RegistryField
+                            label={t("Speech App ID (legacy console only)")}
+                            value={connection.app_id ?? ""}
+                            onChange={(v) => change("app_id", v)}
+                          />
                           <p className="text-[13px] leading-relaxed text-[var(--muted-foreground)]">
-                            {t("Use the Speech console API key. For the legacy console, enter App ID and put the access token in the key field. Ark keys are separate.")}
+                            {t(
+                              "Use the Speech console API key. For the legacy console, enter App ID and put the access token in the key field. Ark keys are separate.",
+                            )}
                           </p>
                         </div>
                       )}
-                      {providerServiceSupport(source, "llm", connectionTargets, providers).enabled && option?.api_formats?.length !== 0 && (
-                        <ProviderProtocol value={apiFormat} formats={option?.api_formats} onChange={value => change("api_format", value)} />
-                      )}
-                      <ProviderServices key={source.id} source={source} onChange={value => change("service_overrides", value)} />
+                      {providerServiceSupport(source, "llm", connectionTargets, providers)
+                        .enabled &&
+                        option?.api_formats?.length !== 0 && (
+                          <ProviderProtocol
+                            value={apiFormat}
+                            formats={option?.api_formats}
+                            onChange={(value) => change("api_format", value)}
+                          />
+                        )}
+                      <ProviderServices
+                        key={source.id}
+                        source={source}
+                        onChange={(value) => change("service_overrides", value)}
+                      />
                       <details className={`p-3.5 ${subPanelClass}`}>
                         <summary className="cursor-pointer select-none rounded text-[13px] font-medium marker:text-[var(--muted-foreground)]">
                           {t("Advanced connection settings")}
                         </summary>
                         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                          {source.provider !== "volcengine_speech" && <>
-                          <RegistryField
-                            label={t("API version")}
-                            value={connection.api_version || ""}
-                            onChange={(v) => change("api_version", v)}
-                          />
-                          </>}
+                          {source.provider !== "volcengine_speech" && (
+                            <>
+                              <RegistryField
+                                label={t("API version")}
+                                value={connection.api_version || ""}
+                                onChange={(v) => change("api_version", v)}
+                              />
+                            </>
+                          )}
                           <div className="sm:col-span-2">
                             <RegistryField
                               label={t("Extra headers (JSON)")}
-                              value={stringifyExtraHeaders(
-                                connection.extra_headers,
-                              )}
+                              value={stringifyExtraHeaders(connection.extra_headers)}
                               onChange={(v) => change("extra_headers", v)}
                             />
                           </div>
@@ -388,7 +426,10 @@ export function ProvidersWorkspace() {
                         </div>
                       </details>
                       <RegistryProbe
-                        input={{ ...providerProbeInput(source, defaultBaseUrl), api_format: apiFormat }}
+                        input={{
+                          ...providerProbeInput(source, defaultBaseUrl),
+                          api_format: apiFormat,
+                        }}
                         discovery={connection.discovery}
                         hints={hints}
                         showCapabilities={false}
@@ -397,17 +438,17 @@ export function ProvidersWorkspace() {
                     </>
                   )}
                   <div className="flex flex-wrap items-center gap-2 border-t border-[var(--border)] pt-4">
-
-                      <Tooltip label={
+                    <Tooltip
+                      label={
                         providerUsage(draft, source)
                           ? t("Change or remove the models using this provider first.")
                           : t("Remove provider")
-                      } side="top">
+                      }
+                      side="top"
+                    >
                       <button
                         type="button"
-                        disabled={
-                          applying || providerUsage(draft, source) > 0 || managed
-                        }
+                        disabled={applying || providerUsage(draft, source) > 0 || managed}
                         aria-label={t("Remove provider")}
                         onClick={async () => {
                           await stageRegistry({ kind: "provider", ref: source.ref, delete: true });
@@ -429,19 +470,29 @@ export function ProvidersWorkspace() {
                         ["search", "Search"],
                         ["voice", "Voice"],
                         ["multimodal", "Multimodal generation"],
-                      ].filter(([path]) => PROVIDER_SERVICES.some(service =>
-                        (path === "voice" ? service === "tts" || service === "stt" : path === "multimodal" ? service === "imagegen" || service === "videogen" : service === path) &&
-                        providerServiceSupport(source, service, connectionTargets, providers).enabled
-                      )).map(([path, label]) => (
-                        <Link
-                          key={path}
-                          href={`/settings/${path}?provider=${encodeURIComponent(source.id)}`}
-                          className="inline-flex items-center gap-1 rounded-lg border border-[color-mix(in_srgb,var(--border)_80%,transparent)] px-2.5 py-1.5 text-[13px] text-[var(--muted-foreground)] transition-[background-color,border-color,color] duration-150 hover:border-[color-mix(in_srgb,var(--foreground)_20%,var(--border))] hover:bg-[var(--accent)] hover:text-[var(--foreground)]"
-                        >
-                          {t(label)}
-                          <ArrowRight size={12} />
-                        </Link>
-                      ))}
+                      ]
+                        .filter(([path]) =>
+                          PROVIDER_SERVICES.some(
+                            (service) =>
+                              (path === "voice"
+                                ? service === "tts" || service === "stt"
+                                : path === "multimodal"
+                                  ? service === "imagegen" || service === "videogen"
+                                  : service === path) &&
+                              providerServiceSupport(source, service, connectionTargets, providers)
+                                .enabled,
+                          ),
+                        )
+                        .map(([path, label]) => (
+                          <Link
+                            key={path}
+                            href={`/settings/${path}?provider=${encodeURIComponent(source.id)}`}
+                            className="inline-flex items-center gap-1 rounded-lg border border-[color-mix(in_srgb,var(--border)_80%,transparent)] px-2.5 py-1.5 text-[13px] text-[var(--muted-foreground)] transition-[background-color,border-color,color] duration-150 hover:border-[color-mix(in_srgb,var(--foreground)_20%,var(--border))] hover:bg-[var(--accent)] hover:text-[var(--foreground)]"
+                          >
+                            {t(label)}
+                            <ArrowRight size={12} />
+                          </Link>
+                        ))}
                     </div>
                   )}
                 </div>

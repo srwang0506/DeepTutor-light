@@ -56,11 +56,9 @@ export default function RegisterPage() {
       {/* Logo / Title */}
       <div className="text-center mb-8">
         <h1 className="font-serif text-2xl font-semibold text-[var(--foreground)] tracking-tight">
-          DeepTutor
+          {t("DeepTutor")}
         </h1>
-        <p className="mt-1 text-sm text-[var(--muted-foreground)]">
-          {t("Create your account")}
-        </p>
+        <p className="mt-1 text-sm text-[var(--muted-foreground)]">{t("Create your account")}</p>
       </div>
 
       {/* First-user notice */}
@@ -96,7 +94,7 @@ export default function RegisterPage() {
                          placeholder:text-[var(--muted-foreground)]
                          focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent
                          transition-shadow text-sm"
-              placeholder="you@example.com"
+              placeholder={t("you@example.com")}
             />
           </div>
 
@@ -153,9 +151,7 @@ export default function RegisterPage() {
 
           {/* Error message */}
           {error && (
-            <p className="text-sm text-red-500 bg-red-500/10 rounded-lg px-3 py-2">
-              {error}
-            </p>
+            <p className="text-sm text-red-500 bg-red-500/10 rounded-lg px-3 py-2">{error}</p>
           )}
 
           {/* Submit */}
@@ -175,10 +171,7 @@ export default function RegisterPage() {
 
       <p className="mt-6 text-center text-sm text-[var(--muted-foreground)]">
         {t("Already have an account?")}{" "}
-        <Link
-          href="/login"
-          className="text-[var(--primary)] hover:underline font-medium"
-        >
+        <Link href="/login" className="text-[var(--primary)] hover:underline font-medium">
           {t("Sign in")}
         </Link>
       </p>

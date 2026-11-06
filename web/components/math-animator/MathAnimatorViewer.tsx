@@ -1,5 +1,6 @@
 "use client";
 
+import SourceImage from "@/components/common/SourceImage";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Code2, Expand, Image as ImageIcon, Timer, Video } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -43,8 +44,7 @@ export default function MathAnimatorViewer({
         if (node.scrollHeight > node.clientHeight + 2) {
           const style = window.getComputedStyle(node);
           if (style.overflowY === "auto" || style.overflowY === "scroll") {
-            const atBottom =
-              node.scrollTop + node.clientHeight >= node.scrollHeight - 2;
+            const atBottom = node.scrollTop + node.clientHeight >= node.scrollHeight - 2;
             const atTop = node.scrollTop <= 2;
             if ((e.deltaY > 0 && !atBottom) || (e.deltaY < 0 && !atTop)) {
               return;
@@ -120,7 +120,7 @@ export default function MathAnimatorViewer({
                 onClick={() => setFullscreenUrl(resolveAssetUrl(item.url))}
                 className="group relative overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--background)]"
               >
-                <img
+                <SourceImage
                   src={resolveAssetUrl(item.url)}
                   alt={item.label || item.filename}
                   className="max-h-[280px] w-full object-contain"
@@ -147,26 +147,20 @@ export default function MathAnimatorViewer({
         </details>
       ) : null}
 
-      {!bare &&
-      result.render.visual_review &&
-      result.render.visual_review.passed === false ? (
+      {!bare && result.render.visual_review && result.render.visual_review.passed === false ? (
         <div className="rounded-xl border border-amber-500/35 bg-amber-500/10 px-3 py-2.5 text-[12px] leading-[1.6] text-amber-900 dark:text-amber-200">
           <div className="font-medium">
             {t("Visual review warning:")}{" "}
             {result.render.visual_review.summary ||
               t("The generated result still has presentation issues.")}
           </div>
-          {result.render.visual_review.issues &&
-          result.render.visual_review.issues.length > 0 ? (
-            <div className="mt-1 opacity-90">
-              {result.render.visual_review.issues.join(" ")}
-            </div>
+          {result.render.visual_review.issues && result.render.visual_review.issues.length > 0 ? (
+            <div className="mt-1 opacity-90">{result.render.visual_review.issues.join(" ")}</div>
           ) : null}
         </div>
       ) : null}
 
-      {result.render.retry_attempts ||
-      Object.keys(result.timings).length > 0 ? (
+      {result.render.retry_attempts || Object.keys(result.timings).length > 0 ? (
         <div className="flex flex-wrap items-center gap-2 text-[11px] text-[var(--muted-foreground)]">
           {result.render.quality ? (
             <span className="rounded-full border border-[var(--border)] px-2 py-0.5">
@@ -194,7 +188,7 @@ export default function MathAnimatorViewer({
           className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-6"
           onClick={() => setFullscreenUrl(null)}
         >
-          <img
+          <SourceImage
             src={fullscreenUrl}
             alt={t("Fullscreen math animation output")}
             className="max-h-full max-w-full object-contain"

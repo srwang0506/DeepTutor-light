@@ -126,36 +126,42 @@ export default function KbDocumentList({
   const [dropTarget, setDropTarget] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(
+  const loadData = useCallback(
     async (force = false) => {
-      setLoading(true);
-      setError(null);
-      try {
-        if (force) invalidateClientCache(`knowledge:files:${kbName}`);
-        const next = await listKnowledgeBaseFiles(kbName, { force });
-        setFiles(next);
-        // Default-expand every folder so files are visible without digging.
-        setExpanded(
-          new Set(next.filter((e) => e.type === "folder").map((e) => e.name)),
-        );
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
-      } finally {
-        setLoading(false);
-      }
+      if (force) invalidateClientCache(`knowledge:files:${kbName}`);
+      return listKnowledgeBaseFiles(kbName, { force })
+        .then((next) => {
+          setFiles(next);
+          // Default-expand every folder so files are visible without digging.
+          setExpanded(new Set(next.filter((e) => e.type === "folder").map((e) => e.name)));
+        })
+        .catch((err) => setError(err instanceof Error ? err.message : String(err)))
+        .finally(() => setLoading(false));
     },
     [kbName],
   );
 
+  const load = useCallback(
+    (force = false) => {
+      setLoading(true);
+      setError(null);
+      return loadData(force);
+    },
+    [loadData],
+  );
+  const [resourceKey, setResourceKey] = useState("");
+  const requestKey = JSON.stringify([kbName, refreshKey]);
+  if (resourceKey !== requestKey) {
+    setResourceKey(requestKey);
+    setLoading(true);
+    setError(null);
+  }
   useEffect(() => {
-    void load(refreshKey > 0);
-  }, [load, refreshKey]);
+    void loadData(refreshKey > 0);
+  }, [loadData, refreshKey]);
 
   const { root, folderPaths } = useMemo(() => buildTree(files), [files]);
-  const fileEntries = useMemo(
-    () => files.filter((e) => e.type !== "folder"),
-    [files],
-  );
+  const fileEntries = useMemo(() => files.filter((e) => e.type !== "folder"), [files]);
 
   const toggleFolder = (path: string) =>
     setExpanded((prev) => {
@@ -281,9 +287,7 @@ export default function KbDocumentList({
               e.stopPropagation();
               setDropTarget(node.path);
             }}
-            onDragLeave={() =>
-              setDropTarget((cur) => (cur === node.path ? null : cur))
-            }
+            onDragLeave={() => setDropTarget((cur) => (cur === node.path ? null : cur))}
             onDrop={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -343,11 +347,7 @@ export default function KbDocumentList({
             aria-label={node.path}
             className="flex min-w-0 flex-1 items-center gap-2 text-left"
           >
-            <Icon
-              size={13}
-              strokeWidth={1.6}
-              className={`shrink-0 ${spec.tint}`}
-            />
+            <Icon size={13} strokeWidth={1.6} className={`shrink-0 ${spec.tint}`} />
             <div className="min-w-0 flex-1">
               <div className="truncate text-[12px] font-medium text-[var(--foreground)]">
                 {node.name}
@@ -392,9 +392,7 @@ export default function KbDocumentList({
                   type="button"
                   onClick={() => {
                     setConfirmDeleteFor(null);
-                    setMoveMenuFor((cur) =>
-                      cur === node.path ? null : node.path,
-                    );
+                    setMoveMenuFor((cur) => (cur === node.path ? null : node.path));
                   }}
                   aria-label={t("Move to…")}
                   className="rounded p-1 text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
@@ -421,10 +419,7 @@ export default function KbDocumentList({
 
         {moveMenuFor === node.path && (
           <>
-            <div
-              className="fixed inset-0 z-10"
-              onClick={() => setMoveMenuFor(null)}
-            />
+            <div className="fixed inset-0 z-10" onClick={() => setMoveMenuFor(null)} />
             <div className="absolute right-1 top-8 z-20 max-h-60 w-44 overflow-y-auto rounded-lg border border-[var(--border)] bg-[var(--card)] py-1 shadow-lg">
               <div className="px-2.5 py-1 text-[10px] uppercase tracking-wide text-[var(--muted-foreground)]">
                 {t("Move to")}
@@ -466,9 +461,7 @@ export default function KbDocumentList({
     <aside className="flex h-full w-[220px] shrink-0 flex-col border-r border-[var(--border)] bg-[var(--card)]/40">
       <div className="flex items-center justify-between gap-1 px-2.5 pb-1.5 pt-2.5">
         <div className="flex min-w-0 items-center gap-1.5">
-          <span className="text-[12px] font-medium text-[var(--foreground)]">
-            {t("Files")}
-          </span>
+          <span className="text-[12px] font-medium text-[var(--foreground)]">{t("Files")}</span>
           <span className="rounded-full bg-[var(--muted)] px-1.5 py-0 text-[10px] text-[var(--muted-foreground)]">
             {fileEntries.length}
           </span>
@@ -554,21 +547,14 @@ export default function KbDocumentList({
         {error ? (
           <div className="rounded-md border border-red-200 bg-red-50 px-2.5 py-2 text-[11px] text-red-700 dark:border-red-900 dark:bg-red-950/30 dark:text-red-300">
             {error}
-            <button
-              type="button"
-              onClick={() => void load(true)}
-              className="ml-1 underline"
-            >
+            <button type="button" onClick={() => void load(true)} className="ml-1 underline">
               {t("Retry")}
             </button>
           </div>
         ) : loading && !files.length ? (
           <div className="space-y-1">
             {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="h-8 rounded-md bg-[var(--muted)]/40 animate-pulse"
-              />
+              <div key={i} className="h-8 rounded-md bg-[var(--muted)]/40 animate-pulse" />
             ))}
           </div>
         ) : fileEntries.length === 0 && folderPaths.length === 0 ? (
@@ -589,9 +575,7 @@ function formatRelative(unixSeconds: number): string {
   const diff = Date.now() - ts;
   if (diff < 60_000) return "just now";
   if (diff < 60 * 60_000) return `${Math.floor(diff / 60_000)}m ago`;
-  if (diff < 24 * 60 * 60_000)
-    return `${Math.floor(diff / (60 * 60_000))}h ago`;
-  if (diff < 30 * 24 * 60 * 60_000)
-    return `${Math.floor(diff / (24 * 60 * 60_000))}d ago`;
+  if (diff < 24 * 60 * 60_000) return `${Math.floor(diff / (60 * 60_000))}h ago`;
+  if (diff < 30 * 24 * 60 * 60_000) return `${Math.floor(diff / (24 * 60 * 60_000))}d ago`;
   return new Date(ts).toLocaleDateString();
 }

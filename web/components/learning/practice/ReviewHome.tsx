@@ -29,14 +29,15 @@ export function ReviewHome() {
   useCreateRequest(() => setImporting(true))
   const refresh = useCallback(async () => {
     const request = ++sequence.current
-    try {
-      const next = await getPracticeSummary()
-      if (request !== sequence.current) return
-      setSummary(next)
-      setError('')
-    } catch (err) {
-      if (request === sequence.current) setError(err instanceof Error ? err.message : String(err))
-    }
+    return getPracticeSummary()
+      .then(async (next) => {
+        if (request !== sequence.current) return
+        setSummary(next)
+        setError('')
+      })
+      .catch((err) => {
+        if (request === sequence.current) setError(err instanceof Error ? err.message : String(err))
+      })
   }, [])
   useEffect(() => {
     void refresh()
@@ -56,10 +57,10 @@ export function ReviewHome() {
       const rows = await getPracticeQueue()
       if (rows.length)
         setSession(
-          rows.map(row => ({
+          rows.map((row) => ({
             id: row.entry.id,
             content_workspace_id: row.content_workspace_id,
-          }))
+          })),
         )
       else {
         setNotice(t('You are caught up. Come back when your next reviews are due.'))
@@ -73,7 +74,7 @@ export function ReviewHome() {
   }
   const completed = () => {
     setSession(null)
-    setRevision(value => value + 1)
+    setRevision((value) => value + 1)
     void refresh()
   }
   return (
@@ -110,10 +111,10 @@ export function ReviewHome() {
             <PracticeImport
               initialTarget="bank"
               onClose={() => setImporting(false)}
-              onImported={message => {
+              onImported={(message) => {
                 setNotice(message)
                 setImporting(false)
-                setRevision(value => value + 1)
+                setRevision((value) => value + 1)
                 void refresh()
               }}
             />
@@ -137,7 +138,7 @@ export function ReviewHome() {
                 </div>
                 <p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground">
                   {t(
-                    'Mastered questions leave this round and return when your next review is due.'
+                    'Mastered questions leave this round and return when your next review is due.',
                   )}
                 </p>
               </div>

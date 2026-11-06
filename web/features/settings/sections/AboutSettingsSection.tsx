@@ -1,5 +1,6 @@
 "use client";
 
+import { useHydratedState } from "@/hooks/useHydratedState";
 import { useSettings } from "@/features/settings/store/SettingsStore";
 import { useStagedSettings } from "@/features/settings/store/useStagedSettings";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -16,11 +17,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { Toggle } from "@/components/settings/Toggle";
-import {
-  SettingRow,
-  SettingSection,
-  SettingsPageHeader,
-} from "@/components/settings/shared";
+import { SettingRow, SettingSection, SettingsPageHeader } from "@/components/settings/shared";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import Button from "@/components/ui/Button";
 import {
@@ -34,11 +31,7 @@ import {
   type UpdateJob,
   type UpdateJobStatus,
 } from "@/lib/app-update";
-import {
-  clientEdition,
-  normalizeVersionTag,
-  type ClientEdition,
-} from "@/lib/version";
+import { clientEdition, normalizeVersionTag, type ClientEdition } from "@/lib/version";
 
 const POLL_INTERVAL_MS = 800;
 const POLL_TIMEOUT_MS = 120_000;
@@ -70,21 +63,23 @@ export default function AboutSettingsPage() {
   const [error, setError] = useState("");
 
   const load = useCallback(async () => {
-    try {
-      const next = await fetchAppUpdateStatus();
-      setStatus(next);
-      setLiveChecks({ enabled: next.check_enabled });
-      setJob(next.job);
-      setError(next.check_error || "");
-    } catch (cause) {
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : (t("Unable to load version information.") as string),
-      );
-    } finally {
-      setLoading(false);
-    }
+    return fetchAppUpdateStatus()
+      .then(async (next) => {
+        setStatus(next);
+        setLiveChecks({ enabled: next.check_enabled });
+        setJob(next.job);
+        setError(next.check_error || "");
+      })
+      .catch((cause) => {
+        setError(
+          cause instanceof Error
+            ? cause.message
+            : (t("Unable to load version information.") as string),
+        );
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [t]);
 
   useEffect(() => {
@@ -138,9 +133,7 @@ export default function AboutSettingsPage() {
       setJob(next.job);
     } catch (cause) {
       setError(
-        cause instanceof Error
-          ? cause.message
-          : (t("Unable to check for updates.") as string),
+        cause instanceof Error ? cause.message : (t("Unable to check for updates.") as string),
       );
     } finally {
       setChecking(false);
@@ -158,9 +151,7 @@ export default function AboutSettingsPage() {
       setConfirmOpen(false);
     } catch (cause) {
       setError(
-        cause instanceof Error
-          ? cause.message
-          : (t("Unable to start the update.") as string),
+        cause instanceof Error ? cause.message : (t("Unable to start the update.") as string),
       );
     } finally {
       setRequesting(false);
@@ -173,10 +164,7 @@ export default function AboutSettingsPage() {
     "—";
   const latestVersion = normalizeVersionTag(status?.release?.version);
   // The user agent only exists in the browser; start from the server's view.
-  const [edition, setEdition] = useState<ClientEdition>(() =>
-    clientEdition(""),
-  );
-  useEffect(() => setEdition(clientEdition()), []);
+  const [edition] = useHydratedState<ClientEdition>(() => clientEdition(), clientEdition(""));
   const checkedAt = useMemo(() => {
     if (!status?.checked_at) return "";
     const parsed = new Date(status.checked_at);
@@ -185,7 +173,7 @@ export default function AboutSettingsPage() {
       i18n.language?.toLowerCase().startsWith("zh") ? "zh-CN" : "en-US",
       { dateStyle: "medium", timeStyle: "short" },
     );
-  }, [i18n.language, status?.checked_at]);
+  }, [i18n.language, status]);
 
   const installMode = status?.installation.mode ?? "unknown";
   const canUpdate = Boolean(
@@ -272,15 +260,10 @@ export default function AboutSettingsPage() {
       )}
 
       <SettingSection title={t("Software")}>
-        <SettingRow
-          title={t("Current version")}
-          control={<CodeValue value={currentVersion} />}
-        />
+        <SettingRow title={t("Current version")} control={<CodeValue value={currentVersion} />} />
         <SettingRow
           title={t("Installation")}
-          description={t(
-            status?.installation.reason || "How DeepTutor is installed here.",
-          )}
+          description={t(status?.installation.reason || "How DeepTutor is installed here.")}
           control={
             <span className="text-[12.5px] text-[var(--foreground)]">
               {t(INSTALLATION_LABELS[installMode])}
@@ -289,14 +272,8 @@ export default function AboutSettingsPage() {
         />
         <SettingRow
           title={t("Release channel")}
-          description={t(
-            "Only stable, published DeepTutor releases are considered.",
-          )}
-          control={
-            <span className="text-[12.5px] text-[var(--foreground)]">
-              {t("Stable")}
-            </span>
-          }
+          description={t("Only stable, published DeepTutor releases are considered.")}
+          control={<span className="text-[12.5px] text-[var(--foreground)]">{t("Stable")}</span>}
         />
       </SettingSection>
 
@@ -308,9 +285,7 @@ export default function AboutSettingsPage() {
       >
         <SettingRow
           title={t("Check for updates")}
-          description={t(
-            "Turn this off for offline or controlled deployments.",
-          )}
+          description={t("Turn this off for offline or controlled deployments.")}
           control={
             status?.is_admin ? (
               <Toggle
@@ -378,10 +353,7 @@ export default function AboutSettingsPage() {
         )}
 
         {job && (
-          <div
-            className="border-t border-[var(--border)]/50 py-4"
-            aria-live="polite"
-          >
+          <div className="border-t border-[var(--border)]/50 py-4" aria-live="polite">
             <div
               className={`flex items-center gap-2 text-[12.5px] font-medium ${jobTone(job.status)}`}
             >
@@ -395,9 +367,7 @@ export default function AboutSettingsPage() {
               {t(`updateJob.${job.status}`)}
             </div>
             {job.error && (
-              <p className="mt-2 text-[12px] text-red-600 dark:text-red-400">
-                {job.error}
-              </p>
+              <p className="mt-2 text-[12px] text-red-600 dark:text-red-400">{job.error}</p>
             )}
           </div>
         )}
@@ -463,12 +433,8 @@ function ResourceRow({
       className="group flex items-center justify-between gap-5 border-t border-[var(--border)]/50 py-3.5 first:border-t-0"
     >
       <div>
-        <div className="text-[13.5px] font-medium text-[var(--foreground)]">
-          {title}
-        </div>
-        <p className="mt-1 text-[12px] text-[var(--muted-foreground)]">
-          {description}
-        </p>
+        <div className="text-[13.5px] font-medium text-[var(--foreground)]">{title}</div>
+        <p className="mt-1 text-[12px] text-[var(--muted-foreground)]">{description}</p>
       </div>
       <span className="text-[var(--muted-foreground)] transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-[var(--foreground)]">
         {icon}

@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 
 import type { Capability } from "@/lib/capability-routes";
 import { apiFetch, apiUrl } from "@/lib/api";
@@ -37,18 +30,13 @@ const DEFAULT_VALUE: CapabilityAccessValue = {
   refresh: async () => {},
 };
 
-const CapabilityAccessContext =
-  createContext<CapabilityAccessValue>(DEFAULT_VALUE);
+const CapabilityAccessContext = createContext<CapabilityAccessValue>(DEFAULT_VALUE);
 
 export function useCapabilityAccess(): CapabilityAccessValue {
   return useContext(CapabilityAccessContext);
 }
 
-export function CapabilityAccessProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export function CapabilityAccessProvider({ children }: { children: ReactNode }) {
   // Optimistic until the first probe resolves so we never flash a locked UI
   // (admins and users-with-access stay unlocked; the backend enforces anyway).
   const [isAdmin, setIsAdmin] = useState(true);
@@ -56,26 +44,25 @@ export function CapabilityAccessProvider({
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
-    try {
-      // The settings payload only exposes the catalog to admins, so its
-      // presence is our admin signal — admins are never gated.
-      const res = await apiFetch(apiUrl("/api/settings"));
-      if (!res.ok) return;
-      const payload = (await res.json()) as { catalog?: unknown };
-      if (payload.catalog) {
-        setIsAdmin(true);
-        setHasLlm(true);
-        return;
-      }
-      setIsAdmin(false);
-      // Non-admins: their grant-filtered LLM options decide access.
-      const { options } = await listLLMOptions();
-      setHasLlm(options.length > 0);
-    } catch {
-      // Keep last known state; the backend still enforces access on every call.
-    } finally {
-      setLoading(false);
-    }
+    return apiFetch(apiUrl("/api/settings"))
+      .then(async (res) => {
+        if (!res.ok) return;
+        const payload = (await res.json()) as { catalog?: unknown };
+        if (payload.catalog) {
+          setIsAdmin(true);
+          setHasLlm(true);
+          return;
+        }
+        setIsAdmin(false);
+        const { options } = await listLLMOptions();
+        setHasLlm(options.length > 0);
+      })
+      .catch(() => {
+        // Keep last known state; the backend still enforces access on every call.
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -108,9 +95,7 @@ export function CapabilityAccessProvider({
   );
 
   return (
-    <CapabilityAccessContext.Provider
-      value={{ loading, isAdmin, hasLlm, has, refresh }}
-    >
+    <CapabilityAccessContext.Provider value={{ loading, isAdmin, hasLlm, has, refresh }}>
       {children}
     </CapabilityAccessContext.Provider>
   );

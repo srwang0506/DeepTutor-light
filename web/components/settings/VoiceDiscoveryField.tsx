@@ -1,5 +1,6 @@
 'use client'
 
+import { useKeyedState } from '@/hooks/useKeyedState'
 import { useEffect, useRef, useState } from 'react'
 import { Loader2, RefreshCw } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -33,8 +34,8 @@ export function VoiceDiscoveryField({
   // Changing a voice must not itself start another account lookup.
   const snapshot = structuredClone(draft)
   const model = snapshot.services.tts.profiles
-    .find(p => p.id === profileId)
-    ?.models.find(m => m.id === modelId)
+    .find((p) => p.id === profileId)
+    ?.models.find((m) => m.id === modelId)
   if (model) {
     const identity = {
       id: model.id,
@@ -42,7 +43,7 @@ export function VoiceDiscoveryField({
       model: model.model,
       provider_ref: model.provider_ref,
     }
-    Object.keys(model).forEach(key => {
+    Object.keys(model).forEach((key) => {
       delete (model as unknown as Record<string, unknown>)[key]
     })
     Object.assign(model, identity)
@@ -78,26 +79,23 @@ function VoiceLookup({
   const catalog = useRef(draft)
   const hasModel = Boolean(
     draft.services.tts.profiles
-      .find(p => p.id === profileId)
-      ?.models.find(m => m.id === modelId)
-      ?.model.trim()
+      .find((p) => p.id === profileId)
+      ?.models.find((m) => m.id === modelId)
+      ?.model.trim(),
   )
   const [attempt, setAttempt] = useState(0)
-  const [result, setResult] = useState<Result | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const resourceKey = JSON.stringify([profileId, modelId, attempt, hasModel])
+  const [result, setResult] = useKeyedState<Result | null>(resourceKey, null)
+  const [loading, setLoading] = useKeyedState(resourceKey, hasModel)
+  const [error, setError] = useKeyedState(resourceKey, false)
   const [manual, setManual] = useState(false)
   useEffect(() => {
     if (!hasModel) {
-      setLoading(false)
       return
     }
     const controller = new AbortController()
     let active = true
     const timeout = setTimeout(() => controller.abort(), 30000)
-    setLoading(true)
-    setError(false)
-    setResult(null)
     const debounce = setTimeout(() => {
       void (async () => {
         try {
@@ -130,8 +128,8 @@ function VoiceLookup({
       controller.abort()
       clearTimeout(timeout)
     }
-  }, [profileId, modelId, attempt, hasModel])
-  const listed = result?.voices.some(v => v.id === value)
+  }, [profileId, modelId, attempt, hasModel, setLoading, setError, setResult])
+  const listed = result?.voices.some((v) => v.id === value)
   return (
     <section
       className="space-y-3 rounded-xl border border-[var(--border)] p-4"
@@ -142,7 +140,7 @@ function VoiceLookup({
         <button
           type="button"
           disabled={loading || !hasModel}
-          onClick={() => setAttempt(a => a + 1)}
+          onClick={() => setAttempt((a) => a + 1)}
           className={registryButton}
         >
           {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
@@ -163,7 +161,7 @@ function VoiceLookup({
                     ? 'settings.voiceDiscovery.empty'
                     : result.scope === 'custom'
                       ? 'settings.voiceDiscovery.custom'
-                      : 'settings.voiceDiscovery.account'
+                      : 'settings.voiceDiscovery.account',
         )}
       </p>
       {Boolean(result?.voices.length) && (
@@ -173,12 +171,12 @@ function VoiceLookup({
             className={selectClass}
             disabled={disabled}
             value={listed ? value : ''}
-            onChange={e => {
+            onChange={(e) => {
               if (e.target.value) update(e.target.value)
             }}
           >
             <option value="">{t('settings.voiceDiscovery.choose')}</option>
-            {result?.voices.map(voice => (
+            {result?.voices.map((voice) => (
               <option key={voice.id} value={voice.id}>
                 {voice.label}
               </option>
@@ -195,7 +193,7 @@ function VoiceLookup({
         type="button"
         className="text-xs underline underline-offset-4"
         aria-expanded={manual}
-        onClick={() => setManual(v => !v)}
+        onClick={() => setManual((v) => !v)}
       >
         {t('settings.voiceDiscovery.manual')}
       </button>
@@ -206,7 +204,7 @@ function VoiceLookup({
             className={inputClass}
             value={value}
             disabled={disabled}
-            onChange={e => update(e.target.value)}
+            onChange={(e) => update(e.target.value)}
           />
         </label>
       )}

@@ -1,14 +1,8 @@
 "use client";
 
+import { useKeyedState } from "@/hooks/useKeyedState";
 import { useEffect, useMemo, useState } from "react";
-import {
-  Bookmark,
-  Check,
-  ClipboardList,
-  FolderOpen,
-  Loader2,
-  Search,
-} from "lucide-react";
+import { Bookmark, Check, ClipboardList, FolderOpen, Loader2, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { questionResultBadge } from "@/lib/question-bank-answers";
 import PickerShell from "@/components/common/PickerShell";
@@ -67,17 +61,15 @@ export default function QuestionBankPicker({
   const [filter, setFilter] = useState<FilterMode>("all");
   const [activeCategoryId, setActiveCategoryId] = useState<number | null>(null);
   const [activeMaterialId, setActiveMaterialId] = useState("");
-  const [selectedById, setSelectedById] = useState<Map<number, SelectedQuestionEntry>>(
-    () => new Map(),
+  const [selectedById, setSelectedById] = useKeyedState<Map<number, SelectedQuestionEntry>>(
+    JSON.stringify([open, initialSelected]),
+    () => new Map(initialSelected.map((entry) => [entry.id, entry])),
   );
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (open) {
-      setSelectedById(new Map(initialSelected.map((entry) => [entry.id, entry])));
-    }
-  }, [open, initialSelected]);
+  const [loading, setLoading] = useKeyedState(
+    JSON.stringify([open, filter, activeCategoryId, activeMaterialId]),
+    open,
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -107,7 +99,6 @@ export default function QuestionBankPicker({
   useEffect(() => {
     if (!open) return;
     let mounted = true;
-    setLoading(true);
     void (async () => {
       try {
         const items: NotebookEntry[] = [];
@@ -137,7 +128,7 @@ export default function QuestionBankPicker({
     return () => {
       mounted = false;
     };
-  }, [open, filter, activeCategoryId, activeMaterialId]);
+  }, [open, filter, activeCategoryId, activeMaterialId, setLoading]);
 
   const filteredEntries = useMemo(() => {
     const keyword = query.trim().toLowerCase();
@@ -219,9 +210,7 @@ export default function QuestionBankPicker({
                 </button>
               );
             })}
-            {categories.length > 0 && (
-              <span className="mx-1 text-[var(--border)]">|</span>
-            )}
+            {categories.length > 0 && <span className="mx-1 text-[var(--border)]">|</span>}
             {categories.map((cat) => {
               const active = activeCategoryId === cat.id;
               return (
@@ -253,7 +242,10 @@ export default function QuestionBankPicker({
             >
               <option value="">{t("All Materials")}</option>
               {materials.map((material) => (
-                <option key={`${material.source}:${material.material_id}`} value={material.material_id}>
+                <option
+                  key={`${material.source}:${material.material_id}`}
+                  value={material.material_id}
+                >
                   {material.material_title}
                 </option>
               ))}
@@ -273,7 +265,11 @@ export default function QuestionBankPicker({
             <button
               type="button"
               onClick={selectVisible}
-              disabled={loading || !filteredEntries.length || filteredEntries.every((entry) => selectedById.has(entry.id))}
+              disabled={
+                loading ||
+                !filteredEntries.length ||
+                filteredEntries.every((entry) => selectedById.has(entry.id))
+              }
               className="rounded-xl border border-[var(--border)] bg-[var(--card)] px-3 py-2.5 text-[12px] font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--muted)] disabled:cursor-not-allowed disabled:opacity-40"
             >
               {t("Select all")} ({filteredEntries.length})
@@ -302,9 +298,7 @@ export default function QuestionBankPicker({
                       onClick={() => toggleEntry(entry)}
                       aria-pressed={selected}
                       className={`flex w-full items-start gap-3 px-4 py-3 text-left transition-colors ${
-                        selected
-                          ? "bg-[var(--primary)]/8"
-                          : "hover:bg-[var(--muted)]/40"
+                        selected ? "bg-[var(--primary)]/8" : "hover:bg-[var(--muted)]/40"
                       }`}
                     >
                       <div

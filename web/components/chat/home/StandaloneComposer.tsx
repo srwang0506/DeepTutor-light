@@ -39,10 +39,7 @@ import {
   type BookReferencePayload,
   type SelectedBookReference,
 } from "@/lib/book-references";
-import {
-  extractBase64FromDataUrl,
-  readFileAsDataUrl,
-} from "@/lib/file-attachments";
+import { extractBase64FromDataUrl, readFileAsDataUrl } from "@/lib/file-attachments";
 import {
   fileToPendingAttachment,
   selectAttachmentFiles,
@@ -50,10 +47,7 @@ import {
   type PendingAttachment,
 } from "@/features/chat/controllers/pending-attachments";
 import { isQuoteAttachment } from "@/lib/quote-attachments";
-import {
-  listKnowledgeBases,
-  type KnowledgeBaseSummary,
-} from "@/features/knowledge/api/catalog";
+import { listKnowledgeBases, type KnowledgeBaseSummary } from "@/features/knowledge/api/catalog";
 import { listLLMOptions, type LLMOption } from "@/lib/llm-options";
 import type { SelectedRecord } from "@/lib/notebook-selection-types";
 import type { SpaceMemoryFile } from "@/lib/space-items";
@@ -77,44 +71,34 @@ import {
 } from "@/lib/research-types";
 import { workspaceActionNeedsConfiguration } from "@/lib/workspace-mode";
 
-const NotebookRecordPicker = dynamic(
-  () => import("@/components/notebook/NotebookRecordPicker"),
-  { ssr: false },
-);
-const HistorySessionPicker = dynamic(
-  () => import("@/components/chat/HistorySessionPicker"),
-  { ssr: false },
-);
-const QuestionBankPicker = dynamic(
-  () => import("@/components/chat/QuestionBankPicker"),
-  { ssr: false },
-);
+const NotebookRecordPicker = dynamic(() => import("@/components/notebook/NotebookRecordPicker"), {
+  ssr: false,
+});
+const HistorySessionPicker = dynamic(() => import("@/components/chat/HistorySessionPicker"), {
+  ssr: false,
+});
+const QuestionBankPicker = dynamic(() => import("@/components/chat/QuestionBankPicker"), {
+  ssr: false,
+});
 const PersonaPicker = dynamic(() => import("@/components/chat/PersonaPicker"), {
   ssr: false,
 });
 const MemoryPicker = dynamic(() => import("@/components/chat/MemoryPicker"), {
   ssr: false,
 });
-const BookReferencePicker = dynamic(
-  () => import("@/components/chat/BookReferencePicker"),
-  { ssr: false },
-);
-const CapabilityConfigCard = dynamic(
-  () => import("@/components/chat/home/CapabilityConfigCard"),
-  { ssr: false },
-);
-const QuizConfigPanel = dynamic(
-  () => import("@/components/quiz/QuizConfigPanel"),
-  { ssr: false },
-);
-const VisualizeConfigPanel = dynamic(
-  () => import("@/components/visualize/VisualizeConfigPanel"),
-  { ssr: false },
-);
-const ResearchConfigPanel = dynamic(
-  () => import("@/components/research/ResearchConfigPanel"),
-  { ssr: false },
-);
+const BookReferencePicker = dynamic(() => import("@/components/chat/BookReferencePicker"), {
+  ssr: false,
+});
+const CapabilityConfigCard = dynamic(() => import("@/components/chat/home/CapabilityConfigCard"), {
+  ssr: false,
+});
+const QuizConfigPanel = dynamic(() => import("@/components/quiz/QuizConfigPanel"), { ssr: false });
+const VisualizeConfigPanel = dynamic(() => import("@/components/visualize/VisualizeConfigPanel"), {
+  ssr: false,
+});
+const ResearchConfigPanel = dynamic(() => import("@/components/research/ResearchConfigPanel"), {
+  ssr: false,
+});
 
 /** Everything the user attached to this send, already in wire shape. */
 export interface StandaloneComposerSubmission {
@@ -283,9 +267,7 @@ function StandaloneComposerImpl({
   }, [seededId]);
   const attachmentLimits = useAttachmentLimits();
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
-  const attachmentErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
+  const attachmentErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [dragging, setDragging] = useState(false);
   const [capMenuOpen, setCapMenuOpen] = useState(false);
   const resourceReuse = useResourceReusePolicy("standalone");
@@ -300,27 +282,20 @@ function StandaloneComposerImpl({
   const [researchConfig, setResearchConfig] = useState<DeepResearchFormConfig>(
     createEmptyResearchConfig(),
   );
-  const [capabilityConfigConfirmed, setCapabilityConfigConfirmed] =
-    useState(false);
+  const [capabilityConfigConfirmed, setCapabilityConfigConfirmed] = useState(false);
 
   const [ownKnowledgeBases, setOwnKnowledgeBases] = useState<string[]>([]);
   const selectedKnowledgeBases = controlledKnowledgeBases ?? ownKnowledgeBases;
-  const [selectedBookReferences, setSelectedBookReferences] = useState<
-    SelectedBookReference[]
-  >([]);
-  const [selectedNotebookRecords, setSelectedNotebookRecords] = useState<
-    SelectedRecord[]
-  >([]);
-  const [selectedHistorySessions, setSelectedHistorySessions] = useState<
-    SelectedHistorySession[]
-  >([]);
-  const [selectedQuestionEntries, setSelectedQuestionEntries] = useState<
-    SelectedQuestionEntry[]
-  >([]);
+  const [selectedBookReferences, setSelectedBookReferences] = useState<SelectedBookReference[]>([]);
+  const [selectedNotebookRecords, setSelectedNotebookRecords] = useState<SelectedRecord[]>([]);
+  const [selectedHistorySessions, setSelectedHistorySessions] = useState<SelectedHistorySession[]>(
+    [],
+  );
+  const [selectedQuestionEntries, setSelectedQuestionEntries] = useState<SelectedQuestionEntry[]>(
+    [],
+  );
   const [selectedPersona, setSelectedPersona] = useState<string | null>(null);
-  const [selectedMemoryFiles, setSelectedMemoryFiles] = useState<
-    SpaceMemoryFile[]
-  >([]);
+  const [selectedMemoryFiles, setSelectedMemoryFiles] = useState<SpaceMemoryFile[]>([]);
 
   // ── Picker dialog visibility ──────────────────────────────────
   const [showNotebookPicker, setShowNotebookPicker] = useState(false);
@@ -334,16 +309,10 @@ function StandaloneComposerImpl({
   const [personaSelectorOpen, setPersonaSelectorOpen] = useState(false);
 
   // ── Shared data (KBs + LLMs) ──────────────────────────────────
-  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseSummary[]>(
-    [],
-  );
+  const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBaseSummary[]>([]);
   const [llmOptions, setLLMOptions] = useState<LLMOption[]>([]);
-  const [activeLLMDefault, setActiveLLMDefault] = useState<LLMSelection | null>(
-    null,
-  );
-  const [ownLLMSelection, setOwnLLMSelection] = useState<LLMSelection | null>(
-    null,
-  );
+  const [activeLLMDefault, setActiveLLMDefault] = useState<LLMSelection | null>(null);
+  const [ownLLMSelection, setOwnLLMSelection] = useState<LLMSelection | null>(null);
   const llmSelection = controlledLLMSelection ?? ownLLMSelection;
   const [llmOptionsLoading, setLLMOptionsLoading] = useState(true);
   const [llmOptionsError, setLLMOptionsError] = useState(false);
@@ -419,11 +388,9 @@ function StandaloneComposerImpl({
 
   // Default to the server-side active LLM until the user picks one. A
   // controlled surface owns that decision itself.
-  useEffect(() => {
-    if (controlledLLMSelection !== undefined) return;
-    if (ownLLMSelection || !activeLLMDefault) return;
+  if (controlledLLMSelection === undefined && !ownLLMSelection && activeLLMDefault) {
     setOwnLLMSelection(activeLLMDefault);
-  }, [activeLLMDefault, controlledLLMSelection, ownLLMSelection]);
+  }
 
   const applyLLMSelection = useCallback(
     (selection: LLMSelection | null) => {
@@ -588,9 +555,7 @@ function StandaloneComposerImpl({
       }
       const kept =
         providerOf(name) === "pageindex-oss"
-          ? selectedKnowledgeBases.filter(
-              (kb) => providerOf(kb) !== "pageindex-oss",
-            )
+          ? selectedKnowledgeBases.filter((kb) => providerOf(kb) !== "pageindex-oss")
           : selectedKnowledgeBases;
       applyKnowledgeBases([...kept, name]);
     },
@@ -611,28 +576,38 @@ function StandaloneComposerImpl({
   const handleSelectAgent = useCallback(
     (name: string | null) => {
       // Single-select: drop whichever agent was there, then add the new one.
-      const withoutAgents = selectedKnowledgeBases.filter(
-        (item) => !agentNameSet.has(item),
-      );
+      const withoutAgents = selectedKnowledgeBases.filter((item) => !agentNameSet.has(item));
       applyKnowledgeBases(name ? [...withoutAgents, name] : withoutAgents);
     },
     [agentNameSet, applyKnowledgeBases, selectedKnowledgeBases],
   );
-  const handleSelectPartnerGroup = useCallback((id: string | null) => {
-    setSelectedPartnerGroup(id);
-    if (id) { setSelectedPartner(null); handleSelectAgent(null); }
-  }, [handleSelectAgent]);
-  const handleSelectPartner = useCallback((id: string | null) => {
-    setSelectedPartner(id);
-    if (id) { setSelectedPartnerGroup(null); handleSelectAgent(null); }
-  }, [handleSelectAgent]);
+  const [selectedPartner, setSelectedPartner] = useState<string | null>(null);
+  const [selectedPartnerGroup, setSelectedPartnerGroup] = useState<string | null>(null);
+  const handleSelectPartnerGroup = useCallback(
+    (id: string | null) => {
+      setSelectedPartnerGroup(id);
+      if (id) {
+        setSelectedPartner(null);
+        handleSelectAgent(null);
+      }
+    },
+    [handleSelectAgent],
+  );
+  const handleSelectPartner = useCallback(
+    (id: string | null) => {
+      setSelectedPartner(id);
+      if (id) {
+        setSelectedPartnerGroup(null);
+        handleSelectAgent(null);
+      }
+    },
+    [handleSelectAgent],
+  );
 
   // Seeded from the configured default; the chip's stepper overrides it for
   // the next turn. Null until the setting loads, which is also what "no agent
   // selected" looks like — neither case has a budget to send.
   const [subagentBudget, setSubagentBudget] = useState<number | null>(null);
-  const [selectedPartner, setSelectedPartner] = useState<string | null>(null);
-  const [selectedPartnerGroup, setSelectedPartnerGroup] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -653,19 +628,13 @@ function StandaloneComposerImpl({
     );
   }, []);
   const handleRemoveHistory = useCallback((sessionId: string) => {
-    setSelectedHistorySessions((prev) =>
-      prev.filter((s) => s.sessionId !== sessionId),
-    );
+    setSelectedHistorySessions((prev) => prev.filter((s) => s.sessionId !== sessionId));
   }, []);
   const handleRemoveBookReference = useCallback((bookId: string) => {
-    setSelectedBookReferences((prev) =>
-      prev.filter((b) => b.bookId !== bookId),
-    );
+    setSelectedBookReferences((prev) => prev.filter((b) => b.bookId !== bookId));
   }, []);
   const handleRemoveNotebook = useCallback((notebookId: string) => {
-    setSelectedNotebookRecords((prev) =>
-      prev.filter((r) => r.notebookId !== notebookId),
-    );
+    setSelectedNotebookRecords((prev) => prev.filter((r) => r.notebookId !== notebookId));
   }, []);
   const handleRemoveQuestion = useCallback((entryId: number) => {
     setSelectedQuestionEntries((prev) => prev.filter((e) => e.id !== entryId));
@@ -688,9 +657,7 @@ function StandaloneComposerImpl({
   const notebookReferenceGroups = useMemo(
     () =>
       notebookReferencesPayload.map((ref) => {
-        const sample = selectedNotebookRecords.find(
-          (r) => r.notebookId === ref.notebook_id,
-        );
+        const sample = selectedNotebookRecords.find((r) => r.notebookId === ref.notebook_id);
         return {
           notebookId: ref.notebook_id,
           notebookName: sample?.notebookName ?? ref.notebook_id,
@@ -710,23 +677,18 @@ function StandaloneComposerImpl({
     }));
   }, [capabilities, capabilityLabel, t]);
   const activeCap =
-    resolvedCapabilities.find(
-      (capability) => capability.value === activeCapValue,
-    ) ?? resolvedCapabilities[0];
+    resolvedCapabilities.find((capability) => capability.value === activeCapValue) ??
+    resolvedCapabilities[0];
   const isQuizMode = activeCap.value === "deep_question";
   const isVisualizeMode = activeCap.value === "visualize";
   const isResearchMode = activeCap.value === "deep_research";
-  const capabilityNeedsConfig = workspaceActionNeedsConfiguration(
-    activeCap.value,
-  );
+  const capabilityNeedsConfig = workspaceActionNeedsConfiguration(activeCap.value);
   const researchValidation = useMemo(
     () => validateResearchConfig(researchConfig),
     [researchConfig],
   );
   const quizValidationErrors =
-    quizConfig.mode === "mimic" && !quizPdf
-      ? [t("Upload a PDF to mimic its question style.")]
-      : [];
+    quizConfig.mode === "mimic" && !quizPdf ? [t("Upload a PDF to mimic its question style.")] : [];
 
   const selectCapability = useCallback(
     (value: string) => {
@@ -774,9 +736,17 @@ function StandaloneComposerImpl({
       }
 
       if (selectedPartner) config = { ...(config ?? {}), consult_partner_id: selectedPartner };
-      if (selectedPartnerGroup) config = { ...(config ?? {}), partner_discussion_group_id: selectedPartnerGroup };
-      config = { ...(config ?? {}), _resource_reuse: resourceReuse.policy,
-        _persistent_knowledge_bases: retainedKnowledgeBases(selectedKnowledgeBases, agentNameSet, resourceReuse.policy) };
+      if (selectedPartnerGroup)
+        config = { ...(config ?? {}), partner_discussion_group_id: selectedPartnerGroup };
+      config = {
+        ...(config ?? {}),
+        _resource_reuse: resourceReuse.policy,
+        _persistent_knowledge_bases: retainedKnowledgeBases(
+          selectedKnowledgeBases,
+          agentNameSet,
+          resourceReuse.policy,
+        ),
+      };
       onSubmit({
         content,
         config,
@@ -805,7 +775,9 @@ function StandaloneComposerImpl({
       if (!resourceReuse.policy.chat_history) setSelectedHistorySessions([]);
       if (!resourceReuse.policy.question_bank) setSelectedQuestionEntries([]);
       if (!resourceReuse.policy.persona) setSelectedPersona(null);
-      applyKnowledgeBases(retainedKnowledgeBases(selectedKnowledgeBases, agentNameSet, resourceReuse.policy));
+      applyKnowledgeBases(
+        retainedKnowledgeBases(selectedKnowledgeBases, agentNameSet, resourceReuse.policy),
+      );
       if (!resourceReuse.policy.memory) setSelectedMemoryFiles([]);
       if (onResourceSelectionChange) {
         const current = resourceSelection ?? { skills: [], mcp: [] };
@@ -816,7 +788,11 @@ function StandaloneComposerImpl({
       }
     },
     [
-      resourceReuse, applyKnowledgeBases, agentNameSet, onResourceSelectionChange, resourceSelection,
+      resourceReuse,
+      applyKnowledgeBases,
+      agentNameSet,
+      onResourceSelectionChange,
+      resourceSelection,
       attachments,
       awaitingUserReply,
       isStreaming,
@@ -925,7 +901,17 @@ function StandaloneComposerImpl({
         knowledgeBases={kbOptions}
         connectedAgents={agentOptions}
         selectedAgent={selectedPartnerGroup || selectedPartner ? null : selectedAgent}
-        onSelectAgent={partnerControls ? (name) => { if (name) { setSelectedPartnerGroup(null); setSelectedPartner(null); } handleSelectAgent(name); } : undefined}
+        onSelectAgent={
+          partnerControls
+            ? (name) => {
+                if (name) {
+                  setSelectedPartnerGroup(null);
+                  setSelectedPartner(null);
+                }
+                handleSelectAgent(name);
+              }
+            : undefined
+        }
         selectedPartnerGroup={selectedPartnerGroup}
         onSelectPartnerGroup={partnerControls ? handleSelectPartnerGroup : undefined}
         selectedPartner={selectedPartner}

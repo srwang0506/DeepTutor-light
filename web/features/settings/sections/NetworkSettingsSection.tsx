@@ -1,4 +1,5 @@
 "use client";
+import { useLayoutEffect } from "react";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
@@ -71,21 +72,14 @@ function DetailTile({
   tone?: "neutral" | "ok" | "warn";
 }) {
   const dot =
-    tone === "ok"
-      ? "bg-emerald-500"
-      : tone === "warn"
-        ? "bg-amber-500"
-        : "bg-[var(--border)]";
+    tone === "ok" ? "bg-emerald-500" : tone === "warn" ? "bg-amber-500" : "bg-[var(--border)]";
   return (
     <div className="rounded-xl border border-[var(--border)]/60 bg-[var(--card)] px-4 py-3">
       <div className="flex items-center gap-2 text-[11px] font-medium text-[var(--muted-foreground)]">
         <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
         {label}
       </div>
-      <div
-        className="mt-2 truncate text-[13px] font-medium text-[var(--foreground)]"
-        title={value}
-      >
+      <div className="mt-2 truncate text-[13px] font-medium text-[var(--foreground)]" title={value}>
         {value || "-"}
       </div>
     </div>
@@ -95,8 +89,7 @@ function DetailTile({
 export default function NetworkSettingsPage() {
   const { t } = useTranslation();
   const runtime = useRuntimeStatus();
-  const { registerExtension, pendingExtensionPayload, draftRevision } =
-    useSettings();
+  const { registerExtension, pendingExtensionPayload, draftRevision } = useSettings();
   const apiBasePlaceholder = "https://api.example.com";
   const corsPlaceholder = "https://learn.example.com\nhttp://10.0.0.5:3782";
   const [payload, setPayload] = useState<NetworkSettingsPayload | null>(null);
@@ -116,16 +109,13 @@ export default function NetworkSettingsPage() {
           NetworkSettingsPayload | { detail?: string };
         if (!response.ok) {
           throw new Error(
-            "detail" in data && data.detail
-              ? data.detail
-              : t("Failed to load network settings."),
+            "detail" in data && data.detail ? data.detail : t("Failed to load network settings."),
           );
         }
         if (cancelled) return;
         const next = data as NetworkSettingsPayload;
         setPayload(next);
-        const pending = pendingExtensionPayload("network") as
-          NetworkSettings | undefined;
+        const pending = pendingExtensionPayload("network") as NetworkSettings | undefined;
         const resolved = pending ?? normalizeDraft(next);
         setDraft(resolved);
         setCorsText((resolved.cors_origins || []).join("\n"));
@@ -150,17 +140,20 @@ export default function NetworkSettingsPage() {
       current.backend_port !== draft.backend_port ||
       current.frontend_port !== draft.frontend_port ||
       current.public_api_base !== draft.public_api_base ||
-      JSON.stringify(current.cors_origins) !==
-        JSON.stringify(splitOrigins(corsText))
+      JSON.stringify(current.cors_origins) !== JSON.stringify(splitOrigins(corsText))
     );
   }, [corsText, draft, payload]);
 
   // Flush through the global Apply (top toolbar) instead of a local button.
   // Refs keep the registered ``save`` closure reading the latest draft.
   const draftRef = useRef(draft);
-  draftRef.current = draft;
+  useLayoutEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
   const corsRef = useRef(corsText);
-  corsRef.current = corsText;
+  useLayoutEffect(() => {
+    corsRef.current = corsText;
+  }, [corsText]);
   const save = useCallback(async () => {
     const current = draftRef.current;
     if (!current) return;
@@ -178,9 +171,7 @@ export default function NetworkSettingsPage() {
         NetworkSettingsPayload | { detail?: string };
       if (!response.ok) {
         throw new Error(
-          "detail" in data && data.detail
-            ? data.detail
-            : t("Failed to save network settings."),
+          "detail" in data && data.detail ? data.detail : t("Failed to save network settings."),
         );
       }
       const next = data as NetworkSettingsPayload;
@@ -197,9 +188,7 @@ export default function NetworkSettingsPage() {
     registerExtension("network", {
       dirty,
       save,
-      payload: draft
-        ? { ...draft, cors_origins: splitOrigins(corsText) }
-        : null,
+      payload: draft ? { ...draft, cors_origins: splitOrigins(corsText) } : null,
     });
     return () => registerExtension("network", null);
   }, [dirty, draft, corsText, save, registerExtension]);
@@ -218,11 +207,7 @@ export default function NetworkSettingsPage() {
       </p>
 
       <div className="mb-7">
-        <RuntimeHealthCard
-          snapshot={runtime}
-          onRefresh={runtime.refresh}
-          showDetails
-        />
+        <RuntimeHealthCard snapshot={runtime} onRefresh={runtime.refresh} showDetails />
         {runtime.data ? (
           <TurnCoordinationSettings
             value={{
@@ -265,26 +250,16 @@ export default function NetworkSettingsPage() {
                   ? t("Permissive until auth is enabled")
                   : t("Explicit origins required")
               }
-              tone={
-                payload.effective.cors_mode === "permissive" ? "ok" : "warn"
-              }
+              tone={payload.effective.cors_mode === "permissive" ? "ok" : "warn"}
             />
             <DetailTile
               label={t("Auth cookie")}
               value={`${payload.auth.cookie_samesite}${
                 payload.auth.cookie_secure ? " + Secure" : ""
               }`}
-              tone={
-                !payload.auth.enabled || payload.auth.cross_site_cookie_ready
-                  ? "ok"
-                  : "warn"
-              }
+              tone={!payload.auth.enabled || payload.auth.cross_site_cookie_ready ? "ok" : "warn"}
             />
-            <DetailTile
-              label={t("Restart")}
-              value={t("Required after save")}
-              tone="warn"
-            />
+            <DetailTile label={t("Restart")} value={t("Required after save")} tone="warn" />
           </div>
 
           <SettingSection
@@ -359,9 +334,7 @@ export default function NetworkSettingsPage() {
                   value={draft.public_api_base}
                   onChange={(event) =>
                     setDraft((current) =>
-                      current
-                        ? { ...current, public_api_base: event.target.value }
-                        : current,
+                      current ? { ...current, public_api_base: event.target.value } : current,
                     )
                   }
                 />

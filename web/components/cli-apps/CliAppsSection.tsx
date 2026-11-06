@@ -1,5 +1,6 @@
 "use client";
 
+import { useKeyedState } from "@/hooks/useKeyedState";
 import Tooltip from "@/shared/ui/Tooltip";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -106,11 +107,7 @@ export default function CliAppsSection() {
             active={tab === "installed"}
             onClick={() => setTab("installed")}
           />
-          <TabButton
-            label={t("Store")}
-            active={tab === "store"}
-            onClick={() => setTab("store")}
-          />
+          <TabButton label={t("Store")} active={tab === "store"} onClick={() => setTab("store")} />
         </div>
       </div>
 
@@ -119,11 +116,7 @@ export default function CliAppsSection() {
       )}
 
       {tab === "store" ? (
-        <Store
-          isAdmin={isAdmin}
-          adminKnown={!authLoading}
-          onChanged={setState}
-        />
+        <Store isAdmin={isAdmin} adminKnown={!authLoading} onChanged={setState} />
       ) : state === null && !loadError ? (
         <Spinner />
       ) : (
@@ -198,9 +191,7 @@ function Installed({
 
   return (
     <div className="space-y-4">
-      {error !== null && (
-        <Banner tone="error">{error || t("Something went wrong.")}</Banner>
-      )}
+      {error !== null && <Banner tone="error">{error || t("Something went wrong.")}</Banner>}
       {state?.access.exec_denied && (
         <Banner tone="warn">
           {t(
@@ -216,12 +207,7 @@ function Installed({
             className={`px-5 py-4 ${index > 0 ? "border-t border-[var(--border)]/60" : ""}`}
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <BrandIcon
-                namespace="cli"
-                id={app.id}
-                name={app.display_name}
-                className="mt-0"
-              />
+              <BrandIcon namespace="cli" id={app.id} name={app.display_name} className="mt-0" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="text-[14px] font-semibold tracking-tight text-[var(--foreground)]">
@@ -267,11 +253,7 @@ function Installed({
                     on={app.enabled}
                     busy={busy === app.id}
                     label={app.enabled ? t("On") : t("Off")}
-                    onToggle={() =>
-                      void act(app.id, () =>
-                        setCliAppEnabled(app.id, !app.enabled),
-                      )
-                    }
+                    onToggle={() => void act(app.id, () => setCliAppEnabled(app.id, !app.enabled))}
                   />
                 )}
                 {isAdmin && (
@@ -307,9 +289,7 @@ function Installed({
 
       <p className="text-[11.5px] text-[var(--muted-foreground)]">
         {t("Installed under")}{" "}
-        <span className="font-mono text-[var(--foreground)]/65">
-          {"data/cli-apps"}
-        </span>
+        <span className="font-mono text-[var(--foreground)]/65">{"data/cli-apps"}</span>
         {" — "}
         {t("mounted read-only into the sandbox that runs them.")}
       </p>
@@ -335,13 +315,14 @@ function Store({
   const [category, setCategory] = useState("");
   const [showAll, setShowAll] = useState(false);
 
+  const queryKey = JSON.stringify([query, category, showAll]);
   const [entries, setEntries] = useState<CliCatalogEntry[]>([]);
   const [categories, setCategories] = useState<Record<string, number>>({});
   const [cursor, setCursor] = useState("");
   const [total, setTotal] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useKeyedState(queryKey, true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useKeyedState<string | null>(queryKey, null);
   const [selected, setSelected] = useState<CliCatalogEntry | null>(null);
 
   useEffect(() => {
@@ -351,14 +332,11 @@ function Store({
 
   // Identifies the query a response belongs to, so a slow "Load more" cannot
   // append onto a list that has since been rebuilt for different filters.
-  const queryKey = JSON.stringify([query, category, showAll]);
   const queryKeyRef = useRef(queryKey);
 
   useEffect(() => {
     let cancelled = false;
     queryKeyRef.current = queryKey;
-    setLoading(true);
-    setError(null);
     getCliCatalog({
       q: query,
       category,
@@ -383,35 +361,34 @@ function Store({
     return () => {
       cancelled = true;
     };
-  }, [queryKey, query, category, showAll]);
+  }, [queryKey, query, category, showAll, setLoading, setError]);
 
   const loadMore = useCallback(async () => {
     if (!cursor || loadingMore) return;
     const requestedFor = queryKeyRef.current;
     setLoadingMore(true);
-    try {
-      const page = await getCliCatalog({
-        q: query,
-        category,
-        installableOnly: !showAll,
-        cursor,
-        limit: PAGE_SIZE,
+    return getCliCatalog({
+      q: query,
+      category,
+      installableOnly: !showAll,
+      cursor,
+      limit: PAGE_SIZE,
+    })
+      .then(async (page) => {
+        if (queryKeyRef.current !== requestedFor) return;
+        setEntries((prev) => {
+          const seen = new Set(prev.map((entry) => entry.id));
+          return [...prev, ...page.entries.filter((entry) => !seen.has(entry.id))];
+        });
+        setCursor(page.next_cursor);
+      })
+      .catch((err) => {
+        setError(messageOf(err));
+      })
+      .finally(() => {
+        setLoadingMore(false);
       });
-      if (queryKeyRef.current !== requestedFor) return;
-      setEntries((prev) => {
-        const seen = new Set(prev.map((entry) => entry.id));
-        return [
-          ...prev,
-          ...page.entries.filter((entry) => !seen.has(entry.id)),
-        ];
-      });
-      setCursor(page.next_cursor);
-    } catch (err) {
-      setError(messageOf(err));
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [cursor, loadingMore, query, category, showAll]);
+  }, [cursor, loadingMore, query, category, showAll, setError]);
 
   const chips = useMemo(
     () =>
@@ -431,9 +408,7 @@ function Store({
         onInstalled={(next) => {
           onChanged(next);
           setEntries((prev) =>
-            prev.map((item) =>
-              item.id === selected.id ? { ...item, installed: true } : item,
-            ),
+            prev.map((item) => (item.id === selected.id ? { ...item, installed: true } : item)),
           );
           setSelected({ ...selected, installed: true });
         }}
@@ -466,11 +441,7 @@ function Store({
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5">
-        <FilterChip
-          label={t("All")}
-          active={category === ""}
-          onClick={() => setCategory("")}
-        />
+        <FilterChip label={t("All")} active={category === ""} onClick={() => setCategory("")} />
         {chips.map(([name, count]) => (
           <FilterChip
             key={name}
@@ -489,9 +460,7 @@ function Store({
         />
       </div>
 
-      {error !== null && (
-        <Banner tone="warn">{error || t("Something went wrong.")}</Banner>
-      )}
+      {error !== null && <Banner tone="warn">{error || t("Something went wrong.")}</Banner>}
 
       {loading ? (
         <Spinner />
@@ -504,11 +473,7 @@ function Store({
         <>
           <ul className="grid gap-3 md:grid-cols-2">
             {entries.map((entry) => (
-              <EntryCard
-                key={entry.id}
-                entry={entry}
-                onOpen={() => setSelected(entry)}
-              />
+              <EntryCard key={entry.id} entry={entry} onOpen={() => setSelected(entry)} />
             ))}
           </ul>
           <div className="flex items-center justify-center gap-3 pt-1">
@@ -536,13 +501,7 @@ function Store({
   );
 }
 
-function EntryCard({
-  entry,
-  onOpen,
-}: {
-  entry: CliCatalogEntry;
-  onOpen: () => void;
-}) {
+function EntryCard({ entry, onOpen }: { entry: CliCatalogEntry; onOpen: () => void }) {
   const { t } = useTranslation();
   return (
     <li
@@ -570,9 +529,7 @@ function EntryCard({
                 {t("Installed")}
               </span>
             )}
-            {!entry.installable && (
-              <span className={warnChip}>{t("Unavailable here")}</span>
-            )}
+            {!entry.installable && <span className={warnChip}>{t("Unavailable here")}</span>}
           </div>
           <p className="mt-0.5 line-clamp-2 text-[12px] leading-relaxed text-[var(--muted-foreground)]">
             {entry.description}
@@ -668,12 +625,8 @@ function EntryDetail({
         </div>
       </div>
 
-      {entry.requires && (
-        <Field label={t("Requirements")}>{entry.requires}</Field>
-      )}
-      {entry.install_notes && (
-        <Field label={t("Notes")}>{entry.install_notes}</Field>
-      )}
+      {entry.requires && <Field label={t("Requirements")}>{entry.requires}</Field>}
+      {entry.install_notes && <Field label={t("Notes")}>{entry.install_notes}</Field>}
       {entry.installable && (
         <Field label={t("Installs")}>
           <code className="break-all font-mono text-[11.5px] text-[var(--foreground)]/80">
@@ -736,9 +689,7 @@ function EntryDetail({
         </Banner>
       ) : (
         <div className="space-y-3 rounded-xl border border-[var(--border)]/60 bg-[var(--card)]/40 px-5 py-5">
-          {error !== null && (
-            <Banner tone="error">{error || t("Something went wrong.")}</Banner>
-          )}
+          {error !== null && <Banner tone="error">{error || t("Something went wrong.")}</Banner>}
           <div className="flex flex-wrap items-center gap-3">
             <button
               type="button"
@@ -757,9 +708,7 @@ function EntryDetail({
             </button>
             <span className="text-[11.5px] text-[var(--muted-foreground)]">
               {installing
-                ? t(
-                    "This can take a few minutes — it builds a fresh environment.",
-                  )
+                ? t("This can take a few minutes — it builds a fresh environment.")
                 : t("Runs on this server as the application user.")}
             </span>
           </div>
@@ -807,11 +756,7 @@ function TrustChip({ trust, pinned }: { trust: string; pinned: boolean }) {
       </span>
     );
   }
-  return (
-    <span className={warnChip}>
-      {pinned ? t("Third-party") : t("Third-party, unpinned")}
-    </span>
-  );
+  return <span className={warnChip}>{pinned ? t("Third-party") : t("Third-party, unpinned")}</span>;
 }
 
 function Toggle({
@@ -846,21 +791,13 @@ function Toggle({
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-[var(--border)]/60 bg-[var(--card)]/40 px-4 py-3">
       <div className="mb-1.5 block text-[10.5px] font-semibold uppercase tracking-[0.14em] text-[var(--muted-foreground)]/80">
         {label}
       </div>
-      <div className="text-[12.5px] leading-relaxed text-[var(--muted-foreground)]">
-        {children}
-      </div>
+      <div className="text-[12.5px] leading-relaxed text-[var(--muted-foreground)]">{children}</div>
     </div>
   );
 }
@@ -878,9 +815,7 @@ function Banner({
     info: "border-[var(--border)] bg-[var(--muted)]/40 text-[var(--muted-foreground)]",
   }[tone];
   return (
-    <div
-      className={`rounded-lg border px-3 py-2 text-[12.5px] leading-relaxed ${styles}`}
-    >
+    <div className={`rounded-lg border px-3 py-2 text-[12.5px] leading-relaxed ${styles}`}>
       {children}
     </div>
   );
@@ -894,23 +829,13 @@ function Spinner() {
   );
 }
 
-function Empty({
-  title,
-  body,
-  action,
-}: {
-  title: string;
-  body: string;
-  action?: React.ReactNode;
-}) {
+function Empty({ title, body, action }: { title: string; body: string; action?: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-dashed border-[var(--border)] bg-[var(--card)]/40 px-6 py-14 text-center">
       <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--muted)]/60 text-[var(--muted-foreground)]">
         <Terminal size={18} />
       </div>
-      <p className="text-[14px] font-medium text-[var(--foreground)]">
-        {title}
-      </p>
+      <p className="text-[14px] font-medium text-[var(--foreground)]">{title}</p>
       <p className="mx-auto mt-1 max-w-md text-[12.5px] leading-relaxed text-[var(--muted-foreground)]">
         {body}
       </p>
@@ -984,9 +909,7 @@ function FilterChip({
       {label}
       {typeof count === "number" && (
         <span
-          className={`tabular-nums ${
-            active ? "opacity-80" : "text-[var(--muted-foreground)]/70"
-          }`}
+          className={`tabular-nums ${active ? "opacity-80" : "text-[var(--muted-foreground)]/70"}`}
         >
           {count}
         </span>

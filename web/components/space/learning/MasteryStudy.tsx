@@ -32,10 +32,7 @@ import { TurnNavigator } from "@/components/chat/home/TurnNavigator";
 import SessionViewerPanel, {
   type SessionViewerPanelHandle,
 } from "@/components/chat/home/LazySessionViewerPanel";
-import {
-  type MessageAttachment,
-  useChatStateAdapter,
-} from "@/features/chat/ChatStateAdapter";
+import { type MessageAttachment, useChatStateAdapter } from "@/features/chat/ChatStateAdapter";
 import { useChatAutoScroll } from "@/hooks/useChatAutoScroll";
 import { useMasteryOpening } from "@/hooks/useMasteryOpening";
 import { useMasteryStudySession } from "@/hooks/useMasteryStudySession";
@@ -51,10 +48,7 @@ import { copyText } from "@/lib/clipboard";
 import { consumePendingPrompt } from "@/lib/pending-prompt";
 import { buildChatOutline, scrollToChatTurn } from "@/lib/chat-outline";
 import { buildConversationNotebookSave } from "@/lib/conversation-notebook-save";
-import {
-  masterySessionRoute,
-  type MasteryMode,
-} from "@/lib/mastery-mode";
+import { masterySessionRoute, type MasteryMode } from "@/lib/mastery-mode";
 import { workspaceActionNeedsConfiguration } from "@/lib/workspace-mode";
 
 import { ActivityHeader } from "@/components/activity";
@@ -105,24 +99,19 @@ const MODE_PRESENTATION: Record<
       "Your tutor adapts to your answers. Begin with a quick check, an intuitive explanation, or a challenge.",
   },
   review: {
-    noteKey:
-      "This mode re-tests what you have already learned. It will not teach anything new.",
+    noteKey: "This mode re-tests what you have already learned. It will not teach anything new.",
     emptyTitleKey: "Go back over what you know",
     emptyBodyKey:
       "Review re-tests what you have already mastered. Due items come first, but you can revisit anything.",
   },
 };
 
-const SaveToNotebookModal = dynamic(
-  () => import("@/components/notebook/SaveToNotebookModal"),
-  { ssr: false },
-);
+const SaveToNotebookModal = dynamic(() => import("@/components/notebook/SaveToNotebookModal"), {
+  ssr: false,
+});
 
 /** Ways in, per mode. What "start" means is not the same in all three. */
-const STARTERS: Record<
-  MasteryMode,
-  readonly { icon: typeof Compass; key: string }[]
-> = {
+const STARTERS: Record<MasteryMode, readonly { icon: typeof Compass; key: string }[]> = {
   outline: [
     { icon: Compass, key: "Draft an outline from the materials I chose" },
     { icon: Sparkles, key: "Ask me a few things first, then propose an outline" },
@@ -153,9 +142,7 @@ function currentWaypoint(topic: MasteryTopic, fallback: string, t: Translate) {
     };
   }
   for (const region of topic.map.modules) {
-    const point = region.knowledge_points.find(
-      (item) => item.status !== "mastered",
-    );
+    const point = region.knowledge_points.find((item) => item.status !== "mastered");
     if (point) return { id: point.id, name: point.name };
   }
   return {
@@ -191,18 +178,8 @@ export function MasteryStudy({
     setMasterySessionMode,
   } = useChatStateAdapter();
   const confirmResearchOutline = useResearchOutlineContinuation();
-  const {
-    topic,
-    topicError,
-    knowledgeBases,
-    sessionError,
-    sessionLoading,
-    sessionMode,
-  } = useMasteryStudySession(
-    pathId,
-    routeSessionId,
-    requestedMode,
-  );
+  const { topic, topicError, knowledgeBases, sessionError, sessionLoading, sessionMode } =
+    useMasteryStudySession(pathId, routeSessionId, requestedMode);
   const hasMessages = state.messages.length > 0;
   const prefillInputRef = useRef<((text: string) => void) | null>(null);
   const viewerPanelRef = useRef<SessionViewerPanelHandle | null>(null);
@@ -211,12 +188,9 @@ export function MasteryStudy({
   // generated file or image in the transcript simply did nothing when
   // clicked. The viewer panel below is already mounted; this opens the
   // attachment in it, the same way chat does.
-  const handlePreviewMessageAttachment = useCallback(
-    (attachment: MessageAttachment) => {
-      viewerPanelRef.current?.openFileTab(attachment);
-    },
-    [],
-  );
+  const handlePreviewMessageAttachment = useCallback((attachment: MessageAttachment) => {
+    viewerPanelRef.current?.openFileTab(attachment);
+  }, []);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const sessionActivity = buildSessionActivity(state.messages);
@@ -224,8 +198,7 @@ export function MasteryStudy({
      Was a bare `scrollIntoView` keyed on message count — no notion of the
      user having scrolled away, so it yanked the view back to the bottom
      on every delta regardless. See ReadingCompanion for the same wiring. */
-  const { ref: composerBoxRef, height: composerHeight } =
-    useMeasuredHeight<HTMLDivElement>();
+  const { ref: composerBoxRef, height: composerHeight } = useMeasuredHeight<HTMLDivElement>();
   const lastMessage = state.messages[state.messages.length - 1];
   const {
     containerRef: messagesContainerRef,
@@ -252,10 +225,7 @@ export function MasteryStudy({
     () =>
       Object.fromEntries(
         (topic?.sources ?? [])
-          .filter(
-            (source) =>
-              source.kind === "knowledge_base" && source.source_id && source.label,
-          )
+          .filter((source) => source.kind === "knowledge_base" && source.source_id && source.label)
           .map((source) => [source.source_id as string, source.label]),
       ),
     [topic],
@@ -278,27 +248,24 @@ export function MasteryStudy({
     scrollToBottom("instant");
   }, [scrollToBottom, shouldAutoScrollRef]);
 
-  const notebookFallbackTitle = topic
-    ? topicDisplayName(topic, t)
-    : t("Mastery Path");
-  const { modalMessages: notebookSaveMessages, payload: notebookSavePayload } =
-    useMemo(
-      () =>
-        buildConversationNotebookSave(state.messages, {
-          source: "mastery_path",
-          fallbackTitle: notebookFallbackTitle,
-          activeCapability: state.activeCapability,
-          language: state.language,
-          sessionId: state.sessionId,
-        }),
-      [
-        notebookFallbackTitle,
-        state.activeCapability,
-        state.language,
-        state.messages,
-        state.sessionId,
-      ],
-    );
+  const notebookFallbackTitle = topic ? topicDisplayName(topic, t) : t("Mastery Path");
+  const { modalMessages: notebookSaveMessages, payload: notebookSavePayload } = useMemo(
+    () =>
+      buildConversationNotebookSave(state.messages, {
+        source: "mastery_path",
+        fallbackTitle: notebookFallbackTitle,
+        activeCapability: state.activeCapability,
+        language: state.language,
+        sessionId: state.sessionId,
+      }),
+    [
+      notebookFallbackTitle,
+      state.activeCapability,
+      state.language,
+      state.messages,
+      state.sessionId,
+    ],
+  );
   // A new turn is the clearest possible "show me the answer" — re-arm the
   // pin even if a previous turn's browsing had released it.
   useEffect(() => {
@@ -315,9 +282,7 @@ export function MasteryStudy({
   useEffect(() => {
     try {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setOutlineOpen(
-        browserStorage.readRaw("local", OUTLINE_STORAGE_KEY) !== "0",
-      );
+      setOutlineOpen(browserStorage.readRaw("local", OUTLINE_STORAGE_KEY) !== "0");
     } catch {
       // Private mode / blocked storage: the default (open) stands.
     }
@@ -347,7 +312,7 @@ export function MasteryStudy({
   useEffect(() => {
     if (!pendingPrompt || !prefillInputRef.current) return;
     prefillInputRef.current(pendingPrompt);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+
     setPendingPrompt(null);
   }, [pendingPrompt, topic, sessionError, sessionLoading]);
 
@@ -420,8 +385,7 @@ export function MasteryStudy({
   const submit = useCallback(
     (value: string) => {
       const content = value.trim();
-      if (!content || state.isStreaming || sessionLoading || sessionError)
-        return false;
+      if (!content || state.isStreaming || sessionLoading || sessionError) return false;
       sendMessage(content);
       return true;
     },
@@ -434,7 +398,11 @@ export function MasteryStudy({
   // backend, and returning ``false`` here reopens the card instead of showing
   // the learner that refusal.
   const answerMasteryQuestion = useCallback(
-    (answer: { questionId: string; text: string; answers?: Array<{ questionId: string; text: string }> }) => {
+    (answer: {
+      questionId: string;
+      text: string;
+      answers?: Array<{ questionId: string; text: string }>;
+    }) => {
       const text = answer.text.trim();
       if (!text || state.isStreaming || sessionLoading || sessionError) {
         return false;
@@ -443,19 +411,19 @@ export function MasteryStudy({
         masteryAnswer: {
           question_id: answer.questionId,
           text,
-          ...(answer.answers ? { answers: Object.fromEntries(answer.answers.map((item) => [item.questionId, item.text])) } : {}),
+          ...(answer.answers
+            ? {
+                answers: Object.fromEntries(
+                  answer.answers.map((item) => [item.questionId, item.text]),
+                ),
+              }
+            : {}),
         },
       });
       shouldAutoScrollRef.current = true;
       return true;
     },
-    [
-      sendMessage,
-      sessionError,
-      sessionLoading,
-      shouldAutoScrollRef,
-      state.isStreaming,
-    ],
+    [sendMessage, sessionError, sessionLoading, shouldAutoScrollRef, state.isStreaming],
   );
 
   // Declining a question is a turn too: the engine holds one open question per
@@ -465,25 +433,13 @@ export function MasteryStudy({
       if (!questionId || state.isStreaming || sessionLoading || sessionError) {
         return false;
       }
-      sendMessage(
-        t("Let's skip this question."),
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        { masterySkip: { question_id: questionId } },
-      );
+      sendMessage(t("Let's skip this question."), undefined, undefined, undefined, undefined, {
+        masterySkip: { question_id: questionId },
+      });
       shouldAutoScrollRef.current = true;
       return true;
     },
-    [
-      sendMessage,
-      sessionError,
-      sessionLoading,
-      shouldAutoScrollRef,
-      state.isStreaming,
-      t,
-    ],
+    [sendMessage, sessionError, sessionLoading, shouldAutoScrollRef, state.isStreaming, t],
   );
 
   const startFromPrompt = useCallback(
@@ -525,22 +481,16 @@ export function MasteryStudy({
       void setMasterySessionMode_api(pathId, sessionId, next)
         .then(() => setMasterySessionMode(next))
         .catch((reason: unknown) => {
-          notify(
-            reason instanceof Error
-              ? reason.message
-              : t("The mode could not be changed"),
-            { tone: "error" },
-          );
+          notify(reason instanceof Error ? reason.message : t("The mode could not be changed"), {
+            tone: "error",
+          });
         })
         .finally(() => setModeBusy(false));
     },
     [pathId, setMasterySessionMode, state.sessionId, t],
   );
 
-  const copyAssistantMessage = useCallback(
-    (content: string) => copyText(content),
-    [],
-  );
+  const copyAssistantMessage = useCallback((content: string) => copyText(content), []);
   const locationInBar = usePageBarOffers("instance");
 
   if (!topic && !topicError) {
@@ -555,12 +505,8 @@ export function MasteryStudy({
     return (
       <div className="mastery-shell flex h-full flex-col items-center justify-center px-6 text-center">
         <MapIcon className="h-10 w-10 text-[var(--muted-foreground)] opacity-40" />
-        <h1 className="mt-4 text-lg font-semibold">
-          {t("This learning map could not be found")}
-        </h1>
-        <p className="mt-2 text-sm text-[var(--muted-foreground)]">
-          {topicError}
-        </p>
+        <h1 className="mt-4 text-lg font-semibold">{t("This learning map could not be found")}</h1>
+        <p className="mt-2 text-sm text-[var(--muted-foreground)]">{topicError}</p>
         <Link
           href={scopedUrl(MASTERY_HOME)}
           className="mt-5 text-sm font-medium text-[var(--primary)] hover:underline"
@@ -634,44 +580,44 @@ export function MasteryStudy({
             fix that for me" — and that question can only be asked by someone
             who can see the other two exist. */}
         <PageBarSlot name="actions" className="contents">
-        <ModeSwitch
-          mode={sessionMode}
-          onSelect={changeMode}
-          disabled={state.isStreaming || modeBusy || sessionLoading}
-          className="hidden shrink-0 sm:flex"
-        />
+          <ModeSwitch
+            mode={sessionMode}
+            onSelect={changeMode}
+            disabled={state.isStreaming || modeBusy || sessionLoading}
+            className="hidden shrink-0 sm:flex"
+          />
 
-        <div className="flex shrink-0 items-center gap-1.5 pl-2">
-          <Tooltip label={t("Save to Notebook")}>
+          <div className="flex shrink-0 items-center gap-1.5 pl-2">
+            <Tooltip label={t("Save to Notebook")}>
+              <button
+                type="button"
+                onClick={() => setShowSaveModal(true)}
+                disabled={!notebookSavePayload}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)]/60 hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40"
+                aria-label={t("Save to Notebook")}
+              >
+                <BookmarkPlus className="h-4 w-4" />
+              </button>
+            </Tooltip>
             <button
               type="button"
-              onClick={() => setShowSaveModal(true)}
-              disabled={!notebookSavePayload}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)]/60 hover:text-[var(--foreground)] disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label={t("Save to Notebook")}
+              onClick={() => setViewerOpen((open) => !open)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)]/60 hover:text-[var(--foreground)]"
+              aria-label={t("Activity")}
+              aria-pressed={viewerOpen}
             >
-              <BookmarkPlus className="h-4 w-4" />
+              <PanelRight className="h-4 w-4" />
             </button>
-          </Tooltip>
-          <button
-            type="button"
-            onClick={() => setViewerOpen((open) => !open)}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--muted-foreground)] transition-colors hover:bg-[var(--muted)]/60 hover:text-[var(--foreground)]"
-            aria-label={t("Activity")}
-            aria-pressed={viewerOpen}
-          >
-            <PanelRight className="h-4 w-4" />
-          </button>
-          <ProgressRing
-            value={total ? completed / total : 0}
-            size={18}
-            stroke={2}
-            showLabel={false}
-          />
-          <span className="text-[12px] tabular-nums text-[var(--muted-foreground)]">
-            {completed}/{total}
-          </span>
-        </div>
+            <ProgressRing
+              value={total ? completed / total : 0}
+              size={18}
+              stroke={2}
+              showLabel={false}
+            />
+            <span className="text-[12px] tabular-nums text-[var(--muted-foreground)]">
+              {completed}/{total}
+            </span>
+          </div>
         </PageBarSlot>
       </header>
 
@@ -702,9 +648,7 @@ export function MasteryStudy({
                 const container = messagesContainerRef.current;
                 if (!container) return;
                 const distanceFromBottom =
-                  container.scrollHeight -
-                  container.scrollTop -
-                  container.clientHeight;
+                  container.scrollHeight - container.scrollTop - container.clientHeight;
                 // Arm-only while streaming: position alone should never
                 // RELEASE the pin mid-turn (a gesture already does that,
                 // unconditionally, inside the hook) — only ever confirm the
@@ -739,9 +683,7 @@ export function MasteryStudy({
                 ) : sessionError ? (
                   <div className="mx-auto mt-20 max-w-md rounded-xl border border-red-500/20 bg-red-500/5 p-6 text-center">
                     <MessageCircle className="mx-auto h-8 w-8 text-red-500/60" />
-                    <h2 className="mt-3 text-sm font-semibold">
-                      {t("The session did not open")}
-                    </h2>
+                    <h2 className="mt-3 text-sm font-semibold">{t("The session did not open")}</h2>
                     <p className="mt-2 text-xs leading-5 text-[var(--muted-foreground)]">
                       {sessionError}
                     </p>
@@ -842,7 +784,12 @@ export function MasteryStudy({
                       onSkipMasteryQuestion={skipMasteryQuestion}
                       onChallengeMasteryQuestion={(questionId) => {
                         if (state.isStreaming || sessionLoading || sessionError) return false;
-                        sendMessage(t('Please review assessment {{questionId}} against its original source evidence. If it is unsupported, invalidate it and recompute learning state. Do not grant mastery merely because I challenged it.', { questionId }));
+                        sendMessage(
+                          t(
+                            "Please review assessment {{questionId}} against its original source evidence. If it is unsupported, invalidate it and recompute learning state. Do not grant mastery merely because I challenged it.",
+                            { questionId },
+                          ),
+                        );
                         return true;
                       }}
                       onPreviewAttachment={handlePreviewMessageAttachment}
@@ -875,10 +822,7 @@ export function MasteryStudy({
           </div>
 
           {!sessionError && (
-            <div
-              ref={composerBoxRef}
-              className="shrink-0 bg-[var(--background)]"
-            >
+            <div ref={composerBoxRef} className="shrink-0 bg-[var(--background)]">
               <MasteryComposer
                 placeholder={t("Ask your tutor about “{{waypoint}}”…", {
                   waypoint: waypoint.name,
@@ -893,10 +837,7 @@ export function MasteryStudy({
       </div>
 
       {celebration && (
-        <LevelUpCelebration
-          key={celebration.key}
-          onDone={() => setCelebration(null)}
-        />
+        <LevelUpCelebration key={celebration.key} onDone={() => setCelebration(null)} />
       )}
       <SaveToNotebookModal
         open={showSaveModal}

@@ -38,10 +38,7 @@ import {
   stopPartner,
   type PartnerInfo,
 } from "@/lib/partners-api";
-import {
-  downloadChatMarkdown,
-  type ExportableMessage,
-} from "@/lib/chat-export";
+import { downloadChatMarkdown, type ExportableMessage } from "@/lib/chat-export";
 import {
   freshPartnerSessionKey,
   initializePartnerSessionKey,
@@ -72,9 +69,7 @@ function PartnerDetail() {
 
   const initialTab = (searchParams.get("tab") as Tab) || "chat";
   const [tab, setTab] = useState<Tab>(
-    ["chat", "configure", "channels", "archive"].includes(initialTab)
-      ? initialTab
-      : "chat",
+    ["chat", "configure", "channels", "archive"].includes(initialTab) ? initialTab : "chat",
   );
   const [partner, setPartner] = useState<PartnerInfo | null>(null);
   const [showLinkModal, setShowLinkModal] = useState(false);
@@ -85,17 +80,14 @@ function PartnerDetail() {
   const inBar = usePageBarOffers("instance");
   // ``?tab=`` is user-supplied, so a management tab on a shared partner (or
   // before the partner has loaded) resolves to Chat rather than an empty pane.
-  const activeTab: Tab =
-    !canManage && (tab === "configure" || tab === "channels") ? "chat" : tab;
+  const activeTab: Tab = !canManage && (tab === "configure" || tab === "channels") ? "chat" : tab;
   const [loading, setLoading] = useState(true);
   const [lifecycleBusy, setLifecycleBusy] = useState(false);
   const [toast, setToast] = useState("");
   // Conversation transcripts lifted from the Chat / Archive tabs so the header
   // can export whichever surface is active.
   const [chatMessages, setChatMessages] = useState<ExportableMessage[]>([]);
-  const [archiveMessages, setArchiveMessages] = useState<ExportableMessage[]>(
-    [],
-  );
+  const [archiveMessages, setArchiveMessages] = useState<ExportableMessage[]>([]);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [archiveBusy, setArchiveBusy] = useState(false);
   // The active web session key lives here so the Archive tab's Resume can
@@ -115,16 +107,21 @@ function PartnerDetail() {
   const selectionMutationRef = useRef(false);
   const accountId = auth.userId ?? (!auth.enabled && auth.statusAvailable ? "local-admin" : null);
 
-  useEffect(() => {
-    if (auth.loading) return;
-    if (!accountId) {
-      setContinuityError(true);
-      return;
-    }
-    let cancelled = false;
+  const resourceReset0 = JSON.stringify([partnerId, accountId, auth.loading, continuityRetry]);
+  const [resourceReset0Previous, resourceReset0Remember] = useState<string | null>(null);
+  if (resourceReset0Previous !== resourceReset0) {
+    resourceReset0Remember(resourceReset0);
     setContinuityReady(false);
     setContinuityError(false);
     setRuntimeContinuityError(false);
+    if (!auth.loading && !accountId) setContinuityError(true);
+  }
+  useEffect(() => {
+    if (auth.loading) return;
+    if (!accountId) {
+      return;
+    }
+    let cancelled = false;
     void (async () => {
       const localKey = await initializePartnerSessionKey(
         partnerId,
@@ -148,34 +145,48 @@ function PartnerDetail() {
     return () => {
       cancelled = true;
     };
-  }, [partnerId, auth.loading, auth.enabled, auth.isAdmin, auth.statusAvailable, accountId, continuityRetry]);
+  }, [
+    partnerId,
+    auth.loading,
+    auth.enabled,
+    auth.isAdmin,
+    auth.statusAvailable,
+    accountId,
+    continuityRetry,
+  ]);
 
-  const refreshAuthoritative = useCallback(async (required = false) => {
-    if (!required && (refreshInFlightRef.current || selectionMutationRef.current)) return;
-    refreshInFlightRef.current = true;
-    const epoch = selectionEpochRef.current;
-    try {
-      const state = await getPartnerWebContinuity(partnerId);
-      if (epoch !== selectionEpochRef.current) return;
-      setContinuityEnabled(state.enabled);
-      setSessionKey(state.enabled && state.session_key ? state.session_key : localSessionKey);
-      setRuntimeContinuityError(false);
-    } catch (error) {
-      if (required) {
-        setRuntimeContinuityError(true);
-        setToast(error instanceof Error ? error.message : t("Load failed"));
-      }
-    } finally {
-      refreshInFlightRef.current = false;
-    }
-  }, [partnerId, localSessionKey, t]);
+  const refreshAuthoritative = useCallback(
+    async (required = false) => {
+      if (!required && (refreshInFlightRef.current || selectionMutationRef.current)) return;
+      refreshInFlightRef.current = true;
+      const epoch = selectionEpochRef.current;
+      return getPartnerWebContinuity(partnerId)
+        .then(async (state) => {
+          if (epoch !== selectionEpochRef.current) return;
+          setContinuityEnabled(state.enabled);
+          setSessionKey(state.enabled && state.session_key ? state.session_key : localSessionKey);
+          setRuntimeContinuityError(false);
+        })
+        .catch((error) => {
+          if (required) {
+            setRuntimeContinuityError(true);
+            setToast(error instanceof Error ? error.message : t("Load failed"));
+          }
+        })
+        .finally(() => {
+          refreshInFlightRef.current = false;
+        });
+    },
+    [partnerId, localSessionKey, t],
+  );
 
   // A second browser can change the selected conversation. Pick it up when
   // this page becomes active, without moving a turn that is still streaming.
   useEffect(() => {
     if (!continuityReady) return;
     const refresh = () => {
-      if (document.visibilityState !== "visible" || chatBusy || continuityBusy || switchingSession) return;
+      if (document.visibilityState !== "visible" || chatBusy || continuityBusy || switchingSession)
+        return;
       void refreshAuthoritative();
     };
     const timer = continuityEnabled ? window.setInterval(refresh, 15_000) : null;
@@ -186,7 +197,14 @@ function PartnerDetail() {
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", refresh);
     };
-  }, [continuityReady, continuityEnabled, chatBusy, continuityBusy, switchingSession, refreshAuthoritative]);
+  }, [
+    continuityReady,
+    continuityEnabled,
+    chatBusy,
+    continuityBusy,
+    switchingSession,
+    refreshAuthoritative,
+  ]);
 
   const reconcileSelection = useCallback(async () => {
     selectionEpochRef.current += 1;
@@ -238,36 +256,56 @@ function PartnerDetail() {
   const requestedSession = searchParams.get("session") || "";
   const requestedSelection = useRef("");
   const selectionQuery = searchParams.toString();
-  const selectSessionKey = useCallback(async (key: string, alreadySaved = false) => {
-    const selected = await changeSessionKey(key, alreadySaved);
-    if (!selected) return;
-    requestedSelection.current = `${partnerId}:${selected}`;
-    const query = new URLSearchParams(selectionQuery);
-    query.set("session", selected);
-    query.delete("tab");
-    router.replace(`/partners/${encodeURIComponent(partnerId)}?${query}`, { scroll: false });
-  }, [changeSessionKey, partnerId, router, selectionQuery]);
+  const selectSessionKey = useCallback(
+    async (key: string, alreadySaved = false) => {
+      const selected = await changeSessionKey(key, alreadySaved);
+      if (!selected) return;
+      requestedSelection.current = `${partnerId}:${selected}`;
+      const query = new URLSearchParams(selectionQuery);
+      query.set("session", selected);
+      query.delete("tab");
+      router.replace(`/partners/${encodeURIComponent(partnerId)}?${query}`, { scroll: false });
+    },
+    [changeSessionKey, partnerId, router, selectionQuery],
+  );
   useEffect(() => {
-    if (!requestedSession) { requestedSelection.current = ""; return; }
+    if (!requestedSession) {
+      requestedSelection.current = "";
+      return;
+    }
     if (!continuityReady) return;
     const identity = `${partnerId}:${requestedSession}`;
     if (requestedSelection.current === identity) return;
     let alive = true;
-    void getPartnerSessions(partnerId).then(async rows => {
-      if (!alive) return;
-      requestedSelection.current = identity;
-      if (!rows.some(row => row.session_key === requestedSession && !row.archived)) {
-        setToast(t("navigation.sessionUnavailable"));
-        return;
-      }
-      setTab("chat");
-      await changeSessionKey(requestedSession);
-    }).catch(() => { if (alive) setToast(t("navigation.loadError")); });
-    return () => { alive = false; };
+    void getPartnerSessions(partnerId)
+      .then(async (rows) => {
+        if (!alive) return;
+        requestedSelection.current = identity;
+        if (!rows.some((row) => row.session_key === requestedSession && !row.archived)) {
+          setToast(t("navigation.sessionUnavailable"));
+          return;
+        }
+        setTab("chat");
+        await changeSessionKey(requestedSession);
+      })
+      .catch(() => {
+        if (alive) setToast(t("navigation.loadError"));
+      });
+    return () => {
+      alive = false;
+    };
   }, [requestedSession, continuityReady, partnerId, changeSessionKey, t]);
 
   const toggleContinuity = useCallback(async () => {
-    if (!continuityReady || continuityBusy || switchingSession || runtimeContinuityError || chatBusy || !sessionKey) return;
+    if (
+      !continuityReady ||
+      continuityBusy ||
+      switchingSession ||
+      runtimeContinuityError ||
+      chatBusy ||
+      !sessionKey
+    )
+      return;
     selectionEpochRef.current += 1;
     selectionMutationRef.current = true;
     setContinuityBusy(true);
@@ -325,9 +363,7 @@ function PartnerDetail() {
   const canExport = exportMessages.length > 0;
 
   const exportTitle = useMemo(() => {
-    const firstUser = exportMessages
-      .find((msg) => msg.role === "user")
-      ?.content.trim();
+    const firstUser = exportMessages.find((msg) => msg.role === "user")?.content.trim();
     return firstUser?.slice(0, 80) || partner?.name || "Conversation";
   }, [exportMessages, partner?.name]);
 
@@ -351,12 +387,7 @@ function PartnerDetail() {
   const saveMessages = useMemo<NotebookSaveMessage[]>(
     () =>
       exportMessages
-        .filter(
-          (msg) =>
-            msg.role === "user" ||
-            msg.role === "assistant" ||
-            msg.role === "system",
-        )
+        .filter((msg) => msg.role === "user" || msg.role === "assistant" || msg.role === "system")
         .map((msg) => ({
           role: msg.role as NotebookSaveMessage["role"],
           content: msg.content,
@@ -399,13 +430,16 @@ function PartnerDetail() {
   ]);
 
   const load = useCallback(async () => {
-    try {
-      setPartner(await getPartner(partnerId));
-    } catch {
-      setPartner(null);
-    } finally {
-      setLoading(false);
-    }
+    return getPartner(partnerId)
+      .then(async (resolvedState0) => {
+        setPartner(resolvedState0);
+      })
+      .catch(() => {
+        setPartner(null);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [partnerId]);
   const handleRuntimeReady = useCallback(() => {
     void load();
@@ -462,13 +496,8 @@ function PartnerDetail() {
   if (!partner) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3">
-        <p className="text-[14px] text-[var(--muted-foreground)]">
-          {t("Partner not found")}
-        </p>
-        <Link
-          href="/partners"
-          className="text-[13px] text-[var(--primary)] hover:underline"
-        >
+        <p className="text-[14px] text-[var(--muted-foreground)]">{t("Partner not found")}</p>
+        <Link href="/partners" className="text-[13px] text-[var(--primary)] hover:underline">
           {t("Back to Partners")}
         </Link>
       </div>
@@ -721,13 +750,13 @@ function PartnerDetail() {
                   type="checkbox"
                   aria-label={t("Sync browsers")}
                   checked={continuityEnabled}
-                  disabled={continuityBusy || switchingSession || runtimeContinuityError || chatBusy}
+                  disabled={
+                    continuityBusy || switchingSession || runtimeContinuityError || chatBusy
+                  }
                   onChange={() => void toggleContinuity()}
                   className="h-3.5 w-3.5 accent-[var(--primary)]"
                 />
-                <span className="hidden whitespace-nowrap xl:inline">
-                  {t("Sync browsers")}
-                </span>
+                <span className="hidden whitespace-nowrap xl:inline">{t("Sync browsers")}</span>
               </label>
             </Tooltip>
             {actions}
@@ -773,7 +802,9 @@ function PartnerDetail() {
               onMessagesChange={setChatMessages}
               onRuntimeReady={handleRuntimeReady}
               onBusyChange={setChatBusy}
-              switchingSession={switchingSession || continuityBusy || archiveBusy || runtimeContinuityError}
+              switchingSession={
+                switchingSession || continuityBusy || archiveBusy || runtimeContinuityError
+              }
               sharedAcrossBrowsers={continuityEnabled}
               onSelectionStale={handleSelectionStale}
             />
@@ -806,11 +837,7 @@ function PartnerDetail() {
           </div>
         ) : activeTab === "configure" ? (
           <div className="mx-auto h-full max-w-3xl overflow-y-auto px-5 py-5">
-            <PartnerConfigure
-              partner={partner}
-              onToast={setToast}
-              onUpdated={() => void load()}
-            />
+            <PartnerConfigure partner={partner} onToast={setToast} onUpdated={() => void load()} />
           </div>
         ) : activeTab === "channels" ? (
           <div className="mx-auto h-full max-w-3xl overflow-y-auto px-5 py-5">

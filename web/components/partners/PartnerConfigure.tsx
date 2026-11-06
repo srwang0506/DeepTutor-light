@@ -25,9 +25,7 @@ import {
   type PartnerInfo,
   type ToolOptions,
 } from "@/lib/partners-api";
-import AssetPicker, {
-  type AssetSelection,
-} from "@/components/partners/AssetPicker";
+import AssetPicker, { type AssetSelection } from "@/components/partners/AssetPicker";
 import PartnerWorkspacePicker from "@/components/partners/PartnerWorkspacePicker";
 import ToolPicker from "@/components/partners/ToolPicker";
 import FaceEditor, { type FaceValue } from "@/components/partners/FaceEditor";
@@ -48,13 +46,9 @@ function Section({
     <section className="rounded-xl border border-[var(--border)] p-4">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <h3 className="text-[13px] font-medium text-[var(--foreground)]">
-            {title}
-          </h3>
+          <h3 className="text-[13px] font-medium text-[var(--foreground)]">{title}</h3>
           {description && (
-            <p className="mt-0.5 text-[11.5px] text-[var(--muted-foreground)]">
-              {description}
-            </p>
+            <p className="mt-0.5 text-[11.5px] text-[var(--muted-foreground)]">{description}</p>
           )}
         </div>
         {action}
@@ -95,14 +89,10 @@ export default function PartnerConfigure({
 
   // Model
   const [llmOptions, setLLMOptions] = useState<LLMOption[]>([]);
-  const [activeLLMDefault, setActiveLLMDefault] = useState<LLMSelection | null>(
-    null,
-  );
+  const [activeLLMDefault, setActiveLLMDefault] = useState<LLMSelection | null>(null);
   const [llmLoading, setLLMLoading] = useState(true);
   const [llmError, setLLMError] = useState(false);
-  const [selection, setSelection] = useState<LLMSelection | null>(
-    partner.llm_selection ?? null,
-  );
+  const [selection, setSelection] = useState<LLMSelection | null>(partner.llm_selection ?? null);
   const [backupSelection, setBackupSelection] = useState<LLMSelection | null>(
     partner.backup_llm_selection ?? null,
   );
@@ -126,19 +116,30 @@ export default function PartnerConfigure({
   });
   const [addingAssets, setAddingAssets] = useState(false);
 
-  const loadSoul = useCallback(async () => {
+  const loadSoulData = useCallback(async () => {
+    return getPartnerSoul(partnerId)
+      .then(async (resolvedState0) => {
+        setSoul(resolvedState0);
+        setSoulLoaded(true);
+      })
+      .catch((error) => {
+        setSoulError(error instanceof Error ? error.message : String(error));
+      });
+  }, [partnerId]);
+  const [loadSoulInputs, setLoadSoulInputs] = useState<typeof loadSoulData | null>(null);
+  if (loadSoulInputs !== loadSoulData) {
+    setLoadSoulInputs(() => loadSoulData);
     setSoulLoaded(false);
     setSoulError(null);
-    try {
-      setSoul(await getPartnerSoul(partnerId));
-      setSoulLoaded(true);
-    } catch (error) {
-      setSoulError(error instanceof Error ? error.message : String(error));
-    }
-  }, [partnerId]);
+  }
+  const loadSoul = useCallback(() => {
+    setSoulLoaded(false);
+    setSoulError(null);
+    return loadSoulData();
+  }, [loadSoulData]);
 
   useEffect(() => {
-    void loadSoul();
+    void loadSoulData();
     void getPartnerAssets(partnerId)
       .then(setAssets)
       .catch(() => {});
@@ -157,13 +158,8 @@ export default function PartnerConfigure({
     void getToolOptions()
       .then((options) => {
         setToolOptions(options);
-        setEnabledTools(
-          partner.enabled_tools ?? options.tools.map((tool) => tool.name),
-        );
-        setBuiltinTools(
-          partner.builtin_tools ??
-            options.builtin_tools.map((tool) => tool.name),
-        );
+        setEnabledTools(partner.enabled_tools ?? options.tools.map((tool) => tool.name));
+        setBuiltinTools(partner.builtin_tools ?? options.builtin_tools.map((tool) => tool.name));
         // MCP is deny-by-default. A nullish value must not materialise as
         // "all selected": the picker hands back exactly what is checked, so
         // that fallback would re-grant every configured MCP tool on save.
@@ -171,7 +167,7 @@ export default function PartnerConfigure({
       })
       .catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [partnerId, loadSoul]);
+  }, [partnerId, loadSoulData]);
 
   const saveWorkspace = async (workspaceId: string) => {
     setSavingWorkspace(true);
@@ -343,9 +339,7 @@ export default function PartnerConfigure({
       >
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <label className="mb-1 block text-[12px] font-medium">
-              {t("Name")}
-            </label>
+            <label className="mb-1 block text-[12px] font-medium">{t("Name")}</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -353,9 +347,7 @@ export default function PartnerConfigure({
             />
           </div>
           <div>
-            <label className="mb-1 block text-[12px] font-medium">
-              {t("Reply language")}
-            </label>
+            <label className="mb-1 block text-[12px] font-medium">{t("Reply language")}</label>
             <PartnerReplyLanguageSelect
               value={language}
               onChange={setLanguage}
@@ -363,9 +355,7 @@ export default function PartnerConfigure({
             />
           </div>
           <div className="sm:col-span-2">
-            <label className="mb-1 block text-[12px] font-medium">
-              {t("Description")}
-            </label>
+            <label className="mb-1 block text-[12px] font-medium">{t("Description")}</label>
             <input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
@@ -373,9 +363,7 @@ export default function PartnerConfigure({
             />
           </div>
           <div className="sm:col-span-2 mt-1">
-            <span className="mb-2 block text-[12px] font-medium">
-              {t("Face")}
-            </span>
+            <span className="mb-2 block text-[12px] font-medium">{t("Face")}</span>
             <FaceEditor name={name} value={face} onChange={setFace} />
           </div>
         </div>
@@ -383,9 +371,7 @@ export default function PartnerConfigure({
 
       <Section
         title={t("Soul")}
-        description={t(
-          "The partner's persona — injected into every conversation.",
-        )}
+        description={t("The partner's persona — injected into every conversation.")}
         action={
           <button
             type="button"
@@ -421,9 +407,7 @@ export default function PartnerConfigure({
       >
         <div className="max-w-md space-y-3">
           <div>
-            <label className="mb-1 block text-[12px] font-medium">
-              {t("Primary model")}
-            </label>
+            <label className="mb-1 block text-[12px] font-medium">{t("Primary model")}</label>
             <PartnerModelSelect
               options={llmOptions}
               activeDefault={activeLLMDefault}
@@ -435,9 +419,7 @@ export default function PartnerConfigure({
             />
           </div>
           <div>
-            <label className="mb-1 block text-[12px] font-medium">
-              {t("Backup model")}
-            </label>
+            <label className="mb-1 block text-[12px] font-medium">{t("Backup model")}</label>
             <PartnerModelSelect
               options={llmOptions}
               activeDefault={activeLLMDefault}
@@ -503,11 +485,7 @@ export default function PartnerConfigure({
               onClick={() => setShowAssetPicker((v) => !v)}
               className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-3 py-1.5 text-[12px] font-medium text-[var(--foreground)] hover:border-[var(--ring)]"
             >
-              {showAssetPicker ? (
-                <X className="h-3.5 w-3.5" />
-              ) : (
-                <Plus className="h-3.5 w-3.5" />
-              )}
+              {showAssetPicker ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
               {showAssetPicker ? t("Cancel") : t("Add")}
             </button>
           }
@@ -518,8 +496,7 @@ export default function PartnerConfigure({
                 value={pendingAssets}
                 onChange={setPendingAssets}
                 excluded={{
-                  knowledge_bases:
-                    assets?.knowledge_bases.map((kb) => kb.name) ?? [],
+                  knowledge_bases: assets?.knowledge_bases.map((kb) => kb.name) ?? [],
                   skills: assets?.skills.map((skill) => skill.name) ?? [],
                   notebooks: assets?.notebooks.map((nb) => nb.id) ?? [],
                 }}
@@ -543,9 +520,7 @@ export default function PartnerConfigure({
 
           {assetRows.length === 0 ? (
             <p className="text-[12.5px] text-[var(--muted-foreground)]">
-              {t(
-                "Nothing assigned yet — this partner only knows what you tell it.",
-              )}
+              {t("Nothing assigned yet — this partner only knows what you tell it.")}
             </p>
           ) : (
             <ul className="divide-y divide-[var(--border)]">

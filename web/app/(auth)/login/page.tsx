@@ -5,10 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { login, fetchAuthStatus, checkIsFirstUser } from "@/lib/auth";
-import {
-  inheritLoginHash,
-  normalizeInternalReturnPath,
-} from "@/shared/auth/return-url";
+import { inheritLoginHash, normalizeInternalReturnPath } from "@/shared/auth/return-url";
 
 function LoginPageContent() {
   const { t } = useTranslation();
@@ -16,11 +13,7 @@ function LoginPageContent() {
   const searchParams = useSearchParams();
   const next = normalizeInternalReturnPath(searchParams.get("next"));
   const resolvedNext = useCallback(
-    () =>
-      inheritLoginHash(
-        next,
-        typeof window === "undefined" ? "" : window.location.hash,
-      ),
+    () => inheritLoginHash(next, typeof window === "undefined" ? "" : window.location.hash),
     [next],
   );
 
@@ -55,9 +48,7 @@ function LoginPageContent() {
     if (result.ok) {
       // A password an admin assigned is temporary by definition — send the
       // owner straight to the form rather than letting them settle in with it.
-      router.replace(
-        result.mustChangePassword ? "/profile?change=1" : resolvedNext(),
-      );
+      router.replace(result.mustChangePassword ? "/profile?change=1" : resolvedNext());
     } else {
       setError(result.error ?? t("Login failed"));
       setLoading(false);
@@ -69,7 +60,7 @@ function LoginPageContent() {
       {/* Logo / Title */}
       <div className="text-center mb-8">
         <h1 className="font-serif text-2xl font-semibold text-[var(--foreground)] tracking-tight">
-          DeepTutor
+          {t("DeepTutor")}
         </h1>
         <p className="mt-1 text-sm text-[var(--muted-foreground)]">
           {t("Sign in to your account")}
@@ -106,7 +97,7 @@ function LoginPageContent() {
                          placeholder:text-[var(--muted-foreground)]
                          focus:outline-none focus:ring-2 focus:ring-[var(--primary)] focus:border-transparent
                          transition-shadow text-sm"
-              placeholder="you@example.com"
+              placeholder={t("you@example.com")}
             />
           </div>
 
@@ -136,9 +127,7 @@ function LoginPageContent() {
 
           {/* Error message */}
           {error && (
-            <p className="text-sm text-red-500 bg-red-500/10 rounded-lg px-3 py-2">
-              {error}
-            </p>
+            <p className="text-sm text-red-500 bg-red-500/10 rounded-lg px-3 py-2">{error}</p>
           )}
 
           {/* Submit */}
@@ -158,10 +147,7 @@ function LoginPageContent() {
 
       <p className="mt-6 text-center text-sm text-[var(--muted-foreground)]">
         {t("Don't have an account?")}{" "}
-        <Link
-          href="/register"
-          className="text-[var(--primary)] hover:underline font-medium"
-        >
+        <Link href="/register" className="text-[var(--primary)] hover:underline font-medium">
           {t("Create one")}
         </Link>
       </p>

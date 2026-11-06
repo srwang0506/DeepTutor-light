@@ -1,4 +1,5 @@
 "use client";
+import { useLayoutEffect } from "react";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -26,8 +27,7 @@ type StarterSettingsPayload = {
 
 export default function StarterSettingsPage() {
   const { t } = useTranslation();
-  const { registerExtension, pendingExtensionPayload, draftRevision } =
-    useSettings();
+  const { registerExtension, pendingExtensionPayload, draftRevision } = useSettings();
   const [payload, setPayload] = useState<StarterSettingsPayload | null>(null);
   const [draft, setDraft] = useState<StarterSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,9 +39,7 @@ export default function StarterSettingsPage() {
       setLoading(true);
       setError(null);
       try {
-        const response = await apiFetch(
-          apiUrl(EXTENSION_ENDPOINTS["chat-starters"]),
-        );
+        const response = await apiFetch(apiUrl(EXTENSION_ENDPOINTS["chat-starters"]));
         const data = (await response.json().catch(() => ({}))) as
           StarterSettingsPayload | { detail?: string };
         if (!response.ok) {
@@ -62,8 +60,7 @@ export default function StarterSettingsPage() {
           Partial<StarterSettings> | undefined;
         setDraft({ ...next.settings, ...pending });
       } catch (err) {
-        if (!cancelled)
-          setError(err instanceof Error ? err.message : String(err));
+        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -78,29 +75,28 @@ export default function StarterSettingsPage() {
     () =>
       Boolean(
         payload &&
-          draft &&
-          (payload.settings.trace_count !== draft.trace_count ||
-            payload.settings.ask_hint_enabled !== draft.ask_hint_enabled),
+        draft &&
+        (payload.settings.trace_count !== draft.trace_count ||
+          payload.settings.ask_hint_enabled !== draft.ask_hint_enabled),
       ),
     [draft, payload],
   );
 
   // Flush through the global Apply (top toolbar) instead of a local button.
   const draftRef = useRef(draft);
-  draftRef.current = draft;
+  useLayoutEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
   const save = useCallback(async () => {
     const current = draftRef.current;
     if (!current) return;
     setError(null);
     try {
-      const response = await apiFetch(
-        apiUrl(EXTENSION_ENDPOINTS["chat-starters"]),
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(current),
-        },
-      );
+      const response = await apiFetch(apiUrl(EXTENSION_ENDPOINTS["chat-starters"]), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(current),
+      });
       const data = (await response.json().catch(() => ({}))) as
         StarterSettingsPayload | { detail?: string };
       if (!response.ok) {
@@ -130,9 +126,7 @@ export default function StarterSettingsPage() {
     <div>
       <SettingsPageHeader
         title={t("Conversation")}
-        description={t(
-          "Manage home suggestions and how long DeepTutor waits for replies.",
-        )}
+        description={t("Manage home suggestions and how long DeepTutor waits for replies.")}
       />
 
       <ChatResponseTimeoutSection />
@@ -171,9 +165,7 @@ export default function StarterSettingsPage() {
                 value={draft.trace_count}
                 onChange={(event) =>
                   setDraft((current) =>
-                    current
-                      ? { ...current, trace_count: Number(event.target.value) }
-                      : current,
+                    current ? { ...current, trace_count: Number(event.target.value) } : current,
                   )
                 }
               />

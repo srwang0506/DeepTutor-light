@@ -35,7 +35,7 @@ export function PracticeSession({
   backLabel?: string
 }) {
   const [queue, setQueue] = useState<PracticeRef[]>(
-    () => questions ?? (ids ?? []).map(id => ({ id }))
+    () => questions ?? (ids ?? []).map((id) => ({ id })),
   )
   const [total] = useState(queue.length)
   const [skipped, setSkipped] = useState(0)
@@ -102,20 +102,20 @@ export function PracticeSession({
           workspaceId={queue[index].content_workspace_id}
           onBusy={setSaving}
           onSaved={(due, rating) => {
-            if (rating === 'again') setQueue(current => [...current, current[index]])
-            else setSaved(value => value + 1)
+            if (rating === 'again') setQueue((current) => [...current, current[index]])
+            else setSaved((value) => value + 1)
             if (due !== null) {
               dueDates.current.set(
                 JSON.stringify([queue[index].content_workspace_id, queue[index].id]),
-                due
+                due,
               )
               setNextDue(Math.min(...dueDates.current.values()))
             }
-            setIndex(value => value + 1)
+            setIndex((value) => value + 1)
           }}
           onSkip={() => {
-            setSkipped(value => value + 1)
-            setIndex(value => value + 1)
+            setSkipped((value) => value + 1)
+            setIndex((value) => value + 1)
           }}
         />
       )}
@@ -146,6 +146,7 @@ function PracticeTurn({
   const [conflict, setConflict] = useState(false)
   const [reload, setReload] = useState(0)
   const pending = useRef(false)
+  const [submittedRating, setSubmittedRating] = useState<PracticeRating | null>(null)
   const submission = useRef<{
     request_id: string
     version: number
@@ -156,10 +157,10 @@ function PracticeTurn({
   useEffect(() => {
     let active = true
     void getPracticeQuestion(id, workspaceId)
-      .then(result => {
+      .then((result) => {
         if (active) setQuestion(result)
       })
-      .catch(err => {
+      .catch((err) => {
         if (active) setError(String(err.message || err))
       })
     return () => {
@@ -198,6 +199,7 @@ function PracticeTurn({
       answer,
       self_report: selfReport,
     }
+    setSubmittedRating(submission.current.rating)
     try {
       const result = await savePracticeReview(id, submission.current, workspaceId)
       onSaved(result.due_at, result.rating)
@@ -218,7 +220,8 @@ function PracticeTurn({
     setError('')
     setConflict(false)
     submission.current = null
-    setReload(value => value + 1)
+    setSubmittedRating(null)
+    setReload((value) => value + 1)
   }
   const entry = question?.entry
   const multi =
@@ -244,7 +247,7 @@ function PracticeTurn({
         <>
           <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span>{entry.material_title || t('Practice')}</span>
-            {entry.categories?.map(tag => (
+            {entry.categories?.map((tag) => (
               <span key={tag.id} className="rounded-full bg-muted px-2 py-1">
                 {tag.name}
               </span>
@@ -280,19 +283,23 @@ function PracticeTurn({
                         setAnswer(
                           multi
                             ? (selected
-                                ? answer.split(',').filter(value => value !== key)
+                                ? answer.split(',').filter((value) => value !== key)
                                 : [...answer.split(',').filter(Boolean), key]
                               )
                                 .sort()
                                 .join(',')
-                            : key
+                            : key,
                         )
                       }
                       className="mt-1 accent-primary"
                     />
                     <span className="font-semibold">{key}</span>
                     <div className="min-w-0">
-                      <Markdown learningTextSize={16} content={practiceMarkdown(text)} allowHtml={false} />
+                      <Markdown
+                        learningTextSize={16}
+                        content={practiceMarkdown(text)}
+                        allowHtml={false}
+                      />
                     </div>
                   </label>
                 )
@@ -303,7 +310,7 @@ function PracticeTurn({
               {t('Your answer')}
               <textarea
                 value={answer}
-                onChange={event => setAnswer(event.target.value)}
+                onChange={(event) => setAnswer(event.target.value)}
                 disabled={revealed || busy}
                 maxLength={20000}
                 rows={5}
@@ -355,7 +362,7 @@ function PracticeTurn({
                     content={
                       entry.correct_answer ||
                       t(
-                        'No reference answer was saved. Use the original source to check your work.'
+                        'No reference answer was saved. Use the original source to check your work.',
                       )
                     }
                   />
@@ -371,7 +378,7 @@ function PracticeTurn({
                   <p className="text-xs text-muted-foreground">
                     {correct
                       ? t(
-                          'Mastered questions leave this round and return when your next review is due.'
+                          'Mastered questions leave this round and return when your next review is due.',
                         )
                       : t('Practice again this round')}
                   </p>
@@ -389,11 +396,11 @@ function PracticeTurn({
                   <h3 className="text-sm font-medium">{t('How well did you remember?')}</h3>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {t(
-                      'Mastered questions leave this round and return when your next review is due.'
+                      'Mastered questions leave this round and return when your next review is due.',
                     )}
                   </p>
                   <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                    {RATINGS.map(rating => (
+                    {RATINGS.map((rating) => (
                       <button
                         key={rating.value}
                         aria-label={`${t(rating.label)} ${t(rating.description)}`}
@@ -401,7 +408,7 @@ function PracticeTurn({
                         disabled={
                           busy ||
                           conflict ||
-                          (!!submission.current && submission.current.rating !== rating.value)
+                          (submittedRating !== null && submittedRating !== rating.value)
                         }
                         onClick={() => void rate(rating.value)}
                         className="rounded-xl border border-border p-3 text-left transition hover:border-primary hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-35"

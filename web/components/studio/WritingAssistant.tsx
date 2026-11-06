@@ -1,4 +1,5 @@
 'use client'
+import { useTranslation } from 'react-i18next'
 import { useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import { Dialog } from '@/shared/ui/Dialog'
@@ -31,6 +32,8 @@ export default function WritingAssistant({
   flush: () => Promise<void>
   proposed: (row: StudioRecord<ProposalData>) => Promise<void>
 }) {
+  const { t } = useTranslation()
+
   const [open, setOpen] = useState(false),
     [mode, setMode] = useState('polish'),
     [instruction, setInstruction] = useState('')
@@ -54,12 +57,12 @@ export default function WritingAssistant({
     const [saved, settings, models, ...evidence] = await Promise.all([
       studio<{ path: string; hash: string; text: string }>(
         workspace,
-        `/manuscripts/${manuscript}/file?path=${encodeURIComponent(path)}`
+        `/manuscripts/${manuscript}/file?path=${encodeURIComponent(path)}`,
       ),
       studio<{ revision: number; data: Preferences }>(workspace, '/writing/preferences'),
       listLLMOptions(),
-      ...['evidence', 'observation', 'claim', 'artifact'].map(kind =>
-        records<Source['data']>(workspace, kind)
+      ...['evidence', 'observation', 'claim', 'artifact'].map((kind) =>
+        records<Source['data']>(workspace, kind),
       ),
     ])
     if (Array.from(saved.text).slice(selected.start, selected.end).join('') !== selected.text)
@@ -94,7 +97,7 @@ export default function WritingAssistant({
         instruction,
         source_ids: sourceIds,
         llm_selection: model,
-      }
+      },
     )
     await proposed(row)
     setOpen(false)
@@ -106,7 +109,7 @@ export default function WritingAssistant({
         disabled={op.busy || !file?.path.endsWith('.tex') || !selection.text}
         onClick={() => op.run(show)}
       >
-        <Sparkles size={13} /> AI 修改选区
+        <Sparkles size={13} /> {t('AI 修改选区')}
       </Action>
       {!open && <ErrorNotice message={op.error} />}
       <Dialog
@@ -114,7 +117,7 @@ export default function WritingAssistant({
         onClose={() => {
           if (!op.busy) setOpen(false)
         }}
-        title="逐段打磨 · 先审阅，再应用"
+        title={t('逐段打磨 · 先审阅，再应用')}
         size="lg"
         className="studio-dialog"
         footer={
@@ -127,12 +130,14 @@ export default function WritingAssistant({
         }
       >
         <p className="studio-note">
-          发送范围：当前选区、你勾选的来源摘要、稿件引用键及下方写作偏好。生成后会展示逐项差异与事实变化。
+          {t(
+            '发送范围：当前选区、你勾选的来源摘要、稿件引用键及下方写作偏好。生成后会展示逐项差异与事实变化。',
+          )}
         </p>
         <pre className="studio-diff">{snapshot?.selection.text}</pre>
         <div className="studio-form-grid">
           <Field label="修改目的">
-            <select value={mode} onChange={e => setMode(e.target.value)}>
+            <select value={mode} onChange={(e) => setMode(e.target.value)}>
               {[
                 ['polish', '学术润色'],
                 ['concise', '压缩篇幅'],
@@ -149,7 +154,7 @@ export default function WritingAssistant({
             </select>
           </Field>
           <div>
-            <span className="studio-note">使用模型</span>
+            <span className="studio-note">{t('使用模型')}</span>
             <ModelSelector
               options={options.options}
               activeDefault={options.active}
@@ -166,26 +171,29 @@ export default function WritingAssistant({
         <Field label="具体要求">
           <textarea
             value={instruction}
-            onChange={e => setInstruction(e.target.value)}
-            placeholder="例如：保留‘仅在已见物体上’这一限制，缩短重复表述。"
+            onChange={(e) => setInstruction(e.target.value)}
+            placeholder={t('例如：保留‘仅在已见物体上’这一限制，缩短重复表述。')}
             rows={2}
             maxLength={4000}
           />
         </Field>
         <details>
-          <summary>为这次修改附上证据 · {sourceIds.length} 项</summary>
+          <summary>
+            {t('为这次修改附上证据 ·')}
+            {sourceIds.length} 项
+          </summary>
           <div className="studio-source-picker">
-            {sources.map(source => (
+            {sources.map((source) => (
               <label className="studio-check" key={source.id}>
                 <input
                   type="checkbox"
                   checked={sourceIds.includes(source.id)}
                   disabled={op.busy || (!sourceIds.includes(source.id) && sourceIds.length >= 20)}
                   onChange={() =>
-                    setSourceIds(ids =>
+                    setSourceIds((ids) =>
                       ids.includes(source.id)
-                        ? ids.filter(id => id !== source.id)
-                        : [...ids, source.id]
+                        ? ids.filter((id) => id !== source.id)
+                        : [...ids, source.id],
                     )
                   }
                 />
@@ -202,16 +210,16 @@ export default function WritingAssistant({
         </details>
         {pref && (
           <details>
-            <summary>此项目的术语、风格与模型范围</summary>
+            <summary>{t('此项目的术语、风格与模型范围')}</summary>
             <Field label="个人术语表">
               <textarea
                 rows={3}
                 value={pref.data.terminology}
                 maxLength={10000}
-                onChange={e =>
+                onChange={(e) =>
                   setPref({ ...pref, data: { ...pref.data, terminology: e.target.value } })
                 }
-                placeholder="human-object interaction → 人物—物体交互；保留方法缩写。"
+                placeholder={t('human-object interaction → 人物—物体交互；保留方法缩写。')}
               />
             </Field>
             <Field label="风格说明或例句">
@@ -219,7 +227,7 @@ export default function WritingAssistant({
                 rows={3}
                 value={pref.data.style_examples}
                 maxLength={10000}
-                onChange={e =>
+                onChange={(e) =>
                   setPref({ ...pref, data: { ...pref.data, style_examples: e.target.value } })
                 }
               />
@@ -228,14 +236,14 @@ export default function WritingAssistant({
               <input
                 type="checkbox"
                 checked={pref.data.allow_cloud}
-                onChange={e =>
+                onChange={(e) =>
                   setPref({ ...pref, data: { ...pref.data, allow_cloud: e.target.checked } })
                 }
               />
-              允许此项目使用云端写作模型（包括 Codex OAuth）
+              {t('允许此项目使用云端写作模型（包括 Codex OAuth）')}
             </label>
             <p className="studio-note">
-              关闭时只接受本机模型，调用失败会保留原文。偏好在点击生成时保存到当前项目。
+              {t('关闭时只接受本机模型，调用失败会保留原文。偏好在点击生成时保存到当前项目。')}
             </p>
           </details>
         )}

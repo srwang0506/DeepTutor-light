@@ -1,4 +1,5 @@
 'use client'
+import { useLayoutEffect } from 'react'
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
 import {
@@ -27,7 +28,7 @@ let loading: Promise<void> | undefined
 const listeners = new Set<() => void>()
 
 function emit() {
-  listeners.forEach(listener => listener())
+  listeners.forEach((listener) => listener())
 }
 function subscribe(listener: () => void) {
   listeners.add(listener)
@@ -52,7 +53,7 @@ export function refreshCalendars(): Promise<void> {
       const response = await listCalendars()
       if (generation !== currentGeneration) return
       calendars = [...response.calendars].sort(
-        (a, b) => a.position - b.position || a.created_at.localeCompare(b.created_at)
+        (a, b) => a.position - b.position || a.created_at.localeCompare(b.created_at),
       )
       calendarsError = false
       loadedRevision = response.revision
@@ -88,7 +89,7 @@ export function startCalendarSync(): () => void {
       if (!document.hidden) void refreshCalendars()
     }
     if (source) {
-      source.onmessage = event => {
+      source.onmessage = (event) => {
         try {
           noteCalendarRevision(Number(JSON.parse(event.data).revision) || 0)
         } catch {
@@ -129,7 +130,7 @@ export function useCalendarRevision(): number {
   return useSyncExternalStore(
     subscribe,
     () => revision,
-    () => 0
+    () => 0,
   )
 }
 
@@ -138,12 +139,12 @@ export function useCalendars(): { calendars: CalendarEntry[] | null; error: bool
   const snapshot = useSyncExternalStore(
     subscribe,
     () => calendars,
-    () => null
+    () => null,
   )
   const error = useSyncExternalStore(
     subscribe,
     () => calendarsError,
-    () => false
+    () => false,
   )
   useEffect(() => {
     if (loadedRevision < current || calendars === null) void refreshCalendars()
@@ -175,20 +176,20 @@ export function useOccurrences(range: CalendarRange) {
     if (last && last.key === key && last.revision >= current && last.nonce === nonce) return
     const controller = new AbortController()
     listOccurrences(range, controller.signal)
-      .then(response => {
+      .then((response) => {
         if (controller.signal.aborted) return
         loaded.current = { key, revision: response.revision, nonce }
         setState({ key, occurrences: response.occurrences, revision: response.revision })
         setError(false)
         noteCalendarRevision(response.revision)
       })
-      .catch(reason => {
+      .catch((reason) => {
         if (!controller.signal.aborted) setError(Boolean(reason))
       })
     return () => controller.abort()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the key spells out the range
   }, [key, current, nonce])
-  const retry = useCallback(() => setNonce(value => value + 1), [])
+  const retry = useCallback(() => setNonce((value) => value + 1), [])
   return {
     occurrences: state?.occurrences ?? null,
     revision: state?.revision ?? -1,
@@ -205,12 +206,14 @@ export function useLayers(range: CalendarRange, workspaceId: string, enabled: bo
   const [nonce, setNonce] = useState(0)
   const key = `${range.start}|${range.end}|${range.tz}|${workspaceId}`
   const keyRef = useRef(key)
-  keyRef.current = key
+  useLayoutEffect(() => {
+    keyRef.current = key
+  }, [key])
   useEffect(() => {
     if (!enabled) return
     const controller = new AbortController()
     getLayers(range, controller.signal)
-      .then(response => {
+      .then((response) => {
         if (!controller.signal.aborted && keyRef.current === key) {
           setLayers(response)
           setError(false)
@@ -225,7 +228,7 @@ export function useLayers(range: CalendarRange, workspaceId: string, enabled: bo
   useEffect(() => {
     if (!enabled) return
     const refresh = () => {
-      if (!document.hidden) setNonce(value => value + 1)
+      if (!document.hidden) setNonce((value) => value + 1)
     }
     const timer = setInterval(refresh, 180_000)
     window.addEventListener('focus', refresh)
@@ -234,7 +237,7 @@ export function useLayers(range: CalendarRange, workspaceId: string, enabled: bo
       window.removeEventListener('focus', refresh)
     }
   }, [enabled])
-  const reload = useCallback(() => setNonce(value => value + 1), [])
+  const reload = useCallback(() => setNonce((value) => value + 1), [])
   return { layers: layers && layers.workspace_id === workspaceId ? layers : null, reload, error }
 }
 
@@ -247,7 +250,7 @@ export function useTaskBlocks(workspaceId: string) {
   useEffect(() => {
     const controller = new AbortController()
     getTaskBlocks(controller.signal)
-      .then(counts => {
+      .then((counts) => {
         if (!controller.signal.aborted) setState({ workspaceId, counts })
       })
       .catch(() => {})

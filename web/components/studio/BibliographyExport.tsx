@@ -1,4 +1,5 @@
 'use client'
+import { useTranslation } from 'react-i18next'
 
 import { useState } from 'react'
 import { Download } from 'lucide-react'
@@ -21,16 +22,18 @@ export default function BibliographyExport({
   workspace: string
   works: Work[]
 }) {
+  const { t } = useTranslation()
+
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<string[]>([])
   const [format, setFormat] = useState('bibtex')
   const [report, setReport] = useState<ExportReport | null>(null)
   const op = useOperation()
-  const editions = works.flatMap(work =>
-    work.editions.map(edition => ({
+  const editions = works.flatMap((work) =>
+    work.editions.map((edition) => ({
       id: edition.id,
       label: `${work.data.title} · ${edition.data.label}`,
-    }))
+    })),
   )
   function download() {
     if (!report) return
@@ -47,31 +50,32 @@ export default function BibliographyExport({
         secondary
         disabled={!editions.length}
         onClick={() => {
-          setSelected(editions.map(item => item.id))
+          setSelected(editions.map((item) => item.id))
           setReport(null)
           op.setError('')
           setOpen(true)
         }}
       >
         <Download size={14} />
-        导出书目
+        {t('导出书目')}
       </Action>
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
-        title="带走你的文献积累"
+        title={t('带走你的文献积累')}
         size="lg"
         className="studio-dialog"
         busy={op.busy}
         footer={
           <div className="studio-actions">
             <Action secondary onClick={() => setOpen(false)}>
-              关闭
+              {t('关闭')}
             </Action>
             {report ? (
               <Action onClick={download}>
                 <Download size={14} />
-                下载 {report.filename}
+                {t('下载')}
+                {report.filename}
               </Action>
             ) : (
               <Action
@@ -82,7 +86,7 @@ export default function BibliographyExport({
                       await post<ExportReport>(workspace, '/bibliography/export-report', {
                         edition_ids: selected,
                         format,
-                      })
+                      }),
                     )
                   })
                 }
@@ -95,30 +99,30 @@ export default function BibliographyExport({
       >
         <ErrorNotice message={op.error} />
         <p className="studio-note">
-          从当前已加载的资料中选择版本。导出前检查转换差异，原始条目会继续保留。
+          {t('从当前已加载的资料中选择版本。导出前检查转换差异，原始条目会继续保留。')}
         </p>
         <Field label="文件格式">
           <select
             value={format}
-            onChange={e => {
+            onChange={(e) => {
               setFormat(e.target.value)
               setReport(null)
             }}
           >
-            <option value="bibtex">BibTeX</option>
-            <option value="ris">原始 RIS</option>
-            <option value="csl">原始 CSL JSON</option>
+            <option value="bibtex">{t('BibTeX')}</option>
+            <option value="ris">{t('原始 RIS')}</option>
+            <option value="csl">{t('原始 CSL JSON')}</option>
           </select>
         </Field>
         <div className="studio-source-picker">
-          {editions.map(item => (
+          {editions.map((item) => (
             <label className="studio-outline-row" key={item.id}>
               <input
                 type="checkbox"
                 checked={selected.includes(item.id)}
-                onChange={e => {
-                  setSelected(ids =>
-                    e.target.checked ? [...ids, item.id] : ids.filter(id => id !== item.id)
+                onChange={(e) => {
+                  setSelected((ids) =>
+                    e.target.checked ? [...ids, item.id] : ids.filter((id) => id !== item.id),
                   )
                   setReport(null)
                 }}
@@ -135,15 +139,17 @@ export default function BibliographyExport({
                 ? '原有文献类型与字段一并导出。'
                 : '下列来源格式与目标不同；部分字段可能没有等价表示。请核对后下载。'}
             </p>
-            {report.losses.map(loss => (
+            {report.losses.map((loss) => (
               <p key={loss.edition_id} className="studio-note">
-                {editions.find(item => item.id === loss.edition_id)?.label}：{loss.from} → {loss.to}
+                {editions.find((item) => item.id === loss.edition_id)?.label}：{loss.from} →{' '}
+                {loss.to}
                 <br />
-                待核对字段：{loss.fields_requiring_review.join('、')}
+                {t('待核对字段：')}
+                {loss.fields_requiring_review.join('、')}
               </p>
             ))}
             <details>
-              <summary>预览导出内容</summary>
+              <summary>{t('预览导出内容')}</summary>
               <pre className="studio-diff">{report.content}</pre>
             </details>
           </section>

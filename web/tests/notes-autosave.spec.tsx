@@ -60,7 +60,7 @@ vi.mock('@/features/notes/components/NoteEditor', () => ({
   }) {
     useEffect(() => {
       onReady({ setEditable: vi.fn(), replace: vi.fn() })
-    }, [])
+    }, [onReady])
     return (
       <div>
         Editor{' '}
@@ -72,7 +72,7 @@ vi.mock('@/features/notes/components/NoteEditor', () => ({
           Edit block
         </button>
         <output data-testid="editor-snapshot">{JSON.stringify(page.blocks)}</output>
-        {suggestions.map(s => (
+        {suggestions.map((s) => (
           <section key={s.id}>
             <button onClick={() => onReview(s, true)}>Accept {s.id}</button>
             <button onClick={() => onReview(s, false)}>Dismiss {s.id}</button>
@@ -119,9 +119,9 @@ it('flushes a newly typed edit before approval and retains the returned content 
   vi.mocked(getSuggestions).mockResolvedValue({ suggestions: [proposal] })
   vi.mocked(saveNote).mockImplementationOnce(
     () =>
-      new Promise(resolve => {
+      new Promise((resolve) => {
         finish = resolve
-      })
+      }),
   )
   const accepted = {
     ...page,
@@ -139,7 +139,7 @@ it('flushes a newly typed edit before approval and retains the returned content 
   expect(reviewSuggestion).not.toHaveBeenCalled()
   finish({ ...page, revision: 2 })
   await waitFor(() =>
-    expect(reviewSuggestion).toHaveBeenCalledWith(page.id, 's1', true, proposal.blocks)
+    expect(reviewSuggestion).toHaveBeenCalledWith(page.id, 's1', true, proposal.blocks),
   )
   expect(screen.getByTestId('editor-snapshot')).toHaveTextContent('Accepted')
   expect(screen.getByTestId('editor-snapshot')).toHaveTextContent('New content')
@@ -154,7 +154,7 @@ it('keeps conflicting edits intact and lets the user dismiss the suggestion loca
   vi.mocked(getSuggestions).mockResolvedValue({ suggestions: [proposal] })
   vi.mocked(reviewSuggestion)
     .mockRejectedValueOnce(
-      new Error('The suggested block changed. Ask Dito to revise the suggestion.')
+      new Error('The suggested block changed. Ask Dito to revise the suggestion.'),
     )
     .mockResolvedValueOnce(page)
   render(<NoteWorkspace docId={page.id} />)
@@ -164,7 +164,7 @@ it('keeps conflicting edits intact and lets the user dismiss the suggestion loca
   vi.mocked(getSuggestions).mockResolvedValue({ suggestions: [] })
   fireEvent.click(screen.getByRole('button', { name: 'Dismiss s1' }))
   await waitFor(() =>
-    expect(screen.queryByRole('button', { name: 'Accept s1' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Accept s1' })).not.toBeInTheDocument(),
   )
   expect(reviewSuggestion).toHaveBeenLastCalledWith(page.id, 's1', false, undefined)
   expect(screen.getByTestId('editor-snapshot')).toHaveTextContent('Body')
@@ -183,9 +183,9 @@ it('serializes edits made during an in-flight save against the returned revision
   vi.mocked(saveNote)
     .mockImplementationOnce(
       () =>
-        new Promise(resolve => {
+        new Promise((resolve) => {
           finish = resolve
-        })
+        }),
     )
     .mockResolvedValueOnce({ ...page, title: 'Second', revision: 3 })
   render(<NoteWorkspace docId={page.id} />)
@@ -210,7 +210,7 @@ it('keeps a recovery draft on conflict instead of overwriting a newer page', asy
   })
   await waitFor(
     () => expect(screen.getByRole('alert')).toHaveTextContent('This page changed elsewhere'),
-    { timeout: 3000 }
+    { timeout: 3000 },
   )
   expect(localStorage.getItem(`deeptutor.notes.draft:local:${page.id}`)).toContain('Unsaved')
 })

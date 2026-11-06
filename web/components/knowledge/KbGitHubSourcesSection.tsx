@@ -18,9 +18,7 @@ interface KbGitHubSourcesSectionProps {
   kbName: string;
 }
 
-export default function KbGitHubSourcesSection({
-  kbName,
-}: KbGitHubSourcesSectionProps) {
+export default function KbGitHubSourcesSection({ kbName }: KbGitHubSourcesSectionProps) {
   const { t } = useTranslation();
   const [sources, setSources] = useState<GitHubSource[]>([]);
   const [loading, setLoading] = useState(true);
@@ -36,14 +34,16 @@ export default function KbGitHubSourcesSection({
   const [submitting, setSubmitting] = useState(false);
 
   const refresh = useCallback(async () => {
-    try {
-      const list = await listGitHubSources(kbName);
-      setSources(list);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
+    return listGitHubSources(kbName)
+      .then(async (list) => {
+        setSources(list);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [kbName]);
 
   useEffect(() => {
@@ -93,11 +93,7 @@ export default function KbGitHubSourcesSection({
       // Briefly surface per-source results
       const failed = results.filter((r) => !r.ok);
       if (failed.length > 0) {
-        setError(
-          failed
-            .map((r) => `${r.repo}: ${r.error ?? "unknown error"}`)
-            .join("\n"),
-        );
+        setError(failed.map((r) => `${r.repo}: ${r.error ?? "unknown error"}`).join("\n"));
       }
       await refresh();
     } catch (err) {
@@ -183,10 +179,7 @@ export default function KbGitHubSourcesSection({
                 className="w-full rounded-md border border-[var(--border)] bg-[var(--card)] px-2.5 py-1.5 text-[12.5px] text-[var(--foreground)] outline-none focus:border-[var(--primary)]"
               />
             </FormField>
-            <FormField
-              label={t("Path prefix")}
-              help={t("e.g. docs/ — leave empty for root")}
-            >
+            <FormField label={t("Path prefix")} help={t("e.g. docs/ — leave empty for root")}>
               <input
                 type="text"
                 value={pathInput}
@@ -237,11 +230,7 @@ export default function KbGitHubSourcesSection({
       ) : (
         <div className="space-y-2">
           {sources.map((src) => (
-            <SourceCard
-              key={src.id}
-              source={src}
-              onRemove={() => void handleRemove(src.id)}
-            />
+            <SourceCard key={src.id} source={src} onRemove={() => void handleRemove(src.id)} />
           ))}
         </div>
       )}
@@ -249,13 +238,7 @@ export default function KbGitHubSourcesSection({
   );
 }
 
-function SourceCard({
-  source,
-  onRemove,
-}: {
-  source: GitHubSource;
-  onRemove: () => void;
-}) {
+function SourceCard({ source, onRemove }: { source: GitHubSource; onRemove: () => void }) {
   const { t } = useTranslation();
 
   const statusColor =
@@ -336,9 +319,7 @@ function FormField({
       </span>
       {children}
       {help && (
-        <span className="mt-0.5 block text-[10px] text-[var(--muted-foreground)]">
-          {help}
-        </span>
+        <span className="mt-0.5 block text-[10px] text-[var(--muted-foreground)]">{help}</span>
       )}
     </label>
   );

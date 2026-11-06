@@ -52,11 +52,11 @@ export function VoiceModelFields({
               max={MAX_SPEECH_REQUEST_TIMEOUT}
               step={1}
               placeholder={String(DEFAULT_SPEECH_REQUEST_TIMEOUT)}
-              onChange={e => update('request_timeout', e.target.value)}
+              onChange={(e) => update('request_timeout', e.target.value)}
             />
             <p className="text-xs text-[var(--muted-foreground)]">
               {t(
-                '5–600 seconds. Leave blank for 60 seconds. Applies to voice previews and speech playback.'
+                '5–600 seconds. Leave blank for 60 seconds. Applies to voice previews and speech playback.',
               )}
             </p>
           </div>
@@ -68,7 +68,7 @@ export function VoiceModelFields({
               value={model.response_format ?? ''}
               options={preset?.formats ?? []}
               disabled={disabled}
-              onChange={v => update('response_format', v)}
+              onChange={(v) => update('response_format', v)}
               placeholder={preset?.formats[0] ?? 'mp3'}
             />
           </>
@@ -78,8 +78,8 @@ export function VoiceModelFields({
             label={t('Speech language')}
             value={model.language ?? ''}
             disabled={disabled}
-            options={languages.map(l => l.id)}
-            onChange={v => update('language', v)}
+            options={languages.map((l) => l.id)}
+            onChange={(v) => update('language', v)}
             placeholder={t('Auto detect')}
           />
         )}
@@ -98,7 +98,7 @@ export function VoiceModelFields({
               max={preset.speed.max}
               step={preset.speed.step}
               placeholder="1.0"
-              onChange={e => update('speed', e.target.value)}
+              onChange={(e) => update('speed', e.target.value)}
             />
             <p className="text-xs text-[var(--muted-foreground)]">
               {preset.speed.min}–{preset.speed.max}×
@@ -112,7 +112,7 @@ export function VoiceModelFields({
             disabled={disabled}
             options={preset.sample_rates.map(String)}
             placeholder="24000"
-            onChange={v => update('sample_rate', v)}
+            onChange={(v) => update('sample_rate', v)}
           />
         )}
         {service === 'stt' && provider === 'volcengine_speech' && (
@@ -120,8 +120,8 @@ export function VoiceModelFields({
             label={t('Speech resource ID')}
             value={model.resource_id ?? ''}
             disabled={disabled}
-            placeholder="volc.bigasr.auc_turbo"
-            onChange={v => update('resource_id', v)}
+            placeholder={t('volc.bigasr.auc_turbo')}
+            onChange={(v) => update('resource_id', v)}
           />
         )}
       </div>
@@ -136,7 +136,7 @@ export function VoiceModelFields({
             disabled={disabled}
             rows={2}
             value={model.instructions ?? ''}
-            onChange={e => update('instructions', e.target.value)}
+            onChange={(e) => update('instructions', e.target.value)}
             placeholder={t('For example: speak warmly and slowly.')}
           />
         </div>
@@ -154,20 +154,20 @@ export function VoiceModelFields({
       {service === 'tts' && (
         <p className="text-xs leading-relaxed text-[var(--muted-foreground)]">
           {t(
-            'Fetching the model list does not test speech synthesis. Use Preview voice to test this model and voice.'
+            'Fetching the model list does not test speech synthesis. Use Preview voice to test this model and voice.',
           )}
         </p>
       )}
       {service === 'tts' && provider === 'volcengine_speech' && (
         <p className="text-xs text-[var(--muted-foreground)]">
           {t(
-            'Doubao TTS uses the model resource ID to select a version. Use a voice from that version and a Speech API key, not an Ark key.'
+            'Doubao TTS uses the model resource ID to select a version. Use a voice from that version and a Speech API key, not an Ark key.',
           )}
         </p>
       )}
       <p className="text-xs leading-relaxed text-[var(--muted-foreground)]">
         {t(
-          'Suggestions depend on the provider and model. You can enter other model, voice and language IDs supported by your account.'
+          'Suggestions depend on the provider and model. You can enter other model, voice and language IDs supported by your account.',
         )}
         {docsUrl && (
           <>

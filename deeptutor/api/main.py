@@ -303,11 +303,18 @@ async def _application_lifespan(app: FastAPI):
     from deeptutor.studio import builds as studio_builds
 
     await asyncio.to_thread(studio_builds.start)
+    from deeptutor.studio import integrations as studio_integrations
     from deeptutor.studio import subscriptions as studio_subscriptions
 
+    studio_integration_task = asyncio.create_task(studio_integrations.background())
     studio_subscription_task = asyncio.create_task(studio_subscriptions.background())
     app.state.ready = True
     yield
+    studio_integration_task.cancel()
+    try:
+        await studio_integration_task
+    except asyncio.CancelledError:
+        pass
     studio_subscription_task.cancel()
     try:
         await studio_subscription_task

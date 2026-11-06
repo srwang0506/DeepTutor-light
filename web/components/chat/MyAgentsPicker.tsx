@@ -20,17 +20,9 @@ import PickerHeader from "@/components/common/PickerHeader";
 import type { SelectedHistorySession } from "@/components/chat/HistorySessionPicker";
 import { listImportedSessions } from "@/lib/imports-api";
 import { getSession } from "@/lib/session-api";
-import {
-  epochMsToISODate,
-  projectLabel,
-  SOURCE_LABEL,
-  type ImportSource,
-} from "@/lib/chat-import";
+import { epochMsToISODate, projectLabel, SOURCE_LABEL, type ImportSource } from "@/lib/chat-import";
 import { getAgents, type ImportAgent } from "@/lib/chat-import/agent-store";
-import {
-  assignSessionsToAgents,
-  readImportMeta,
-} from "@/lib/chat-import/attribution";
+import { assignSessionsToAgents, readImportMeta } from "@/lib/chat-import/attribution";
 import { normalizeMessageContent, truncateText } from "@/lib/message-content";
 import { displaySessionTitle } from "@/lib/session-title";
 import Tooltip from "@/shared/ui/Tooltip";
@@ -82,11 +74,7 @@ function formatDay(key: string, lang: string): string {
 }
 
 /** Reference imported local agent conversations, grouped by project or day. */
-export default function MyAgentsPicker({
-  open,
-  onClose,
-  onApply,
-}: MyAgentsPickerProps) {
+export default function MyAgentsPicker({ open, onClose, onApply }: MyAgentsPickerProps) {
   const { t, i18n } = useTranslation();
   // Backend writes the English sentinel "New conversation" until the LLM title
   // lands; mirror SessionList with a localized "New chat" label.
@@ -95,9 +83,7 @@ export default function MyAgentsPicker({
     (title: string) => displaySessionTitle(title, placeholderLabel),
     [placeholderLabel],
   );
-  const [sessions, setSessions] = useState<
-    Awaited<ReturnType<typeof listImportedSessions>>
-  >([]);
+  const [sessions, setSessions] = useState<Awaited<ReturnType<typeof listImportedSessions>>>([]);
   const [agents, setAgents] = useState<ImportAgent[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [query, setQuery] = useState("");
@@ -135,15 +121,19 @@ export default function MyAgentsPicker({
   }, [open]);
 
   // Reset transient state each time the picker opens.
-  useEffect(() => {
-    if (open) {
-      setQuery("");
-      setActiveAgent(ALL);
-      setSelectedIds([]);
-      setExpanded(new Set());
-      setPreview(null);
-    }
-  }, [open]);
+  const [derivedInputs0, setDerivedInputs0] = useState<readonly unknown[]>([]);
+  if (derivedInputs0.length !== 1 || !Object.is(derivedInputs0[0], open)) {
+    setDerivedInputs0([open]);
+    (() => {
+      if (open) {
+        setQuery("");
+        setActiveAgent(ALL);
+        setSelectedIds([]);
+        setExpanded(new Set());
+        setPreview(null);
+      }
+    })();
+  }
 
   // Owner key per imported session: the agent id, or an ungrouped-by-source
   // bucket.
@@ -172,9 +162,7 @@ export default function MyAgentsPicker({
       const meta = readImportMeta(session);
       if (!meta) continue;
       const isCodex = meta.source === "codex";
-      const unit = isCodex
-        ? epochMsToISODate(session.created_at * 1000)
-        : meta.sourceCwd;
+      const unit = isCodex ? epochMsToISODate(session.created_at * 1000) : meta.sourceCwd;
       out.push({
         id: sid,
         title: session.title || "",
@@ -184,9 +172,7 @@ export default function MyAgentsPicker({
         ownerKey,
         groupKey: `${meta.source}:${unit}`,
         groupKind: isCodex ? "date" : "project",
-        groupLabel: isCodex
-          ? formatDay(unit, i18n.language)
-          : projectLabel(unit),
+        groupLabel: isCodex ? formatDay(unit, i18n.language) : projectLabel(unit),
       });
     }
     return out;
@@ -208,17 +194,12 @@ export default function MyAgentsPicker({
   // source buckets.
   const chips = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const row of rows)
-      counts.set(row.ownerKey, (counts.get(row.ownerKey) ?? 0) + 1);
+    for (const row of rows) counts.set(row.ownerKey, (counts.get(row.ownerKey) ?? 0) + 1);
     const importAgents = [...agents]
-      .sort(
-        (a, b) => (b.lastSyncAt || b.createdAt) - (a.lastSyncAt || a.createdAt),
-      )
+      .sort((a, b) => (b.lastSyncAt || b.createdAt) - (a.lastSyncAt || a.createdAt))
       .map((a) => a.id)
       .filter((id) => counts.has(id));
-    const ungrouped = [...counts.keys()]
-      .filter((k) => k.startsWith(UNGROUPED_PREFIX))
-      .sort();
+    const ungrouped = [...counts.keys()].filter((k) => k.startsWith(UNGROUPED_PREFIX)).sort();
     return [...importAgents, ...ungrouped].map((key) => ({
       key,
       label: labelForKey(key),
@@ -261,9 +242,7 @@ export default function MyAgentsPicker({
   }, [rows, formatRowTitle]);
 
   const toggleSession = (id: string) =>
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-    );
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const toggleGroup = (group: SubGroup) => {
     const ids = group.rows.map((r) => r.id);
@@ -288,19 +267,15 @@ export default function MyAgentsPicker({
     setPreview({ row, messages: null, loading: true });
     try {
       const messages = (await getSession(row.id)).messages.map((m) => ({
-              id: String(m.id),
-              role: String(m.role || ""),
-              content: String(m.content || ""),
-            }));
+        id: String(m.id),
+        role: String(m.role || ""),
+        content: String(m.content || ""),
+      }));
       setPreview((cur) =>
-        cur && cur.row.id === row.id
-          ? { ...cur, messages, loading: false }
-          : cur,
+        cur && cur.row.id === row.id ? { ...cur, messages, loading: false } : cur,
       );
     } catch {
-      setPreview((cur) =>
-        cur && cur.row.id === row.id ? { ...cur, loading: false } : cur,
-      );
+      setPreview((cur) => (cur && cur.row.id === row.id ? { ...cur, loading: false } : cur));
     }
   };
 
@@ -331,9 +306,7 @@ export default function MyAgentsPicker({
           icon={Bot}
           titleId="agents-picker-title"
           title={t("Select agent conversations")}
-          subtitle={t(
-            "Pick an agent, then choose the conversations to bring in.",
-          )}
+          subtitle={t("Pick an agent, then choose the conversations to bring in.")}
           onClose={onClose}
         />
 
@@ -390,15 +363,10 @@ export default function MyAgentsPicker({
                 <Loader2 className="h-5 w-5 animate-spin text-[var(--muted-foreground)]" />
               </div>
             ) : groups.length ? (
-              <div
-                key={activeAgent}
-                className="animate-fade-in divide-y divide-[var(--border)]"
-              >
+              <div key={activeAgent} className="animate-fade-in divide-y divide-[var(--border)]">
                 {groups.map((group) => {
                   const ids = group.rows.map((r) => r.id);
-                  const selectedInGroup = ids.filter((id) =>
-                    selectedIds.includes(id),
-                  ).length;
+                  const selectedInGroup = ids.filter((id) => selectedIds.includes(id)).length;
                   const checkState =
                     selectedInGroup === 0
                       ? "none"
@@ -406,8 +374,7 @@ export default function MyAgentsPicker({
                         ? "all"
                         : "some";
                   const isOpen = searching || expanded.has(group.key);
-                  const GroupIcon =
-                    group.kind === "date" ? CalendarDays : FolderOpen;
+                  const GroupIcon = group.kind === "date" ? CalendarDays : FolderOpen;
                   return (
                     <div key={group.key}>
                       <div className="sticky top-0 z-10 flex items-center gap-2.5 border-b border-[var(--border)] bg-[var(--card)]/95 px-4 py-2.5 backdrop-blur">
@@ -481,9 +448,7 @@ export default function MyAgentsPicker({
                                     {row.lastMessage ? (
                                       <p className="mt-1 line-clamp-2 text-[12px] leading-5 text-[var(--muted-foreground)]">
                                         {truncateText(
-                                          normalizeMessageContent(
-                                            row.lastMessage,
-                                          ),
+                                          normalizeMessageContent(row.lastMessage),
                                           200,
                                         )}
                                       </p>
@@ -585,9 +550,7 @@ function PreviewPane({
   const { t } = useTranslation();
   const placeholderLabel = t("New chat");
   const { row, messages, loading } = preview;
-  const visible = (messages ?? []).filter(
-    (m) => (m.content || "").trim() && m.role !== "system",
-  );
+  const visible = (messages ?? []).filter((m) => (m.content || "").trim() && m.role !== "system");
   return (
     <div className="animate-fade-in">
       <div className="sticky top-0 z-10 flex items-center gap-2 border-b border-[var(--border)] bg-[var(--card)]/95 px-3 py-2.5 backdrop-blur">

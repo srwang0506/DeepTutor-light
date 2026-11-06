@@ -1,6 +1,6 @@
 "use client";
 
-import { pageActionClass, pageGridClass } from '@/components/layout/FeaturePage'
+import { pageActionClass, pageGridClass } from "@/components/layout/FeaturePage";
 import Tooltip from "@/shared/ui/Tooltip";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -36,8 +36,7 @@ export default function ConnectedAgents() {
   const [modalOpen, setModalOpen] = useState(false);
   const [busyName, setBusyName] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async () => {
     try {
       const [detected, conns] = await Promise.all([
         detectSubagents().catch(() => [] as SubagentBackendInfo[]),
@@ -49,15 +48,21 @@ export default function ConnectedAgents() {
       setLoading(false);
     }
   }, []);
+  const [loadInputs, setLoadInputs] = useState<typeof loadData | null>(null);
+  if (loadInputs !== loadData) {
+    setLoadInputs(() => loadData);
+    setLoading(true);
+  }
+  const load = useCallback(() => {
+    setLoading(true);
+    return loadData();
+  }, [loadData]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadData();
+  }, [loadData]);
 
-  const available = useMemo(
-    () => backends.filter((b) => b.available),
-    [backends],
-  );
+  const available = useMemo(() => backends.filter((b) => b.available), [backends]);
   const canConnect = available.length > 0;
 
   const handleDisconnect = useCallback(
@@ -93,11 +98,7 @@ export default function ConnectedAgents() {
         })}
         action={
           canConnect ? (
-            <button
-              type="button"
-              onClick={() => setModalOpen(true)}
-              className={pageActionClass()}
-            >
+            <button type="button" onClick={() => setModalOpen(true)} className={pageActionClass()}>
               <Plus className="h-3.5 w-3.5" />
               {tr({ zh: "连接智能体", en: "Connect agent" })}
             </button>
@@ -133,13 +134,9 @@ export default function ConnectedAgents() {
                 key={conn.name}
                 className="group flex items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] px-4 py-3"
               >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border)]/60 bg-[var(--background)] text-[var(--foreground)]">
-                    {Glyph ? (
-                      <Glyph size={20} />
-                    ) : (
-                      <Cpu size={18} strokeWidth={1.6} />
-                    )}
-                  </span>
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--border)]/60 bg-[var(--background)] text-[var(--foreground)]">
+                  {Glyph ? <Glyph size={20} /> : <Cpu size={18} strokeWidth={1.6} />}
+                </span>
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-[13.5px] font-semibold tracking-tight text-[var(--foreground)]">
                     {conn.name}
@@ -232,8 +229,8 @@ function ConnectModal({
     try {
       await connectSubagent(
         isRemote
-            ? { name: trimmed, agent_kind: kind }
-            : { name: trimmed, agent_kind: kind, cwd: cwd.trim() },
+          ? { name: trimmed, agent_kind: kind }
+          : { name: trimmed, agent_kind: kind, cwd: cwd.trim() },
       );
       onConnected();
     } catch (e) {
@@ -294,7 +291,6 @@ function ConnectModal({
             </div>
           </div>
 
-
           <div>
             <label className="mb-1.5 block text-[12px] font-medium text-[var(--foreground)]">
               {tr({ zh: "名称", en: "Name" })}
@@ -333,11 +329,7 @@ function ConnectModal({
             </div>
           )}
 
-          {error && (
-            <p className="text-[12px] text-red-600 dark:text-red-400">
-              {error}
-            </p>
-          )}
+          {error && <p className="text-[12px] text-red-600 dark:text-red-400">{error}</p>}
         </div>
 
         <div className="mt-5 flex justify-end gap-2">

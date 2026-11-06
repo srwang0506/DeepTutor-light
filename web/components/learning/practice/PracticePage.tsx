@@ -21,7 +21,13 @@ export function PracticePage({ mode = "practice" }: { mode?: "practice" | "libra
   return <PracticeCollectionPage mode={mode} initialImport={search.get("create") === "1"} />;
 }
 
-function PracticeCollectionPage({ mode, initialImport }: { mode: "practice" | "library"; initialImport: boolean }) {
+function PracticeCollectionPage({
+  mode,
+  initialImport,
+}: {
+  mode: "practice" | "library";
+  initialImport: boolean;
+}) {
   const { t } = useTranslation();
   const libraryOnly = mode === "library";
   const pageRoute = libraryOnly ? questionBankRoute : practiceRoute;
@@ -34,7 +40,7 @@ function PracticeCollectionPage({ mode, initialImport }: { mode: "practice" | "l
   const [notice, setNotice] = useState("");
   const [revision, setRevision] = useState(0);
   const [session, setSession] = useState<number[] | null>(() => {
-    const id = Number(search.get('question'));
+    const id = Number(search.get("question"));
     return Number.isSafeInteger(id) && id > 0 ? [id] : null;
   });
   const [starting, setStarting] = useState(false);
@@ -42,16 +48,17 @@ function PracticeCollectionPage({ mode, initialImport }: { mode: "practice" | "l
   const summarySequence = useRef(0);
   const refresh = useCallback(async () => {
     const sequence = ++summarySequence.current;
-    try {
-      const result = await getPracticeSummary();
-      if (sequence === summarySequence.current) {
-        setSummary(result);
-        setError("");
-      }
-    } catch (err) {
-      if (sequence === summarySequence.current)
-        setError(err instanceof Error ? err.message : String(err));
-    }
+    return getPracticeSummary()
+      .then(async (result) => {
+        if (sequence === summarySequence.current) {
+          setSummary(result);
+          setError("");
+        }
+      })
+      .catch((err) => {
+        if (sequence === summarySequence.current)
+          setError(err instanceof Error ? err.message : String(err));
+      });
   }, []);
   useEffect(() => {
     void refresh();
@@ -70,7 +77,7 @@ function PracticeCollectionPage({ mode, initialImport }: { mode: "practice" | "l
   }, [refresh]);
   function closeSession() {
     setSession(null);
-    setRevision(value => value + 1);
+    setRevision((value) => value + 1);
     void refresh();
   }
   async function startReview() {
@@ -80,7 +87,7 @@ function PracticeCollectionPage({ mode, initialImport }: { mode: "practice" | "l
     setNotice("");
     try {
       const queue = await getPracticeQueue();
-      if (queue.length) setSession(queue.map(item => item.entry.id));
+      if (queue.length) setSession(queue.map((item) => item.entry.id));
       else {
         setNotice(t("You are caught up. Come back when your next reviews are due."));
         void refresh();
@@ -104,7 +111,7 @@ function PracticeCollectionPage({ mode, initialImport }: { mode: "practice" | "l
         !session && (
           <button
             type="button"
-            onClick={() => setImportOpen(open => !open)}
+            onClick={() => setImportOpen((open) => !open)}
             aria-expanded={importOpen}
             className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium hover:bg-muted"
           >
@@ -115,7 +122,11 @@ function PracticeCollectionPage({ mode, initialImport }: { mode: "practice" | "l
       }
     >
       {session ? (
-        <PracticeSession ids={session} onClose={closeSession} backLabel={libraryOnly ? t("Back to library") : undefined} />
+        <PracticeSession
+          ids={session}
+          onClose={closeSession}
+          backLabel={libraryOnly ? t("Back to library") : undefined}
+        />
       ) : (
         <>
           {notice && (
@@ -132,10 +143,10 @@ function PracticeCollectionPage({ mode, initialImport }: { mode: "practice" | "l
               key={tab}
               initialTarget={tab}
               onClose={() => setImportOpen(false)}
-              onImported={message => {
+              onImported={(message) => {
                 setNotice(message);
                 setImportOpen(false);
-                setRevision(value => value + 1);
+                setRevision((value) => value + 1);
                 void refresh();
               }}
             />
@@ -198,7 +209,7 @@ function PracticeCollectionPage({ mode, initialImport }: { mode: "practice" | "l
               </div>
               <p className="mt-4 border-t border-border pt-3 text-xs leading-relaxed text-muted-foreground">
                 {t(
-                  "New mistakes return the next day. Reviews adapt to your recall; overdue questions come first. Work in sets of up to 20."
+                  "New mistakes return the next day. Reviews adapt to your recall; overdue questions come first. Work in sets of up to 20.",
                 )}
               </p>
             </section>
@@ -208,7 +219,7 @@ function PracticeCollectionPage({ mode, initialImport }: { mode: "practice" | "l
             aria-label={t("Practice collections")}
             className="mb-5 flex gap-5 border-b border-border"
           >
-            {(["bank", "mistakes"] as const).map(view => (
+            {(["bank", "mistakes"] as const).map((view) => (
               <button
                 key={view}
                 id={`practice-tab-${view}`}
@@ -216,7 +227,7 @@ function PracticeCollectionPage({ mode, initialImport }: { mode: "practice" | "l
                 role="tab"
                 aria-selected={tab === view}
                 tabIndex={tab === view ? 0 : -1}
-                onKeyDown={event => {
+                onKeyDown={(event) => {
                   if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
                     event.preventDefault();
                     const next = view === "bank" ? "mistakes" : "bank";
@@ -241,7 +252,7 @@ function PracticeCollectionPage({ mode, initialImport }: { mode: "practice" | "l
               embedded
               onChanged={refresh}
               mistakesOnly={tab === "mistakes"}
-              onPractice={ids => {
+              onPractice={(ids) => {
                 setSession(ids);
                 setNotice("");
               }}

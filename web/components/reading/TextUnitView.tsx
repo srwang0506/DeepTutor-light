@@ -1,18 +1,8 @@
 "use client";
 
-import {
-  Fragment,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-} from "lucide-react";
+import { useHydratedState } from "@/hooks/useHydratedState";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import RichMarkdownRenderer from "@/components/common/RichMarkdownRenderer";
 import type { AnnotationItem, UnitKind } from "@/lib/reading-api";
@@ -42,10 +32,7 @@ import {
   type ReaderHeading,
 } from "@/lib/reading-outline";
 import { cleanQuote } from "@/lib/reading-selection";
-import {
-  imageMarkerNames,
-  MarkdownLine,
-} from "@/lib/reading-inline-markdown";
+import { imageMarkerNames, MarkdownLine } from "@/lib/reading-inline-markdown";
 import { toRecogitoTextAnnotation } from "@/lib/reading-w3c-annotations";
 import type { JumpRequest, SelectionPayload } from "./PdfDocumentView";
 import { PreferenceButton, ReaderDisplayControls } from "./ReaderDisplayControls";
@@ -109,39 +96,37 @@ export function TextUnitView({
       range: Range,
       container: HTMLElement,
     ) => { quote: string; start: number; end: number };
-    getQuoteContext: (
-      range: Range,
-      container: HTMLElement,
-    ) => { prefix: string; suffix: string };
+    getQuoteContext: (range: Range, container: HTMLElement) => { prefix: string; suffix: string };
   } | null>(null);
   const [locator, setLocator] = useState(1);
   const [text, setText] = useState("");
   const [media, setMedia] = useState<MaterialMediaItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useHydratedState(() => loadReaderDisplayPreferences().serif, true);
   const [error, setError] = useState<string | null>(null);
-  const [fontSize, setFontSize] = useState(DEFAULT_FONT_SIZE);
-  const [lineWidth, setLineWidth] = useState(DEFAULT_LINE_WIDTH);
+  const [fontSize, setFontSize] = useHydratedState(
+    () => loadReaderDisplayPreferences().fontSize,
+    DEFAULT_FONT_SIZE,
+  );
+  const [lineWidth, setLineWidth] = useHydratedState(
+    () => loadReaderDisplayPreferences().lineWidth,
+    DEFAULT_LINE_WIDTH,
+  );
   const [serif, setSerif] = useState(true);
-  const [readerTheme, setReaderTheme] = useState<ReaderTheme>("auto");
-  const [spreadMode, setSpreadMode] = useState<EpubSpreadMode>("none");
+  const [readerTheme, setReaderTheme] = useHydratedState<ReaderTheme>(
+    () => loadReaderDisplayPreferences().readerTheme,
+    "auto",
+  );
+  const [spreadMode, setSpreadMode] = useHydratedState<EpubSpreadMode>(
+    () => loadReaderDisplayPreferences().spreadMode,
+    "none",
+  );
   const isWebMarkdown = contentFormat === "web_markdown";
   // Sepia and Night are whole-surface paper: a sheet drawn on top of them
   // would be a second, differently coloured page inside the first.
   const paperSheet = readerTheme === "auto";
 
-  useEffect(() => {
-    const value = loadReaderDisplayPreferences();
-    setFontSize(value.fontSize);
-    setLineWidth(value.lineWidth);
-    setSerif(value.serif);
-    setReaderTheme(value.readerTheme);
-    setSpreadMode(value.spreadMode);
-  }, []);
-
   const updatePreferences = useCallback(
-    (
-      next: Partial<ReaderDisplayPreferences>,
-    ) => {
+    (next: Partial<ReaderDisplayPreferences>) => {
       const merged = { fontSize, lineWidth, serif, readerTheme, spreadMode, ...next };
       setFontSize(merged.fontSize);
       setLineWidth(merged.lineWidth);
@@ -150,7 +135,17 @@ export function TextUnitView({
       setSpreadMode(merged.spreadMode);
       saveReaderDisplayPreferences(merged);
     },
-    [fontSize, lineWidth, readerTheme, serif, spreadMode],
+    [
+      fontSize,
+      lineWidth,
+      readerTheme,
+      serif,
+      setFontSize,
+      setLineWidth,
+      setReaderTheme,
+      setSpreadMode,
+      spreadMode,
+    ],
   );
 
   const changeFontSize = useCallback(
@@ -192,16 +187,25 @@ export function TextUnitView({
     activeHeadingChangeRef.current = onActiveHeadingChange;
   }, [onActiveHeadingChange, onHeadingsChange]);
 
-  useEffect(() => {
-    setLocator(1);
-  }, [materialId]);
+  const [derivedInputs0, setDerivedInputs0] = useState<readonly unknown[]>([]);
+  if (derivedInputs0.length !== 1 || !Object.is(derivedInputs0[0], materialId)) {
+    setDerivedInputs0([materialId]);
+    (() => {
+      setLocator(1);
+    })();
+  }
 
   // Embedded pictures (DOCX/PPTX ingest), keyed to locators. Materials
   // without images simply return an empty index; failure keeps the text
   // readable without the strip.
+  const resourceReset0 = JSON.stringify([materialId]);
+  const [resourceReset0Previous, resourceReset0Remember] = useState<string | null>(null);
+  if (resourceReset0Previous !== resourceReset0) {
+    resourceReset0Remember(resourceReset0);
+    setMedia([]);
+  }
   useEffect(() => {
     let cancelled = false;
-    setMedia([]);
     getMaterialMedia(materialId)
       .then((items) => {
         if (!cancelled) setMedia(items);
@@ -221,15 +225,18 @@ export function TextUnitView({
   // another unit renders inline there.
   const fallbackMedia = useMemo(() => {
     const claimed = imageMarkerNames(text);
-    return media.filter(
-      (item) => item.locator === locator && !claimed.has(item.name),
-    );
+    return media.filter((item) => item.locator === locator && !claimed.has(item.name));
   }, [locator, media, text]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const resourceReset1 = JSON.stringify([materialId, locator]);
+  const [resourceReset1Previous, resourceReset1Remember] = useState<string | null>(null);
+  if (resourceReset1Previous !== resourceReset1) {
+    resourceReset1Remember(resourceReset1);
     setLoading(true);
     setError(null);
+  }
+  useEffect(() => {
+    let cancelled = false;
     (async () => {
       try {
         const unitText = await getUnitText(materialId, locator);
@@ -237,9 +244,7 @@ export function TextUnitView({
       } catch (loadError) {
         if (!cancelled) {
           setError(
-            loadError instanceof Error
-              ? loadError.message
-              : t("Could not load this section."),
+            loadError instanceof Error ? loadError.message : t("Could not load this section."),
           );
         }
       } finally {
@@ -249,7 +254,7 @@ export function TextUnitView({
     return () => {
       cancelled = true;
     };
-  }, [materialId, locator, t]);
+  }, [materialId, locator, t, setLoading]);
 
   useEffect(() => {
     onVisibleLocatorChange?.(locator);
@@ -259,10 +264,15 @@ export function TextUnitView({
   // to move), not deriving state from props — so setting state here is the
   // intended shape. The locator is also user-controlled via the arrows, which is
   // why it cannot simply be computed from `jump`.
+  const jumpKey = JSON.stringify([jump, unitCount]);
+  const [previousJump, setPreviousJump] = useState(jumpKey);
+  if (previousJump !== jumpKey) {
+    setPreviousJump(jumpKey);
+    if (jump) setLocator(Math.min(Math.max(1, jump.locator), unitCount));
+  }
   useEffect(() => {
     if (!jump) return;
     const target = Math.min(Math.max(1, jump.locator), unitCount);
-    setLocator(target);
     // Assigned rather than animated: programmatic smooth scrolling is a silent
     // no-op in some embedded browsers, and landing at the top of the section is
     // the part that matters. CSS `scroll-behavior` supplies the easing.
@@ -287,10 +297,8 @@ export function TextUnitView({
           renderer: "SPANS",
           style: (annotation) => {
             const properties = annotation.properties as
-              | { annotationId?: string; color?: string; kind?: string }
-              | undefined;
-            const color =
-              COLOR_INK[properties?.color ?? ""] ?? COLOR_INK.yellow;
+              { annotationId?: string; color?: string; kind?: string } | undefined;
+            const color = COLOR_INK[properties?.color ?? ""] ?? COLOR_INK.yellow;
             if (properties?.kind === "underline") {
               return {
                 fill: "transparent",
@@ -300,33 +308,23 @@ export function TextUnitView({
             }
             return {
               fill: `rgb(${color})`,
-              fillOpacity:
-                properties?.annotationId === highlightedAnnotationId
-                  ? 0.8
-                  : 0.55,
+              fillOpacity: properties?.annotationId === highlightedAnnotationId ? 0.8 : 0.55,
             };
           },
         });
         annotator = instance;
         const rows = annotations
           .filter((annotation) => annotation.locator === locator)
-          .map((annotation) =>
-            toRecogitoTextAnnotation(annotation, article.textContent ?? ""),
-          )
+          .map((annotation) => toRecogitoTextAnnotation(annotation, article.textContent ?? ""))
           .filter((annotation) => annotation !== null);
         instance.setAnnotations(rows);
         instance.on("clickAnnotation", (selected) => {
           const id = selected.id;
-          const annotation = annotations.find(
-            (row) => row.annotation_id === id,
-          );
+          const annotation = annotations.find((row) => row.annotation_id === id);
           if (annotation) onAnnotationClick?.(annotation);
         });
         if (highlightedAnnotationId) {
-          instance.scrollIntoView(
-            highlightedAnnotationId,
-            containerRef.current ?? article,
-          );
+          instance.scrollIntoView(highlightedAnnotationId, containerRef.current ?? article);
         }
       })
       .catch(() => {
@@ -339,33 +337,20 @@ export function TextUnitView({
       annotator?.destroy();
       textSelectorToolsRef.current = null;
     };
-  }, [
-    annotations,
-    error,
-    highlightedAnnotationId,
-    loading,
-    locator,
-    onAnnotationClick,
-    text,
-  ]);
+  }, [annotations, error, highlightedAnnotationId, loading, locator, onAnnotationClick, text]);
 
-  const pageHeadings = useMemo(
-    () => extractReaderHeadings([text], locator),
-    [locator, text],
-  );
+  const pageHeadings = useMemo(() => extractReaderHeadings([text], locator), [locator, text]);
 
   useEffect(() => {
     if (!isWebMarkdown) return;
     const article = articleRef.current;
     if (!article || loading || error) return;
-    article
-      .querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6")
-      .forEach((element, index) => {
-        const heading = pageHeadings[index];
-        if (!heading) return;
-        element.id = heading.id;
-        element.dataset.readerHeadingId = heading.id;
-      });
+    article.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6").forEach((element, index) => {
+      const heading = pageHeadings[index];
+      if (!heading) return;
+      element.id = heading.id;
+      element.dataset.readerHeadingId = heading.id;
+    });
   }, [error, isWebMarkdown, loading, pageHeadings]);
 
   useEffect(() => {
@@ -383,10 +368,7 @@ export function TextUnitView({
     const containerRect = container.getBoundingClientRect();
     const elementRect = element.getBoundingClientRect();
     container.scrollTo({
-      top: Math.max(
-        0,
-        container.scrollTop + elementRect.top - containerRect.top - 24,
-      ),
+      top: Math.max(0, container.scrollTop + elementRect.top - containerRect.top - 24),
     });
     activeHeadingChangeRef.current?.(headingJump.id);
   }, [headingJump]);
@@ -413,19 +395,14 @@ export function TextUnitView({
       return;
     }
     const range = selection.getRangeAt(0);
-    if (
-      !text.trim() ||
-      !articleRef.current?.contains(range.commonAncestorContainer)
-    ) {
+    if (!text.trim() || !articleRef.current?.contains(range.commonAncestorContainer)) {
       onSelection(null);
       return;
     }
     const tools = textSelectorToolsRef.current;
     const selector = tools?.rangeToSelector(range, articleRef.current);
     const quote =
-      selector && selector.quote.length <= 2000
-        ? selector.quote
-        : cleanQuote(selection.toString());
+      selector && selector.quote.length <= 2000 ? selector.quote : cleanQuote(selection.toString());
     if (!quote) {
       onSelection(null);
       return;
@@ -452,9 +429,7 @@ export function TextUnitView({
               },
             ]
           : [],
-      anchor: last
-        ? { x: last.left + last.width / 2, y: last.top }
-        : { x: 0, y: 0 },
+      anchor: last ? { x: last.left + last.width / 2, y: last.top } : { x: 0, y: 0 },
     });
   }, [locator, onSelection, text]);
 
@@ -465,20 +440,18 @@ export function TextUnitView({
     <div
       ref={readerRootRef}
       tabIndex={-1}
-      onPointerDown={() =>
-        readerRootRef.current?.focus({ preventScroll: true })
-      }
+      onPointerDown={() => readerRootRef.current?.focus({ preventScroll: true })}
       className="flex h-full flex-col"
       style={
         readerTheme === "sepia"
           ? { background: "#f4ecd8", color: "#473c2c" }
           : readerTheme === "night"
             ? { background: "#16181d", color: "#e8e5df" }
-            // A desk, not a page — the page is the article below, the same
-            // relationship a scrolled PDF already has between its grey field
-            // and the white sheets on it. Sepia and Night are whole-surface
-            // paper by design, so they keep painting edge to edge.
-            : { background: "var(--secondary)" }
+            : // A desk, not a page — the page is the article below, the same
+              // relationship a scrolled PDF already has between its grey field
+              // and the white sheets on it. Sepia and Night are whole-surface
+              // paper by design, so they keep painting edge to edge.
+              { background: "var(--secondary)" }
       }
     >
       {/* Display controls on the left, position on the right.
@@ -514,9 +487,7 @@ export function TextUnitView({
             label={t("Next {{unit}}", { unit: t(unitLabel(unit)) })}
             icon={ChevronRight}
             disabled={!canNext}
-            onClick={() =>
-              setLocator((current) => Math.min(unitCount, current + 1))
-            }
+            onClick={() => setLocator((current) => Math.min(unitCount, current + 1))}
           />
         </div>
       </div>
@@ -537,61 +508,57 @@ export function TextUnitView({
           <p className="text-[12px] text-[var(--muted-foreground)]">{error}</p>
         ) : (
           <>
-          <article
-            ref={articleRef}
-            // The sheet. Text used to run edge to edge on the same white as
-            // everything around it, so the chosen line width was invisible and
-            // the reading column had no boundary to sit inside — four white
-            // panes separated by hairlines. A PDF already reads as pages on a
-            // desk; this gives the text modes the same surface.
-            //
-            // The edge is the border token rather than a black hairline
-            // because the desk is not reliably darker than the sheet: of the
-            // four palettes, Dark is the one whose --secondary sits above
-            // --card. `--border` is defined against each palette's own
-            // surfaces, so the boundary holds in all of them — and it is what
-            // the mastery cards draw themselves with.
-            className={`mx-auto leading-[1.75] selection:bg-[color-mix(in_srgb,var(--primary)_20%,transparent)] ${
-              paperSheet
-                ? "rounded-2xl bg-[var(--card)] px-6 py-8 shadow-[0_0_0_1px_rgba(0,0,0,0.035),0_1px_3px_rgba(0,0,0,0.06),0_10px_30px_-16px_rgba(0,0,0,0.14)] sm:px-10 "
-                : ""
-            }${isWebMarkdown ? "" : "whitespace-pre-wrap "}${
-              serif ? "font-serif" : "font-sans"
-            }`}
-            style={{
-              // The sheet's padding is added on top of the line width, so
-              // "84ch" stays 84 characters of text either way.
-              maxWidth: paperSheet
-                ? `calc(${lineWidth}ch + 5rem)`
-                : `${lineWidth}ch`,
-              fontSize: `${fontSize}px`,
-              color: readerTheme === "auto" ? "var(--foreground)" : "inherit",
-            }}
-          >
-            {!text.trim() ? (
-              <span className="text-[var(--muted-foreground)]">
-                {t("This section has no extractable text.")}
-              </span>
-            ) : isWebMarkdown ? (
-              <RichMarkdownRenderer
-                content={text}
-                allowHtml={false}
-                enableMath
-                enableCode
-                enableMermaid={false}
-                // Web snapshots store their images locally. An uploaded file's
-                // image links point anywhere, so they stay unrendered.
-                enableImages={sourceType !== "upload"}
-                variant="prose"
-              />
-            ) : (
-              <TextWithHeadings
-                text={text}
-                headings={pageHeadings}
-                media={media}
-                materialId={materialId}
-              />
-            )}
+            <article
+              ref={articleRef}
+              // The sheet. Text used to run edge to edge on the same white as
+              // everything around it, so the chosen line width was invisible and
+              // the reading column had no boundary to sit inside — four white
+              // panes separated by hairlines. A PDF already reads as pages on a
+              // desk; this gives the text modes the same surface.
+              //
+              // The edge is the border token rather than a black hairline
+              // because the desk is not reliably darker than the sheet: of the
+              // four palettes, Dark is the one whose --secondary sits above
+              // --card. `--border` is defined against each palette's own
+              // surfaces, so the boundary holds in all of them — and it is what
+              // the mastery cards draw themselves with.
+              className={`mx-auto leading-[1.75] selection:bg-[color-mix(in_srgb,var(--primary)_20%,transparent)] ${
+                paperSheet
+                  ? "rounded-2xl bg-[var(--card)] px-6 py-8 shadow-[0_0_0_1px_rgba(0,0,0,0.035),0_1px_3px_rgba(0,0,0,0.06),0_10px_30px_-16px_rgba(0,0,0,0.14)] sm:px-10 "
+                  : ""
+              }${isWebMarkdown ? "" : "whitespace-pre-wrap "}${serif ? "font-serif" : "font-sans"}`}
+              style={{
+                // The sheet's padding is added on top of the line width, so
+                // "84ch" stays 84 characters of text either way.
+                maxWidth: paperSheet ? `calc(${lineWidth}ch + 5rem)` : `${lineWidth}ch`,
+                fontSize: `${fontSize}px`,
+                color: readerTheme === "auto" ? "var(--foreground)" : "inherit",
+              }}
+            >
+              {!text.trim() ? (
+                <span className="text-[var(--muted-foreground)]">
+                  {t("This section has no extractable text.")}
+                </span>
+              ) : isWebMarkdown ? (
+                <RichMarkdownRenderer
+                  content={text}
+                  allowHtml={false}
+                  enableMath
+                  enableCode
+                  enableMermaid={false}
+                  // Web snapshots store their images locally. An uploaded file's
+                  // image links point anywhere, so they stay unrendered.
+                  enableImages={sourceType !== "upload"}
+                  variant="prose"
+                />
+              ) : (
+                <TextWithHeadings
+                  text={text}
+                  headings={pageHeadings}
+                  media={media}
+                  materialId={materialId}
+                />
+              )}
             </article>
             {fallbackMedia.length > 0 && (
               <div
@@ -599,10 +566,7 @@ export function TextUnitView({
                 style={{ maxWidth: `${lineWidth}ch` }}
               >
                 {fallbackMedia.map((item) => (
-                  <figure
-                    key={item.name}
-                    className="flex flex-col items-center"
-                  >
+                  <figure key={item.name} className="flex flex-col items-center">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={materialMediaUrl(materialId, item.name)}
@@ -635,10 +599,7 @@ function TextWithHeadings({
   media: MaterialMediaItem[];
   materialId: string;
 }) {
-  const lines = useMemo(
-    () => readerLinesWithHeadings(text, headings),
-    [headings, text],
-  );
+  const lines = useMemo(() => readerLinesWithHeadings(text, headings), [headings, text]);
 
   // An embedded-picture marker line renders as the picture itself, at the
   // picture's original position between paragraphs. The marker text stays in
@@ -676,20 +637,11 @@ function TextWithHeadings({
       {lines.map((line, lineIndex) => {
         const key = `line-${lineIndex}`;
         if (line.heading) {
-          const Heading = `h${line.heading.level}` as
-            | "h1"
-            | "h2"
-            | "h3"
-            | "h4"
-            | "h5"
-            | "h6";
+          const Heading = `h${line.heading.level}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
           const titleOffset = line.text.indexOf(line.heading.title);
-          const markerPrefix =
-            titleOffset >= 0 ? line.text.slice(0, titleOffset) : "";
+          const markerPrefix = titleOffset >= 0 ? line.text.slice(0, titleOffset) : "";
           const markerSuffix =
-            titleOffset >= 0
-              ? line.text.slice(titleOffset + line.heading.title.length)
-              : "";
+            titleOffset >= 0 ? line.text.slice(titleOffset + line.heading.title.length) : "";
           return (
             <Fragment key={key}>
               {lineIndex > 0 && "\n"}
@@ -724,9 +676,7 @@ function TextWithHeadings({
             {lineIndex > 0 && "\n"}
             {/* Fenced code stays completely literal — Markdown syntax
                 inside a code block is content, not formatting. */}
-            {line.fence ? line.text : (
-              <MarkdownLine text={line.text} renderImage={renderImage} />
-            )}
+            {line.fence ? line.text : <MarkdownLine text={line.text} renderImage={renderImage} />}
           </Fragment>
         );
       })}

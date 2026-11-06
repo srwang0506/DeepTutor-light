@@ -3,15 +3,7 @@
 import { knowledgeBaseRef } from "@/lib/knowledge-helpers";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  AlertTriangle,
-  Check,
-  Copy,
-  Loader2,
-  Plus,
-  Smartphone,
-  Trash2,
-} from "lucide-react";
+import { AlertTriangle, Check, Copy, Loader2, Plus, Smartphone, Trash2 } from "lucide-react";
 import {
   getMarginNote4Status,
   listMarginNote4Devices,
@@ -21,10 +13,7 @@ import {
   type MarginNoteLibraryStatus,
   type MarginNotePairing,
 } from "@/lib/marginnote4-api";
-import {
-  formatKnowledgeTimestamp,
-  type KnowledgeBase,
-} from "@/lib/knowledge-helpers";
+import { formatKnowledgeTimestamp, type KnowledgeBase } from "@/lib/knowledge-helpers";
 
 /**
  * Devices paired to a connected MarginNote 4 library.
@@ -33,11 +22,7 @@ import {
  * from. Pairing mints a token the MN4 add-on presents on every sync; the server
  * keeps only a hash, so the plaintext is shown here once and never again.
  */
-export default function KbMarginNoteDevicesSection({
-  kb,
-}: {
-  kb: KnowledgeBase;
-}) {
+export default function KbMarginNoteDevicesSection({ kb }: { kb: KnowledgeBase }) {
   const kbRef = knowledgeBaseRef(kb);
   const { t } = useTranslation();
   const [devices, setDevices] = useState<MarginNoteDevice[] | null>(null);
@@ -49,21 +34,19 @@ export default function KbMarginNoteDevicesSection({
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    try {
-      const [list, summary] = await Promise.all([
-        listMarginNote4Devices(kbRef),
-        getMarginNote4Status(kbRef),
-      ]);
-      setDevices(list);
-      setStatus(summary);
-      setError(null);
-    } catch (err) {
-      // An unpaired library has no store yet, which is not an error state —
-      // report the failure but still render the empty case below.
-      setDevices([]);
-      setStatus(null);
-      setError(err instanceof Error ? err.message : String(err));
-    }
+    return Promise.all([listMarginNote4Devices(kbRef), getMarginNote4Status(kbRef)])
+      .then(async ([list, summary]) => {
+        setDevices(list);
+        setStatus(summary);
+        setError(null);
+      })
+      .catch((err) => {
+        // An unpaired library has no store yet, which is not an error state —
+        // report the failure but still render the empty case below.
+        setDevices([]);
+        setStatus(null);
+        setError(err instanceof Error ? err.message : String(err));
+      });
   }, [kbRef]);
 
   useEffect(() => {
@@ -104,9 +87,7 @@ export default function KbMarginNoteDevicesSection({
   const handleCopy = async () => {
     if (!issued) return;
     try {
-      await navigator.clipboard.writeText(
-        `${issued.device_id}:${issued.token}`,
-      );
+      await navigator.clipboard.writeText(`${issued.device_id}:${issued.token}`);
       setCopied(true);
     } catch {
       // Clipboard permission denied — the value stays selectable on screen.
@@ -186,11 +167,7 @@ export default function KbMarginNoteDevicesSection({
                 onClick={() => void handleCopy()}
                 className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--background)] px-2.5 py-1 text-[12px] font-medium text-[var(--foreground)] transition-colors hover:bg-[var(--muted)]"
               >
-                {copied ? (
-                  <Check className="h-3 w-3" />
-                ) : (
-                  <Copy className="h-3 w-3" />
-                )}
+                {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
                 {copied ? t("Copied") : t("Copy")}
               </button>
             </div>
@@ -220,10 +197,7 @@ export default function KbMarginNoteDevicesSection({
         ) : (
           <ul className="divide-y divide-[var(--border)] overflow-hidden rounded-lg border border-[var(--border)] bg-[var(--background)]">
             {devices.map((device) => (
-              <li
-                key={device.device_id}
-                className="flex items-center gap-3 px-3 py-2.5"
-              >
+              <li key={device.device_id} className="flex items-center gap-3 px-3 py-2.5">
                 <Smartphone className="h-3.5 w-3.5 shrink-0 text-[var(--muted-foreground)]" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -260,21 +234,13 @@ export default function KbMarginNoteDevicesSection({
   );
 }
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
       <dt className="text-[10.5px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
         {label}
       </dt>
-      <dd className="mt-0.5 text-[12.5px] text-[var(--foreground)]">
-        {children}
-      </dd>
+      <dd className="mt-0.5 text-[12.5px] text-[var(--foreground)]">{children}</dd>
     </div>
   );
 }

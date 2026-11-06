@@ -1,9 +1,14 @@
 "use client";
 
+import { useKeyedState } from "@/hooks/useKeyedState";
 import { PageBarSlot } from "@/components/layout/PageChrome";
-import { PageContainer, PAGE_DESCRIPTION_CLASS } from '@/components/layout/FeaturePage'
+import { PageContainer, PAGE_DESCRIPTION_CLASS } from "@/components/layout/FeaturePage";
 import { scopedUrl } from "@/lib/workspace-scope";
-import { MASTERY_HOME, masterySessionRoute as existingMasterySessionRoute, masterySessionsRoute } from "@/lib/learning-routes";
+import {
+  MASTERY_HOME,
+  masterySessionRoute as existingMasterySessionRoute,
+  masterySessionsRoute,
+} from "@/lib/learning-routes";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -35,10 +40,7 @@ import { ModuleOutline } from "@/components/space/learning/ModuleOutline";
 import { ConfirmDialog } from "@/components/space/learning/ConfirmDialog";
 import { EditTopicRouteDialog } from "@/components/space/learning/EditTopicRouteDialog";
 import { LearningBoard } from "@/components/space/learning/LearningBoard";
-import {
-  topicDisplayName,
-  type Translate,
-} from "@/components/space/learning/format";
+import { topicDisplayName, type Translate } from "@/components/space/learning/format";
 import { PathTitle } from "@/components/space/learning/PathTitle";
 import { MasteryPathCrumb } from "@/components/layout/instance-crumbs";
 import { ReviewTrail } from "@/components/space/learning/ReviewTrail";
@@ -81,13 +83,15 @@ export default function MasteryTopicPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<"reset" | "delete" | null>(
-    null,
-  );
+  const [confirmAction, setConfirmAction] = useState<"reset" | "delete" | null>(null);
   const [topicView, setTopicView] = useState<"outline" | "board">("outline");
-  const [board, setBoard] = useState<BoardResult | null>(null);
-  const [boardError, setBoardError] = useState(false);
   const [boardRequestNonce, setBoardRequestNonce] = useState(0);
+  const activity = useMasteryPathActivity(pathId || null);
+  const [board, setBoard] = useState<BoardResult | null>(null);
+  const [boardError, setBoardError] = useKeyedState(
+    JSON.stringify([pathId, topicView, boardRequestNonce, activity.revision]),
+    false,
+  );
   const [mutationBusy, setMutationBusy] = useState(false);
   const [retentionBusy, setRetentionBusy] = useState(false);
   const [retentionError, setRetentionError] = useState<string | null>(null);
@@ -100,70 +104,77 @@ export default function MasteryTopicPage() {
   const [strategyError, setStrategyError] = useState<string | null>(null);
   const editorTriggerRef = useRef<HTMLElement | null>(null);
   const confirmTriggerRef = useRef<HTMLElement | null>(null);
-  const activity = useMasteryPathActivity(pathId || null);
 
   const openEditor = (trigger: HTMLButtonElement) => {
     editorTriggerRef.current = trigger;
     setEditorOpen(true);
   };
 
-  const openConfirmation = (
-    action: "reset" | "delete",
-    trigger: HTMLButtonElement,
-  ) => {
+  const openConfirmation = (action: "reset" | "delete", trigger: HTMLButtonElement) => {
     confirmTriggerRef.current = trigger;
     setConfirmAction(action);
   };
 
   const loadTopic = useCallback(async () => {
-    try {
-      const next = await fetchMasteryTopic(pathId, { cache: "no-store" });
-      setTopic(next);
-      setError(null);
-    } catch (reason) {
-      setError(
-        reason instanceof Error
-          ? reason.message
-          : t("The map could not be loaded"),
-      );
-    } finally {
-      setLoading(false);
-    }
+    return fetchMasteryTopic(pathId, { cache: "no-store" })
+      .then(async (next) => {
+        setTopic(next);
+        setError(null);
+      })
+      .catch((reason) => {
+        setError(reason instanceof Error ? reason.message : t("The map could not be loaded"));
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [pathId, t]);
 
   const loadSessions = useCallback(async () => {
-    try {
-      setSessions(
-        await fetchMasteryTopicSessions(pathId, { cache: "no-store" }),
-      );
-      setSessionsError(false);
-    } catch {
-      // Keep whatever we last showed. Blanking the list turns a network blip
-      // into "you have no sessions", which is a different and alarming claim.
-      setSessionsError(true);
-    } finally {
-      setSessionsLoading(false);
-    }
+    return fetchMasteryTopicSessions(pathId, { cache: "no-store" })
+      .then(async (resolvedState0) => {
+        setSessions(resolvedState0);
+        setSessionsError(false);
+      })
+      .catch(() => {
+        // Keep whatever we last showed. Blanking the list turns a network blip
+        // into "you have no sessions", which is a different and alarming claim.
+        setSessionsError(true);
+      })
+      .finally(() => {
+        setSessionsLoading(false);
+      });
   }, [pathId]);
 
-  const loadStrategies = useCallback(async () => {
-    setStrategiesLoading(true);
-    try {
-      const result = await fetchMasteryReviewStrategies({
-        cache: "no-store",
+  const loadStrategiesData = useCallback(async () => {
+    return fetchMasteryReviewStrategies({
+      cache: "no-store",
+    })
+      .then(async (result) => {
+        setStrategies(result.strategies);
+        setStrategiesError(null);
+      })
+      .catch(() => {
+        setStrategiesError(t("Could not load review strategies. Try again."));
+      })
+      .finally(() => {
+        setStrategiesLoading(false);
       });
-      setStrategies(result.strategies);
-      setStrategiesError(null);
-    } catch {
-      setStrategiesError(t("Could not load review strategies. Try again."));
-    } finally {
-      setStrategiesLoading(false);
-    }
   }, [t]);
+  const [loadStrategiesInputs, setLoadStrategiesInputs] = useState<
+    typeof loadStrategiesData | null
+  >(null);
+  if (loadStrategiesInputs !== loadStrategiesData) {
+    setLoadStrategiesInputs(() => loadStrategiesData);
+    setStrategiesLoading(true);
+  }
+  const loadStrategies = useCallback(() => {
+    setStrategiesLoading(true);
+    return loadStrategiesData();
+  }, [loadStrategiesData]);
 
   useEffect(() => {
-    void loadStrategies();
-  }, [loadStrategies]);
+    void loadStrategiesData();
+  }, [loadStrategiesData]);
 
   useEffect(() => {
     void loadTopic();
@@ -176,7 +187,6 @@ export default function MasteryTopicPage() {
   useEffect(() => {
     if (topicView !== "board") return;
     const controller = new AbortController();
-    setBoardError(false);
     fetchLearningBoard(pathId, {
       cache: "no-store",
       signal: controller.signal,
@@ -188,20 +198,26 @@ export default function MasteryTopicPage() {
         setBoardError(true);
       });
     return () => controller.abort();
-  }, [activity.revision, boardRequestNonce, pathId, topicView]);
+  }, [activity.revision, boardRequestNonce, pathId, setBoardError, topicView]);
 
-  useEffect(() => {
-    if (!selectedId || !topic) return;
-    const stillThere = topic.map.modules.some((module) =>
-      module.knowledge_points.some((point) => point.id === selectedId),
-    );
-    if (!stillThere) setSelectedId(null);
-  }, [selectedId, topic]);
+  const [derivedInputs0, setDerivedInputs0] = useState<readonly unknown[]>([]);
+  if (
+    derivedInputs0.length !== 2 ||
+    !Object.is(derivedInputs0[0], selectedId) ||
+    !Object.is(derivedInputs0[1], topic)
+  ) {
+    setDerivedInputs0([selectedId, topic]);
+    (() => {
+      if (!selectedId || !topic) return;
+      const stillThere = topic.map.modules.some((module) =>
+        module.knowledge_points.some((point) => point.id === selectedId),
+      );
+      if (!stillThere) setSelectedId(null);
+    })();
+  }
 
   const sourceLabels = useMemo(
-    () =>
-      topic?.sources.filter((source) => source.kind !== "goal").slice(0, 5) ??
-      [],
+    () => topic?.sources.filter((source) => source.kind !== "goal").slice(0, 5) ?? [],
     [topic],
   );
   const displayName = topic ? topicDisplayName(topic, t) : "";
@@ -211,21 +227,10 @@ export default function MasteryTopicPage() {
     activity.refresh();
   };
 
-  const handleOverride = async (
-    objectiveId: string,
-    mastered: boolean,
-    note: string,
-  ) => {
-    const result = await setMasteryObjectiveOverride(
-      pathId,
-      objectiveId,
-      mastered,
-      note,
-    );
+  const handleOverride = async (objectiveId: string, mastered: boolean, note: string) => {
+    const result = await setMasteryObjectiveOverride(pathId, objectiveId, mastered, note);
     setTopic((previous) =>
-      previous
-        ? { ...previous, map: result.map, path_revision: result.path_revision }
-        : previous,
+      previous ? { ...previous, map: result.map, path_revision: result.path_revision } : previous,
     );
     await loadTopic();
   };
@@ -238,9 +243,7 @@ export default function MasteryTopicPage() {
    */
   const handleRename = async (name: string) => {
     const saved = await renameProgress(pathId, name);
-    setTopic((previous) =>
-      previous ? { ...previous, name: saved.name } : previous,
-    );
+    setTopic((previous) => (previous ? { ...previous, name: saved.name } : previous));
     activity.refresh();
   };
 
@@ -272,46 +275,32 @@ export default function MasteryTopicPage() {
     }
   };
 
-  const handleStrategySave = async (
-    input: ReviewStrategyInput,
-    templateId?: string,
-  ) => {
+  const handleStrategySave = async (input: ReviewStrategyInput, templateId?: string) => {
     setStrategyBusy(true);
     setStrategyError(null);
     try {
       const savedStrategy = templateId
         ? await updateMasteryReviewStrategy(templateId, input)
         : await createMasteryReviewStrategy(input);
-      const savedTopic = await bindMasteryReviewStrategy(
-        pathId,
-        savedStrategy.template_id,
-      );
+      const savedTopic = await bindMasteryReviewStrategy(pathId, savedStrategy.template_id);
       setTopic(savedTopic);
       await loadStrategies();
       activity.refresh();
     } catch (error) {
       setStrategyError(
-        error instanceof Error
-          ? error.message
-          : t("Could not save review strategy. Try again."),
+        error instanceof Error ? error.message : t("Could not save review strategy. Try again."),
       );
     } finally {
       setStrategyBusy(false);
     }
   };
 
-  const handleStrategyDuplicate = async (
-    templateId: string,
-    name: string,
-  ) => {
+  const handleStrategyDuplicate = async (templateId: string, name: string) => {
     setStrategyBusy(true);
     setStrategyError(null);
     try {
       const copy = await duplicateMasteryReviewStrategy(templateId, name);
-      const savedTopic = await bindMasteryReviewStrategy(
-        pathId,
-        copy.template_id,
-      );
+      const savedTopic = await bindMasteryReviewStrategy(pathId, copy.template_id);
       setTopic(savedTopic);
       await loadStrategies();
       activity.refresh();
@@ -391,9 +380,7 @@ export default function MasteryTopicPage() {
     return (
       <div className="mastery-shell flex h-full flex-col items-center justify-center px-6 text-center">
         <Compass className="h-10 w-10 text-[var(--muted-foreground)] opacity-40" />
-        <h1 className="mt-4 text-lg font-semibold">
-          {t("This map could not be found")}
-        </h1>
+        <h1 className="mt-4 text-lg font-semibold">{t("This map could not be found")}</h1>
         <p className="mt-2 text-sm text-[var(--muted-foreground)]">{error}</p>
         <Link
           href={scopedUrl(MASTERY_HOME)}
@@ -415,12 +402,9 @@ export default function MasteryTopicPage() {
   const needsRouteRepair = topic.map.counts.total === 0;
   const nextCta = NEXT_CTA_LABELS[topic.next.action];
   const pendingSessionId =
-    topic.next.session_id ||
-    sessions.find((session) => session.has_pending_question)?.session_id;
+    topic.next.session_id || sessions.find((session) => session.has_pending_question)?.session_id;
   const continuationSessionId =
-    topic.next.action === "answer_pending"
-      ? pendingSessionId
-      : sessions[0]?.session_id;
+    topic.next.action === "answer_pending" ? pendingSessionId : sessions[0]?.session_id;
 
   return (
     // One screen, not a scroll. A goal's dashboard answers "where am I and
@@ -462,18 +446,14 @@ export default function MasteryTopicPage() {
               <div className="absolute right-0 z-20 mt-2 w-44 rounded-xl border border-[var(--border)] bg-[var(--popover)] p-1.5 text-xs shadow-xl">
                 <button
                   type="button"
-                  onClick={(event) =>
-                    openConfirmation("reset", event.currentTarget)
-                  }
+                  onClick={(event) => openConfirmation("reset", event.currentTarget)}
                   className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left hover:bg-[var(--accent)]"
                 >
                   <RotateCcw className="h-3.5 w-3.5" /> {t("Reset progress")}
                 </button>
                 <button
                   type="button"
-                  onClick={(event) =>
-                    openConfirmation("delete", event.currentTarget)
-                  }
+                  onClick={(event) => openConfirmation("delete", event.currentTarget)}
                   className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-red-600 hover:bg-red-500/10"
                 >
                   <Trash2 className="h-3.5 w-3.5" /> {t("Delete topic")}
@@ -512,8 +492,7 @@ export default function MasteryTopicPage() {
           </div>
           <div className="flex shrink-0 items-center gap-3">
             <span className="text-[13px] tabular-nums text-[var(--muted-foreground)]">
-              {topic.map.counts.mastered}/{topic.map.counts.total}{" "}
-              {t("knowledge points")}
+              {topic.map.counts.mastered}/{topic.map.counts.total} {t("knowledge points")}
             </span>
             <span className="h-3 w-px bg-[var(--border)]" aria-hidden="true" />
             <div className="flex items-center gap-2">
@@ -539,8 +518,7 @@ export default function MasteryTopicPage() {
               <div className="truncate text-[14px] font-medium text-[var(--foreground)]">
                 {needsRouteRepair
                   ? t("Design the outline")
-                  : topic.next.knowledge_point_name ||
-                    t("Celebrate completion")}
+                  : topic.next.knowledge_point_name || t("Celebrate completion")}
               </div>
               <p className="mt-0.5 truncate text-[12px] text-[var(--muted-foreground)]">
                 {needsRouteRepair
@@ -606,9 +584,7 @@ export default function MasteryTopicPage() {
             // not the instruction.
             <section className="dt-panel min-h-72 items-center justify-center p-8 text-center">
               <PencilRuler className="h-9 w-9 text-[var(--mastery-route)]" />
-              <h2 className="mt-4 text-lg font-semibold">
-                {t("No outline yet")}
-              </h2>
+              <h2 className="mt-4 text-lg font-semibold">{t("No outline yet")}</h2>
               <p className="mt-2 max-w-md text-sm leading-6 text-[var(--muted-foreground)]">
                 {t(
                   "Open a session and the tutor will read your materials, ask what you already know and how much time you have, then design the outline with you.",
@@ -616,10 +592,7 @@ export default function MasteryTopicPage() {
               </p>
               <Link
                 onClick={() =>
-                  setPendingPrompt(
-                    masteryOpeningMessage("outline", t),
-                    MASTERY_OPENING_SCOPE,
-                  )
+                  setPendingPrompt(masteryOpeningMessage("outline", t), MASTERY_OPENING_SCOPE)
                 }
                 href={masterySessionRoute(pathId, "outline")}
                 className="mt-5 inline-flex h-10 items-center gap-2 rounded-xl bg-[var(--primary)] px-4 text-sm font-medium text-[var(--primary-foreground)] transition hover:opacity-90"
@@ -683,31 +656,31 @@ export default function MasteryTopicPage() {
                   that scrolls. Everything else keeps its place. */}
               <div className="min-h-0 lg:min-h-[260px] lg:flex-1 lg:overflow-y-auto lg:pr-1">
                 {topicView === "outline" ? (
-                <ModuleOutline
-                  topic={topic}
-                  revision={Math.max(topic.path_revision, activity.revision)}
-                  selectedId={selectedId}
-                  zh={zh}
-                  onSelect={setSelectedId}
-                  onOverride={handleOverride}
-                />
-              ) : board ? (
-                <LearningBoard
-                  pathId={pathId}
-                  modules={board.modules}
-                  revision={Math.max(topic.path_revision, activity.revision)}
-                  zh={zh}
-                  onStartTutoring={startBoardTutoring}
-                />
-              ) : boardError ? (
-                <p className="dt-panel p-6 text-center text-sm text-[var(--muted-foreground)]">
-                  {t("The learning board could not be loaded")}
-                </p>
-              ) : (
-                <div className="dt-panel min-h-40 items-center justify-center">
-                  <Loader2 className="h-5 w-5 animate-spin text-[var(--muted-foreground)]" />
-                </div>
-              )}
+                  <ModuleOutline
+                    topic={topic}
+                    revision={Math.max(topic.path_revision, activity.revision)}
+                    selectedId={selectedId}
+                    zh={zh}
+                    onSelect={setSelectedId}
+                    onOverride={handleOverride}
+                  />
+                ) : board ? (
+                  <LearningBoard
+                    pathId={pathId}
+                    modules={board.modules}
+                    revision={Math.max(topic.path_revision, activity.revision)}
+                    zh={zh}
+                    onStartTutoring={startBoardTutoring}
+                  />
+                ) : boardError ? (
+                  <p className="dt-panel p-6 text-center text-sm text-[var(--muted-foreground)]">
+                    {t("The learning board could not be loaded")}
+                  </p>
+                ) : (
+                  <div className="dt-panel min-h-40 items-center justify-center">
+                    <Loader2 className="h-5 w-5 animate-spin text-[var(--muted-foreground)]" />
+                  </div>
+                )}
               </div>
               <ReviewTrail
                 reviews={topic.reviews}
@@ -720,9 +693,7 @@ export default function MasteryTopicPage() {
                 retentionError={retentionError}
                 onRetentionChange={(value) => void handleRetentionChange(value)}
                 strategies={strategies}
-                selectedStrategyId={
-                  topic.review_settings?.strategy?.template_id ?? ""
-                }
+                selectedStrategyId={topic.review_settings?.strategy?.template_id ?? ""}
                 strategyLoading={strategiesLoading}
                 strategyError={strategiesError}
                 strategyBusy={strategyBusy}
@@ -734,15 +705,11 @@ export default function MasteryTopicPage() {
                 zh={zh}
                 onSelect={(objectiveId) => {
                   setSelectedId(objectiveId);
-                  document
-                    .getElementById("mastery-outline-start")
-                    ?.scrollIntoView({
-                      behavior: window.matchMedia(
-                        "(prefers-reduced-motion: reduce)",
-                      ).matches
-                        ? "auto"
-                        : "smooth",
-                    });
+                  document.getElementById("mastery-outline-start")?.scrollIntoView({
+                    behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+                      ? "auto"
+                      : "smooth",
+                  });
                 }}
                 onStartReview={startReview}
               />

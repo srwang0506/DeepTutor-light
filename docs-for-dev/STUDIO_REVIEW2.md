@@ -1,5 +1,7 @@
 # Studio integrity review — 1274880 follow-up
 
+> Historical release notes. See [the next revision](STUDIO_REVIEW3.md) for implemented integrations, transfer, offline study and evaluation.
+
 This release retains the restored interface and the modular monolith. It addresses the reproduced integrity defects in the 6 November review. It does not certify all future product work as complete.
 
 ## Contracts

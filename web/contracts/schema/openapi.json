@@ -1336,6 +1336,20 @@
         "title": "Body_create_knowledge_base_api_knowledge_bases_post",
         "type": "object"
       },
+      "Body_evaluation_suite_upload_api_studio_evaluations_suites_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_evaluation_suite_upload_api_studio_evaluations_suites_post",
+        "type": "object"
+      },
       "Body_import_docx_api_documents_import_docx_post": {
         "properties": {
           "file": {
@@ -1445,6 +1459,25 @@
           "file"
         ],
         "title": "Body_library_add",
+        "type": "object"
+      },
+      "Body_portable_preview_api_studio_portable_preview_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          },
+          "passphrase": {
+            "title": "Passphrase",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file",
+          "passphrase"
+        ],
+        "title": "Body_portable_preview_api_studio_portable_preview_post",
         "type": "object"
       },
       "Body_preview_office_upload_api_file_preview_pdf_post": {
@@ -4506,6 +4539,62 @@
         "title": "DataMigrationPayload",
         "type": "object"
       },
+      "DecisionInput": {
+        "additionalProperties": false,
+        "properties": {
+          "decision": {
+            "enum": [
+              "include",
+              "exclude",
+              "uncertain"
+            ],
+            "title": "Decision",
+            "type": "string"
+          },
+          "edition_id": {
+            "title": "Edition Id",
+            "type": "string"
+          },
+          "expected_edition_revision": {
+            "minimum": 1.0,
+            "title": "Expected Edition Revision",
+            "type": "integer"
+          },
+          "expected_previous_id": {
+            "default": "",
+            "title": "Expected Previous Id",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 2000,
+            "minLength": 3,
+            "title": "Reason",
+            "type": "string"
+          },
+          "source_reviewed": {
+            "title": "Source Reviewed",
+            "type": "boolean"
+          },
+          "stage": {
+            "enum": [
+              "abstract",
+              "full_text"
+            ],
+            "title": "Stage",
+            "type": "string"
+          }
+        },
+        "required": [
+          "edition_id",
+          "expected_edition_revision",
+          "stage",
+          "decision",
+          "reason",
+          "source_reviewed"
+        ],
+        "title": "DecisionInput",
+        "type": "object"
+      },
       "DedupRequest": {
         "properties": {
           "iterations": {
@@ -5510,6 +5599,47 @@
         "title": "ErrorEnvelope",
         "type": "object"
       },
+      "EvaluationNext": {
+        "additionalProperties": false,
+        "properties": {
+          "llm_selection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/deeptutor__api__routers__co_writer__LLMSelectionPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "EvaluationNext",
+        "type": "object"
+      },
+      "EvaluationStart": {
+        "additionalProperties": false,
+        "properties": {
+          "llm_selection": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/deeptutor__api__routers__co_writer__LLMSelectionPayload"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "suite_id": {
+            "title": "Suite Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "suite_id"
+        ],
+        "title": "EvaluationStart",
+        "type": "object"
+      },
       "EventInput": {
         "additionalProperties": false,
         "description": "A new event, or the merged result of a patch before it is stored.",
@@ -6102,6 +6232,126 @@
           "event_id"
         ],
         "title": "ExposureInput",
+        "type": "object"
+      },
+      "ExtractionInput": {
+        "additionalProperties": false,
+        "properties": {
+          "edition_id": {
+            "title": "Edition Id",
+            "type": "string"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Evidence Ids",
+            "type": "array"
+          },
+          "expected_edition_revision": {
+            "minimum": 1.0,
+            "title": "Expected Edition Revision",
+            "type": "integer"
+          },
+          "expected_previous_id": {
+            "default": "",
+            "title": "Expected Previous Id",
+            "type": "string"
+          },
+          "field": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Field",
+            "type": "string"
+          },
+          "value": {
+            "maxLength": 12000,
+            "minLength": 1,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "edition_id",
+          "expected_edition_revision",
+          "field",
+          "value",
+          "evidence_ids"
+        ],
+        "title": "ExtractionInput",
+        "type": "object"
+      },
+      "FamilyReview": {
+        "additionalProperties": false,
+        "properties": {
+          "conditions": {
+            "maxLength": 1000,
+            "minLength": 2,
+            "title": "Conditions",
+            "type": "string"
+          },
+          "expected_revision": {
+            "default": 0,
+            "minimum": 0.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "method": {
+            "maxLength": 500,
+            "minLength": 2,
+            "title": "Method",
+            "type": "string"
+          },
+          "objective": {
+            "maxLength": 300,
+            "minLength": 2,
+            "title": "Objective",
+            "type": "string"
+          },
+          "question_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Question Id",
+            "type": "string"
+          },
+          "question_version": {
+            "maxLength": 64,
+            "minLength": 64,
+            "title": "Question Version",
+            "type": "string"
+          },
+          "rationale": {
+            "maxLength": 2000,
+            "minLength": 5,
+            "title": "Rationale",
+            "type": "string"
+          },
+          "session_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Session Id",
+            "type": "string"
+          },
+          "turn_id": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Turn Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "turn_id",
+          "question_id",
+          "question_version",
+          "objective",
+          "method",
+          "conditions",
+          "rationale"
+        ],
+        "title": "FamilyReview",
         "type": "object"
       },
       "FetchModelsPayload": {
@@ -6946,6 +7196,76 @@
           "ref"
         ],
         "title": "InstallSkillRequest",
+        "type": "object"
+      },
+      "IntegrationUpdate": {
+        "additionalProperties": false,
+        "properties": {
+          "api_key": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Api Key",
+            "type": "string"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "expected_revision": {
+            "minimum": 1.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          },
+          "interval_seconds": {
+            "default": 300,
+            "maximum": 86400.0,
+            "minimum": 10.0,
+            "title": "Interval Seconds",
+            "type": "integer"
+          },
+          "library_id": {
+            "default": "",
+            "maxLength": 30,
+            "title": "Library Id",
+            "type": "string"
+          },
+          "library_type": {
+            "default": "users",
+            "enum": [
+              "users",
+              "groups"
+            ],
+            "title": "Library Type",
+            "type": "string"
+          },
+          "path": {
+            "default": "",
+            "maxLength": 4000,
+            "title": "Path",
+            "type": "string"
+          },
+          "provider": {
+            "enum": [
+              "zotero",
+              "local_log"
+            ],
+            "title": "Provider",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "provider",
+          "expected_revision"
+        ],
+        "title": "IntegrationUpdate",
         "type": "object"
       },
       "InvidiousSettings": {
@@ -10487,6 +10807,49 @@
         "title": "PauseBookRequest",
         "type": "object"
       },
+      "PortableApply": {
+        "additionalProperties": false,
+        "properties": {
+          "batch_id": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Batch Id",
+            "type": "string"
+          },
+          "choices": {
+            "additionalProperties": {
+              "enum": [
+                "keep",
+                "incoming"
+              ],
+              "type": "string"
+            },
+            "maxProperties": 20000,
+            "title": "Choices",
+            "type": "object"
+          }
+        },
+        "required": [
+          "batch_id"
+        ],
+        "title": "PortableApply",
+        "type": "object"
+      },
+      "PortableExport": {
+        "additionalProperties": false,
+        "properties": {
+          "passphrase": {
+            "maxLength": 256,
+            "minLength": 12,
+            "title": "Passphrase",
+            "type": "string"
+          }
+        },
+        "required": [
+          "passphrase"
+        ],
+        "title": "PortableExport",
+        "type": "object"
+      },
       "PositionInfo": {
         "properties": {
           "locator": {
@@ -11094,6 +11457,84 @@
           }
         },
         "title": "Protocol",
+        "type": "object"
+      },
+      "ProtocolInput": {
+        "additionalProperties": false,
+        "properties": {
+          "discovery_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Discovery Ids",
+            "type": "array"
+          },
+          "edition_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 2000,
+            "minItems": 1,
+            "title": "Edition Ids",
+            "type": "array"
+          },
+          "exclusion": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 30,
+            "minItems": 1,
+            "title": "Exclusion",
+            "type": "array"
+          },
+          "extraction_fields": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 30,
+            "minItems": 1,
+            "title": "Extraction Fields",
+            "type": "array"
+          },
+          "inclusion": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 30,
+            "minItems": 1,
+            "title": "Inclusion",
+            "type": "array"
+          },
+          "question": {
+            "maxLength": 4000,
+            "minLength": 5,
+            "title": "Question",
+            "type": "string"
+          },
+          "search_query": {
+            "maxLength": 4000,
+            "minLength": 2,
+            "title": "Search Query",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "question",
+          "search_query",
+          "inclusion",
+          "exclusion",
+          "extraction_fields",
+          "edition_ids"
+        ],
+        "title": "ProtocolInput",
         "type": "object"
       },
       "ProviderEditPayload": {
@@ -11724,6 +12165,11 @@
             "minLength": 16,
             "title": "Attempt Id",
             "type": "string"
+          },
+          "offline": {
+            "default": false,
+            "title": "Offline",
+            "type": "boolean"
           },
           "question_id": {
             "maxLength": 200,
@@ -14106,6 +14552,70 @@
           "content"
         ],
         "title": "SoulUpdateBody",
+        "type": "object"
+      },
+      "SourceInput": {
+        "additionalProperties": false,
+        "properties": {
+          "api_key": {
+            "default": "",
+            "maxLength": 200,
+            "title": "Api Key",
+            "type": "string"
+          },
+          "enabled": {
+            "default": true,
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "interval_seconds": {
+            "default": 300,
+            "maximum": 86400.0,
+            "minimum": 10.0,
+            "title": "Interval Seconds",
+            "type": "integer"
+          },
+          "library_id": {
+            "default": "",
+            "maxLength": 30,
+            "title": "Library Id",
+            "type": "string"
+          },
+          "library_type": {
+            "default": "users",
+            "enum": [
+              "users",
+              "groups"
+            ],
+            "title": "Library Type",
+            "type": "string"
+          },
+          "path": {
+            "default": "",
+            "maxLength": 4000,
+            "title": "Path",
+            "type": "string"
+          },
+          "provider": {
+            "enum": [
+              "zotero",
+              "local_log"
+            ],
+            "title": "Provider",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "provider"
+        ],
+        "title": "SourceInput",
         "type": "object"
       },
       "StarterPrompt": {
@@ -51230,6 +51740,152 @@
         ]
       }
     },
+    "/api/quiz/families/review": {
+      "post": {
+        "operationId": "family_review_api_quiz_families_review_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FamilyReview"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Family Review",
+        "tags": [
+          "quiz"
+        ]
+      }
+    },
+    "/api/quiz/families/suggest": {
+      "post": {
+        "operationId": "family_suggestions_api_quiz_families_suggest_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExposureInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Family Suggestions",
+        "tags": [
+          "quiz"
+        ]
+      }
+    },
     "/api/quiz/submit": {
       "post": {
         "operationId": "submit_api_quiz_submit_post",
@@ -69727,6 +70383,428 @@
         ]
       }
     },
+    "/api/studio/evaluations/runs": {
+      "get": {
+        "operationId": "evaluation_runs_api_studio_evaluations_runs_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evaluation Runs",
+        "tags": [
+          "studio"
+        ]
+      },
+      "post": {
+        "operationId": "evaluation_start_api_studio_evaluations_runs_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluationStart"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evaluation Start",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/evaluations/runs/{identifier}": {
+      "get": {
+        "operationId": "evaluation_report_api_studio_evaluations_runs__identifier__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evaluation Report",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/evaluations/runs/{identifier}/next": {
+      "post": {
+        "operationId": "evaluation_next_api_studio_evaluations_runs__identifier__next_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluationNext"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evaluation Next",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/evaluations/suites": {
+      "get": {
+        "operationId": "evaluation_suites_api_studio_evaluations_suites_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evaluation Suites",
+        "tags": [
+          "studio"
+        ]
+      },
+      "post": {
+        "operationId": "evaluation_suite_upload_api_studio_evaluations_suites_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_evaluation_suite_upload_api_studio_evaluations_suites_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Evaluation Suite Upload",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
     "/api/studio/evidence": {
       "post": {
         "operationId": "add_evidence_api_studio_evidence_post",
@@ -69877,6 +70955,377 @@
           }
         },
         "summary": "Review Evidence",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/integrations": {
+      "get": {
+        "operationId": "integration_sources_api_studio_integrations_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Integration Sources",
+        "tags": [
+          "studio"
+        ]
+      },
+      "post": {
+        "operationId": "integration_create_api_studio_integrations_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourceInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Integration Create",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/integrations/{identifier}": {
+      "patch": {
+        "operationId": "integration_edit_api_studio_integrations__identifier__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IntegrationUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Integration Edit",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/integrations/{identifier}/objects": {
+      "get": {
+        "operationId": "integration_objects_api_studio_integrations__identifier__objects_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 200,
+              "title": "After",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Integration Objects",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/integrations/{identifier}/refresh": {
+      "post": {
+        "operationId": "integration_refresh_api_studio_integrations__identifier__refresh_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Integration Refresh",
         "tags": [
           "studio"
         ]
@@ -71543,6 +72992,288 @@
         ]
       }
     },
+    "/api/studio/portable/apply": {
+      "post": {
+        "operationId": "portable_apply_api_studio_portable_apply_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortableApply"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Portable Apply",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/portable/export": {
+      "post": {
+        "operationId": "portable_export_api_studio_portable_export_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PortableExport"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Portable Export",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/portable/preview": {
+      "post": {
+        "operationId": "portable_preview_api_studio_portable_preview_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_portable_preview_api_studio_portable_preview_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Portable Preview",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/portable/transfers": {
+      "get": {
+        "operationId": "portable_transfers_api_studio_portable_transfers_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Portable Transfers",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
     "/api/studio/proposals/{identifier}/accept": {
       "post": {
         "operationId": "accept_api_studio_proposals__identifier__accept_post",
@@ -71815,7 +73546,8 @@
                 "passage",
                 "citation",
                 "collection",
-                "subscription"
+                "subscription",
+                "review_protocol"
               ],
               "title": "Kind",
               "type": "string"
@@ -72032,6 +73764,387 @@
           }
         },
         "summary": "Review",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/reviews/protocols": {
+      "post": {
+        "operationId": "review_protocol_create_api_studio_reviews_protocols_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProtocolInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Protocol Create",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/reviews/protocols/{identifier}": {
+      "get": {
+        "operationId": "review_protocol_report_api_studio_reviews_protocols__identifier__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Protocol Report",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/reviews/protocols/{identifier}/decisions": {
+      "post": {
+        "operationId": "review_protocol_decide_api_studio_reviews_protocols__identifier__decisions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Protocol Decide",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/reviews/protocols/{identifier}/export": {
+      "get": {
+        "operationId": "review_protocol_export_api_studio_reviews_protocols__identifier__export_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Protocol Export",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/reviews/protocols/{identifier}/extractions": {
+      "post": {
+        "operationId": "review_protocol_extract_api_studio_reviews_protocols__identifier__extractions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtractionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Protocol Extract",
         "tags": [
           "studio"
         ]
@@ -72342,6 +74455,112 @@
           }
         },
         "summary": "Update Run",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/runs/{identifier}/events": {
+      "get": {
+        "operationId": "integration_run_events_api_studio_runs__identifier__events_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "default": "",
+              "pattern": "^(latest|\\d*)$",
+              "title": "After",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "maximum": 2000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Before",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Integration Run Events",
         "tags": [
           "studio"
         ]

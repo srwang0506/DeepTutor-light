@@ -1,5 +1,7 @@
 'use client'
 
+import { useHydratedState } from '@/hooks/useHydratedState'
+import { useKeyedState } from '@/hooks/useKeyedState'
 import { browserStorage } from '@/shared/storage'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { CalendarDays, ChevronLeft, ChevronRight, Plus, Search, PanelLeft, X } from 'lucide-react'
@@ -84,9 +86,38 @@ export default function CalendarPage() {
   const blocks = useTaskBlocks(workspaceId)
   const { calendars, error: calendarError } = useCalendars()
   const [cursor, setCursor] = useState(() => new Date())
-  const [view, setView] = useState<View>('month')
+  const [view, storeView] = useHydratedState<View>(() => {
+    const p = JSON.parse(
+      browserStorage.readRaw('local', 'deeptutor.calendar.preferences') ?? 'null',
+    )
+    return ['day', 'week', 'month', 'agenda'].includes(p?.view) ? p.view : 'month'
+  }, 'month')
   const [now, setNow] = useState(() => new Date())
-  const [toggles, setToggles] = useState<LayerToggles>(DEFAULT_LAYERS)
+  const [toggles, storeToggles] = useHydratedState<LayerToggles>(
+    () => ({
+      ...DEFAULT_LAYERS,
+      ...JSON.parse(browserStorage.readRaw('local', 'deeptutor.calendar.preferences') ?? 'null')
+        ?.layers,
+    }),
+    DEFAULT_LAYERS,
+  )
+  const setView = (next: View) => {
+    storeView(next)
+    browserStorage.writeRaw(
+      'local',
+      'deeptutor.calendar.preferences',
+      JSON.stringify({ view: next, layers: toggles }),
+    )
+  }
+  const setToggles = (next: LayerToggles | ((previous: LayerToggles) => LayerToggles)) => {
+    const value = typeof next === 'function' ? next(toggles) : next
+    storeToggles(value)
+    browserStorage.writeRaw(
+      'local',
+      'deeptutor.calendar.preferences',
+      JSON.stringify({ view, layers: value }),
+    )
+  }
   const [rail, setRail] = useState(true)
   const [panel, setPanel] = useState<Panel | null>(null)
   const [scope, setScope] = useState<api.EditScope>('this')
@@ -95,12 +126,13 @@ export default function CalendarPage() {
   const lock = useRef(false)
   const [undo, setUndo] = useState<string | null>(null)
   const [query, setQuery] = useState('')
-  const [hits, setHits] = useState<api.SearchHit[] | null>(null)
-  const [searching, setSearching] = useState(false)
+  const [hits, setHits] = useKeyedState<api.SearchHit[] | null>(query, null)
+  const [searching, setSearching] = useKeyedState(query, !!query.trim())
   const searchRef = useRef<HTMLInputElement>(null)
   const [searchOpen, setSearchOpen] = useState(false)
-  const [permission, setPermission] = useState<NotificationPermission | 'unsupported'>(
-    'unsupported'
+  const [permission, setPermission] = useHydratedState<NotificationPermission | 'unsupported'>(
+    () => (typeof Notification === 'undefined' ? 'unsupported' : Notification.permission),
+    'unsupported',
   )
   const weekStart = weekStartsOn(i18n.language)
   const weeks = useMemo(() => monthWeeks(cursor, weekStart), [cursor, weekStart])
@@ -136,33 +168,17 @@ export default function CalendarPage() {
   }, [])
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 30_000)
-    setPermission(typeof Notification === 'undefined' ? 'unsupported' : Notification.permission)
-    try {
-      const prefs = JSON.parse(browserStorage.readRaw('local', 'deeptutor.calendar.preferences') ?? 'null')
-      if (prefs) {
-        if (['day', 'week', 'month', 'agenda'].includes(prefs.view)) setView(prefs.view)
-        if (prefs.layers) setToggles({ ...DEFAULT_LAYERS, ...prefs.layers })
-      }
-    } catch {}
     return () => clearInterval(timer)
   }, [])
   useEffect(() => {
-    browserStorage.writeRaw('local',
-      'deeptutor.calendar.preferences',
-      JSON.stringify({ view, layers: toggles })
-    )
-  }, [view, toggles])
-  useEffect(() => {
     if (!query.trim()) {
-      setHits(null)
       return
     }
     const controller = new AbortController()
-    setSearching(true)
     const timer = setTimeout(() => {
       api
         .searchEvents(query.trim(), controller.signal)
-        .then(r => {
+        .then((r) => {
           if (controller.signal.aborted) return
           setHits(r.events)
           setSearching(false)
@@ -178,11 +194,15 @@ export default function CalendarPage() {
       clearTimeout(timer)
       controller.abort()
     }
-  }, [query, t])
-  useEffect(() => {
-    setError('')
-    setScope('this')
-  }, [panel?.kind])
+  }, [query, setHits, setSearching, t])
+  const [derivedInputs0, setDerivedInputs0] = useState<readonly unknown[]>([])
+  if (derivedInputs0.length !== 1 || !Object.is(derivedInputs0[0], panel?.kind)) {
+    setDerivedInputs0([panel?.kind])
+    ;(() => {
+      setError('')
+      setScope('this')
+    })()
+  }
   const close = () => {
     if (!lock.current) setPanel(null)
   }
@@ -195,7 +215,7 @@ export default function CalendarPage() {
         grid.start,
         grid.end,
         grid.allDay,
-        entries.find(c => c.is_default)?.id ?? null
+        entries.find((c) => c.is_default)?.id ?? null,
       ),
     })
   }
@@ -208,7 +228,7 @@ export default function CalendarPage() {
     setCursor(
       view === 'month'
         ? addMonths(cursor, direction)
-        : addDays(cursor, direction * (view === 'week' ? 7 : view === 'agenda' ? 30 : 1))
+        : addDays(cursor, direction * (view === 'week' ? 7 : view === 'agenda' ? 30 : 1)),
     )
   }
   useEffect(() => {
@@ -249,7 +269,7 @@ export default function CalendarPage() {
   })
   async function act(
     operation: () => Promise<{ revision?: number; undo_token?: string } | unknown>,
-    done?: () => void
+    done?: () => void,
   ) {
     if (lock.current) return
     lock.current = true
@@ -265,7 +285,7 @@ export default function CalendarPage() {
       setError(
         e instanceof api.CalendarRequestError && e.detail
           ? e.detail
-          : t('Could not save calendar changes.')
+          : t('Could not save calendar changes.'),
       )
     } finally {
       lock.current = false
@@ -289,7 +309,7 @@ export default function CalendarPage() {
         api.updateEvent(item.occurrence.event_id, {
           start: item.allDay ? dateKey(start) : start.toISOString(),
           end: item.allDay ? dateKey(end) : end.toISOString(),
-        })
+        }),
       )
   }
   const downloadIcs = async (calendarId?: string) => {
@@ -300,19 +320,19 @@ export default function CalendarPage() {
       setError(
         e instanceof api.CalendarRequestError && e.detail
           ? e.detail
-          : t('Could not export the calendar.')
+          : t('Could not export the calendar.'),
       )
     }
   }
   const drop = (id: string, target: GridDraft) => {
-    const card = board?.cards.find(c => c.id === id)
+    const card = board?.cards.find((c) => c.id === id)
     if (!card || card.archived) return
     if (target.allDay) {
       void act(() => updateTaskCard(id, { due_date: dateKey(target.start) }))
       return
     }
     const draft = {
-      ...blankDraft(target.start, target.end, false, entries.find(c => c.is_default)?.id ?? null),
+      ...blankDraft(target.start, target.end, false, entries.find((c) => c.is_default)?.id ?? null),
       title: card.title,
       taskId: id,
       taskWorkspaceId: workspaceId,
@@ -383,11 +403,11 @@ export default function CalendarPage() {
               placeholder={t('Search events…')}
               value={query}
               maxLength={200}
-              onChange={e => setQuery(e.target.value)}
+              onChange={(e) => setQuery(e.target.value)}
               onBlur={() => {
                 if (!query) setSearchOpen(false)
               }}
-              onKeyDown={e => {
+              onKeyDown={(e) => {
                 if (e.key === 'Escape') {
                   setQuery('')
                   setSearchOpen(false)
@@ -415,7 +435,7 @@ export default function CalendarPage() {
         )}
       </div>
       <div className="dt-cal-views" role="tablist" aria-label={t('Calendar view')}>
-        {(['day', 'week', 'month', 'agenda'] as const).map(v => (
+        {(['day', 'week', 'month', 'agenda'] as const).map((v) => (
           <button
             key={v}
             role="tab"
@@ -432,7 +452,7 @@ export default function CalendarPage() {
       <button
         className="dt-cal-primary dt-cal-new"
         disabled={!calendars}
-        onClick={event => newEvent(anchorOf(event.currentTarget) ?? undefined)}
+        onClick={(event) => newEvent(anchorOf(event.currentTarget) ?? undefined)}
       >
         <Plus size={15} strokeWidth={2} />
         <span>{t('New event')}</span>
@@ -490,7 +510,7 @@ export default function CalendarPage() {
             onClick={() =>
               void act(
                 () => api.restoreEvent(undo),
-                () => setUndo(null)
+                () => setUndo(null),
               )
             }
           >
@@ -507,18 +527,18 @@ export default function CalendarPage() {
             weekStart={weekStart}
             now={now}
             onPick={openDay}
-            tasks={board?.cards.filter(card => !blocks[card.id]) ?? null}
+            tasks={board?.cards.filter((card) => !blocks[card.id]) ?? null}
             taskColors={board?.colors ?? DEFAULT_TASK_COLORS}
             calendars={entries}
             onUpdateCalendar={(c, changes) => void act(() => api.updateCalendar(c.id, changes))}
             onCreateCalendar={(name, color) => void act(() => api.createCalendar({ name, color }))}
-            onDeleteCalendar={calendar =>
+            onDeleteCalendar={(calendar) =>
               setPanel({ kind: 'calendar-delete', calendar, anchor: center })
             }
-            onExportCalendar={calendar => void downloadIcs(calendar.id)}
+            onExportCalendar={(calendar) => void downloadIcs(calendar.id)}
             onExportAll={() => void downloadIcs()}
             layers={toggles}
-            onToggleLayer={key => setToggles(s => ({ ...s, [key]: !s[key] }))}
+            onToggleLayer={(key) => setToggles((s) => ({ ...s, [key]: !s[key] }))}
             notifications={permission}
             onEnableNotifications={() => {
               void Notification.requestPermission().then(setPermission)
@@ -532,7 +552,7 @@ export default function CalendarPage() {
               hits={hits}
               loading={searching}
               calendars={entries}
-              onPick={hit => {
+              onPick={(hit) => {
                 const start = hit.all_day
                   ? fromDateKey(hit.next_start ?? hit.start)
                   : new Date(hit.next_start ?? hit.start)
@@ -575,10 +595,10 @@ export default function CalendarPage() {
                       ? api.updateEvent(
                           panel.original.occurrence.event_id,
                           draftChanges(draftFromOccurrence(panel.original.occurrence), draft),
-                          { scope: chosen, occurrence: panel.original.occurrence.occurrence }
+                          { scope: chosen, occurrence: panel.original.occurrence.occurrence },
                         )
                       : api.createEvent(draftToInput(draft)),
-                  () => setPanel(null)
+                  () => setPanel(null),
                 )
               }
             />
@@ -591,9 +611,9 @@ export default function CalendarPage() {
                   item={panel.item}
                   calendars={entries}
                   task={board?.cards.find(
-                    c =>
+                    (c) =>
                       c.id === (panel.item as EventItem).occurrence.task_id &&
-                      (panel.item as EventItem).occurrence.task_workspace_id === workspaceId
+                      (panel.item as EventItem).occurrence.task_workspace_id === workspaceId,
                   )}
                   onClose={close}
                   onEdit={() => {
@@ -617,10 +637,10 @@ export default function CalendarPage() {
                     if (panel.item.kind === 'event')
                       setPanel({ kind: 'delete', item: panel.item, anchor: panel.anchor })
                   }}
-                  onCompleteTask={card =>
+                  onCompleteTask={(card) =>
                     void act(
                       () => updateTaskCard(card.id, { status: 'done' }),
-                      () => setPanel(null)
+                      () => setPanel(null),
                     )
                   }
                 />
@@ -628,10 +648,10 @@ export default function CalendarPage() {
               {panel.item.kind === 'task' && (
                 <TaskDetails
                   sessionIds={board?.session_links
-                    .filter(link =>
-                      link.task_ids.includes(panel.item.kind === 'task' ? panel.item.card.id : '')
+                    .filter((link) =>
+                      link.task_ids.includes(panel.item.kind === 'task' ? panel.item.card.id : ''),
                     )
-                    .map(link => link.session_id)}
+                    .map((link) => link.session_id)}
                   item={panel.item}
                   onClose={close}
                   onToggleDone={() => {
@@ -644,7 +664,7 @@ export default function CalendarPage() {
                                 ? 'todo'
                                 : 'done',
                           }),
-                        () => setPanel(null)
+                        () => setPanel(null),
                       )
                   }}
                   onClearDate={() => {
@@ -654,7 +674,7 @@ export default function CalendarPage() {
                           updateTaskCard(panel.item.kind === 'task' ? panel.item.card.id : '', {
                             due_date: null,
                           }),
-                        () => setPanel(null)
+                        () => setPanel(null),
                       )
                   }}
                   onSchedule={() => {
@@ -668,7 +688,7 @@ export default function CalendarPage() {
                             start,
                             new Date(start.getTime() + 3600_000),
                             false,
-                            entries.find(c => c.is_default)?.id ?? null
+                            entries.find((c) => c.is_default)?.id ?? null,
                           ),
                           title: panel.item.card.title,
                           taskId: panel.item.card.id,
@@ -689,12 +709,12 @@ export default function CalendarPage() {
                       void act(
                         () =>
                           api.cancelAutomation(
-                            panel.item.kind === 'automation' ? panel.item.run.job_id : ''
+                            panel.item.kind === 'automation' ? panel.item.run.job_id : '',
                           ),
                         () => {
                           setPanel(null)
                           layers.reload()
-                        }
+                        },
                       )
                   }}
                 />
@@ -708,7 +728,7 @@ export default function CalendarPage() {
                     ? 'Reschedule event'
                     : panel.kind === 'calendar-delete'
                       ? 'Delete calendar and its events?'
-                      : 'Delete event?'
+                      : 'Delete event?',
                 )}
               </strong>
               {panel.kind !== 'calendar-delete' && panel.item.occurrence.recurring && (
@@ -740,11 +760,11 @@ export default function CalendarPage() {
                                 : panel.start.toISOString(),
                               end: panel.item.allDay ? dateKey(panel.end) : panel.end.toISOString(),
                             },
-                            { scope, occurrence: panel.item.occurrence.occurrence }
+                            { scope, occurrence: panel.item.occurrence.occurrence },
                           )
                         return Promise.resolve()
                       },
-                      () => setPanel(null)
+                      () => setPanel(null),
                     )
                   }
                 >

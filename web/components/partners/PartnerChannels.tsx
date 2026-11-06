@@ -6,6 +6,7 @@
  * with explicit reveal, delivery flags, and live listener reload on save.
  */
 
+import { useKeyedState } from "@/hooks/useKeyedState";
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, RefreshCw, Save } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -15,11 +16,7 @@ import {
   getChannelSchemas,
   type ChannelsSchemaResponse,
 } from "@/lib/partners-api";
-import {
-  SchemaField,
-  defaultFor,
-  type JsonSchema,
-} from "@/components/partners/schema-form";
+import { SchemaField, defaultFor, type JsonSchema } from "@/components/partners/schema-form";
 import WeixinQrLogin from "@/components/partners/WeixinQrLogin";
 import ChannelIcon from "@/components/partners/ChannelIcon";
 import ChannelOnboardingPanel from "@/components/partners/ChannelOnboardingPanel";
@@ -34,9 +31,7 @@ const LEGACY_GLOBAL_DELIVERY_KEYS = new Set([
 
 function stripLegacyGlobalDelivery(channels: Record<string, unknown>) {
   return Object.fromEntries(
-    Object.entries(channels).filter(
-      ([key]) => !LEGACY_GLOBAL_DELIVERY_KEYS.has(key),
-    ),
+    Object.entries(channels).filter(([key]) => !LEGACY_GLOBAL_DELIVERY_KEYS.has(key)),
   );
 }
 
@@ -48,8 +43,7 @@ export default function PartnerChannels({
   onToast: (msg: string) => void;
 }) {
   const { t } = useTranslation();
-  const [schemaCatalog, setSchemaCatalog] =
-    useState<ChannelsSchemaResponse | null>(null);
+  const [schemaCatalog, setSchemaCatalog] = useState<ChannelsSchemaResponse | null>(null);
   const [catalogError, setCatalogError] = useState(false);
   const [channels, setChannels] = useState<Record<string, unknown>>({});
   const [activeChannel, setActiveChannel] = useState<string | null>(null);
@@ -58,68 +52,76 @@ export default function PartnerChannels({
   const [detailError, setDetailError] = useState(false);
   const [saving, setSaving] = useState(false);
   /** dot-paths of secrets the user has explicitly toggled to plaintext. */
-  const [revealed, setRevealed] = useState<Set<string>>(new Set());
+  const [revealed, setRevealed] = useKeyedState<Set<string>>(partnerId, new Set());
 
-  const loadCatalog = useCallback(async () => {
-    setCatalogError(false);
-    try {
-      setSchemaCatalog(await getChannelSchemas());
-    } catch {
-      setSchemaCatalog(null);
-      setCatalogError(true);
-    }
+  const loadCatalogData = useCallback(async () => {
+    return getChannelSchemas()
+      .then(async (resolvedState0) => {
+        setSchemaCatalog(resolvedState0);
+      })
+      .catch(() => {
+        setSchemaCatalog(null);
+        setCatalogError(true);
+      });
   }, []);
+  const [loadCatalogInputs, setLoadCatalogInputs] = useState<typeof loadCatalogData | null>(null);
+  if (loadCatalogInputs !== loadCatalogData) {
+    setLoadCatalogInputs(() => loadCatalogData);
+    setCatalogError(false);
+  }
+  const loadCatalog = useCallback(() => {
+    setCatalogError(false);
+    return loadCatalogData();
+  }, [loadCatalogData]);
 
   useEffect(() => {
-    void loadCatalog();
-  }, [loadCatalog]);
+    void loadCatalogData();
+  }, [loadCatalogData]);
 
-  const loadDetail = useCallback(async () => {
+  const loadDetailData = useCallback(async () => {
+    return apiFetch(apiUrl(`/api/partners/${partnerId}?include_secrets=true`))
+      .then(async (res) => {
+        if (!res.ok) {
+          setDetailError(true);
+          return;
+        }
+        const data = await res.json();
+        const raw = (data.channels ?? {}) as Record<string, unknown>;
+        setChannels(stripLegacyGlobalDelivery(raw));
+        setReloadError(typeof data.last_reload_error === "string" ? data.last_reload_error : null);
+      })
+      .catch(() => {
+        setDetailError(true);
+      })
+      .finally(() => {
+        setLoadingDetail(false);
+      });
+  }, [partnerId]);
+  const [loadDetailInputs, setLoadDetailInputs] = useState<typeof loadDetailData | null>(null);
+  if (loadDetailInputs !== loadDetailData) {
+    setLoadDetailInputs(() => loadDetailData);
     setLoadingDetail(true);
     setDetailError(false);
-    try {
-      // Edit form needs raw secrets to populate fields. Default GET masks them.
-      const res = await apiFetch(
-        apiUrl(`/api/partners/${partnerId}?include_secrets=true`),
-      );
-      if (!res.ok) {
-        setDetailError(true);
-        return;
-      }
-      const data = await res.json();
-      const raw = (data.channels ?? {}) as Record<string, unknown>;
-      setChannels(stripLegacyGlobalDelivery(raw));
-      setReloadError(
-        typeof data.last_reload_error === "string"
-          ? data.last_reload_error
-          : null,
-      );
-    } catch {
-      setDetailError(true);
-    } finally {
-      setLoadingDetail(false);
-    }
-  }, [partnerId]);
+  }
+  const loadDetail = useCallback(() => {
+    setLoadingDetail(true);
+    setDetailError(false);
+    return loadDetailData();
+  }, [loadDetailData]);
 
   useEffect(() => {
-    setRevealed(new Set());
-    void loadDetail();
-  }, [loadDetail]);
+    void loadDetailData();
+  }, [loadDetailData]);
 
   // Default active channel: prefer one already enabled.
-  useEffect(() => {
-    if (activeChannel || !schemaCatalog) return;
+  if (!activeChannel && schemaCatalog) {
     const names = Object.keys(schemaCatalog.channels);
     const enabled = names.find((n) => {
       const cfg = channels[n];
-      return (
-        cfg &&
-        typeof cfg === "object" &&
-        (cfg as Record<string, unknown>).enabled === true
-      );
+      return cfg && typeof cfg === "object" && (cfg as Record<string, unknown>).enabled === true;
     });
     setActiveChannel(enabled ?? names[0] ?? null);
-  }, [schemaCatalog, channels, activeChannel]);
+  }
 
   // A confirmed WeChat scan wrote the token into the config server-side;
   // re-read so the form shows what is actually stored.
@@ -128,14 +130,17 @@ export default function PartnerChannels({
     void loadDetail();
   }, [loadDetail, onToast, t]);
 
-  const toggleSecret = useCallback((path: string) => {
-    setRevealed((prev) => {
-      const next = new Set(prev);
-      if (next.has(path)) next.delete(path);
-      else next.add(path);
-      return next;
-    });
-  }, []);
+  const toggleSecret = useCallback(
+    (path: string) => {
+      setRevealed((prev) => {
+        const next = new Set(prev);
+        if (next.has(path)) next.delete(path);
+        else next.add(path);
+        return next;
+      });
+    },
+    [setRevealed],
+  );
 
   const setActiveChannelConfig = (next: unknown) => {
     if (!activeChannel) return;
@@ -163,18 +168,14 @@ export default function PartnerChannels({
             | string;
         };
         const detail = err.detail;
-        const firstError =
-          typeof detail === "object" ? detail.errors?.[0] : undefined;
+        const firstError = typeof detail === "object" ? detail.errors?.[0] : undefined;
         const fieldDetail = firstError
           ? `${firstError.loc?.join(".") ?? "channel"}: ${firstError.msg ?? t("Invalid channel configuration")}`
           : "";
         onToast(
           typeof detail === "string"
             ? detail
-            : [
-                detail?.message ?? t("Invalid channel configuration"),
-                fieldDetail,
-              ]
+            : [detail?.message ?? t("Invalid channel configuration"), fieldDetail]
                 .filter(Boolean)
                 .join(" — "),
         );
@@ -216,16 +217,12 @@ export default function PartnerChannels({
     );
   }
 
-  const channelEntries = Object.entries(schemaCatalog.channels).sort(
-    ([, a], [, b]) => a.display_name.localeCompare(b.display_name),
+  const channelEntries = Object.entries(schemaCatalog.channels).sort(([, a], [, b]) =>
+    a.display_name.localeCompare(b.display_name),
   );
-  const activeEntry = activeChannel
-    ? schemaCatalog.channels[activeChannel]
-    : undefined;
+  const activeEntry = activeChannel ? schemaCatalog.channels[activeChannel] : undefined;
   const activeValue =
-    activeChannel &&
-    channels[activeChannel] &&
-    typeof channels[activeChannel] === "object"
+    activeChannel && channels[activeChannel] && typeof channels[activeChannel] === "object"
       ? (channels[activeChannel] as Record<string, unknown>)
       : (activeEntry?.default_config ?? {});
   const activeSecretSet = new Set(activeEntry?.secret_fields ?? []);
@@ -234,9 +231,7 @@ export default function PartnerChannels({
     <div className="space-y-4">
       {reloadError && (
         <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[12px] text-amber-700 dark:text-amber-300">
-          <strong className="font-medium">
-            {t("Channel listeners failed to restart:")}
-          </strong>{" "}
+          <strong className="font-medium">{t("Channel listeners failed to restart:")}</strong>{" "}
           <span className="font-mono">{reloadError}</span>{" "}
           <span className="opacity-80">
             {t("Config is saved on disk; stop and start the partner to apply.")}
@@ -281,9 +276,7 @@ export default function PartnerChannels({
                     } ${unavailable ? "opacity-45" : ""}`}
                   >
                     <ChannelIcon name={name} size={15} />
-                    <span className="min-w-0 flex-1 truncate">
-                      {entry.display_name}
-                    </span>
+                    <span className="min-w-0 flex-1 truncate">{entry.display_name}</span>
                     {enabled && (
                       <span className="inline-flex shrink-0 items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400">
                         <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
@@ -299,9 +292,7 @@ export default function PartnerChannels({
 
         <section className="rounded-xl border border-[var(--border)] p-4 space-y-3">
           {!activeEntry ? (
-            <p className="text-[13px] text-[var(--muted-foreground)]">
-              {t("Select a channel.")}
-            </p>
+            <p className="text-[13px] text-[var(--muted-foreground)]">{t("Select a channel.")}</p>
           ) : (
             <>
               <div className="flex items-center justify-between">
@@ -319,17 +310,12 @@ export default function PartnerChannels({
                     {t("This channel is not available on the server.")}
                   </strong>{" "}
                   {activeEntry.unavailable_reason && (
-                    <span className="font-mono">
-                      {activeEntry.unavailable_reason}
-                    </span>
+                    <span className="font-mono">{activeEntry.unavailable_reason}</span>
                   )}
                 </div>
               ) : (
                 <>
-                  {supportsChannelOnboarding(
-                    activeChannel ?? "",
-                    activeEntry.available,
-                  ) && (
+                  {supportsChannelOnboarding(activeChannel ?? "", activeEntry.available) && (
                     <ChannelOnboardingPanel
                       partnerId={partnerId}
                       channel={activeChannel === "wecom" ? "wecom" : "feishu"}
@@ -346,9 +332,7 @@ export default function PartnerChannels({
                     Array.isArray(activeValue.allow_from) &&
                     activeValue.allow_from.length === 0 && (
                       <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-700 dark:text-amber-300">
-                        {t(
-                          "Add at least one allowed sender before starting this channel.",
-                        )}
+                        {t("Add at least one allowed sender before starting this channel.")}
                       </div>
                     )}
                   {(activeEntry.json_schema as JsonSchema).description && (
@@ -359,28 +343,23 @@ export default function PartnerChannels({
                   {/* Personal WeChat authenticates by scanning, not by pasting
                       a secret; the fields below stay as the manual fallback. */}
                   {activeChannel === "weixin" && partnerId && (
-                    <WeixinQrLogin
-                      partnerId={partnerId}
-                      onConfirmed={onWeixinConnected}
-                    />
+                    <WeixinQrLogin partnerId={partnerId} onConfirmed={onWeixinConnected} />
                   )}
-                  {Object.entries(
-                    (activeEntry.json_schema as JsonSchema).properties ?? {},
-                  ).map(([k, child]) => (
-                    <SchemaField
-                      key={k}
-                      fieldKey={k}
-                      schema={child}
-                      value={activeValue[k] ?? defaultFor(child)}
-                      onChange={(next) =>
-                        setActiveChannelConfig({ ...activeValue, [k]: next })
-                      }
-                      secretFields={activeSecretSet}
-                      path={k}
-                      showSecretFor={revealed}
-                      toggleSecret={toggleSecret}
-                    />
-                  ))}
+                  {Object.entries((activeEntry.json_schema as JsonSchema).properties ?? {}).map(
+                    ([k, child]) => (
+                      <SchemaField
+                        key={k}
+                        fieldKey={k}
+                        schema={child}
+                        value={activeValue[k] ?? defaultFor(child)}
+                        onChange={(next) => setActiveChannelConfig({ ...activeValue, [k]: next })}
+                        secretFields={activeSecretSet}
+                        path={k}
+                        showSecretFor={revealed}
+                        toggleSecret={toggleSecret}
+                      />
+                    ),
+                  )}
                 </>
               )}
             </>

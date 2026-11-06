@@ -1,4 +1,6 @@
 "use client";
+import { useHydratedState } from "@/hooks/useHydratedState";
+import { useLayoutEffect } from "react";
 
 import Link from "next/link";
 
@@ -16,24 +18,11 @@ import { useChatWorkspaces } from "@/hooks/useChatWorkspaces";
 import { useComposerResources } from "@/hooks/useComposerResources";
 import { useActiveWorkspaceId } from "@/hooks/useActiveWorkspaceId";
 import dynamic from "next/dynamic";
-import {
-  type KeyboardEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChatRouteSession } from "@/features/chat/controllers/useChatRouteSession";
 import { waitForReplyLanguageSave } from "@/features/chat/controllers/reply-language-save";
 
-import {
-  AlertCircle,
-  NotebookPen,
-  PenLine,
-  RotateCcw,
-  X,
-} from "lucide-react";
+import { AlertCircle, NotebookPen, PenLine, RotateCcw, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { SelectedRecord } from "@/lib/notebook-selection-types";
 import type { SelectedHistorySession } from "@/components/chat/HistorySessionPicker";
@@ -42,10 +31,7 @@ import ChatComposer from "@/components/chat/home/ChatComposer";
 import { ChatMessageList } from "@/features/chat/messages";
 import { TurnNavigator } from "@/components/chat/home/TurnNavigator";
 import SessionLoadingView from "@/components/chat/home/SessionLoadingView";
-import {
-  SESSION_LOAD_TIMEOUT_MS,
-  shouldSurfaceLoadFailure,
-} from "@/lib/session-load";
+import { SESSION_LOAD_TIMEOUT_MS, shouldSurfaceLoadFailure } from "@/lib/session-load";
 import { PageCustomizeButton } from "@/components/customization/PageCustomizeButton";
 import StarterSuggestions from "@/components/chat/home/StarterSuggestions";
 // Imported eagerly so the drawer shell is always mounted off-screen —
@@ -57,14 +43,8 @@ import Tooltip from "@/shared/ui/Tooltip";
 import SessionViewerPanel, {
   type SessionViewerPanelHandle,
 } from "@/components/chat/home/LazySessionViewerPanel";
-import {
-  QuizFollowupProvider,
-  useQuizFollowupController,
-} from "@/context/QuizFollowupContext";
-import {
-  GeogebraTabProvider,
-  useGeogebraTabOpener,
-} from "@/context/GeogebraTabContext";
+import { QuizFollowupProvider, useQuizFollowupController } from "@/context/QuizFollowupContext";
+import { GeogebraTabProvider, useGeogebraTabOpener } from "@/context/GeogebraTabContext";
 import { Archive, PanelRight } from "lucide-react";
 import ChatSessionMenu from "@/features/chat/components/ChatSessionMenu";
 import HeaderActionButton from "@/features/chat/components/HeaderActionButton";
@@ -86,10 +66,7 @@ import { RESPONSE_LANGUAGE_OPTIONS } from "@/features/settings/store/response-la
 import type { FilePreviewSource } from "@/components/chat/preview/previewerFor";
 import type { LLMSelection, StreamEvent } from "@/features/chat/model/protocol";
 import { selectAttachmentProcessing } from "@/features/chat/selectors/attachment-processing";
-import {
-  extractBase64FromDataUrl,
-  readFileAsDataUrl,
-} from "@/lib/file-attachments";
+import { extractBase64FromDataUrl, readFileAsDataUrl } from "@/lib/file-attachments";
 import {
   fileToPendingAttachment,
   selectAttachmentFiles,
@@ -138,15 +115,8 @@ import {
 import { listKnowledgeBases } from "@/features/knowledge/api/catalog";
 import { getSubagentSettings } from "@/lib/subagents-api";
 import { useLLMOptions } from "@/hooks/useLLMOptions";
-import {
-  getEnabledOptionalTools,
-  invalidateEnabledOptionalToolsCache,
-} from "@/lib/tools-settings";
-import {
-  ALL_TOOLS,
-  getChatCapability,
-  type ToolName,
-} from "@/features/capabilities/presentation";
+import { getEnabledOptionalTools, invalidateEnabledOptionalToolsCache } from "@/lib/tools-settings";
+import { ALL_TOOLS, getChatCapability, type ToolName } from "@/features/capabilities/presentation";
 import { useCapabilityCatalog } from "@/features/capabilities/useCapabilityCatalog";
 import { browserStorage } from "@/shared/storage";
 import { downloadChatMarkdown } from "@/lib/chat-export";
@@ -154,14 +124,8 @@ import { buildChatOutline, scrollToChatTurn } from "@/lib/chat-outline";
 import { buildConversationNotebookSave } from "@/lib/conversation-notebook-save";
 import { isPlaceholderSessionTitle } from "@/lib/session-title";
 import type { SpaceMemoryFile } from "@/lib/space-items";
-import {
-  selectedBooksToPayload,
-  type SelectedBookReference,
-} from "@/lib/book-references";
-import {
-  selectedReadingsToPayload,
-  type SelectedReadingReference,
-} from "@/lib/reading-references";
+import { selectedBooksToPayload, type SelectedBookReference } from "@/lib/book-references";
+import { selectedReadingsToPayload, type SelectedReadingReference } from "@/lib/reading-references";
 import { normalizeSelectedText, textFromDomSelection } from "@/lib/selection-text";
 import {
   isQuoteAttachment,
@@ -176,76 +140,43 @@ import SelectionActions, {
 } from "@/features/chat/components/SelectionActions";
 import { shouldReturnToChatAfterResearch } from "@/lib/deep-research-report";
 
-const NotebookRecordPicker = dynamic(
-  () => import("@/components/notebook/NotebookRecordPicker"),
-  {
-    ssr: false,
-  },
-);
-const HistorySessionPicker = dynamic(
-  () => import("@/components/chat/HistorySessionPicker"),
-  {
-    ssr: false,
-  },
-);
-const MyAgentsPicker = dynamic(
-  () => import("@/components/chat/MyAgentsPicker"),
-  {
-    ssr: false,
-  },
-);
-const QuestionBankPicker = dynamic(
-  () => import("@/components/chat/QuestionBankPicker"),
-  {
-    ssr: false,
-  },
-);
+const NotebookRecordPicker = dynamic(() => import("@/components/notebook/NotebookRecordPicker"), {
+  ssr: false,
+});
+const HistorySessionPicker = dynamic(() => import("@/components/chat/HistorySessionPicker"), {
+  ssr: false,
+});
+const MyAgentsPicker = dynamic(() => import("@/components/chat/MyAgentsPicker"), {
+  ssr: false,
+});
+const QuestionBankPicker = dynamic(() => import("@/components/chat/QuestionBankPicker"), {
+  ssr: false,
+});
 const MemoryPicker = dynamic(() => import("@/components/chat/MemoryPicker"), {
   ssr: false,
 });
-const BookReferencePicker = dynamic(
-  () => import("@/components/chat/BookReferencePicker"),
-  {
-    ssr: false,
-  },
-);
-const ReadingReferencePicker = dynamic(
-  () => import("@/components/chat/ReadingReferencePicker"),
-  {
-    ssr: false,
-  },
-);
-const SaveToNotebookModal = dynamic(
-  () => import("@/components/notebook/SaveToNotebookModal"),
-  {
-    ssr: false,
-  },
-);
+const BookReferencePicker = dynamic(() => import("@/components/chat/BookReferencePicker"), {
+  ssr: false,
+});
+const ReadingReferencePicker = dynamic(() => import("@/components/chat/ReadingReferencePicker"), {
+  ssr: false,
+});
+const SaveToNotebookModal = dynamic(() => import("@/components/notebook/SaveToNotebookModal"), {
+  ssr: false,
+});
 // Activity-panel config card hosts the capability-specific form (Quiz /
 // Animator / Visualize / Research). Lazy-loaded so capabilities that
 // don't need a form (Chat / Solve) don't ship the form JS.
-const CapabilityConfigCard = dynamic(
-  () => import("@/components/chat/home/CapabilityConfigCard"),
-  {
-    ssr: false,
-  },
-);
-const QuizConfigPanel = dynamic(
-  () => import("@/components/quiz/QuizConfigPanel"),
-  { ssr: false },
-);
-const VisualizeConfigPanel = dynamic(
-  () => import("@/components/visualize/VisualizeConfigPanel"),
-  {
-    ssr: false,
-  },
-);
-const ResearchConfigPanel = dynamic(
-  () => import("@/components/research/ResearchConfigPanel"),
-  {
-    ssr: false,
-  },
-);
+const CapabilityConfigCard = dynamic(() => import("@/components/chat/home/CapabilityConfigCard"), {
+  ssr: false,
+});
+const QuizConfigPanel = dynamic(() => import("@/components/quiz/QuizConfigPanel"), { ssr: false });
+const VisualizeConfigPanel = dynamic(() => import("@/components/visualize/VisualizeConfigPanel"), {
+  ssr: false,
+});
+const ResearchConfigPanel = dynamic(() => import("@/components/research/ResearchConfigPanel"), {
+  ssr: false,
+});
 
 /* ------------------------------------------------------------------ */
 /*  Type & data definitions                                           */
@@ -269,7 +200,6 @@ interface KnowledgeBase {
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
 /* ------------------------------------------------------------------ */
-
 
 /* ------------------------------------------------------------------ */
 /*  Chat page                                                         */
@@ -322,23 +252,26 @@ export default function ChatWorkspace() {
   const entrySessionId = useRef(state.sessionId);
   const [replyLanguageSavingKey, setReplyLanguageSavingKey] = useState<string | null>(null);
   const replyLanguageSaveRef = useRef<{ key: string; pending: Promise<void> } | null>(null);
-  const handleReplyLanguageChange = useCallback((value: string) => {
-    const language = value || null;
-    const key = state.sessionKey;
-    const pending = setReplyLanguageOverride(language);
-    replyLanguageSaveRef.current = { key, pending };
-    setReplyLanguageSavingKey(key);
-    void pending
-      .catch((error: unknown) => {
-        notify(error instanceof Error ? error.message : t("Action failed"));
-      })
-      .finally(() => {
-        if (replyLanguageSaveRef.current?.pending === pending) {
-          replyLanguageSaveRef.current = null;
-          setReplyLanguageSavingKey(null);
-        }
-      });
-  }, [setReplyLanguageOverride, state.sessionKey, t]);
+  const handleReplyLanguageChange = useCallback(
+    (value: string) => {
+      const language = value || null;
+      const key = state.sessionKey;
+      const pending = setReplyLanguageOverride(language);
+      replyLanguageSaveRef.current = { key, pending };
+      setReplyLanguageSavingKey(key);
+      void pending
+        .catch((error: unknown) => {
+          notify(error instanceof Error ? error.message : t("Action failed"));
+        })
+        .finally(() => {
+          if (replyLanguageSaveRef.current?.pending === pending) {
+            replyLanguageSaveRef.current = null;
+            setReplyLanguageSavingKey(null);
+          }
+        });
+    },
+    [setReplyLanguageOverride, state.sessionKey, t],
+  );
 
   const resourceReuse = useResourceReusePolicy(state.sessionKey || "draft", state.messages[0]?.id);
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
@@ -389,16 +322,12 @@ export default function ChatWorkspace() {
   // User-toggleable tools the user has enabled in /settings#tools. This is
   // the single source of truth for which optional tools the chat agent may
   // use; the chat composer no longer exposes a picker.
-  const [userEnabledTools, setUserEnabledTools] = useState<string[] | null>(
-    null,
-  );
+  const [userEnabledTools, setUserEnabledTools] = useState<string[] | null>(null);
   const [attachments, setAttachments] = useState<PendingAttachment[]>([]);
   const attachmentLimits = useAttachmentLimits();
   const [dragging, setDragging] = useState(false);
   const [attachmentError, setAttachmentError] = useState<string | null>(null);
-  const [previewSource, setPreviewSource] = useState<FilePreviewSource | null>(
-    null,
-  );
+  const [previewSource, setPreviewSource] = useState<FilePreviewSource | null>(null);
   // Right-side panels — Activity (floating cards) and Viewer (full sidebar
   // with tabs for file previews + web pages). Each independently togglable
   // and persisted across reloads.
@@ -408,7 +337,10 @@ export default function ChatWorkspace() {
   // preference is then applied in a post-mount effect below.
   // Single right-side panel: the Activity/Viewer. Its home view is the
   // session activity; files and web pages open as tabs alongside it.
-  const [viewerPanelOpen, setViewerPanelOpen] = useState(false);
+  const [viewerPanelOpen, setViewerPanelOpen] = useHydratedState(
+    () => browserStorage.readRaw("local", "dt:chat:viewer-panel") === "1",
+    false,
+  );
   // A passage selected in a reply, and where its actions float. The message
   // it came from rides along: it is what files a Little Tutor thread under
   // the message that prompted it.
@@ -417,35 +349,24 @@ export default function ChatWorkspace() {
     anchor: SelectionAnchor;
     messageId: number | string | null;
   } | null>(null);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (browserStorage.readRaw("local", "dt:chat:viewer-panel") === "1") {
-      setViewerPanelOpen(true);
-    }
-  }, []);
-  const setViewerOpen = useCallback((next: boolean) => {
-    setViewerPanelOpen(next);
-    if (typeof window !== "undefined") {
-      browserStorage.writeRaw(
-        "local",
-        "dt:chat:viewer-panel",
-        next ? "1" : "0",
-      );
-    }
-  }, []);
+  const setViewerOpen = useCallback(
+    (next: boolean) => {
+      setViewerPanelOpen(next);
+      if (typeof window !== "undefined") {
+        browserStorage.writeRaw("local", "dt:chat:viewer-panel", next ? "1" : "0");
+      }
+    },
+    [setViewerPanelOpen],
+  );
   const toggleViewerPanel = useCallback(() => {
     setViewerPanelOpen((prev) => {
       const next = !prev;
       if (typeof window !== "undefined") {
-        browserStorage.writeRaw(
-          "local",
-          "dt:chat:viewer-panel",
-          next ? "1" : "0",
-        );
+        browserStorage.writeRaw("local", "dt:chat:viewer-panel", next ? "1" : "0");
       }
       return next;
     });
-  }, []);
+  }, [setViewerPanelOpen]);
   /**
    * Force the panel open on its Activity home. Used by the send-gate when the
    * user tries to send while the active capability still needs its config
@@ -458,16 +379,12 @@ export default function ChatWorkspace() {
     setViewerOpen(true);
     viewerPanelRef.current?.focusActivityHome();
   }, [setViewerOpen]);
-  const attachmentErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(
-    null,
-  );
+  const attachmentErrorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [capMenuOpen, setCapMenuOpen] = useState(false);
   const [quizConfig, setQuizConfig] = useState<DeepQuestionFormConfig>({
     ...DEFAULT_QUIZ_CONFIG,
   });
-  const [quizValidationErrors, setQuizValidationErrors] = useState<string[]>(
-    [],
-  );
+  const [quizValidationErrors, setQuizValidationErrors] = useState<string[]>([]);
   const [quizPdf, setQuizPdf] = useState<File | null>(null);
   const [visualizeConfig, setVisualizeConfig] = useState<VisualizeFormConfig>({
     ...DEFAULT_VISUALIZE_CONFIG,
@@ -482,8 +399,7 @@ export default function ChatWorkspace() {
   // panel before sending. Any subsequent edit to the underlying config
   // invalidates the confirmation, so the user re-confirms once they've
   // adjusted settings. Capability switches also reset this flag.
-  const [capabilityConfigConfirmed, setCapabilityConfigConfirmed] =
-    useState(false);
+  const [capabilityConfigConfirmed, setCapabilityConfigConfirmed] = useState(false);
   // Per-session persistence of the capability-config form. The form lives
   // in local React state, so anything that remounts the page (browser
   // back/forward to /chat/<id>, URL-driven session swap, etc.) would
@@ -497,6 +413,7 @@ export default function ChatWorkspace() {
   const lastHydratedConfigKeyRef = useRef<string | null>(null);
   // Hydrate the form configs on first encounter of each session id, so
   // the user's prior selections come back when they return to a session.
+  /* eslint-disable react-hooks/set-state-in-effect -- Consume an external navigation/restoration command through the cancellable imperative controller. Running this transaction during render would repeat I/O or mutate another store. */
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!capabilityConfigStorageKey) return;
@@ -521,7 +438,7 @@ export default function ChatWorkspace() {
       /* corrupted entry — ignore */
     }
   }, [capabilityConfigStorageKey]);
-  // Persist on every change. Write is synchronous and small, and
+  /* eslint-enable react-hooks/set-state-in-effect */ // Persist on every change. Write is synchronous and small, and
   // localStorage already de-dupes identical writes at the browser level.
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -556,31 +473,23 @@ export default function ChatWorkspace() {
   const [personaSelectorOpen, setPersonaSelectorOpen] = useState(false);
   const [showMemoryPicker, setShowMemoryPicker] = useState(false);
   const [spaceMenuOpen, setSpaceMenuOpen] = useState(false);
-  const [selectedNotebookRecords, setSelectedNotebookRecords] = useState<
-    SelectedRecord[]
-  >([]);
-  const [selectedBookReferences, setSelectedBookReferences] = useState<
-    SelectedBookReference[]
-  >([]);
+  const [selectedNotebookRecords, setSelectedNotebookRecords] = useState<SelectedRecord[]>([]);
+  const [selectedBookReferences, setSelectedBookReferences] = useState<SelectedBookReference[]>([]);
   const [selectedReadingReferences, setSelectedReadingReferences] = useState<
     SelectedReadingReference[]
   >([]);
-  const [selectedHistorySessions, setSelectedHistorySessions] = useState<
-    SelectedHistorySession[]
-  >([]);
+  const [selectedHistorySessions, setSelectedHistorySessions] = useState<SelectedHistorySession[]>(
+    [],
+  );
   // Imported-agent conversation references. Same shape as history sessions —
   // they fold into the same history_references payload (see below), so the
   // backend treats them identically; the separate state only keeps the
   // composer's "My Agents" group distinct from "Chat History".
-  const [selectedAgentSessions, setSelectedAgentSessions] = useState<
-    SelectedHistorySession[]
-  >([]);
-  const [selectedQuestionEntries, setSelectedQuestionEntries] = useState<
-    SelectedQuestionEntry[]
-  >([]);
-  const [selectedMemoryFiles, setSelectedMemoryFiles] = useState<
-    SpaceMemoryFile[]
-  >([]);
+  const [selectedAgentSessions, setSelectedAgentSessions] = useState<SelectedHistorySession[]>([]);
+  const [selectedQuestionEntries, setSelectedQuestionEntries] = useState<SelectedQuestionEntry[]>(
+    [],
+  );
+  const [selectedMemoryFiles, setSelectedMemoryFiles] = useState<SpaceMemoryFile[]>([]);
   const dragCounter = useRef(0);
   const capMenuRef = useRef<HTMLDivElement>(null);
   const capBtnRef = useRef<HTMLButtonElement>(null);
@@ -617,7 +526,10 @@ export default function ChatWorkspace() {
   useEffect(() => {
     // Strict Mode can cancel the first timer after consuming sessionStorage.
     // Hold the hand-off until the composer has actually accepted it.
-    const pending = pendingComposerPrompt.current || consumePendingPrompt(`chat:${requestedWorkspaceId || ""}`) || consumePendingPrompt();
+    const pending =
+      pendingComposerPrompt.current ||
+      consumePendingPrompt(`chat:${requestedWorkspaceId || ""}`) ||
+      consumePendingPrompt();
     pendingComposerPrompt.current = pending;
     if (!pending) return;
     let attempts = 0;
@@ -649,9 +561,8 @@ export default function ChatWorkspace() {
 
   const activeCap = useMemo(
     () =>
-      capabilities.find(
-        (capability) => capability.value === (state.activeCapability || ""),
-      ) ?? getChatCapability(state.activeCapability),
+      capabilities.find((capability) => capability.value === (state.activeCapability || "")) ??
+      getChatCapability(state.activeCapability),
     [capabilities, state.activeCapability],
   );
   // Saved conversations can outlive the capability that created them. Once
@@ -664,7 +575,8 @@ export default function ChatWorkspace() {
       isCapabilityCatalogLoading ||
       capabilityCatalogError ||
       !state.activeCapability
-    ) return;
+    )
+      return;
     if (!capabilities.some((capability) => capability.value === state.activeCapability)) {
       setCapability(null);
     }
@@ -682,7 +594,11 @@ export default function ChatWorkspace() {
   const isVisualizeMode = activeCap.value === "visualize";
   const isResearchMode = activeCap.value === "deep_research";
   useEffect(() => {
-    if (sessionIdParam && state.sessionId === sessionIdParam && state.activeCapability === "immersive_watching") {
+    if (
+      sessionIdParam &&
+      state.sessionId === sessionIdParam &&
+      state.activeCapability === "immersive_watching"
+    ) {
       router.replace(watchingRoute(sessionIdParam, state.workspaceId || ""), { scroll: false });
     }
   }, [state.activeCapability, state.sessionId, state.workspaceId, sessionIdParam, router]);
@@ -699,10 +615,7 @@ export default function ChatWorkspace() {
     const latestAssistant = [...state.messages]
       .reverse()
       .find((message) => message.role === "assistant");
-    if (
-      !latestAssistant ||
-      !shouldReturnToChatAfterResearch(latestAssistant.events)
-    ) {
+    if (!latestAssistant || !shouldReturnToChatAfterResearch(latestAssistant.events)) {
       return;
     }
     const terminal = [...(latestAssistant.events ?? [])]
@@ -713,12 +626,7 @@ export default function ChatWorkspace() {
     returnedResearchTurnRef.current = turnKey;
     setCapability(null);
     setCapabilityConfigConfirmed(false);
-  }, [
-    setCapability,
-    state.activeCapability,
-    state.isStreaming,
-    state.messages,
-  ]);
+  }, [setCapability, state.activeCapability, state.isStreaming, state.messages]);
 
   // Edit-invalidates-confirm wrappers — flipping any field after the user
   // hit *Confirm* should restore the gate so they re-confirm intentionally.
@@ -733,20 +641,14 @@ export default function ChatWorkspace() {
     setQuizPdf(file);
     setCapabilityConfigConfirmed(false);
   }, []);
-  const handleChangeVisualizeConfig = useCallback(
-    (next: VisualizeFormConfig) => {
-      setVisualizeConfig(next);
-      setCapabilityConfigConfirmed(false);
-    },
-    [],
-  );
-  const handleChangeResearchConfig = useCallback(
-    (next: DeepResearchFormConfig) => {
-      setResearchConfig(next);
-      setCapabilityConfigConfirmed(false);
-    },
-    [],
-  );
+  const handleChangeVisualizeConfig = useCallback((next: VisualizeFormConfig) => {
+    setVisualizeConfig(next);
+    setCapabilityConfigConfirmed(false);
+  }, []);
+  const handleChangeResearchConfig = useCallback((next: DeepResearchFormConfig) => {
+    setResearchConfig(next);
+    setCapabilityConfigConfirmed(false);
+  }, []);
   const handleConfirmCapabilityConfig = useCallback(() => {
     setCapabilityConfigConfirmed(true);
   }, []);
@@ -786,9 +688,13 @@ export default function ChatWorkspace() {
   // only ever runs once there is something to continue. Cleared on session
   // switch so a prior chat's guess never lingers as this one's placeholder.
   const [askHint, setAskHint] = useState("");
-  useEffect(() => {
-    setAskHint("");
-  }, [state.sessionId]);
+  const [derivedInputs0, setDerivedInputs0] = useState<readonly unknown[]>([]);
+  if (derivedInputs0.length !== 1 || !Object.is(derivedInputs0[0], state.sessionId)) {
+    setDerivedInputs0([state.sessionId]);
+    (() => {
+      setAskHint("");
+    })();
+  }
   useEffect(() => {
     if (state.isStreaming || !hasMessages || !state.sessionId) return;
     let cancelled = false;
@@ -799,42 +705,6 @@ export default function ChatWorkspace() {
       cancelled = true;
     };
   }, [state.isStreaming, hasMessages, state.sessionId, state.messages.length]);
-  // Time-of-day greeting: seeded once on mount from the user's local clock so
-  // the heading stays stable while they're on the page. State (not useMemo)
-  // because the random pick would otherwise mismatch SSR ↔ client hydration.
-  const [, setWelcomeGreeting] = useState<string>(
-    "What would you like to learn?",
-  );
-  useEffect(() => {
-    const hour = new Date().getHours();
-    let bucket: string[];
-    if (hour >= 5 && hour < 12) {
-      bucket = [
-        "Good morning.",
-        "Morning — let's learn something.",
-        "What would you like to learn?",
-      ];
-    } else if (hour >= 12 && hour < 17) {
-      bucket = [
-        "Good afternoon.",
-        "Afternoon — what's on your mind?",
-        "What would you like to learn?",
-      ];
-    } else if (hour >= 17 && hour < 22) {
-      bucket = [
-        "Good evening.",
-        "Evening — what shall we explore?",
-        "What would you like to learn?",
-      ];
-    } else {
-      bucket = [
-        "It's late today.",
-        "Burning the midnight oil?",
-        "What would you like to learn?",
-      ];
-    }
-    setWelcomeGreeting(bucket[Math.floor(Math.random() * bucket.length)]);
-  }, []);
   const firstUserTitle = useMemo(
     () =>
       state.messages
@@ -851,20 +721,25 @@ export default function ChatWorkspace() {
   const canRenameSession = Boolean(state.sessionId);
   const titleInputRef = useRef<HTMLInputElement | null>(null);
   const skipTitleCommitRef = useRef(false);
-  const [sessionTitleDraft, setSessionTitleDraft] =
-    useState(displaySessionTitle);
+  const [sessionTitleDraft, setSessionTitleDraft] = useState(displaySessionTitle);
   const [sessionTitleEditing, setSessionTitleEditing] = useState(false);
   // In the page bar the title is the conversation crumb (it switches); in
   // place it is the old click-to-rename heading.
   const titleInBar = usePageBarOffers("instance");
   const [sessionTitleSaving, setSessionTitleSaving] = useState(false);
-  const [sessionTitleError, setSessionTitleError] = useState<string | null>(
-    null,
-  );
-  useEffect(() => {
-    if (sessionTitleEditing) return;
-    setSessionTitleDraft(displaySessionTitle);
-  }, [displaySessionTitle, sessionTitleEditing]);
+  const [sessionTitleError, setSessionTitleError] = useState<string | null>(null);
+  const [derivedInputs1, setDerivedInputs1] = useState<readonly unknown[]>([]);
+  if (
+    derivedInputs1.length !== 2 ||
+    !Object.is(derivedInputs1[0], displaySessionTitle) ||
+    !Object.is(derivedInputs1[1], sessionTitleEditing)
+  ) {
+    setDerivedInputs1([displaySessionTitle, sessionTitleEditing]);
+    (() => {
+      if (sessionTitleEditing) return;
+      setSessionTitleDraft(displaySessionTitle);
+    })();
+  }
   useEffect(() => {
     if (!sessionTitleEditing) return;
     window.requestAnimationFrame(() => {
@@ -884,8 +759,10 @@ export default function ChatWorkspace() {
   // does; both read and write the same organization and hear each other
   // through the session-change event.
   const sessionStoreId = state.workspaceId ?? "";
-  const { row: sessionOrganization, apply: applySessionOrganization } =
-    useSessionOrganization(state.sessionId, sessionStoreId);
+  const { row: sessionOrganization, apply: applySessionOrganization } = useSessionOrganization(
+    state.sessionId,
+    sessionStoreId,
+  );
   const sessionArchived = Boolean(sessionOrganization?.preferences?.archived);
   const restoreArchivedSession = useCallback(() => {
     const sid = state.sessionId;
@@ -925,7 +802,7 @@ export default function ChatWorkspace() {
   // conversation up to the tip of the branch on screen. Optimistic rows have
   // negative ids and are not on the server yet, so the tip is the last
   // persisted one; none yet means nothing to talk about.
-  const viewerConversation = useMemo(() => {
+  const viewerConversation = (() => {
     if (!state.sessionId) return null;
     for (let index = state.messages.length - 1; index >= 0; index -= 1) {
       const id = state.messages[index]?.id;
@@ -934,7 +811,7 @@ export default function ChatWorkspace() {
       }
     }
     return null;
-  }, [displaySessionTitle, state.language, state.messages, state.sessionId]);
+  })();
 
   useEffect(() => {
     const onKey = (event: globalThis.KeyboardEvent) => {
@@ -965,9 +842,7 @@ export default function ChatWorkspace() {
         viewerPanelRef.current?.closeSideChatThread(thread.session_id);
       } catch (error) {
         notify(
-          error instanceof Error
-            ? error.message
-            : t("The tutor thread could not be deleted."),
+          error instanceof Error ? error.message : t("The tutor thread could not be deleted."),
           { tone: "error" },
         );
         throw error;
@@ -995,9 +870,7 @@ export default function ChatWorkspace() {
         );
       } catch (error) {
         notify(
-          error instanceof Error
-            ? error.message
-            : t("The tutor thread could not be detached."),
+          error instanceof Error ? error.message : t("The tutor thread could not be detached."),
           { tone: "error" },
         );
         throw error;
@@ -1014,10 +887,7 @@ export default function ChatWorkspace() {
         // a tab still filed under one of those rows: a learner may already
         // have selected a newer passage, and that pending anchor must survive.
         for (const deletedMessageId of deletedMessageIds) {
-          viewerPanelRef.current?.clearSideChatSource(
-            threadSessionId,
-            deletedMessageId,
-          );
+          viewerPanelRef.current?.clearSideChatSource(threadSessionId, deletedMessageId);
         }
       }
     },
@@ -1078,8 +948,7 @@ export default function ChatWorkspace() {
     },
     [cancelSessionTitleEdit, commitSessionTitleEdit],
   );
-  const { ref: composerRef, height: composerHeight } =
-    useMeasuredHeight<HTMLDivElement>();
+  const { ref: composerRef, height: composerHeight } = useMeasuredHeight<HTMLDivElement>();
   const researchValidation = useMemo(
     () => validateResearchConfig(researchConfig),
     [researchConfig],
@@ -1138,27 +1007,18 @@ export default function ChatWorkspace() {
     () => selectedQuestionEntries.map((entry) => entry.id),
     [selectedQuestionEntries],
   );
-  const memoryReferencesPayload = useMemo(
-    () => [...selectedMemoryFiles],
-    [selectedMemoryFiles],
+  const memoryReferencesPayload = useMemo(() => [...selectedMemoryFiles], [selectedMemoryFiles]);
+  const { modalMessages: chatSaveMessages, payload: chatSavePayload } = useMemo(
+    () =>
+      buildConversationNotebookSave(state.messages, {
+        source: "chat",
+        fallbackTitle: "Chat Session",
+        activeCapability: state.activeCapability,
+        language: state.language,
+        sessionId: state.sessionId,
+      }),
+    [state.activeCapability, state.language, state.messages, state.sessionId],
   );
-  const { modalMessages: chatSaveMessages, payload: chatSavePayload } =
-    useMemo(
-      () =>
-        buildConversationNotebookSave(state.messages, {
-          source: "chat",
-          fallbackTitle: "Chat Session",
-          activeCapability: state.activeCapability,
-          language: state.language,
-          sessionId: state.sessionId,
-        }),
-      [
-        state.activeCapability,
-        state.language,
-        state.messages,
-        state.sessionId,
-      ],
-    );
   const lastMessage = state.messages[state.messages.length - 1];
   const {
     containerRef: messagesContainerRef,
@@ -1218,7 +1078,9 @@ export default function ChatWorkspace() {
   // Read inside ``handleSend`` without adding a dependency that would rebuild
   // the callback (and so the composer) on every streamed event.
   const awaitingUserReplyRef = useRef(awaitingUserReply);
-  awaitingUserReplyRef.current = awaitingUserReply;
+  useLayoutEffect(() => {
+    awaitingUserReplyRef.current = awaitingUserReply;
+  }, [awaitingUserReply]);
   useEffect(() => {
     if (!awaitingUserCard) return;
     shouldAutoScrollRef.current = true;
@@ -1231,10 +1093,7 @@ export default function ChatWorkspace() {
   // Deliberately does not catch. `CopyActionButton` renders 已复制 off this
   // promise resolving, so swallowing the failure here is what made the button
   // announce a success that never happened — to screen readers included.
-  const copyAssistantMessage = useCallback(
-    (content: string) => copyText(content),
-    [],
-  );
+  const copyAssistantMessage = useCallback((content: string) => copyText(content), []);
   /* ---- URL-driven session loading ---- */
 
   const navigateToHome = useCallback(() => {
@@ -1338,6 +1197,7 @@ export default function ChatWorkspace() {
   // cleanup so the second mount restarts the load cleanly. The abort is
   // deliberately OMITTED from cleanup — cancelSessionLoad handles
   // user-initiated cancellation.
+  /* eslint-disable react-hooks/set-state-in-effect -- Consume an external navigation/restoration command through the cancellable imperative controller. Running this transaction during render would repeat I/O or mutate another store. */
   useEffect(() => {
     if (initialLoadRef.current) return;
     initialLoadRef.current = true;
@@ -1349,9 +1209,9 @@ export default function ChatWorkspace() {
     return () => {
       initialLoadRef.current = false;
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- Bootstrap once; URL changes are owned by the navigation effects below.
 
-  // When URL param changes (sidebar navigation), load the corresponding session
+  /* eslint-enable react-hooks/set-state-in-effect */ // When URL param changes (sidebar navigation), load the corresponding session
   const prevWorkspaceParam = useRef(requestedWorkspaceId);
   useEffect(() => {
     if (prevWorkspaceParam.current === requestedWorkspaceId) return;
@@ -1362,6 +1222,7 @@ export default function ChatWorkspace() {
   }, [requestedWorkspaceId, sessionIdParam, newSession, state.workspaceId]);
 
   const prevSessionIdParam = useRef(sessionIdParam);
+  /* eslint-disable react-hooks/set-state-in-effect -- Consume an external navigation/restoration command through the cancellable imperative controller. Running this transaction during render would repeat I/O or mutate another store. */
   useEffect(() => {
     if (sessionIdParam === prevSessionIdParam.current) return;
     prevSessionIdParam.current = sessionIdParam;
@@ -1382,16 +1243,15 @@ export default function ChatWorkspace() {
     }
   }, [sessionIdParam, startSessionLoad, newSession, state.sessionId, requestedWorkspaceId]);
 
-  // When a new session_id is assigned by the server, update the URL
+  /* eslint-enable react-hooks/set-state-in-effect */ // When a new session_id is assigned by the server, update the URL
   useEffect(() => {
-    if (
-      state.sessionId &&
-      !sessionIdParam &&
-      state.sessionId !== entrySessionId.current
-    ) {
-      router.replace(scopedUrl(`/chat/${encodeURIComponent(state.sessionId)}`, state.workspaceId || ""), {
-        scroll: false,
-      });
+    if (state.sessionId && !sessionIdParam && state.sessionId !== entrySessionId.current) {
+      router.replace(
+        scopedUrl(`/chat/${encodeURIComponent(state.sessionId)}`, state.workspaceId || ""),
+        {
+          scroll: false,
+        },
+      );
     }
   }, [state.sessionId, state.workspaceId, sessionIdParam, router]);
 
@@ -1399,19 +1259,17 @@ export default function ChatWorkspace() {
     setActiveSessionId(state.sessionId || sessionIdParam || null);
   }, [state.sessionId, sessionIdParam, setActiveSessionId]);
 
-  const refreshKnowledgeBases = useCallback(
-    async (options?: { force?: boolean }) => {
-      try {
-        const list = await listKnowledgeBases({ force: options?.force });
+  const refreshKnowledgeBases = useCallback(async (options?: { force?: boolean }) => {
+    return listKnowledgeBases({ force: options?.force })
+      .then(async (list) => {
         setKnowledgeBases(list);
         setKnowledgeBasesLoaded(true);
-      } catch {
+      })
+      .catch(() => {
         setKnowledgeBasesLoaded(false);
         setKnowledgeBases([]);
-      }
-    },
-    [],
-  );
+      });
+  }, []);
 
   /* Load KBs.
    *
@@ -1437,17 +1295,15 @@ export default function ChatWorkspace() {
     if (pruned.length !== selected.length) setKBs(pruned);
   }, [availableKbNames, knowledgeBasesLoaded, state.knowledgeBases, setKBs]);
 
-  const refreshUserEnabledTools = useCallback(
-    async (options?: { force?: boolean }) => {
-      try {
-        const list = await getEnabledOptionalTools({ force: options?.force });
+  const refreshUserEnabledTools = useCallback(async (options?: { force?: boolean }) => {
+    return getEnabledOptionalTools({ force: options?.force })
+      .then(async (list) => {
         setUserEnabledTools(list);
-      } catch {
+      })
+      .catch(() => {
         setUserEnabledTools([]);
-      }
-    },
-    [],
-  );
+      });
+  }, []);
 
   /* Load user tool prefs */
   useEffect(() => {
@@ -1481,8 +1337,36 @@ export default function ChatWorkspace() {
     };
   }, [refreshKnowledgeBases, refreshLLMOptions, refreshUserEnabledTools]);
 
+  const handleSelectCapability = useCallback(
+    (value: string) => {
+      const cap =
+        capabilities.find((capability) => capability.value === value) ??
+        capabilities[0] ??
+        getChatCapability("");
+      setCapability(cap.value || null);
+      // Per-capability tool selection now derives from the user's saved
+      // settings (/settings#tools) intersected with the capability's
+      // allow-list.
+      const baseline = userEnabledTools === null ? cap.allowedTools : userEnabledTools;
+      const enabledToolsForCap = baseline.filter((tool) =>
+        cap.allowedTools.includes(tool as ToolName),
+      );
+      setTools(enabledToolsForCap);
+      // Switching capability invalidates any prior config confirmation —
+      // the new capability has its own form that needs explicit confirm.
+      setCapabilityConfigConfirmed(false);
+      setCapMenuOpen(false);
+      // Create mode only makes sense on the plain chat loop (`cap.value`
+      // empty); any other mode drops it. Picking Create itself goes through
+      // `setCreateTarget` → the tray's `onChange`, which calls back here
+      // with `""` — a no-op for this guard.
+      if (cap.value) setCreateTarget(null);
+    },
+    [capabilities, setCapability, setTools, setCreateTarget, userEnabledTools],
+  );
   /* Composer setup requested by the URL that opened this page. Runs once:
      from here on the composer is the user's to change. */
+  /* eslint-disable react-hooks/set-state-in-effect -- Consume an external navigation/restoration command through the cancellable imperative controller. Running this transaction during render would repeat I/O or mutate another store. */
   useEffect(() => {
     if (typeof window === "undefined" || launchIntentAppliedRef.current) return;
     const intent = readChatLaunchIntent(window.location.search);
@@ -1492,20 +1376,23 @@ export default function ChatWorkspace() {
     launchIntentAppliedRef.current = true;
     if (intent.capability !== null) handleSelectCapability(intent.capability);
     const researchMode = new URLSearchParams(window.location.search).get("research_mode");
-    if (intent.capability === "deep_research" && (researchMode === "comparison" || researchMode === "citation_audit" || researchMode === "experiment_plan")) {
+    if (
+      intent.capability === "deep_research" &&
+      (researchMode === "comparison" ||
+        researchMode === "citation_audit" ||
+        researchMode === "experiment_plan")
+    ) {
       setResearchConfig({ mode: researchMode, depth: "standard" });
       setCapabilityConfigConfirmed(true);
     }
     if (intent.capability === null && intent.tools.length) {
-      const valid = intent.tools.filter((t): t is ToolName =>
-        ALL_TOOLS.some((d) => d.name === t),
-      );
+      const valid = intent.tools.filter((t): t is ToolName => ALL_TOOLS.some((d) => d.name === t));
       if (valid.length) setTools(Array.from(new Set(valid)));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCapabilityCatalogLoading]);
 
-  useEffect(() => {
+  /* eslint-enable react-hooks/set-state-in-effect */ useEffect(() => {
     const handler = (e: MouseEvent) => {
       const t = e.target as Node;
       if (
@@ -1534,46 +1421,13 @@ export default function ChatWorkspace() {
   useEffect(() => {
     if (userEnabledTools === null) return;
     const allowed = new Set(activeCap.allowedTools);
-    const next = userEnabledTools.filter((tool) =>
-      allowed.has(tool as ToolName),
-    );
+    const next = userEnabledTools.filter((tool) => allowed.has(tool as ToolName));
     const current = state.enabledTools;
-    const same =
-      current.length === next.length &&
-      current.every((tool, idx) => tool === next[idx]);
+    const same = current.length === next.length && current.every((tool, idx) => tool === next[idx]);
     if (!same) setTools(next);
   }, [activeCap.allowedTools, setTools, state.enabledTools, userEnabledTools]);
 
   /* ---- handlers ---- */
-
-  const handleSelectCapability = useCallback(
-    (value: string) => {
-      const cap =
-        capabilities.find((capability) => capability.value === value) ??
-        capabilities[0] ??
-        getChatCapability("");
-      setCapability(cap.value || null);
-      // Per-capability tool selection now derives from the user's saved
-      // settings (/settings#tools) intersected with the capability's
-      // allow-list.
-      const baseline =
-        userEnabledTools === null ? cap.allowedTools : userEnabledTools;
-      const enabledToolsForCap = baseline.filter((tool) =>
-        cap.allowedTools.includes(tool as ToolName),
-      );
-      setTools(enabledToolsForCap);
-      // Switching capability invalidates any prior config confirmation —
-      // the new capability has its own form that needs explicit confirm.
-      setCapabilityConfigConfirmed(false);
-      setCapMenuOpen(false);
-      // Create mode only makes sense on the plain chat loop (`cap.value`
-      // empty); any other mode drops it. Picking Create itself goes through
-      // `setCreateTarget` → the tray's `onChange`, which calls back here
-      // with `""` — a no-op for this guard.
-      if (cap.value) setCreateTarget(null);
-    },
-    [capabilities, setCapability, setTools, setCreateTarget, userEnabledTools],
-  );
 
   const fileToAttachment = fileToPendingAttachment;
 
@@ -1704,10 +1558,7 @@ export default function ChatWorkspace() {
           canConfirm
           onConfirm={handleConfirmCapabilityConfig}
         >
-          <VisualizeConfigPanel
-            value={visualizeConfig}
-            onChange={handleChangeVisualizeConfig}
-          />
+          <VisualizeConfigPanel value={visualizeConfig} onChange={handleChangeVisualizeConfig} />
         </CapabilityConfigCard>
       );
     }
@@ -1761,8 +1612,7 @@ export default function ChatWorkspace() {
   // Cmd/ctrl/shift + click keep their standard meaning (open in browser).
   const handleMessagesClick = useCallback((event: React.MouseEvent) => {
     if (event.defaultPrevented) return;
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)
-      return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     if (event.button !== 0) return;
     const target = event.target as HTMLElement | null;
     if (!target) return;
@@ -1778,12 +1628,7 @@ export default function ChatWorkspace() {
   const handleMessagesSelection = useCallback(() => {
     const container = messagesContainerRef.current;
     const selection = window.getSelection();
-    if (
-      !container ||
-      !selection ||
-      selection.isCollapsed ||
-      !selection.rangeCount
-    ) {
+    if (!container || !selection || selection.isCollapsed || !selection.rangeCount) {
       setSelectedPassage(null);
       return;
     }
@@ -1805,10 +1650,7 @@ export default function ChatWorkspace() {
       return;
     }
     const rects = range.getClientRects();
-    const rect =
-      rects.length > 0
-        ? rects[rects.length - 1]
-        : range.getBoundingClientRect();
+    const rect = rects.length > 0 ? rects[rects.length - 1] : range.getBoundingClientRect();
     // The selection may span messages; the anchor is where the learner
     // started, so that is the message the follow-up is filed under.
     const anchorElement =
@@ -1816,9 +1658,7 @@ export default function ChatWorkspace() {
         ? selection.anchorNode
         : selection.anchorNode?.parentElement;
     const rawMessageId =
-      anchorElement
-        ?.closest("[data-chat-message-id]")
-        ?.getAttribute("data-chat-message-id") ?? "";
+      anchorElement?.closest("[data-chat-message-id]")?.getAttribute("data-chat-message-id") ?? "";
     const messageId = /^-?\d+$/.test(rawMessageId)
       ? Number(rawMessageId) > 0
         ? Number(rawMessageId)
@@ -1988,8 +1828,7 @@ export default function ChatWorkspace() {
     sessionKey: string;
     parentMessageId: number | null;
   } | null>(null);
-  const retrying =
-    retryingTurn?.sessionKey === state.sessionKey ? retryingTurn : null;
+  const retrying = retryingTurn?.sessionKey === state.sessionKey ? retryingTurn : null;
   const handleRetryTurn = useCallback(
     (user: {
       content: string;
@@ -2005,10 +1844,7 @@ export default function ChatWorkspace() {
         .filter(isQuoteAttachment)
         .map((item) => quoteAttachment(quoteText(item)))
         .filter((item): item is QuotePendingAttachment => item !== null);
-      setAttachments((prev) => [
-        ...prev.filter((item) => !isQuoteAttachment(item)),
-        ...quotes,
-      ]);
+      setAttachments((prev) => [...prev.filter((item) => !isQuoteAttachment(item)), ...quotes]);
       prefillInputRef.current?.(user.content);
       focusComposerRef.current?.();
     },
@@ -2019,13 +1855,16 @@ export default function ChatWorkspace() {
     async (content: string) => {
       // An existing session saves its selector before the next turn starts.
       // The composer may be used immediately after changing the dropdown.
-      if (!(await waitForReplyLanguageSave(
-        replyLanguageSaveRef.current?.key === state.sessionKey
-          ? replyLanguageSaveRef.current.pending
-          : null,
-        content,
-        (draft) => prefillInputRef.current?.(draft),
-      ))) return;
+      if (
+        !(await waitForReplyLanguageSave(
+          replyLanguageSaveRef.current?.key === state.sessionKey
+            ? replyLanguageSaveRef.current.pending
+            : null,
+          content,
+          (draft) => prefillInputRef.current?.(draft),
+        ))
+      )
+        return;
       // A turn paused on a question: what the user typed is their answer, not
       // a new message. Routing it here means the card is one way to answer,
       // not the only one — and a card that never rendered no longer strands
@@ -2047,14 +1886,14 @@ export default function ChatWorkspace() {
         notify(t(REPLY_SENT_AS_NEW_MESSAGE));
       }
       if (
-        (!content &&
-          !attachments.length &&
-          !selectedBookReferences.length &&
-          !selectedReadingReferences.length &&
-          !selectedNotebookRecords.length &&
-          !selectedHistorySessions.length &&
-          !selectedQuestionEntries.length &&
-          !selectedMemoryFiles.length)
+        !content &&
+        !attachments.length &&
+        !selectedBookReferences.length &&
+        !selectedReadingReferences.length &&
+        !selectedNotebookRecords.length &&
+        !selectedHistorySessions.length &&
+        !selectedQuestionEntries.length &&
+        !selectedMemoryFiles.length
       )
         return;
 
@@ -2080,9 +1919,7 @@ export default function ChatWorkspace() {
         !selectedMemoryFiles.length
       ) {
         setQuizValidationErrors([
-          t(
-            "Please provide a topic, for example: generate questions about limits.",
-          ),
+          t("Please provide a topic, for example: generate questions about limits."),
         ]);
         ensureActivityPanelOpen();
         return;
@@ -2094,9 +1931,7 @@ export default function ChatWorkspace() {
       if (isQuizMode) {
         config = buildQuizWSConfig(quizConfig);
         if (quizConfig.mode === "mimic" && quizPdf) {
-          const b64 = extractBase64FromDataUrl(
-            await readFileAsDataUrl(quizPdf),
-          );
+          const b64 = extractBase64FromDataUrl(await readFileAsDataUrl(quizPdf));
           extraAttachments = [
             ...extraAttachments,
             {
@@ -2119,10 +1954,16 @@ export default function ChatWorkspace() {
         config = { ...(config ?? {}), subagent_consult_budget: subagentBudget };
       }
       if (selectedPartner) config = { ...(config ?? {}), consult_partner_id: selectedPartner };
-      if (selectedPartnerGroup) config = { ...(config ?? {}), partner_discussion_group_id: selectedPartnerGroup };
-      config = { ...(config ?? {}),
+      if (selectedPartnerGroup)
+        config = { ...(config ?? {}), partner_discussion_group_id: selectedPartnerGroup };
+      config = {
+        ...(config ?? {}),
         _resource_reuse: resourceReuse.policy,
-        _persistent_knowledge_bases: retainedKnowledgeBases(state.knowledgeBases, agentNameSet, resourceReuse.policy),
+        _persistent_knowledge_bases: retainedKnowledgeBases(
+          state.knowledgeBases,
+          agentNameSet,
+          resourceReuse.policy,
+        ),
       };
 
       if (!state.sessionId && draftTaskIds.length) {
@@ -2158,9 +1999,7 @@ export default function ChatWorkspace() {
           ...(["deep_solve", "deep_question"].includes(state.activeCapability || "")
             ? { capability: state.activeCapability || "chat" }
             : {}),
-          ...(retrying && !state.isStreaming
-            ? { parentMessageId: retrying.parentMessageId }
-            : {}),
+          ...(retrying && !state.isStreaming ? { parentMessageId: retrying.parentMessageId } : {}),
         },
         questionNotebookReferencesPayload,
         undefined,
@@ -2190,10 +2029,14 @@ export default function ChatWorkspace() {
         sendMessage(...send);
         setRetryingTurn(null);
       }
-      if (["deep_solve", "deep_question"].includes(state.activeCapability || "")) setCapability(null);
+      if (["deep_solve", "deep_question"].includes(state.activeCapability || ""))
+        setCapability(null);
       setKBs(retainedKnowledgeBases(state.knowledgeBases, agentNameSet, resourceReuse.policy));
       if (!resourceReuse.policy.persona) setPersonaSelection("");
-      setResourceSelection({skills: resourceReuse.policy.skills ? state.resourceSelection.skills : [], mcp: resourceReuse.policy.mcp ? state.resourceSelection.mcp : []});
+      setResourceSelection({
+        skills: resourceReuse.policy.skills ? state.resourceSelection.skills : [],
+        mcp: resourceReuse.policy.mcp ? state.resourceSelection.mcp : [],
+      });
       shouldAutoScrollRef.current = true;
       if (!resourceReuse.policy.partner) setSelectedPartner(null);
       if (!resourceReuse.policy.partner_group) setSelectedPartnerGroup(null);
@@ -2210,7 +2053,17 @@ export default function ChatWorkspace() {
       if (!resourceReuse.policy.memory) setSelectedMemoryFiles([]);
     },
     [
-      draftTaskIds, state.sessionId, state.activeCapability, setCapability, resourceReuse, state.knowledgeBases, state.resourceSelection, agentNameSet, setKBs, setPersonaSelection, setResourceSelection,
+      draftTaskIds,
+      state.sessionId,
+      state.activeCapability,
+      setCapability,
+      resourceReuse,
+      state.knowledgeBases,
+      state.resourceSelection,
+      agentNameSet,
+      setKBs,
+      setPersonaSelection,
+      setResourceSelection,
       attachments,
       bookReferencesPayload,
       readingReferencesPayload,
@@ -2263,15 +2116,14 @@ export default function ChatWorkspace() {
         }),
         confirmed_outline: outline,
       };
-      const requestSnapshotOverride: MessageRequestSnapshot | undefined =
-        originalSnapshot
-          ? {
-              ...originalSnapshot,
-              content: _topic,
-              capability: "deep_research",
-              config,
-            }
-          : undefined;
+      const requestSnapshotOverride: MessageRequestSnapshot | undefined = originalSnapshot
+        ? {
+            ...originalSnapshot,
+            content: _topic,
+            capability: "deep_research",
+            config,
+          }
+        : undefined;
       sendMessage(
         _topic,
         originalSnapshot?.attachments ?? [],
@@ -2300,25 +2152,28 @@ export default function ChatWorkspace() {
   // and ``masteryAnswer`` tells the backend which question it settles so the
   // engine has the answer committed before the tutor reads anything.
   const answerMasteryQuestion = useCallback(
-    (answer: { questionId: string; text: string; answers?: Array<{ questionId: string; text: string }> }) => {
+    (answer: {
+      questionId: string;
+      text: string;
+      answers?: Array<{ questionId: string; text: string }>;
+    }) => {
       const text = answer.text.trim();
       // One live turn per path: submitting into a running one is refused, and
       // ``false`` reopens the card rather than surfacing that refusal.
       if (!text || state.isStreaming) return false;
-      sendMessage(
-        text,
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        {
-          masteryAnswer: {
-            question_id: answer.questionId,
-            text,
-            ...(answer.answers ? { answers: Object.fromEntries(answer.answers.map((item) => [item.questionId, item.text])) } : {}),
-          },
+      sendMessage(text, undefined, undefined, undefined, undefined, {
+        masteryAnswer: {
+          question_id: answer.questionId,
+          text,
+          ...(answer.answers
+            ? {
+                answers: Object.fromEntries(
+                  answer.answers.map((item) => [item.questionId, item.text]),
+                ),
+              }
+            : {}),
         },
-      );
+      });
       shouldAutoScrollRef.current = true;
       return true;
     },
@@ -2332,14 +2187,9 @@ export default function ChatWorkspace() {
   const skipMasteryQuestion = useCallback(
     (questionId: string) => {
       if (!questionId || state.isStreaming) return false;
-      sendMessage(
-        t("Let's skip this question."),
-        undefined,
-        undefined,
-        undefined,
-        undefined,
-        { masterySkip: { question_id: questionId } },
-      );
+      sendMessage(t("Let's skip this question."), undefined, undefined, undefined, undefined, {
+        masterySkip: { question_id: questionId },
+      });
       shouldAutoScrollRef.current = true;
       return true;
     },
@@ -2396,27 +2246,46 @@ export default function ChatWorkspace() {
   const handleSelectAgent = useCallback(
     (name: string | null) => {
       // Single-select: clear any selected agent, then set the new one (if any).
-      const withoutAgents = state.knowledgeBases.filter(
-        (n) => !agentNameSet.has(n),
-      );
+      const withoutAgents = state.knowledgeBases.filter((n) => !agentNameSet.has(n));
       setKBs(name ? [...withoutAgents, name] : withoutAgents);
     },
     [setKBs, state.knowledgeBases, agentNameSet],
   );
   // Asking someone and handing the turn to someone exclude each other, and
   // so do the three ways of asking: one helper per turn.
-  const handleSelectPartnerGroup = useCallback((id: string | null) => {
-    setSelectedPartnerGroup(id);
-    if (id) { setSelectedPartner(null); handleSelectAgent(null); setAnswerBy(null); }
-  }, [handleSelectAgent, setAnswerBy]);
-  const handleSelectPartner = useCallback((id: string | null) => {
-    setSelectedPartner(id);
-    if (id) { setSelectedPartnerGroup(null); handleSelectAgent(null); setAnswerBy(null); }
-  }, [handleSelectAgent, setAnswerBy]);
-  const handleAnswerBy = useCallback((value: string | null) => {
-    setAnswerBy(value);
-    if (value) { setSelectedPartner(null); setSelectedPartnerGroup(null); handleSelectAgent(null); }
-  }, [handleSelectAgent, setAnswerBy]);
+  const handleSelectPartnerGroup = useCallback(
+    (id: string | null) => {
+      setSelectedPartnerGroup(id);
+      if (id) {
+        setSelectedPartner(null);
+        handleSelectAgent(null);
+        setAnswerBy(null);
+      }
+    },
+    [handleSelectAgent, setAnswerBy],
+  );
+  const handleSelectPartner = useCallback(
+    (id: string | null) => {
+      setSelectedPartner(id);
+      if (id) {
+        setSelectedPartnerGroup(null);
+        handleSelectAgent(null);
+        setAnswerBy(null);
+      }
+    },
+    [handleSelectAgent, setAnswerBy],
+  );
+  const handleAnswerBy = useCallback(
+    (value: string | null) => {
+      setAnswerBy(value);
+      if (value) {
+        setSelectedPartner(null);
+        setSelectedPartnerGroup(null);
+        handleSelectAgent(null);
+      }
+    },
+    [handleSelectAgent, setAnswerBy],
+  );
 
   // Honor `?agent=<name>` once its connection KB has loaded: preselect it so a
   // partner opened from the partner list starts the chat already targeting it.
@@ -2453,24 +2322,16 @@ export default function ChatWorkspace() {
     setShowMemoryPicker(true);
   }, []);
   const handleRemoveHistory = useCallback((sessionId: string) => {
-    setSelectedHistorySessions((prev) =>
-      prev.filter((item) => item.sessionId !== sessionId),
-    );
+    setSelectedHistorySessions((prev) => prev.filter((item) => item.sessionId !== sessionId));
   }, []);
   const handleRemoveAgent = useCallback((sessionId: string) => {
-    setSelectedAgentSessions((prev) =>
-      prev.filter((item) => item.sessionId !== sessionId),
-    );
+    setSelectedAgentSessions((prev) => prev.filter((item) => item.sessionId !== sessionId));
   }, []);
   const handleRemoveNotebook = useCallback((notebookId: string) => {
-    setSelectedNotebookRecords((prev) =>
-      prev.filter((record) => record.notebookId !== notebookId),
-    );
+    setSelectedNotebookRecords((prev) => prev.filter((record) => record.notebookId !== notebookId));
   }, []);
   const handleRemoveBookReference = useCallback((bookId: string) => {
-    setSelectedBookReferences((prev) =>
-      prev.filter((record) => record.bookId !== bookId),
-    );
+    setSelectedBookReferences((prev) => prev.filter((record) => record.bookId !== bookId));
   }, []);
   const handleRemoveReadingReference = useCallback((materialId: string) => {
     setSelectedReadingReferences((previous) =>
@@ -2478,9 +2339,7 @@ export default function ChatWorkspace() {
     );
   }, []);
   const handleRemoveQuestion = useCallback((entryId: number) => {
-    setSelectedQuestionEntries((prev) =>
-      prev.filter((entry) => entry.id !== entryId),
-    );
+    setSelectedQuestionEntries((prev) => prev.filter((entry) => entry.id !== entryId));
   }, []);
   const handleClearPersona = useCallback(() => {
     setPersonaSelection("");
@@ -2488,9 +2347,7 @@ export default function ChatWorkspace() {
 
   const handleToggleMemoryFile = useCallback((file: SpaceMemoryFile) => {
     setSelectedMemoryFiles((prev) =>
-      prev.includes(file)
-        ? prev.filter((item) => item !== file)
-        : [...prev, file],
+      prev.includes(file) ? prev.filter((item) => item !== file) : [...prev, file],
     );
   }, []);
 
@@ -2506,54 +2363,36 @@ export default function ChatWorkspace() {
     setShowReadingPicker(false);
     setSpaceMenuOpen(true);
   }, []);
-  const handleApplyBookReferences = useCallback(
-    (references: SelectedBookReference[]) => {
-      setSelectedBookReferences(references);
-    },
-    [],
-  );
-  const handleApplyReadingReferences = useCallback(
-    (references: SelectedReadingReference[]) => {
-      setSelectedReadingReferences(references);
-    },
-    [],
-  );
-  const handleApplyNotebookRecords = useCallback(
-    (records: SelectedRecord[]) => {
-      setSelectedNotebookRecords(records);
-    },
-    [],
-  );
+  const handleApplyBookReferences = useCallback((references: SelectedBookReference[]) => {
+    setSelectedBookReferences(references);
+  }, []);
+  const handleApplyReadingReferences = useCallback((references: SelectedReadingReference[]) => {
+    setSelectedReadingReferences(references);
+  }, []);
+  const handleApplyNotebookRecords = useCallback((records: SelectedRecord[]) => {
+    setSelectedNotebookRecords(records);
+  }, []);
   const handleCloseHistoryPicker = useCallback(() => {
     setShowHistoryPicker(false);
     setSpaceMenuOpen(true);
   }, []);
-  const handleApplyHistorySessions = useCallback(
-    (sessions: SelectedHistorySession[]) => {
-      setSelectedHistorySessions(sessions);
-    },
-    [],
-  );
+  const handleApplyHistorySessions = useCallback((sessions: SelectedHistorySession[]) => {
+    setSelectedHistorySessions(sessions);
+  }, []);
   const handleCloseAgentsPicker = useCallback(() => {
     setShowAgentsPicker(false);
     setSpaceMenuOpen(true);
   }, []);
-  const handleApplyAgentSessions = useCallback(
-    (sessions: SelectedHistorySession[]) => {
-      setSelectedAgentSessions(sessions);
-    },
-    [],
-  );
+  const handleApplyAgentSessions = useCallback((sessions: SelectedHistorySession[]) => {
+    setSelectedAgentSessions(sessions);
+  }, []);
   const handleCloseQuestionBankPicker = useCallback(() => {
     setShowQuestionBankPicker(false);
     setSpaceMenuOpen(true);
   }, []);
-  const handleApplyQuestionEntries = useCallback(
-    (entries: SelectedQuestionEntry[]) => {
-      setSelectedQuestionEntries(entries);
-    },
-    [],
-  );
+  const handleApplyQuestionEntries = useCallback((entries: SelectedQuestionEntry[]) => {
+    setSelectedQuestionEntries(entries);
+  }, []);
   const handleCloseMemoryPicker = useCallback(() => {
     setShowMemoryPicker(false);
     setSpaceMenuOpen(true);
@@ -2577,563 +2416,604 @@ export default function ChatWorkspace() {
 
   return (
     <ResourceReuseContext.Provider value={resourceReuse}>
-    <QuizFollowupProvider>
-      <GeogebraTabProvider>
-        <QuizFollowupBridge viewerPanelRef={viewerPanelRef} />
-        <GeogebraTabBridge viewerPanelRef={viewerPanelRef} />
-        <SubagentTabWatcher
-          messages={state.messages}
-          viewerPanelRef={viewerPanelRef}
-        />
-        <StudyWorkspaceShell className="relative h-full overflow-hidden">
-          <div
-            // When the preview drawer is open AND the viewport is wide enough,
-            // push the chat content to the left by the drawer's width so the two
-            // panels live side-by-side (matches Claude desktop). On smaller
-            // screens the drawer overlays — squeezing a phone-width chat into
-            // the remaining ~30 px would be useless. The actual padding +
-            // transition lives in `chat-preview-shell` (globals.css) so we can
-            // hand-tune it without fighting Tailwind's arbitrary-value parser.
-            data-preview-open={previewSource ? "true" : "false"}
-            data-viewer-open={viewerPanelOpen ? "true" : "false"}
-            className="chat-preview-shell flex h-full flex-col overflow-hidden bg-[var(--background)]"
-          >
-            {/* 「聊天 / this conversation」 and the conversation's actions go
+      <QuizFollowupProvider>
+        <GeogebraTabProvider>
+          <QuizFollowupBridge viewerPanelRef={viewerPanelRef} />
+          <GeogebraTabBridge viewerPanelRef={viewerPanelRef} />
+          <SubagentTabWatcher messages={state.messages} viewerPanelRef={viewerPanelRef} />
+          <StudyWorkspaceShell className="relative h-full overflow-hidden">
+            <div
+              // When the preview drawer is open AND the viewport is wide enough,
+              // push the chat content to the left by the drawer's width so the two
+              // panels live side-by-side (matches Claude desktop). On smaller
+              // screens the drawer overlays — squeezing a phone-width chat into
+              // the remaining ~30 px would be useless. The actual padding +
+              // transition lives in `chat-preview-shell` (globals.css) so we can
+              // hand-tune it without fighting Tailwind's arbitrary-value parser.
+              data-preview-open={previewSource ? "true" : "false"}
+              data-viewer-open={viewerPanelOpen ? "true" : "false"}
+              className="chat-preview-shell flex h-full flex-col overflow-hidden bg-[var(--background)]"
+            >
+              {/* 「聊天 / this conversation」 and the conversation's actions go
                 up into the page bar; without one (phones, the classic layout)
                 they stay in this row, which is then all that is left of it. */}
-            <div className="dt-chat-head mx-auto flex w-full max-w-[960px] flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-6 pt-3 pb-0">
-              <PageBarSlot name="instance" className="group/title min-w-0 flex flex-1 items-center gap-2">
-                {titleInBar ? (
-                  sessionTitleEditing ? (
-                    <CrumbRename
-                      value={sessionTitleDraft}
-                      onChange={setSessionTitleDraft}
-                      onCommit={() => void commitSessionTitleEdit()}
-                      onCancel={cancelSessionTitleEdit}
-                      disabled={sessionTitleSaving}
-                      label={t("Session title")}
-                    />
-                  ) : (
-                    <ChatLocation
-                      sessionId={state.sessionId}
-                      title={displaySessionTitle}
-                      placeholder={!canRenameSession}
-                      onRename={canRenameSession ? startSessionTitleEdit : undefined}
-                      onNewChat={startNewChat}
-                    />
-                  )
-                ) : (
-                  <>
-                    {sessionTitleEditing ? (
-                      <input
-                        ref={titleInputRef}
+              <div className="dt-chat-head mx-auto flex w-full max-w-[960px] flex-wrap items-center justify-between gap-x-3 gap-y-1.5 px-6 pt-3 pb-0">
+                <PageBarSlot
+                  name="instance"
+                  className="group/title min-w-0 flex flex-1 items-center gap-2"
+                >
+                  {titleInBar ? (
+                    sessionTitleEditing ? (
+                      <CrumbRename
                         value={sessionTitleDraft}
-                        onChange={(event) =>
-                          setSessionTitleDraft(event.target.value)
-                        }
-                        onBlur={() => void commitSessionTitleEdit()}
-                        onKeyDown={handleSessionTitleKeyDown}
+                        onChange={setSessionTitleDraft}
+                        onCommit={() => void commitSessionTitleEdit()}
+                        onCancel={cancelSessionTitleEdit}
                         disabled={sessionTitleSaving}
-                        aria-label={t("Session title")}
-                        className="dt-chat-title min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 font-serif text-[17px] font-semibold tracking-[-0.01em] text-[var(--foreground)] shadow-sm outline-none transition focus:border-[var(--ring)] focus:ring-2 focus:ring-[var(--ring)]/20 disabled:opacity-60"
-                        maxLength={100}
+                        label={t("Session title")}
                       />
                     ) : (
-                      <Tooltip
-                        className="min-w-0 max-w-full"
-                        label={canRenameSession
-                          ? t("Click to rename session")
-                          : t("Start a conversation to rename")}
-                        side="bottom"
-                      >
-                        <button
-                          type="button"
-                          onClick={startSessionTitleEdit}
-                          disabled={!canRenameSession}
-                          className="dt-chat-title inline-flex min-w-0 max-w-full items-center gap-2 rounded-xl px-2 py-1 text-left font-serif text-[17px] font-semibold tracking-[-0.01em] text-[var(--foreground)] transition hover:bg-[var(--muted)]/55 disabled:cursor-default disabled:hover:bg-transparent"
-                        >
-                          <span className="truncate">{displaySessionTitle}</span>
-                          {canRenameSession ? (
-                            <PenLine className="h-3.5 w-3.5 shrink-0 text-[var(--muted-foreground)] opacity-0 transition-opacity group-hover/title:opacity-100" />
-                          ) : null}
-                        </button>
-                      </Tooltip>
-                    )}
-                  </>
-                )}
-                {sessionTitleSaving ? (
-                  <span className="shrink-0 text-xs text-[var(--muted-foreground)]">
-                    {t("Saving...")}
-                  </span>
-                ) : null}
-                {sessionTitleError ? (
-                  <span className="shrink-0 text-xs text-[var(--destructive)]">
-                    {sessionTitleError}
-                  </span>
-                ) : null}
-                {sessionArchived ? (
-                  // Archiving from the header leaves the conversation open;
-                  // this is where it says so, and the way back.
-                  <span className="inline-flex shrink-0 items-center gap-1.5 text-[12px] text-[var(--muted-foreground)]">
-                    <Archive size={12} strokeWidth={1.8} aria-hidden="true" />
-                    {t("Archived")}
-                    <span aria-hidden="true">·</span>
-                    <button
-                      type="button"
-                      onClick={restoreArchivedSession}
-                      className="rounded font-medium text-[var(--foreground)] underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
-                    >
-                      {t("Restore")}
-                    </button>
-                  </span>
-                ) : null}
-              </PageBarSlot>
-              <PageBarSlot name="actions" className="flex shrink-0 items-center gap-0.5">
-                <PageCustomizeButton page="chat" capabilities={visibleCapabilities} compact />
-                <HeaderActionButton
-                  onClick={() => viewerPanelRef.current?.openMarkdownNoteTab()}
-                  icon={NotebookPen}
-                  label={t("Markdown note")}
-                  title={t("Write Markdown in chat")}
-                />
-                <HeaderActionButton
-                  onClick={toggleViewerPanel}
-                  active={viewerPanelOpen}
-                  icon={PanelRight}
-                  label={t("Activity")}
-                  title={t("Session activity, attachments & previews")}
-                />
-                <ChatSessionMenu
-                  sessionId={state.sessionId}
-                  workspaceId={sessionStoreId}
-                  row={sessionOrganization}
-                  title={displaySessionTitle}
-                  workspaces={workspaces}
-                  live={state.isStreaming}
-                  canSave={Boolean(chatSavePayload)}
-                  onSave={() => setShowSaveModal(true)}
-                  canExport={state.messages.length > 0}
-                  onExport={handleDownloadMarkdown}
-                  onRename={startSessionTitleEdit}
-                  onOrganized={applySessionOrganization}
-                  onMoved={handleSessionMoved}
-                  onDeleted={handleSessionDeleted}
-                />
-              </PageBarSlot>
-            </div>
-            <div className={`flex w-full flex-1 min-h-0 flex-col ${!hasMessages ? "overflow-y-auto" : ""}`}>
-              {sessionLoading || sessionLoadFailed ? (
-                <div className="flex w-full flex-1 min-h-0 justify-center px-6">
-                  <div className="h-full w-full max-w-[960px]">
-                    <SessionLoadingView
-                      onCancel={cancelSessionLoad}
-                      failed={sessionLoadFailed}
-                      onRetry={retrySessionLoad}
-                    />
-                  </div>
-                </div>
-              ) : !hasMessages ? (
-                <div className="flex w-full flex-1 shrink-0 min-h-[340px] items-center justify-center py-8 sm:py-12 animate-fade-in px-6">
-                  <div className="study-welcome w-full max-w-[800px] text-center">
-                    <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--primary)]">{t("DeepTutor Light")}</p>
-                    <h1 className="font-serif text-3xl font-medium leading-tight tracking-tight sm:text-5xl">{t("A little more understanding, every day.")}</h1>
-                    <p className="mx-auto mt-5 max-w-lg text-sm leading-7 text-[var(--muted-foreground)]">{t("Bring your materials. Ask a question. Make what you learn your own.")}</p>
-                    <div className="mt-6 flex justify-center gap-3 text-xs">
-                      <Link href={scopedUrl("/learning/reading")} className="rounded-full border border-[var(--border)] px-4 py-2.5 hover:bg-[var(--accent)]">{t("Open materials")}</Link>
-                      <Link href={scopedUrl("/learning/practice")} className="rounded-full border border-[var(--border)] px-4 py-2.5 hover:bg-[var(--accent)]">{t("Continue practice")}</Link>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                // Positioned wrapper spanning exactly the scrollport, so the
-                // turn navigator can overlay the left gutter without living
-                // inside the masked scroll container (its top/bottom fade
-                // would clip the rail's ends).
-                <div className="relative flex w-full flex-1 min-h-0 flex-col">
-                  <div
-                    ref={messagesContainerRef}
-                    data-chat-scroll-root="true"
-                    onScroll={handleMessagesScroll}
-                    onClick={handleMessagesClick}
-                    onCopy={handleMessagesCopy}
-                    onMouseUp={handleMessagesSelection}
-                    onKeyUp={handleMessagesSelection}
-                    // `both-edges` reserves the scrollbar gutter on both sides so
-                    // the inner mx-auto column centers on the same axis as the
-                    // header and composer (siblings outside this scrollport) on
-                    // classic-scrollbar platforms; plain `stable` would shift it
-                    // ~half a scrollbar-width left of them.
-                    className={`w-full flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable_both-edges] ${hasMessages ? "pt-6" : "pt-2 pb-6"}`}
-                    style={
-                      hasMessages
-                        ? (() => {
-                            // The bottom 40 px of the messages area fades to
-                            // transparent so content "dissolves" into the composer
-                            // gutter. Without enough bottom padding, the fade
-                            // overlaps the last assistant paragraph and looks like
-                            // a stuck scroll — the user reaches scrollHeight but
-                            // can still see only a faded sliver of text. paddingBottom
-                            // is sized so the fade falls over empty space.
-                            const maskImage =
-                              "linear-gradient(to bottom, transparent 0px, #000 32px, #000 calc(100% - 40px), transparent 100%)";
-                            return {
-                              paddingBottom: "48px",
-                              WebkitMaskImage: maskImage,
-                              maskImage,
-                            };
-                          })()
-                        : undefined
-                    }
-                  >
-                    <div
-                      data-chat-column="true"
-                      className="mx-auto w-full max-w-[960px] space-y-9 px-6"
-                    >
-                      <ChatMessageList
-                        messages={state.messages}
-                        isStreaming={state.isStreaming}
+                      <ChatLocation
                         sessionId={state.sessionId}
-                        language={state.language}
-                        onCopyAssistantMessage={copyAssistantMessage}
-                        onRegenerateMessage={handleRegenerateMessage}
-                        canResendLastTurn={state.lastTurnFailed}
-                        onResendLastTurn={handleResendMessage}
-                        onRetryTurn={handleRetryTurn}
-                        onConfirmOutline={handleConfirmOutline}
-                        onPreviewAttachment={handlePreviewMessageAttachment}
-                        onOpenConsultation={(events) => {
-                          const meta = events[0]?.metadata ?? {};
-                          const key = String(meta.turn_id || meta.call_id || meta.trace_id || "");
-                          if (key) viewerPanelRef.current?.openSubagentTab(
-                            key, String(meta.subagent_name || t("Subagent")), events, true,
-                          );
-                        }}
-                        onDeleteTurn={handleDeleteTurn}
-                        onDiscardFailedSubmission={discardFailedSubmission}
-                        onRetryFailedSubmission={retryFailedSubmission}
-                        selectedBranches={state.selectedBranches}
-                        onEditMessage={editMessage}
-                        onSwitchBranch={switchBranch}
-                        onSubmitUserReply={submitUserReply}
-                        onAnswerMasteryQuestion={answerMasteryQuestion}
-                        onSkipMasteryQuestion={skipMasteryQuestion}
-                        onChallengeMasteryQuestion={(questionId) => handleSend(t('Please review assessment {{questionId}} against its original source evidence. If it is unsupported, invalidate it and recompute learning state. Do not grant mastery merely because I challenged it.', { questionId }))}
-                        onLoadMessageTrace={(messageId) =>
-                          state.sessionId
-                            ? loadMessageTrace(state.sessionId, messageId)
-                            : Promise.resolve()
-                        }
-                        onReleaseMessageTrace={(messageId) => {
-                          if (state.sessionId) {
-                            releaseMessageTrace(state.sessionId, messageId);
-                          }
-                        }}
-                        availableKbNames={
-                          knowledgeBasesLoaded ? availableKbNames : undefined
-                        }
-                        kbDisplayNames={
-                          knowledgeBasesLoaded ? kbDisplayNames : undefined
-                        }
-                        threadsByMessageId={threadsByMessageId}
-                        onOpenThread={openMessageThread}
-                        onDeleteThread={deleteMessageThread}
-                        onDetachThread={detachMessageThread}
+                        title={displaySessionTitle}
+                        placeholder={!canRenameSession}
+                        onRename={canRenameSession ? startSessionTitleEdit : undefined}
+                        onNewChat={startNewChat}
                       />
-                      <div
-                        ref={messagesEndRef}
-                        className="h-px w-full shrink-0"
+                    )
+                  ) : (
+                    <>
+                      {sessionTitleEditing ? (
+                        <input
+                          ref={titleInputRef}
+                          value={sessionTitleDraft}
+                          onChange={(event) => setSessionTitleDraft(event.target.value)}
+                          onBlur={() => void commitSessionTitleEdit()}
+                          onKeyDown={handleSessionTitleKeyDown}
+                          disabled={sessionTitleSaving}
+                          aria-label={t("Session title")}
+                          className="dt-chat-title min-w-0 flex-1 rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 font-serif text-[17px] font-semibold tracking-[-0.01em] text-[var(--foreground)] shadow-sm outline-none transition focus:border-[var(--ring)] focus:ring-2 focus:ring-[var(--ring)]/20 disabled:opacity-60"
+                          maxLength={100}
+                        />
+                      ) : (
+                        <Tooltip
+                          className="min-w-0 max-w-full"
+                          label={
+                            canRenameSession
+                              ? t("Click to rename session")
+                              : t("Start a conversation to rename")
+                          }
+                          side="bottom"
+                        >
+                          <button
+                            type="button"
+                            onClick={startSessionTitleEdit}
+                            disabled={!canRenameSession}
+                            className="dt-chat-title inline-flex min-w-0 max-w-full items-center gap-2 rounded-xl px-2 py-1 text-left font-serif text-[17px] font-semibold tracking-[-0.01em] text-[var(--foreground)] transition hover:bg-[var(--muted)]/55 disabled:cursor-default disabled:hover:bg-transparent"
+                          >
+                            <span className="truncate">{displaySessionTitle}</span>
+                            {canRenameSession ? (
+                              <PenLine className="h-3.5 w-3.5 shrink-0 text-[var(--muted-foreground)] opacity-0 transition-opacity group-hover/title:opacity-100" />
+                            ) : null}
+                          </button>
+                        </Tooltip>
+                      )}
+                    </>
+                  )}
+                  {sessionTitleSaving ? (
+                    <span className="shrink-0 text-xs text-[var(--muted-foreground)]">
+                      {t("Saving...")}
+                    </span>
+                  ) : null}
+                  {sessionTitleError ? (
+                    <span className="shrink-0 text-xs text-[var(--destructive)]">
+                      {sessionTitleError}
+                    </span>
+                  ) : null}
+                  {sessionArchived ? (
+                    // Archiving from the header leaves the conversation open;
+                    // this is where it says so, and the way back.
+                    <span className="inline-flex shrink-0 items-center gap-1.5 text-[12px] text-[var(--muted-foreground)]">
+                      <Archive size={12} strokeWidth={1.8} aria-hidden="true" />
+                      {t("Archived")}
+                      <span aria-hidden="true">·</span>
+                      <button
+                        type="button"
+                        onClick={restoreArchivedSession}
+                        className="rounded font-medium text-[var(--foreground)] underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ring)]"
+                      >
+                        {t("Restore")}
+                      </button>
+                    </span>
+                  ) : null}
+                </PageBarSlot>
+                <PageBarSlot name="actions" className="flex shrink-0 items-center gap-0.5">
+                  <PageCustomizeButton page="chat" capabilities={visibleCapabilities} compact />
+                  <HeaderActionButton
+                    onClick={() => viewerPanelRef.current?.openMarkdownNoteTab()}
+                    icon={NotebookPen}
+                    label={t("Markdown note")}
+                    title={t("Write Markdown in chat")}
+                  />
+                  <HeaderActionButton
+                    onClick={toggleViewerPanel}
+                    active={viewerPanelOpen}
+                    icon={PanelRight}
+                    label={t("Activity")}
+                    title={t("Session activity, attachments & previews")}
+                  />
+                  <ChatSessionMenu
+                    sessionId={state.sessionId}
+                    workspaceId={sessionStoreId}
+                    row={sessionOrganization}
+                    title={displaySessionTitle}
+                    workspaces={workspaces}
+                    live={state.isStreaming}
+                    canSave={Boolean(chatSavePayload)}
+                    onSave={() => setShowSaveModal(true)}
+                    canExport={state.messages.length > 0}
+                    onExport={handleDownloadMarkdown}
+                    onRename={startSessionTitleEdit}
+                    onOrganized={applySessionOrganization}
+                    onMoved={handleSessionMoved}
+                    onDeleted={handleSessionDeleted}
+                  />
+                </PageBarSlot>
+              </div>
+              <div
+                className={`flex w-full flex-1 min-h-0 flex-col ${!hasMessages ? "overflow-y-auto" : ""}`}
+              >
+                {sessionLoading || sessionLoadFailed ? (
+                  <div className="flex w-full flex-1 min-h-0 justify-center px-6">
+                    <div className="h-full w-full max-w-[960px]">
+                      <SessionLoadingView
+                        onCancel={cancelSessionLoad}
+                        failed={sessionLoadFailed}
+                        onRetry={retrySessionLoad}
                       />
                     </div>
                   </div>
-                  {selectedPassage ? (
-                    <SelectionActions
-                      anchor={selectedPassage.anchor}
-                      agents={agentOptions}
-                      onAddToChat={addSelectedPassageToChat}
-                      onAsk={askAboutSelectedPassage}
-                      onDismiss={dismissSelectedPassage}
+                ) : !hasMessages ? (
+                  <div className="flex w-full flex-1 shrink-0 min-h-[340px] items-center justify-center py-8 sm:py-12 animate-fade-in px-6">
+                    <div className="study-welcome w-full max-w-[800px] text-center">
+                      <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--primary)]">
+                        {t("DeepTutor Light")}
+                      </p>
+                      <h1 className="font-serif text-3xl font-medium leading-tight tracking-tight sm:text-5xl">
+                        {t("A little more understanding, every day.")}
+                      </h1>
+                      <p className="mx-auto mt-5 max-w-lg text-sm leading-7 text-[var(--muted-foreground)]">
+                        {t("Bring your materials. Ask a question. Make what you learn your own.")}
+                      </p>
+                      <div className="mt-6 flex justify-center gap-3 text-xs">
+                        <Link
+                          href={scopedUrl("/learning/reading")}
+                          className="rounded-full border border-[var(--border)] px-4 py-2.5 hover:bg-[var(--accent)]"
+                        >
+                          {t("Open materials")}
+                        </Link>
+                        <Link
+                          href={scopedUrl("/learning/practice")}
+                          className="rounded-full border border-[var(--border)] px-4 py-2.5 hover:bg-[var(--accent)]"
+                        >
+                          {t("Continue practice")}
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  // Positioned wrapper spanning exactly the scrollport, so the
+                  // turn navigator can overlay the left gutter without living
+                  // inside the masked scroll container (its top/bottom fade
+                  // would clip the rail's ends).
+                  <div className="relative flex w-full flex-1 min-h-0 flex-col">
+                    <div
+                      ref={messagesContainerRef}
+                      data-chat-scroll-root="true"
+                      onScroll={handleMessagesScroll}
+                      onClick={handleMessagesClick}
+                      onCopy={handleMessagesCopy}
+                      onMouseUp={handleMessagesSelection}
+                      onKeyUp={handleMessagesSelection}
+                      // `both-edges` reserves the scrollbar gutter on both sides so
+                      // the inner mx-auto column centers on the same axis as the
+                      // header and composer (siblings outside this scrollport) on
+                      // classic-scrollbar platforms; plain `stable` would shift it
+                      // ~half a scrollbar-width left of them.
+                      className={`w-full flex-1 min-h-0 overflow-y-auto [scrollbar-gutter:stable_both-edges] ${hasMessages ? "pt-6" : "pt-2 pb-6"}`}
+                      style={
+                        hasMessages
+                          ? (() => {
+                              // The bottom 40 px of the messages area fades to
+                              // transparent so content "dissolves" into the composer
+                              // gutter. Without enough bottom padding, the fade
+                              // overlaps the last assistant paragraph and looks like
+                              // a stuck scroll — the user reaches scrollHeight but
+                              // can still see only a faded sliver of text. paddingBottom
+                              // is sized so the fade falls over empty space.
+                              const maskImage =
+                                "linear-gradient(to bottom, transparent 0px, #000 32px, #000 calc(100% - 40px), transparent 100%)";
+                              return {
+                                paddingBottom: "48px",
+                                WebkitMaskImage: maskImage,
+                                maskImage,
+                              };
+                            })()
+                          : undefined
+                      }
+                    >
+                      <div
+                        data-chat-column="true"
+                        className="mx-auto w-full max-w-[960px] space-y-9 px-6"
+                      >
+                        <ChatMessageList
+                          messages={state.messages}
+                          isStreaming={state.isStreaming}
+                          sessionId={state.sessionId}
+                          language={state.language}
+                          onCopyAssistantMessage={copyAssistantMessage}
+                          onRegenerateMessage={handleRegenerateMessage}
+                          canResendLastTurn={state.lastTurnFailed}
+                          onResendLastTurn={handleResendMessage}
+                          onRetryTurn={handleRetryTurn}
+                          onConfirmOutline={handleConfirmOutline}
+                          onPreviewAttachment={handlePreviewMessageAttachment}
+                          onOpenConsultation={(events) => {
+                            const meta = events[0]?.metadata ?? {};
+                            const key = String(meta.turn_id || meta.call_id || meta.trace_id || "");
+                            if (key)
+                              viewerPanelRef.current?.openSubagentTab(
+                                key,
+                                String(meta.subagent_name || t("Subagent")),
+                                events,
+                                true,
+                              );
+                          }}
+                          onDeleteTurn={handleDeleteTurn}
+                          onDiscardFailedSubmission={discardFailedSubmission}
+                          onRetryFailedSubmission={retryFailedSubmission}
+                          selectedBranches={state.selectedBranches}
+                          onEditMessage={editMessage}
+                          onSwitchBranch={switchBranch}
+                          onSubmitUserReply={submitUserReply}
+                          onAnswerMasteryQuestion={answerMasteryQuestion}
+                          onSkipMasteryQuestion={skipMasteryQuestion}
+                          onChallengeMasteryQuestion={(questionId) =>
+                            handleSend(
+                              t(
+                                "Please review assessment {{questionId}} against its original source evidence. If it is unsupported, invalidate it and recompute learning state. Do not grant mastery merely because I challenged it.",
+                                { questionId },
+                              ),
+                            )
+                          }
+                          onLoadMessageTrace={(messageId) =>
+                            state.sessionId
+                              ? loadMessageTrace(state.sessionId, messageId)
+                              : Promise.resolve()
+                          }
+                          onReleaseMessageTrace={(messageId) => {
+                            if (state.sessionId) {
+                              releaseMessageTrace(state.sessionId, messageId);
+                            }
+                          }}
+                          availableKbNames={knowledgeBasesLoaded ? availableKbNames : undefined}
+                          kbDisplayNames={knowledgeBasesLoaded ? kbDisplayNames : undefined}
+                          threadsByMessageId={threadsByMessageId}
+                          onOpenThread={openMessageThread}
+                          onDeleteThread={deleteMessageThread}
+                          onDetachThread={detachMessageThread}
+                        />
+                        <div ref={messagesEndRef} className="h-px w-full shrink-0" />
+                      </div>
+                    </div>
+                    {selectedPassage ? (
+                      <SelectionActions
+                        anchor={selectedPassage.anchor}
+                        agents={agentOptions}
+                        onAddToChat={addSelectedPassageToChat}
+                        onAsk={askAboutSelectedPassage}
+                        onDismiss={dismissSelectedPassage}
+                      />
+                    ) : null}
+                    <TurnNavigator
+                      entries={chatOutline}
+                      scrollRootRef={messagesContainerRef}
+                      onJump={jumpToTurn}
+                      onJumpToBottom={resumeFollowingLatest}
                     />
-                  ) : null}
-                  <TurnNavigator
-                    entries={chatOutline}
-                    scrollRootRef={messagesContainerRef}
-                    onJump={jumpToTurn}
-                    onJumpToBottom={resumeFollowingLatest}
-                  />
-                </div>
-              )}
+                  </div>
+                )}
 
-              {/* Submission failure banner (#1594): the server never received
+                {/* Submission failure banner (#1594): the server never received
                  the message, so the error belongs next to the composer — not
                  rendered as an assistant reply — with the message's text kept
                  above, marked unsent, and retryable. */}
-              {state.submissionFailed ? (
-                <div
-                  role="alert"
-                  data-submission-error="true"
-                  className="mx-auto w-full max-w-[960px] px-6 pb-1"
-                >
-                  <div className="flex w-full items-center gap-2 rounded-xl border border-[var(--destructive)]/30 bg-[var(--destructive)]/5 px-3 py-2">
-                    <AlertCircle
-                      className="h-4 w-4 shrink-0 text-[var(--destructive)]"
-                      aria-hidden="true"
-                    />
-                    <span className="min-w-0 flex-1 text-[12px] leading-[1.5] text-[var(--foreground)]">
-                      {state.submissionNotSaved
-                        ? t("This unsent message could not be saved in your browser. Copy it before leaving this page.")
-                        : state.submissionNeedsReview
-                        ? t("Message text was saved, but its attachments or settings could not be restored. Copy it and send again.")
-                        : t("Couldn't reach the server. Please check your connection and retry.")}
-                    </span>
-                    {!state.submissionNeedsReview ? (
-                      <button
-                        type="button"
-                        onClick={handleResendMessage}
-                        className="shrink-0 rounded-md px-2 py-1 text-[11.5px] font-medium text-[var(--foreground)] hover:bg-[var(--muted)]"
-                      >
-                        {t("Resend")}
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              ) : null}
-              <ChatComposer
-                customizable
-                composerRef={composerRef}
-                capMenuRef={capMenuRef}
-                capBtnRef={capBtnRef}
-                spaceMenuRef={spaceMenuRef}
-                spaceBtnRef={spaceBtnRef}
-                dragCounter={dragCounter}
-                dragging={dragging}
-                capMenuOpen={capMenuOpen}
-                workspaceId={state.workspaceId || ""}
-                spaceMenuOpen={spaceMenuOpen}
-                hasMessages={hasMessages}
-                attachments={attachments}
-                attachmentError={attachmentError}
-                attachmentProcessing={attachmentProcessing}
-                activeCap={activeCap}
-                knowledgeBases={kbOptions}
-                connectedAgents={agentOptions}
-                selectedAgent={selectedPartnerGroup || selectedPartner ? null : selectedAgent}
-                onSelectAgent={(name) => { if (name) { setSelectedPartnerGroup(null); setSelectedPartner(null); setAnswerBy(null); } handleSelectAgent(name); }}
-        selectedPartnerGroup={selectedPartnerGroup}
-        onSelectPartnerGroup={handleSelectPartnerGroup}
-        answerBy={answerBy}
-        onAnswerByChange={handleAnswerBy}
-        selectedPartner={selectedPartner}
-        onSelectPartner={handleSelectPartner}
-                subagentBudget={subagentBudget}
-                onSubagentBudgetChange={setSubagentBudget}
-                llmOptions={llmOptions}
-                activeLLMDefault={activeLLMDefault}
-                llmSelection={state.llmSelection}
-                llmOptionsLoading={llmOptionsLoading}
-                llmOptionsError={llmOptionsError}
-                onRefreshLLMOptions={() =>
-                  void refreshLLMOptions({ force: true })
-                }
-                contextBudget={contextBudget}
-                selectedBookReferences={selectedBookReferences}
-                selectedReadingReferences={selectedReadingReferences}
-                selectedNotebookRecords={selectedNotebookRecords}
-                selectedHistorySessions={selectedHistorySessions}
-                selectedAgentSessions={selectedAgentSessions}
-                selectedQuestionEntries={selectedQuestionEntries}
-                notebookReferenceGroups={notebookReferenceGroups}
-                selectedPersona={null}
-                selectedMemoryFiles={selectedMemoryFiles}
-                selectedKnowledgeBases={selectedKbOnly}
-                isStreaming={state.isStreaming}
-                isVisualizeMode={isVisualizeMode}
-                capabilityNeedsConfig={capabilityNeedsConfig}
-                capabilityConfigConfirmed={capabilityConfigConfirmed}
-                onRequestConfigConfirm={ensureActivityPanelOpen}
-                capabilities={visibleCapabilities}
-                onSetCapMenuOpen={setCapMenuOpen}
-                onSetSpaceMenuOpen={setSpaceMenuOpen}
-                onToggleKB={handleToggleKB}
-                onSelectLLM={setLLMSelection}
-                taskSessionId={state.sessionId}
-                draftTaskIds={draftTaskIds}
-                onDraftTaskIdsChange={ids => setDraftTaskSelections(value => ({ ...value, [state.sessionKey]: ids }))}
-                onTasksLinked={ensureActivityPanelOpen}
-                onSelectNotebookPicker={handleSelectNotebookPicker}
-                onSelectBookPicker={handleSelectBookPicker}
-                onSelectReadingPicker={handleSelectReadingPicker}
-                onSelectHistoryPicker={handleSelectHistoryPicker}
-                onSelectAgentsPicker={handleSelectAgentsPicker}
-                onSelectQuestionBankPicker={handleSelectQuestionBankPicker}
-                onSelectPersonaPicker={handleSelectPersonaPicker}
-                onSelectMemoryPicker={handleSelectMemoryPicker}
-                onClearPersona={handleClearPersona}
-                personaSelection={state.personaSelection}
-                onPersonaSelectionChange={setPersonaSelection}
-                personaSelectorOpen={personaSelectorOpen}
-                onPersonaSelectorOpenChange={setPersonaSelectorOpen}
-                replyLanguageOverride={state.replyLanguageOverride}
-                replyLanguageOptions={RESPONSE_LANGUAGE_OPTIONS}
-                replyLanguageDefaultLabel={RESPONSE_LANGUAGE_OPTIONS.find(
-                  (option) => option.value === readStoredResponseLanguage(),
-                )?.label ?? "English"}
-                replyLanguageDisabled={replyLanguageSavingKey === state.sessionKey || state.isStreaming}
-                onReplyLanguageChange={handleReplyLanguageChange}
-                resourceCatalog={resourceCatalog}
-                resourceSelection={state.resourceSelection}
-                onResourceSelectionChange={setResourceSelection}
-                createTarget={state.createTarget}
-                onCreateTargetChange={setCreateTarget}
-                onToggleMemoryFile={handleToggleMemoryFile}
-                onSend={handleSend}
-                awaitingUserReply={awaitingUserReply}
-                onRemoveAttachment={removeAttachment}
-                onPreviewAttachment={handlePreviewPendingAttachment}
-                onRemoveHistory={handleRemoveHistory}
-                onRemoveAgent={handleRemoveAgent}
-                onRemoveBookReference={handleRemoveBookReference}
-                onRemoveReadingReference={handleRemoveReadingReference}
-                onRemoveNotebook={handleRemoveNotebook}
-                onRemoveQuestion={handleRemoveQuestion}
-                onDragEnter={handleDragEnter}
-                onDragLeave={handleDragLeave}
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
-                onPaste={handlePaste}
-                onAddFiles={handleAddFiles}
-                onSelectCapability={handleSelectCapability}
-                onCancelStreaming={cancelStreamingTurn}
-                prefillInputRef={prefillInputRef}
-                focusInputRef={focusComposerRef}
-                queueWhileStreaming
-                inputHeader={
-                  retrying ? (
-                    <div className="flex items-center gap-2 px-4 pt-3 text-[12.5px]">
-                      <RotateCcw
-                        size={13}
-                        strokeWidth={1.8}
+                {state.submissionFailed ? (
+                  <div
+                    role="alert"
+                    data-submission-error="true"
+                    className="mx-auto w-full max-w-[960px] px-6 pb-1"
+                  >
+                    <div className="flex w-full items-center gap-2 rounded-xl border border-[var(--destructive)]/30 bg-[var(--destructive)]/5 px-3 py-2">
+                      <AlertCircle
+                        className="h-4 w-4 shrink-0 text-[var(--destructive)]"
                         aria-hidden="true"
-                        className="shrink-0 text-[var(--muted-foreground)]"
                       />
-                      <span className="shrink-0 font-medium text-[var(--foreground)]">
-                        {t("Retrying this turn")}
+                      <span className="min-w-0 flex-1 text-[12px] leading-[1.5] text-[var(--foreground)]">
+                        {state.submissionNotSaved
+                          ? t(
+                              "This unsent message could not be saved in your browser. Copy it before leaving this page.",
+                            )
+                          : state.submissionNeedsReview
+                            ? t(
+                                "Message text was saved, but its attachments or settings could not be restored. Copy it and send again.",
+                              )
+                            : t(
+                                "Couldn't reach the server. Please check your connection and retry.",
+                              )}
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-[var(--muted-foreground)]">
-                        {t("The earlier attempt stays as a version you can switch back to.")}
-                      </span>
-                      <button
-                        type="button"
-                        aria-label={t("Cancel retry")}
-                        onClick={() => setRetryingTurn(null)}
-                        className="-mr-1 inline-flex size-5 shrink-0 items-center justify-center rounded-md text-[var(--muted-foreground)] transition hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
-                      >
-                        <X size={12} />
-                      </button>
+                      {!state.submissionNeedsReview ? (
+                        <button
+                          type="button"
+                          onClick={handleResendMessage}
+                          className="shrink-0 rounded-md px-2 py-1 text-[11.5px] font-medium text-[var(--foreground)] hover:bg-[var(--muted)]"
+                        >
+                          {t("Resend")}
+                        </button>
+                      ) : null}
                     </div>
-                  ) : undefined
-                }
-                inputFooter={
-                  <QueuedMessages
-                    messages={state.queuedMessages}
-                    isStreaming={state.isStreaming}
-                    onWithdraw={withdrawQueuedMessage}
-                  />
-                }
-                inputPlaceholder={askHint || undefined}
-                inputPlaceholderCompletion={askHint}
-              />
-              {/* Starters sit between the composer and the spacer, so they ride
+                  </div>
+                ) : null}
+                <ChatComposer
+                  customizable
+                  composerRef={composerRef}
+                  capMenuRef={capMenuRef}
+                  capBtnRef={capBtnRef}
+                  spaceMenuRef={spaceMenuRef}
+                  spaceBtnRef={spaceBtnRef}
+                  dragCounter={dragCounter}
+                  dragging={dragging}
+                  capMenuOpen={capMenuOpen}
+                  workspaceId={state.workspaceId || ""}
+                  spaceMenuOpen={spaceMenuOpen}
+                  hasMessages={hasMessages}
+                  attachments={attachments}
+                  attachmentError={attachmentError}
+                  attachmentProcessing={attachmentProcessing}
+                  activeCap={activeCap}
+                  knowledgeBases={kbOptions}
+                  connectedAgents={agentOptions}
+                  selectedAgent={selectedPartnerGroup || selectedPartner ? null : selectedAgent}
+                  onSelectAgent={(name) => {
+                    if (name) {
+                      setSelectedPartnerGroup(null);
+                      setSelectedPartner(null);
+                      setAnswerBy(null);
+                    }
+                    handleSelectAgent(name);
+                  }}
+                  selectedPartnerGroup={selectedPartnerGroup}
+                  onSelectPartnerGroup={handleSelectPartnerGroup}
+                  answerBy={answerBy}
+                  onAnswerByChange={handleAnswerBy}
+                  selectedPartner={selectedPartner}
+                  onSelectPartner={handleSelectPartner}
+                  subagentBudget={subagentBudget}
+                  onSubagentBudgetChange={setSubagentBudget}
+                  llmOptions={llmOptions}
+                  activeLLMDefault={activeLLMDefault}
+                  llmSelection={state.llmSelection}
+                  llmOptionsLoading={llmOptionsLoading}
+                  llmOptionsError={llmOptionsError}
+                  onRefreshLLMOptions={() => void refreshLLMOptions({ force: true })}
+                  contextBudget={contextBudget}
+                  selectedBookReferences={selectedBookReferences}
+                  selectedReadingReferences={selectedReadingReferences}
+                  selectedNotebookRecords={selectedNotebookRecords}
+                  selectedHistorySessions={selectedHistorySessions}
+                  selectedAgentSessions={selectedAgentSessions}
+                  selectedQuestionEntries={selectedQuestionEntries}
+                  notebookReferenceGroups={notebookReferenceGroups}
+                  selectedPersona={null}
+                  selectedMemoryFiles={selectedMemoryFiles}
+                  selectedKnowledgeBases={selectedKbOnly}
+                  isStreaming={state.isStreaming}
+                  isVisualizeMode={isVisualizeMode}
+                  capabilityNeedsConfig={capabilityNeedsConfig}
+                  capabilityConfigConfirmed={capabilityConfigConfirmed}
+                  onRequestConfigConfirm={ensureActivityPanelOpen}
+                  capabilities={visibleCapabilities}
+                  onSetCapMenuOpen={setCapMenuOpen}
+                  onSetSpaceMenuOpen={setSpaceMenuOpen}
+                  onToggleKB={handleToggleKB}
+                  onSelectLLM={setLLMSelection}
+                  taskSessionId={state.sessionId}
+                  draftTaskIds={draftTaskIds}
+                  onDraftTaskIdsChange={(ids) =>
+                    setDraftTaskSelections((value) => ({ ...value, [state.sessionKey]: ids }))
+                  }
+                  onTasksLinked={ensureActivityPanelOpen}
+                  onSelectNotebookPicker={handleSelectNotebookPicker}
+                  onSelectBookPicker={handleSelectBookPicker}
+                  onSelectReadingPicker={handleSelectReadingPicker}
+                  onSelectHistoryPicker={handleSelectHistoryPicker}
+                  onSelectAgentsPicker={handleSelectAgentsPicker}
+                  onSelectQuestionBankPicker={handleSelectQuestionBankPicker}
+                  onSelectPersonaPicker={handleSelectPersonaPicker}
+                  onSelectMemoryPicker={handleSelectMemoryPicker}
+                  onClearPersona={handleClearPersona}
+                  personaSelection={state.personaSelection}
+                  onPersonaSelectionChange={setPersonaSelection}
+                  personaSelectorOpen={personaSelectorOpen}
+                  onPersonaSelectorOpenChange={setPersonaSelectorOpen}
+                  replyLanguageOverride={state.replyLanguageOverride}
+                  replyLanguageOptions={RESPONSE_LANGUAGE_OPTIONS}
+                  replyLanguageDefaultLabel={
+                    RESPONSE_LANGUAGE_OPTIONS.find(
+                      (option) => option.value === readStoredResponseLanguage(),
+                    )?.label ?? "English"
+                  }
+                  replyLanguageDisabled={
+                    replyLanguageSavingKey === state.sessionKey || state.isStreaming
+                  }
+                  onReplyLanguageChange={handleReplyLanguageChange}
+                  resourceCatalog={resourceCatalog}
+                  resourceSelection={state.resourceSelection}
+                  onResourceSelectionChange={setResourceSelection}
+                  createTarget={state.createTarget}
+                  onCreateTargetChange={setCreateTarget}
+                  onToggleMemoryFile={handleToggleMemoryFile}
+                  onSend={handleSend}
+                  awaitingUserReply={awaitingUserReply}
+                  onRemoveAttachment={removeAttachment}
+                  onPreviewAttachment={handlePreviewPendingAttachment}
+                  onRemoveHistory={handleRemoveHistory}
+                  onRemoveAgent={handleRemoveAgent}
+                  onRemoveBookReference={handleRemoveBookReference}
+                  onRemoveReadingReference={handleRemoveReadingReference}
+                  onRemoveNotebook={handleRemoveNotebook}
+                  onRemoveQuestion={handleRemoveQuestion}
+                  onDragEnter={handleDragEnter}
+                  onDragLeave={handleDragLeave}
+                  onDragOver={handleDragOver}
+                  onDrop={handleDrop}
+                  onPaste={handlePaste}
+                  onAddFiles={handleAddFiles}
+                  onSelectCapability={handleSelectCapability}
+                  onCancelStreaming={cancelStreamingTurn}
+                  prefillInputRef={prefillInputRef}
+                  focusInputRef={focusComposerRef}
+                  queueWhileStreaming
+                  inputHeader={
+                    retrying ? (
+                      <div className="flex items-center gap-2 px-4 pt-3 text-[12.5px]">
+                        <RotateCcw
+                          size={13}
+                          strokeWidth={1.8}
+                          aria-hidden="true"
+                          className="shrink-0 text-[var(--muted-foreground)]"
+                        />
+                        <span className="shrink-0 font-medium text-[var(--foreground)]">
+                          {t("Retrying this turn")}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-[var(--muted-foreground)]">
+                          {t("The earlier attempt stays as a version you can switch back to.")}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={t("Cancel retry")}
+                          onClick={() => setRetryingTurn(null)}
+                          className="-mr-1 inline-flex size-5 shrink-0 items-center justify-center rounded-md text-[var(--muted-foreground)] transition hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ) : undefined
+                  }
+                  inputFooter={
+                    <QueuedMessages
+                      messages={state.queuedMessages}
+                      isStreaming={state.isStreaming}
+                      onWithdraw={withdrawQueuedMessage}
+                    />
+                  }
+                  inputPlaceholder={askHint || undefined}
+                  inputPlaceholderCompletion={askHint}
+                />
+                {/* Starters sit between the composer and the spacer, so they ride
                 up with the composer on the empty screen and disappear the
                 moment the conversation has a first message. Picking one only
                 writes it into the composer: sending stays the learner's. */}
-              {!hasMessages ? (
-                <StarterSuggestions
-                  workspaceId={state.workspaceId || ""}
-                  onPick={handlePrefillComposer}
-                  disabled={state.isStreaming}
+                {!hasMessages ? (
+                  <StarterSuggestions
+                    workspaceId={state.workspaceId || ""}
+                    onPick={handlePrefillComposer}
+                    disabled={state.isStreaming}
+                  />
+                ) : null}
+                <div
+                  aria-hidden="true"
+                  className="shrink-0"
+                  style={{
+                    flexGrow: hasMessages ? 0 : 1.4,
+                    transition: "flex-grow 650ms cubic-bezier(0.16, 1, 0.3, 1)",
+                  }}
                 />
-              ) : null}
-              <div
-                aria-hidden="true"
-                className="shrink-0"
-                style={{
-                  flexGrow: hasMessages ? 0 : 1.4,
-                  transition: "flex-grow 650ms cubic-bezier(0.16, 1, 0.3, 1)",
-                }}
+              </div>
+              <NotebookRecordPicker
+                open={showNotebookPicker}
+                onClose={handleCloseNotebookPicker}
+                onApply={handleApplyNotebookRecords}
+              />
+              <BookReferencePicker
+                open={showBookPicker}
+                initialReferences={selectedBookReferences}
+                onClose={handleCloseBookPicker}
+                onApply={handleApplyBookReferences}
+              />
+              <ReadingReferencePicker
+                open={showReadingPicker}
+                initialReferences={selectedReadingReferences}
+                onClose={handleCloseReadingPicker}
+                onApply={handleApplyReadingReferences}
+              />
+              <HistorySessionPicker
+                open={showHistoryPicker}
+                onClose={handleCloseHistoryPicker}
+                onApply={handleApplyHistorySessions}
+              />
+              <MyAgentsPicker
+                open={showAgentsPicker}
+                onClose={handleCloseAgentsPicker}
+                onApply={handleApplyAgentSessions}
+              />
+              <QuestionBankPicker
+                open={showQuestionBankPicker}
+                initialSelected={selectedQuestionEntries}
+                onClose={handleCloseQuestionBankPicker}
+                onApply={handleApplyQuestionEntries}
+              />
+              <MemoryPicker
+                open={showMemoryPicker}
+                initialFiles={selectedMemoryFiles}
+                onClose={handleCloseMemoryPicker}
+                onApply={handleApplyMemoryFiles}
+              />
+              <SaveToNotebookModal
+                open={showSaveModal}
+                payload={chatSavePayload}
+                messages={chatSaveMessages}
+                onClose={handleCloseSaveModal}
+              />
+              <FilePreviewDrawer
+                open={previewSource !== null}
+                source={previewSource}
+                onClose={handleClosePreview}
+              />
+              <SessionViewerPanel
+                taskDraftIds={draftTaskIds}
+                onTaskDraftChange={(ids) =>
+                  setDraftTaskSelections((value) => ({ ...value, [state.sessionKey]: ids }))
+                }
+                ref={viewerPanelRef}
+                open={viewerPanelOpen && previewSource === null}
+                sessionId={state.sessionId}
+                sessionKey={state.sessionKey}
+                reboundFromKey={state.boundFromKey ?? null}
+                conversation={viewerConversation}
+                workspaceId={sessionStoreId}
+                threads={threads}
+                resourceCatalog={resourceCatalog}
+                agents={agentOptions}
+                activity={sessionActivity}
+                configSection={capabilityConfigSection}
+                onClose={() => setViewerOpen(false)}
+                onAutoOpen={() => setViewerOpen(true)}
               />
             </div>
-            <NotebookRecordPicker
-              open={showNotebookPicker}
-              onClose={handleCloseNotebookPicker}
-              onApply={handleApplyNotebookRecords}
-            />
-            <BookReferencePicker
-              open={showBookPicker}
-              initialReferences={selectedBookReferences}
-              onClose={handleCloseBookPicker}
-              onApply={handleApplyBookReferences}
-            />
-            <ReadingReferencePicker
-              open={showReadingPicker}
-              initialReferences={selectedReadingReferences}
-              onClose={handleCloseReadingPicker}
-              onApply={handleApplyReadingReferences}
-            />
-            <HistorySessionPicker
-              open={showHistoryPicker}
-              onClose={handleCloseHistoryPicker}
-              onApply={handleApplyHistorySessions}
-            />
-            <MyAgentsPicker
-              open={showAgentsPicker}
-              onClose={handleCloseAgentsPicker}
-              onApply={handleApplyAgentSessions}
-            />
-            <QuestionBankPicker
-              open={showQuestionBankPicker}
-              initialSelected={selectedQuestionEntries}
-              onClose={handleCloseQuestionBankPicker}
-              onApply={handleApplyQuestionEntries}
-            />
-            <MemoryPicker
-              open={showMemoryPicker}
-              initialFiles={selectedMemoryFiles}
-              onClose={handleCloseMemoryPicker}
-              onApply={handleApplyMemoryFiles}
-            />
-            <SaveToNotebookModal
-              open={showSaveModal}
-              payload={chatSavePayload}
-              messages={chatSaveMessages}
-              onClose={handleCloseSaveModal}
-            />
-            <FilePreviewDrawer
-              open={previewSource !== null}
-              source={previewSource}
-              onClose={handleClosePreview}
-            />
-            <SessionViewerPanel
-              taskDraftIds={draftTaskIds}
-              onTaskDraftChange={ids => setDraftTaskSelections(value => ({ ...value, [state.sessionKey]: ids }))}
-              ref={viewerPanelRef}
-              open={viewerPanelOpen && previewSource === null}
-              sessionId={state.sessionId}
-              sessionKey={state.sessionKey}
-              reboundFromKey={state.boundFromKey ?? null}
-              conversation={viewerConversation}
-              workspaceId={sessionStoreId}
-              threads={threads}
-              resourceCatalog={resourceCatalog}
-              agents={agentOptions}
-              activity={sessionActivity}
-              configSection={capabilityConfigSection}
-              onClose={() => setViewerOpen(false)}
-              onAutoOpen={() => setViewerOpen(true)}
-            />
-          </div>
-        </StudyWorkspaceShell>
-      </GeogebraTabProvider>
-    </QuizFollowupProvider>
+          </StudyWorkspaceShell>
+        </GeogebraTabProvider>
+      </QuizFollowupProvider>
     </ResourceReuseContext.Provider>
   );
 }
@@ -3206,9 +3086,7 @@ function SubagentTabWatcher({
         const key = String(meta.turn_id || meta.call_id || meta.trace_id || "");
         if (!key) continue;
         const existing = groups.get(key);
-        const label = String(
-          meta.subagent_name || existing?.label || "Subagent",
-        );
+        const label = String(meta.subagent_name || existing?.label || "Subagent");
         if (existing) {
           existing.label = label;
           existing.events.push(ev);

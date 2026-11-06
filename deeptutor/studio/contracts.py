@@ -145,5 +145,48 @@ def connector_manifests():
             "失败、零结果、未授权分别显示",
         ),
     ]
+    rows.extend(
+        [
+            (
+                "zotero_incremental",
+                "Zotero 增量书库",
+                "authorized_read",
+                ["version_sync", "deleted_items", "revoke"],
+                ["Zotero JSON"],
+                "管理员授权的只读库密钥，本机加密保存",
+                "库版本与条目版本",
+                "保留本地原件及删除回执",
+                "作者整理字段不被自动覆盖",
+                "遵守 Retry-After / Backoff，失败不推进游标",
+                "同步元数据；附件原文需另行导入",
+            ),
+            (
+                "live_experiments",
+                "实验事件日志",
+                "authorized_read",
+                ["append_events", "metric_history", "rotation_resume"],
+                ["JSONL", "NDJSON"],
+                "管理员明确选择的本机日志文件",
+                "文件身份、字节游标、事件 ID",
+                "重复事件只生效一次",
+                "同 ID 不同内容拒绝",
+                "有界批次及分页读取",
+                "日志声明不等于系统见证执行，SSH 仍使用既有只读快照",
+            ),
+            (
+                "portable_workspace",
+                "跨设备项目交换",
+                "file_exchange",
+                ["encrypted_export", "preview", "reviewed_merge"],
+                ["DTSYNC1"],
+                "传输口令与逐项冲突选择",
+                "设备与项目代次、内容摘要",
+                "删除以保留历史的回执呈现",
+                "双端编辑必须明确选择",
+                "每包 200 MB，单文件 50 MB",
+                "显式文件交换；不携带凭据、跨项目记忆授权或运行中的任务",
+            ),
+        ]
+    )
     keys = list(ConnectorManifest.model_fields)
     return [ConnectorManifest(**dict(zip(keys, row))).model_dump() for row in rows]

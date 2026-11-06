@@ -31,11 +31,7 @@ import {
 } from "@/lib/llm-options";
 import type { LLMSelection } from "@/features/chat/model/protocol";
 import { apiFetch, apiUrl } from "@/lib/api";
-import {
-  useMemoryRun,
-  type RunEvent,
-  type RunMode,
-} from "@/components/memory/useMemoryRun";
+import { useMemoryRun, type RunEvent, type RunMode } from "@/components/memory/useMemoryRun";
 
 interface MemoryRunPanelProps {
   layer: "L2" | "L3";
@@ -63,8 +59,10 @@ export default function MemoryRunPanel({
   onDocUpdated,
 }: MemoryRunPanelProps) {
   const { t, i18n } = useTranslation();
-  const { run, events, status, error, isRunning, start, cancel, undo, clear } =
-    useMemoryRun(layer, docKey);
+  const { run, events, status, error, isRunning, start, cancel, undo, clear } = useMemoryRun(
+    layer,
+    docKey,
+  );
 
   const [mode, setMode] = useState<RunMode>("update");
   // Per-mode overrides keep typed values stable while the user flips between
@@ -94,7 +92,6 @@ export default function MemoryRunPanel({
 
   // Load LLM options + memory settings once.
   useEffect(() => {
-    setModelLoading(true);
     void (async () => {
       try {
         const data = await listLLMOptions();
@@ -118,14 +115,10 @@ export default function MemoryRunPanel({
   const defaultBudget = useMemo(() => {
     if (!settings) return null;
     if (mode === "update") {
-      return layer === "L2"
-        ? settings.update.l2_budget
-        : settings.update.l3_budget;
+      return layer === "L2" ? settings.update.l2_budget : settings.update.l3_budget;
     }
     if (mode === "audit") {
-      return layer === "L2"
-        ? settings.audit.l2_budget
-        : settings.audit.l3_budget;
+      return layer === "L2" ? settings.audit.l2_budget : settings.audit.l3_budget;
     }
     return null;
   }, [settings, mode, layer]);
@@ -160,26 +153,14 @@ export default function MemoryRunPanel({
         language: i18n.language || "en",
       });
     }
-  }, [
-    isRunning,
-    mode,
-    iterations,
-    budget,
-    effectiveSelection,
-    i18n.language,
-    start,
-  ]);
+  }, [isRunning, mode, iterations, budget, effectiveSelection, i18n.language, start]);
 
   // Notify parent when a run finishes (success or otherwise) so the doc
   // preview can refresh.
   const lastCompleted = useRef<string | null>(null);
   useEffect(() => {
     if (!run || isRunning) return;
-    if (
-      run.status === "done" ||
-      run.status === "cancelled" ||
-      run.status === "error"
-    ) {
+    if (run.status === "done" || run.status === "cancelled" || run.status === "error") {
       if (lastCompleted.current !== run.id) {
         lastCompleted.current = run.id;
         onRunComplete?.();
@@ -192,11 +173,7 @@ export default function MemoryRunPanel({
     if (!onDocUpdated) return;
     const latest = [...events]
       .reverse()
-      .find(
-        (ev) =>
-          ev.payload.stage === "doc_updated" ||
-          ev.payload.stage === "undo_applied",
-      );
+      .find((ev) => ev.payload.stage === "doc_updated" || ev.payload.stage === "undo_applied");
     if (!latest || lastDocEvent.current === latest.seq) return;
     lastDocEvent.current = latest.seq;
     onDocUpdated();
@@ -207,8 +184,7 @@ export default function MemoryRunPanel({
     for (const ev of events) {
       const value = ev.payload.undo_depth;
       if (
-        (ev.payload.stage === "doc_updated" ||
-          ev.payload.stage === "undo_applied") &&
+        (ev.payload.stage === "doc_updated" || ev.payload.stage === "undo_applied") &&
         typeof value === "number"
       ) {
         depth = value;
@@ -239,9 +215,7 @@ export default function MemoryRunPanel({
       );
       if (!res.ok) {
         const detail = await res.text();
-        throw new Error(
-          detail || t("reset failed: {{status}}", { status: res.status }),
-        );
+        throw new Error(detail || t("reset failed: {{status}}", { status: res.status }));
       }
       // Clear local run trace + tell the parent workbench to re-fetch the
       // (now empty) doc, line view, and overview badge.
@@ -442,8 +416,7 @@ function groupByTurn(events: RunEvent[]): Turn[] {
     const stage = String(p.stage || "");
     if (stage === "llm_io_start") {
       const turn = typeof p.turn === "number" ? p.turn : 0;
-      const chunkIndex =
-        typeof p.chunk_index === "number" ? (p.chunk_index as number) : null;
+      const chunkIndex = typeof p.chunk_index === "number" ? (p.chunk_index as number) : null;
       const key = `${turn}:${chunkIndex}:${ev.seq}`;
       const card: Turn & { kind: "llm" } = {
         kind: "llm",
@@ -463,8 +436,7 @@ function groupByTurn(events: RunEvent[]): Turn[] {
     }
     if (stage === "llm_io_end") {
       const turn = typeof p.turn === "number" ? p.turn : 0;
-      const chunkIndex =
-        typeof p.chunk_index === "number" ? (p.chunk_index as number) : null;
+      const chunkIndex = typeof p.chunk_index === "number" ? (p.chunk_index as number) : null;
       const card = pending[`${turn}:${chunkIndex}`];
       if (card) {
         card.response = String(p.response || "");
@@ -475,8 +447,7 @@ function groupByTurn(events: RunEvent[]): Turn[] {
     }
     if (stage === "llm_io_delta") {
       const turn = typeof p.turn === "number" ? p.turn : 0;
-      const chunkIndex =
-        typeof p.chunk_index === "number" ? (p.chunk_index as number) : null;
+      const chunkIndex = typeof p.chunk_index === "number" ? (p.chunk_index as number) : null;
       const card = pending[`${turn}:${chunkIndex}`];
       if (card) {
         card.response += String(p.delta || "");
@@ -500,13 +471,7 @@ function TurnCard({ turn, t }: { turn: Turn; t: (k: string) => string }) {
   return <LLMTurnCard turn={turn} t={t} />;
 }
 
-function SystemEventRow({
-  event,
-  t,
-}: {
-  event: RunEvent["payload"];
-  t: (k: string) => string;
-}) {
+function SystemEventRow({ event, t }: { event: RunEvent["payload"]; t: (k: string) => string }) {
   const stage = String(event.stage || "");
   const display = systemEventDisplay(stage, event, t);
   if (!display) return null;
@@ -523,14 +488,8 @@ function SystemEventRow({
     >
       <display.icon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
       <div className="min-w-0">
-        <div className="font-mono text-[10.5px] uppercase tracking-wide">
-          {display.title}
-        </div>
-        {display.detail && (
-          <div className="mt-0.5 break-words leading-snug">
-            {display.detail}
-          </div>
-        )}
+        <div className="font-mono text-[10.5px] uppercase tracking-wide">{display.title}</div>
+        {display.detail && <div className="mt-0.5 break-words leading-snug">{display.detail}</div>}
       </div>
     </li>
   );
@@ -546,10 +505,8 @@ function systemEventDisplay(
   detail: string;
   tone: "ok" | "warn" | "muted";
 } | null {
-  const num = (k: string) =>
-    typeof event[k] === "number" ? String(event[k]) : null;
-  const str = (k: string) =>
-    typeof event[k] === "string" ? String(event[k]) : null;
+  const num = (k: string) => (typeof event[k] === "number" ? String(event[k]) : null);
+  const str = (k: string) => (typeof event[k] === "string" ? String(event[k]) : null);
   switch (stage) {
     case "run_started":
       return {
@@ -561,10 +518,9 @@ function systemEventDisplay(
     case "trace_loaded": {
       const total = num("total") ?? num("total_l2_entries");
       const fresh = num("new") ?? num("new_l2_entries");
-      const parts = [
-        total ? `total=${total}` : null,
-        fresh ? `new=${fresh}` : null,
-      ].filter(Boolean);
+      const parts = [total ? `total=${total}` : null, fresh ? `new=${fresh}` : null].filter(
+        Boolean,
+      );
       return {
         icon: PlayCircle,
         title: t("Traces loaded"),
@@ -702,9 +658,7 @@ function LLMTurnCard({
   const [systemOpen, setSystemOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const tag =
-    turn.chunkIndex !== null
-      ? `t${turn.turn} · chunk ${turn.chunkIndex + 1}`
-      : `t${turn.turn}`;
+    turn.chunkIndex !== null ? `t${turn.turn} · chunk ${turn.chunkIndex + 1}` : `t${turn.turn}`;
   return (
     <li className="space-y-1.5 rounded-md border border-[var(--border)] bg-[var(--background)] px-2.5 py-2">
       <div className="flex items-center gap-2 text-[10.5px] uppercase tracking-wide text-[var(--muted-foreground)]">
@@ -766,11 +720,7 @@ function Disclosure({
         onClick={() => setOpen(!open)}
         className="inline-flex items-center gap-1 rounded px-1 py-0.5 hover:bg-[var(--muted)]/60 hover:text-[var(--foreground)]"
       >
-        {open ? (
-          <ChevronDown className="h-3 w-3" />
-        ) : (
-          <ChevronRight className="h-3 w-3" />
-        )}
+        {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         {label}
         <span className="opacity-60">·&nbsp;{body.length}</span>
       </button>
@@ -838,15 +788,7 @@ interface ModelPillProps {
   t: (k: string) => string;
 }
 
-function ModelPill({
-  options,
-  value,
-  loading,
-  error,
-  disabled,
-  onChange,
-  t,
-}: ModelPillProps) {
+function ModelPill({ options, value, loading, error, disabled, onChange, t }: ModelPillProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -872,11 +814,12 @@ function ModelPill({
 
   return (
     <div ref={rootRef} className="relative w-full min-w-0 [&>span]:w-full">
-      <Tooltip label={
-          selectedOption
-            ? `${selectedOption.profile_name} | ${selectedOption.provider}`
-            : label
-        } side="top">
+      <Tooltip
+        label={
+          selectedOption ? `${selectedOption.profile_name} | ${selectedOption.provider}` : label
+        }
+        side="top"
+      >
         <button
           type="button"
           disabled={inactive}
@@ -915,12 +858,8 @@ function ModelPill({
                 }
               >
                 <span className="flex min-w-0 flex-1 items-baseline gap-2">
-                  <span className="truncate text-[var(--foreground)]">
-                    {opt.model_name}
-                  </span>
-                  <span className="shrink-0 text-[10px] opacity-60">
-                    {opt.provider}
-                  </span>
+                  <span className="truncate text-[var(--foreground)]">{opt.model_name}</span>
+                  <span className="shrink-0 text-[10px] opacity-60">{opt.provider}</span>
                 </span>
                 {opt.is_active_default && (
                   <span className="shrink-0 rounded bg-[var(--primary)]/10 px-1 py-0.5 text-[9.5px] uppercase text-[var(--primary)]">

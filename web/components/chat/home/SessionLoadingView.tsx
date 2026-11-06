@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Loader2, RotateCw, TriangleAlert, X } from "lucide-react";
@@ -58,9 +59,9 @@ export default function SessionLoadingView({
 
       {/* Logo + spinner (or the failure mark) */}
       <div className="flex items-center gap-3">
-        <img
+        <Image
           src="/brand/black-logo.png"
-          alt="DeepTutor"
+          alt={t("DeepTutor")}
           width={32}
           height={32}
           className="h-8 w-8 select-none dark:invert"

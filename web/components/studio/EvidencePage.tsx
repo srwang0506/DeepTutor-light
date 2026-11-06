@@ -1,4 +1,6 @@
 'use client'
+import { useTranslation } from 'react-i18next'
+import ReviewProtocols from './ReviewProtocols'
 import ClaimsPanel from './ClaimsPanel'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
@@ -59,6 +61,8 @@ export default function EvidencePage() {
   return <EvidenceWorkspace key={workspace} workspace={workspace} />
 }
 function EvidenceWorkspace({ workspace }: { workspace: string }) {
+  const { t } = useTranslation()
+
   const op = useOperation(),
     [tab, setTab] = useState('matrix'),
     [evidence, setEvidence] = useState<StudioRecord<EvidenceData>[]>([]),
@@ -100,14 +104,14 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
         setRuns(c)
         setArtifacts(d)
       })
-      .catch(e => {
+      .catch((e) => {
         if (!abort.signal.aborted) op.setError(e.message)
       })
     return () => abort.abort()
   }, [workspace]) // eslint-disable-line react-hooks/exhaustive-deps
   async function downloadArtifact(id: string, name: string) {
     const response = await apiFetch(
-      studioUrl(`/artifacts/${id}/files/${encodeURIComponent(name)}`, workspace)
+      studioUrl(`/artifacts/${id}/files/${encodeURIComponent(name)}`, workspace),
     )
     if (!response.ok) throw new Error('暂时无法读取图表文件。')
     const url = URL.createObjectURL(await response.blob())
@@ -138,7 +142,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
   }
   async function compare() {
     setComparison(
-      await studio<Comparison>(workspace, `/compare?left=${selected[0]}&right=${selected[1]}`)
+      await studio<Comparison>(workspace, `/compare?left=${selected[0]}&right=${selected[1]}`),
     )
   }
   async function generate(kind: string) {
@@ -177,15 +181,16 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
     <StudioShell
       workspace={workspace}
       active="evidence"
-      title="让每个结论，都找得到来处。"
+      title={t('让每个结论，都找得到来处。')}
       description="把原文、评估条件和实验结果放在一起。先核对可比性，再讨论差异。"
       action={
         <Action onClick={() => edit()}>
           <Plus size={15} />
-          记录一个结果
+          {t('记录一个结果')}
         </Action>
       }
     >
+      <ReviewProtocols workspace={workspace} />
       <ErrorNotice message={op.error} />
       <div className="studio-toolbar">
         <div className="studio-pills">
@@ -209,7 +214,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
               disabled={op.busy || selected.length !== 2}
             >
               <GitCompareArrows size={14} />
-              比较所选
+              {t('比较所选')}
             </Action>
             <Action
               secondary
@@ -217,14 +222,14 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
               disabled={op.busy || !selected.length}
             >
               <Table2 size={14} />
-              生成表格
+              {t('生成表格')}
             </Action>
             <Action
               secondary
               onClick={() => op.run(() => generate('figure'))}
               disabled={op.busy || selected.length < 2}
             >
-              生成图
+              {t('生成图')}
             </Action>
           </div>
         )}
@@ -236,25 +241,25 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
               <table className="studio-table">
                 <thead>
                   <tr>
-                    <th style={{ width: 40 }}>选择</th>
-                    <th>方法 / 结果</th>
-                    <th>评估条件</th>
-                    <th>数值</th>
-                    <th>来源</th>
+                    <th style={{ width: 40 }}>{t('选择')}</th>
+                    <th>{t('方法 / 结果')}</th>
+                    <th>{t('评估条件')}</th>
+                    <th>{t('数值')}</th>
+                    <th>{t('来源')}</th>
                     <th />
                   </tr>
                 </thead>
                 <tbody>
-                  {observations.map(row => (
+                  {observations.map((row) => (
                     <tr key={row.id}>
                       <td>
                         <input
                           type="checkbox"
                           aria-label={`选择 ${row.data.title}`}
                           checked={selected.includes(row.id)}
-                          onChange={e => {
-                            setSelected(s =>
-                              e.target.checked ? [...s, row.id] : s.filter(id => id !== row.id)
+                          onChange={(e) => {
+                            setSelected((s) =>
+                              e.target.checked ? [...s, row.id] : s.filter((id) => id !== row.id),
                             )
                             setComparison(null)
                           }}
@@ -278,14 +283,14 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                       <td>
                         <span className="studio-badge">{origins[row.data.origin]}</span>
                         <small>
-                          {evidence.find(e => e.id === row.data.source_id)?.data.label ||
-                            runs.find(r => r.id === row.data.source_id)?.data.title ||
+                          {evidence.find((e) => e.id === row.data.source_id)?.data.label ||
+                            runs.find((r) => r.id === row.data.source_id)?.data.title ||
                             '来源记录'}
                         </small>
                       </td>
                       <td>
                         <button className="studio-link-button" onClick={() => edit(row)}>
-                          核对 / 编辑
+                          {t('核对 / 编辑')}
                         </button>
                       </td>
                     </tr>
@@ -294,8 +299,10 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
               </table>
             </div>
           ) : (
-            <StudioEmpty title="从一个有来源的结果开始">
-              在资料库打开论文，选择原文并保存证据；也可以从已完成的实验记录提取结果。评估条件缺失时，系统会保留未知。
+            <StudioEmpty title={t('从一个有来源的结果开始')}>
+              {t(
+                '在资料库打开论文，选择原文并保存证据；也可以从已完成的实验记录提取结果。评估条件缺失时，系统会保留未知。',
+              )}
             </StudioEmpty>
           )}
           {comparison && (
@@ -314,17 +321,19 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                   ? `第二项相对第一项的数值差为 ${comparison.delta} ${comparison.delta_unit || ''}。此差值不代表统计显著性或因果关系。`
                   : '在条件核实前，不生成优劣排名或数值提升结论。'}
               </p>
-              {comparison.conversions?.map(item => (
+              {comparison.conversions?.map((item) => (
                 <p className="studio-note" key={item.field}>
-                  已按确定的单位关系换算{label(item.field)}：{item.right} → {item.left}
-                  。原始值仍保留。
+                  {t('已按确定的单位关系换算')}
+                  {label(item.field)}：{item.right} → {item.left}
+                  {t('。原始值仍保留。')}
                 </p>
               ))}
               {comparison.unknown.length > 0 && (
                 <div className="studio-badges">
                   {comparison.unknown.map((field, i) => (
                     <span className="studio-badge warn" key={field + i}>
-                      {label(field)}待核对
+                      {label(field)}
+                      {t('待核对')}
                     </span>
                   ))}
                 </div>
@@ -334,13 +343,13 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                   <table className="studio-table">
                     <thead>
                       <tr>
-                        <th>条件</th>
-                        <th>第一项</th>
-                        <th>第二项</th>
+                        <th>{t('条件')}</th>
+                        <th>{t('第一项')}</th>
+                        <th>{t('第二项')}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {comparison.differences.map(d => (
+                      {comparison.differences.map((d) => (
                         <tr key={d.field}>
                           <td>{label(d.field)}</td>
                           <td>{d.left}</td>
@@ -352,17 +361,18 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                 </div>
               )}
               <p className="studio-note">
-                已对齐 {comparison.matched.length}{' '}
-                项条件。原始协议和来源版本保存在每次生成的表图中。
+                {t('已对齐')}
+                {comparison.matched.length}{' '}
+                {t('项条件。原始协议和来源版本保存在每次生成的表图中。')}
               </p>
             </section>
           )}
           {generated && (
             <div className="studio-success" style={{ marginTop: 20 }}>
               <Check size={15} />
-              已生成并冻结输入版本。
+              {t('已生成并冻结输入版本。')}
               <button className="studio-link-button" onClick={() => setTab('artifacts')}>
-                查看表与图
+                {t('查看表与图')}
                 <ArrowUpRight size={12} />
               </button>
             </div>
@@ -371,7 +381,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
       )}
       {tab === 'evidence' && (
         <div className="studio-card-list">
-          {evidence.map(row => (
+          {evidence.map((row) => (
             <article className="studio-card" key={row.id}>
               <div className="studio-actions">
                 <span
@@ -384,17 +394,19 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                       : '待核对'}
                 </span>
                 <span className="studio-badge">
-                  第 {row.data.page_label || row.data.page} 页 · {row.data.kind}
+                  第 {row.data.page_label || row.data.page} {t('页 ·')}
+                  {row.data.kind}
                 </span>
               </div>
               <div className="studio-badges" style={{ marginTop: 8 }}>
                 <span className="studio-badge">
-                  定位：{row.data.anchor_valid ? '有效' : '待重核'}
+                  {t('定位：')}
+                  {row.data.anchor_valid ? '有效' : '待重核'}
                 </span>
                 <span
                   className={`studio-badge ${row.data.quote_match === 'exact' ? 'good' : 'warn'}`}
                 >
-                  引句：
+                  {t('引句：')}
                   {(
                     {
                       exact: '精确匹配',
@@ -406,10 +418,10 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                     } as Record<string, string>
                   )[row.data.quote_match || ''] || '待核对'}
                 </span>
-                <span className="studio-badge">主张支持需逐项核对</span>
+                <span className="studio-badge">{t('主张支持需逐项核对')}</span>
               </div>
               {row.data.needs_review && (
-                <p className="studio-note">旧版核对记录已保留；请按当前规则重新核验。</p>
+                <p className="studio-note">{t('旧版核对记录已保留；请按当前规则重新核验。')}</p>
               )}
               <h3 style={{ marginTop: 12 }}>{row.data.label}</h3>
               {row.data.quote && <blockquote>{row.data.quote}</blockquote>}
@@ -419,10 +431,10 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                   className="studio-outlink"
                   href={scopedUrl(
                     `/library/${row.data.edition_id}?file=${row.data.blob_hash}&page=${row.data.page}&evidence=${row.id}`,
-                    workspace
+                    workspace,
                   )}
                 >
-                  回到原文
+                  {t('回到原文')}
                   <ArrowUpRight size={13} />
                 </Link>
                 <div className="studio-actions">
@@ -435,29 +447,29 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                       setVisualReview(false)
                     }}
                   >
-                    我已核实
+                    {t('我已核实')}
                   </button>
                   <button
                     className="studio-link-button"
                     disabled={op.busy}
                     onClick={() => op.run(() => review(row, 'disputed'))}
                   >
-                    标记争议
+                    {t('标记争议')}
                   </button>
                 </div>
               </footer>
             </article>
           ))}
           {!evidence.length && (
-            <StudioEmpty title="把阅读中最重要的片段留下来">
-              在 PDF 原文中选取文字，记录它支持什么、限制什么。每条证据都会绑定原文件与页码。
+            <StudioEmpty title={t('把阅读中最重要的片段留下来')}>
+              {t('在 PDF 原文中选取文字，记录它支持什么、限制什么。每条证据都会绑定原文件与页码。')}
             </StudioEmpty>
           )}
         </div>
       )}
       {tab === 'artifacts' && (
         <div className="studio-card-list">
-          {artifacts.map(row => (
+          {artifacts.map((row) => (
             <article className="studio-card" key={row.id}>
               <h3>{row.data.title}</h3>
               <p>
@@ -466,7 +478,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                   : '固定输入版本的比较表。未知条件单独保留，不自动排名。'}
               </p>
               <div className="studio-actions" style={{ marginTop: 16 }}>
-                {Object.keys(row.data.files).map(name => (
+                {Object.keys(row.data.files).map((name) => (
                   <button
                     className="studio-link"
                     key={name}
@@ -480,8 +492,10 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
             </article>
           ))}
           {!artifacts.length && (
-            <StudioEmpty title="从核实后的结果，生成可复查的表与图">
-              选择矩阵中的结果，生成 CSV、TeX 表格或 PDF、SVG、PNG 图。输入和生成脚本会随产物保存。
+            <StudioEmpty title={t('从核实后的结果，生成可复查的表与图')}>
+              {t(
+                '选择矩阵中的结果，生成 CSV、TeX 表格或 PDF、SVG、PNG 图。输入和生成脚本会随产物保存。',
+              )}
             </StudioEmpty>
           )}
         </div>
@@ -498,7 +512,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
             disabled={op.busy || !draft.title.trim() || !draft.source_id}
             onClick={() => op.run(save)}
           >
-            保存结果
+            {t('保存结果')}
           </Action>
         }
       >
@@ -507,14 +521,14 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
           <Field label="方法或结果名称">
             <input
               value={draft.title}
-              onChange={e => setDraft(d => ({ ...d, title: e.target.value }))}
+              onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
             />
           </Field>
           <div className="studio-form-grid">
             <Field label="结果性质">
               <select
                 value={draft.origin}
-                onChange={e => setDraft(d => ({ ...d, origin: e.target.value, source_id: '' }))}
+                onChange={(e) => setDraft((d) => ({ ...d, origin: e.target.value, source_id: '' }))}
               >
                 {Object.entries(origins).map(([key, title]) => (
                   <option value={key} key={key}>
@@ -526,24 +540,24 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
             <Field label="来源记录">
               <select
                 value={draft.source_id}
-                onChange={e => setDraft(d => ({ ...d, source_id: e.target.value }))}
+                onChange={(e) => setDraft((d) => ({ ...d, source_id: e.target.value }))}
               >
-                <option value="">选择来源</option>
+                <option value="">{t('选择来源')}</option>
                 {draft.origin === 'reported'
-                  ? evidence.map(e => (
+                  ? evidence.map((e) => (
                       <option key={e.id} value={e.id}>
                         {e.data.label}
                       </option>
                     ))
                   : runs
-                      .filter(r =>
+                      .filter((r) =>
                         draft.origin === 'executed'
                           ? r.data.status === 'succeeded'
                           : draft.origin === 'static_check'
                             ? r.data.status === 'static_only'
-                            : true
+                            : true,
                       )
-                      .map(r => (
+                      .map((r) => (
                         <option key={r.id} value={r.id}>
                           {r.data.title}
                         </option>
@@ -553,8 +567,8 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
             <Field label="报告状态">
               <select
                 value={draft.state}
-                onChange={e =>
-                  setDraft(d => ({
+                onChange={(e) =>
+                  setDraft((d) => ({
                     ...d,
                     state: e.target.value,
                     value: e.target.value === 'reported' ? d.value : null,
@@ -574,8 +588,8 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                 step="any"
                 disabled={draft.state !== 'reported'}
                 value={draft.value ?? ''}
-                onChange={e =>
-                  setDraft(d => ({
+                onChange={(e) =>
+                  setDraft((d) => ({
                     ...d,
                     value: e.target.value === '' ? null : Number(e.target.value),
                   }))
@@ -584,13 +598,13 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
             </Field>
           </div>
           <h3 className="studio-section-title" style={{ margin: 0 }}>
-            评估协议
+            {t('评估协议')}
           </h3>
           <Field label="任务口径">
             <select
               value={draft.protocol.profile || 'general'}
-              onChange={e =>
-                setDraft(d => ({ ...d, protocol: { ...d.protocol, profile: e.target.value } }))
+              onChange={(e) =>
+                setDraft((d) => ({ ...d, protocol: { ...d.protocol, profile: e.target.value } }))
               }
             >
               {[
@@ -607,7 +621,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
             </select>
           </Field>
           <p className="studio-note">
-            必要条件不能用“不适用”代替。数值差仅用于描述，不代表统计显著性。
+            {t('必要条件不能用“不适用”代替。数值差仅用于描述，不代表统计显著性。')}
           </p>
           <div className="studio-form-grid">
             {(
@@ -628,12 +642,12 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                   mathematics: ['assumptions', 'domain'],
                 } as Record<string, string[]>
               )[draft.protocol.profile || ''] || []
-            ).map(key => (
+            ).map((key) => (
               <Field key={key} label={key}>
                 <input
                   value={draft.protocol.extensions?.[key] || ''}
-                  onChange={e =>
-                    setDraft(d => ({
+                  onChange={(e) =>
+                    setDraft((d) => ({
                       ...d,
                       protocol: {
                         ...d.protocol,
@@ -650,8 +664,8 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                   <input
                     disabled={draft.protocol.not_applicable.includes(key)}
                     value={draft.protocol[key]}
-                    onChange={e =>
-                      setDraft(d => ({
+                    onChange={(e) =>
+                      setDraft((d) => ({
                         ...d,
                         protocol: {
                           ...d.protocol,
@@ -661,7 +675,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                             [key]:
                               !e.target.value.trim() ||
                               ['unknown', 'n/a', '?', '未知'].includes(
-                                e.target.value.trim().toLowerCase()
+                                e.target.value.trim().toLowerCase(),
                               )
                                 ? 'unknown'
                                 : 'known',
@@ -669,15 +683,15 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                         },
                       }))
                     }
-                    placeholder="尚未确认时留空"
+                    placeholder={t('尚未确认时留空')}
                   />
                 </Field>
                 <label className="studio-check">
                   <input
                     type="checkbox"
                     checked={draft.protocol.not_applicable.includes(key)}
-                    onChange={e =>
-                      setDraft(d => ({
+                    onChange={(e) =>
+                      setDraft((d) => ({
                         ...d,
                         protocol: {
                           ...d.protocol,
@@ -688,12 +702,12 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                           },
                           not_applicable: e.target.checked
                             ? [...d.protocol.not_applicable, key]
-                            : d.protocol.not_applicable.filter(k => k !== key),
+                            : d.protocol.not_applicable.filter((k) => k !== key),
                         },
                       }))
                     }
                   />
-                  不适用
+                  {t('不适用')}
                 </label>
               </div>
             ))}
@@ -701,22 +715,22 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
           <Field label="指标方向">
             <select
               value={draft.protocol.direction}
-              onChange={e =>
-                setDraft(d => ({
+              onChange={(e) =>
+                setDraft((d) => ({
                   ...d,
                   protocol: { ...d.protocol, direction: e.target.value as Protocol['direction'] },
                 }))
               }
             >
-              <option value="unknown">尚未确认</option>
-              <option value="higher">越高越好</option>
-              <option value="lower">越低越好</option>
+              <option value="unknown">{t('尚未确认')}</option>
+              <option value="higher">{t('越高越好')}</option>
+              <option value="lower">{t('越低越好')}</option>
             </select>
           </Field>
           <Field label="核对备注">
             <textarea
               value={draft.note}
-              onChange={e => setDraft(d => ({ ...d, note: e.target.value }))}
+              onChange={(e) => setDraft((d) => ({ ...d, note: e.target.value }))}
             />
           </Field>
         </div>
@@ -724,7 +738,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
       <Dialog
         open={!!reviewing}
         onClose={() => setReviewing(null)}
-        title="核对证据原件"
+        title={t('核对证据原件')}
         description="核对的是原文或原图；是否支持某个结论，需要在主张中单独审核。"
         className="studio-dialog"
         footer={
@@ -737,7 +751,7 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
               })
             }
           >
-            确认核对
+            {t('确认核对')}
           </Action>
         }
       >
@@ -747,29 +761,32 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
             target="_blank"
             href={scopedUrl(
               `/library/${reviewing.data.edition_id}?file=${reviewing.data.blob_hash}&page=${reviewing.data.page}&evidence=${reviewing.id}`,
-              workspace
+              workspace,
             )}
           >
-            打开冻结原件 · 第 {reviewing.data.page} 页 ↗
+            {t('打开冻结原件 · 第')}
+            {reviewing.data.page} {t('页 ↗')}
           </Link>
         )}
         <p className="studio-note">
-          引句必须在所选区域匹配。扫描页、图表或公式没有文字层时，需要对照原图核验并留下说明。
+          {t(
+            '引句必须在所选区域匹配。扫描页、图表或公式没有文字层时，需要对照原图核验并留下说明。',
+          )}
         </p>
         <Field label="核对说明">
           <textarea
             value={reviewNote}
-            onChange={e => setReviewNote(e.target.value)}
-            placeholder="核对了哪张图、哪一行或哪个公式；有哪些限制？"
+            onChange={(e) => setReviewNote(e.target.value)}
+            placeholder={t('核对了哪张图、哪一行或哪个公式；有哪些限制？')}
           />
         </Field>
         <label className="studio-check">
           <input
             type="checkbox"
             checked={visualReview}
-            onChange={e => setVisualReview(e.target.checked)}
+            onChange={(e) => setVisualReview(e.target.checked)}
           />
-          我已对照原图完成视觉核验
+          {t('我已对照原图完成视觉核验')}
         </label>
         <ErrorNotice message={op.error} />
       </Dialog>

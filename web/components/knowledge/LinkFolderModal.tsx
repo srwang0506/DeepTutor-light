@@ -11,22 +11,22 @@ interface LinkFolderModalProps {
   onSubmit: (folderPath: string) => Promise<void>;
 }
 
-export default function LinkFolderModal({
-  isOpen,
-  onClose,
-  onSubmit,
-}: LinkFolderModalProps) {
+export default function LinkFolderModal({ isOpen, onClose, onSubmit }: LinkFolderModalProps) {
   const { t } = useTranslation();
   const [folderPath, setFolderPath] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (!isOpen) return;
-    setFolderPath("");
-    setError(null);
-    setSubmitting(false);
-  }, [isOpen]);
+  const [derivedInputs0, setDerivedInputs0] = useState<readonly unknown[]>([]);
+  if (derivedInputs0.length !== 1 || !Object.is(derivedInputs0[0], isOpen)) {
+    setDerivedInputs0([isOpen]);
+    (() => {
+      if (!isOpen) return;
+      setFolderPath("");
+      setError(null);
+      setSubmitting(false);
+    })();
+  }
 
   const handleSubmit = async () => {
     const value = folderPath.trim();

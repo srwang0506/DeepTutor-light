@@ -39,27 +39,41 @@ export default function PartnerLinkModal({
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      setLinks(await listPartnerLinks(partnerId));
-    } catch {
-      setLinks([]);
-    } finally {
-      setLoading(false);
-    }
+  const loadData = useCallback(async () => {
+    return listPartnerLinks(partnerId)
+      .then(async (resolvedState0) => {
+        setLinks(resolvedState0);
+      })
+      .catch(() => {
+        setLinks([]);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [partnerId]);
+  const [loadInputs, setLoadInputs] = useState<typeof loadData | null>(null);
+  if (loadInputs !== loadData) {
+    setLoadInputs(() => loadData);
+    setLoading(true);
+  }
+  const load = useCallback(() => {
+    setLoading(true);
+    return loadData();
+  }, [loadData]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadData();
+  }, [loadData]);
 
   const issue = useCallback(async () => {
     setIssuing(true);
     setError("");
     setCopied(false);
     try {
-      setCode(await createPartnerLinkCode(partnerId));
+      {
+        const resolvedState1 = await createPartnerLinkCode(partnerId);
+        setCode(resolvedState1);
+      }
     } catch {
       setError(t("Couldn't create a code. Try again."));
     } finally {
@@ -166,9 +180,7 @@ export default function PartnerLinkModal({
           </button>
         )}
 
-        {error ? (
-          <p className="mt-2 text-[12px] text-red-500">{error}</p>
-        ) : null}
+        {error ? <p className="mt-2 text-[12px] text-red-500">{error}</p> : null}
 
         <div className="mt-4">
           <h3 className="text-[12px] font-medium text-[var(--foreground)]">

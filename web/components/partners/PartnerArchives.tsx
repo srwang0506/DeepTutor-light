@@ -1,4 +1,5 @@
 "use client";
+import { useLayoutEffect } from "react";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -43,16 +44,20 @@ function historyAttachments(attachments?: Record<string, unknown>[]): MessageAtt
       typeof attachment.filename !== "string" ||
       typeof attachment.url !== "string" ||
       (attachment.generated !== true && attachment.origin !== "workspace")
-    ) return [];
-    return [{
-      type: attachment.type,
-      filename: attachment.filename,
-      url: attachment.url,
-      generated: attachment.generated === true,
-      origin: attachment.origin === "workspace" ? "workspace" : undefined,
-      relative_path: typeof attachment.relative_path === "string" ? attachment.relative_path : undefined,
-      title: typeof attachment.title === "string" ? attachment.title : undefined,
-    }];
+    )
+      return [];
+    return [
+      {
+        type: attachment.type,
+        filename: attachment.filename,
+        url: attachment.url,
+        generated: attachment.generated === true,
+        origin: attachment.origin === "workspace" ? "workspace" : undefined,
+        relative_path:
+          typeof attachment.relative_path === "string" ? attachment.relative_path : undefined,
+        title: typeof attachment.title === "string" ? attachment.title : undefined,
+      },
+    ];
   });
 }
 
@@ -85,7 +90,12 @@ function conversationPreview(content: string): string {
       if (index === separatorIndex) return "";
       const cells = rows[index];
       const next = rows[index + 1];
-      if (!inTable && cells?.length && next?.length === cells.length && next.every((cell) => /^:?-+:?$/.test(cell))) {
+      if (
+        !inTable &&
+        cells?.length &&
+        next?.length === cells.length &&
+        next.every((cell) => /^:?-+:?$/.test(cell))
+      ) {
         inTable = true;
         separatorIndex = index + 1;
       }
@@ -120,7 +130,7 @@ function conversationPreview(content: string): string {
   // The server may truncate the snippet before an emphasis delimiter closes.
   const repaired = text.replace(
     /(\*\*|__|~~).*?\1|(?<![\w\\])(?:\*\*|__|~~)(?=\S)/g,
-    (match, paired) => paired ? match : "",
+    (match, paired) => (paired ? match : ""),
   );
   const preview = plainTextPreview(repaired, Infinity).replace(
     /[\ue000-\uf8ff]/g,
@@ -168,7 +178,9 @@ export default function PartnerArchives({
   const [loadingMessages, setLoadingMessages] = useState(false);
   const messageScrollRef = useRef<HTMLDivElement>(null);
   const selectedKeyRef = useRef(selectedKey);
-  selectedKeyRef.current = selectedKey;
+  useLayoutEffect(() => {
+    selectedKeyRef.current = selectedKey;
+  }, [selectedKey]);
 
   const downloadGeneratedAttachment = useCallback((attachment: MessageAttachment) => {
     if (!attachment.url) return;
@@ -181,35 +193,43 @@ export default function PartnerArchives({
   }, []);
 
   const selected = useMemo(
-    () =>
-      sessions.find((session) => session.session_key === selectedKey) ?? null,
+    () => sessions.find((session) => session.session_key === selectedKey) ?? null,
     [sessions, selectedKey],
   );
 
-  const loadSessions = useCallback(async () => {
-    setLoadingSessions(true);
-    try {
-      const next = await getPartnerSessions(partnerId);
-      setSessions(next);
-      setSelectedKey((current) => {
-        if (
-          current &&
-          next.some((session) => session.session_key === current)
-        ) {
-          return current;
-        }
-        return next[0]?.session_key ?? "";
+  const loadSessionsData = useCallback(async () => {
+    return getPartnerSessions(partnerId)
+      .then(async (next) => {
+        setSessions(next);
+        setSelectedKey((current) => {
+          if (current && next.some((session) => session.session_key === current)) {
+            return current;
+          }
+          return next[0]?.session_key ?? "";
+        });
+      })
+      .catch((e) => {
+        onToast(e instanceof Error ? e.message : t("Load failed"));
+      })
+      .finally(() => {
+        setLoadingSessions(false);
       });
-    } catch (e) {
-      onToast(e instanceof Error ? e.message : t("Load failed"));
-    } finally {
-      setLoadingSessions(false);
-    }
   }, [partnerId, onToast, t]);
+  const [loadSessionsInputs, setLoadSessionsInputs] = useState<typeof loadSessionsData | null>(
+    null,
+  );
+  if (loadSessionsInputs !== loadSessionsData) {
+    setLoadSessionsInputs(() => loadSessionsData);
+    setLoadingSessions(true);
+  }
+  const loadSessions = useCallback(() => {
+    setLoadingSessions(true);
+    return loadSessionsData();
+  }, [loadSessionsData]);
 
   useEffect(() => {
-    void loadSessions();
-  }, [loadSessions]);
+    void loadSessionsData();
+  }, [loadSessionsData]);
 
   const handleResume = useCallback(
     async (session: PartnerSessionInfo) => {
@@ -240,17 +260,20 @@ export default function PartnerArchives({
     [partnerId, selectedKey, loadSessions, onToast, onDeleted, t],
   );
 
-  useEffect(() => {
-    if (!selectedKey) {
-      setMessages([]);
-      setOlderBefore(null);
-      return;
-    }
-    let cancelled = false;
-    setLoadingMessages(true);
+  const resourceReset0 = JSON.stringify([partnerId, selectedKey]);
+  const [resourceReset0Previous, resourceReset0Remember] = useState<string | null>(null);
+  if (resourceReset0Previous !== resourceReset0) {
+    resourceReset0Remember(resourceReset0);
+    setLoadingMessages(Boolean(selectedKey));
     setLoadingOlder(false);
     setMessages([]);
     setOlderBefore(null);
+  }
+  useEffect(() => {
+    if (!selectedKey) {
+      return;
+    }
+    let cancelled = false;
     void getPartnerHistoryPage(partnerId, selectedKey, { limit: 100 })
       .then((page) => {
         if (!cancelled) {
@@ -278,24 +301,26 @@ export default function PartnerArchives({
     const previousHeight = container?.scrollHeight ?? 0;
     const previousTop = container?.scrollTop ?? 0;
     setLoadingOlder(true);
-    try {
-      const page = await getPartnerHistoryPage(partnerId, selectedKey, {
-        before: olderBefore,
-        limit: 100,
+    return getPartnerHistoryPage(partnerId, selectedKey, {
+      before: olderBefore,
+      limit: 100,
+    })
+      .then(async (page) => {
+        if (selectedKeyRef.current !== selectedKey) return;
+        setMessages((current) => [...page.messages, ...current]);
+        setOlderBefore(page.next_before);
+        requestAnimationFrame(() => {
+          if (selectedKeyRef.current === selectedKey && container) {
+            container.scrollTop = previousTop + container.scrollHeight - previousHeight;
+          }
+        });
+      })
+      .catch((error) => {
+        onToast(error instanceof Error ? error.message : t("Load failed"));
+      })
+      .finally(() => {
+        if (selectedKeyRef.current === selectedKey) setLoadingOlder(false);
       });
-      if (selectedKeyRef.current !== selectedKey) return;
-      setMessages((current) => [...page.messages, ...current]);
-      setOlderBefore(page.next_before);
-      requestAnimationFrame(() => {
-        if (selectedKeyRef.current === selectedKey && container) {
-          container.scrollTop = previousTop + container.scrollHeight - previousHeight;
-        }
-      });
-    } catch (error) {
-      onToast(error instanceof Error ? error.message : t("Load failed"));
-    } finally {
-      if (selectedKeyRef.current === selectedKey) setLoadingOlder(false);
-    }
   }, [selectedKey, olderBefore, loadingOlder, partnerId, onToast, t]);
 
   // Report the selected conversation up for header export controls.
@@ -334,9 +359,7 @@ export default function PartnerArchives({
               aria-label={t("Refresh")}
               className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)] disabled:opacity-40"
             >
-              <RefreshCw
-                className={`h-3.5 w-3.5 ${loadingSessions ? "animate-spin" : ""}`}
-              />
+              <RefreshCw className={`h-3.5 w-3.5 ${loadingSessions ? "animate-spin" : ""}`} />
             </button>
           </Tooltip>
         </div>
@@ -385,10 +408,7 @@ export default function PartnerArchives({
                     (#1229). Sessions recorded before the origin was stored
                     carry none, and simply show nothing extra. */}
                 {session.chat_id ? (
-                  <span
-                    className="flex min-w-0 items-center gap-1"
-                    title={session.chat_id}
-                  >
+                  <span className="flex min-w-0 items-center gap-1" title={session.chat_id}>
                     {session.scope === "group" ? (
                       <Users className="h-3 w-3 shrink-0" />
                     ) : session.scope === "direct" ? (
@@ -417,9 +437,7 @@ export default function PartnerArchives({
                   <h3 className="truncate text-[13px] font-medium text-[var(--foreground)]">
                     {displaySessionTitle(
                       selected.title,
-                      selected.archived
-                        ? t("Archived conversation")
-                        : t("New conversation"),
+                      selected.archived ? t("Archived conversation") : t("New conversation"),
                     )}
                   </h3>
                   <p className="text-[11.5px] text-[var(--muted-foreground)]">
@@ -467,22 +485,15 @@ export default function PartnerArchives({
                 </button>
               ) : null}
               {loadingMessages ? (
-                <p className="text-[12px] text-[var(--muted-foreground)]">
-                  {t("Loading...")}
-                </p>
+                <p className="text-[12px] text-[var(--muted-foreground)]">{t("Loading...")}</p>
               ) : (
                 messages
-                  .filter(
-                    (message) =>
-                      message.role === "user" || message.role === "assistant",
-                  )
+                  .filter((message) => message.role === "user" || message.role === "assistant")
                   .map((message, index) => (
                     <div
                       key={`${message.timestamp ?? index}-${index}`}
                       className={
-                        message.role === "user"
-                          ? "flex justify-end"
-                          : "flex justify-start"
+                        message.role === "user" ? "flex justify-end" : "flex justify-start"
                       }
                     >
                       <div
@@ -500,7 +511,9 @@ export default function PartnerArchives({
                           >
                             <AssistantResponse content={message.content} />
                           </InlineFileCardProvider>
-                        ) : message.content}
+                        ) : (
+                          message.content
+                        )}
                       </div>
                     </div>
                   ))

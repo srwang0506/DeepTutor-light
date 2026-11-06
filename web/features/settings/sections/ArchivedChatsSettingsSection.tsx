@@ -10,10 +10,7 @@ import { useTranslation } from "react-i18next";
 import { SettingsPageHeader } from "@/components/settings/shared";
 import ArchivedConversations from "@/components/space/ArchivedConversations";
 import { useAppShell } from "@/context/AppShellContext";
-import {
-  fetchMasteryTopicIndex,
-  type MasteryTopicLabel,
-} from "@/lib/learning-api";
+import { fetchMasteryTopicIndex, type MasteryTopicLabel } from "@/lib/learning-api";
 import {
   fetchReadingCollectionIndex,
   type ReadingCollectionLabel,
@@ -47,31 +44,42 @@ export default function ArchivedChatsSettingsSection() {
   const [kind, setKind] = useState<ArchiveKind | "all">("all");
 
   const load = useCallback(async () => {
-    const [nextSessions, nextTopics, nextCollections] = await Promise.all([
+    return Promise.all([
       listAllSessions({ force: true, allWorkspaces: true }),
       fetchMasteryTopicIndex().catch(() => [] as MasteryTopicLabel[]),
       fetchReadingCollectionIndex().catch(() => [] as ReadingCollectionLabel[]),
-    ]);
-    setSessions(nextSessions);
-    setTopics(nextTopics);
-    setCollections(nextCollections);
+    ]).then(async ([nextSessions, nextTopics, nextCollections]) => {
+      setSessions(nextSessions);
+      setTopics(nextTopics);
+      setCollections(nextCollections);
+    });
   }, []);
 
-  const refresh = useCallback(async () => {
+  const refreshData = useCallback(async () => {
+    return load()
+      .then(async () => {})
+      .catch(() => {
+        setError(t("Unable to load archived chats. Please try again."));
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [load, t]);
+  const [refreshInputs, setRefreshInputs] = useState<typeof refreshData | null>(null);
+  if (refreshInputs !== refreshData) {
+    setRefreshInputs(() => refreshData);
     setLoading(true);
     setError("");
-    try {
-      await load();
-    } catch {
-      setError(t("Unable to load archived chats. Please try again."));
-    } finally {
-      setLoading(false);
-    }
-  }, [load, t]);
+  }
+  const refresh = useCallback(() => {
+    setLoading(true);
+    setError("");
+    return refreshData();
+  }, [refreshData]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    void refreshData();
+  }, [refreshData]);
 
   const buckets = useMemo(
     () =>
@@ -107,9 +115,7 @@ export default function ArchivedChatsSettingsSection() {
       await operation();
       await load();
     } catch {
-      setError(
-        t("Some changes could not be completed. Please refresh and try again."),
-      );
+      setError(t("Some changes could not be completed. Please refresh and try again."));
       await load().catch(() => {});
     } finally {
       notifySessionsChanged();
@@ -118,7 +124,10 @@ export default function ArchivedChatsSettingsSection() {
   };
 
   const remove = async (sessionId: string) => {
-    await deleteSession(sessionId, sessionWorkspaceId(sessions.find(item => item.session_id === sessionId)));
+    await deleteSession(
+      sessionId,
+      sessionWorkspaceId(sessions.find((item) => item.session_id === sessionId)),
+    );
     if (activeSessionId === sessionId) setActiveSessionId(null);
   };
 
@@ -145,32 +154,21 @@ export default function ArchivedChatsSettingsSection() {
             void mutate("all", async () => {
               let failed = false;
               for (let start = 0; start < ids.length; start += 4) {
-                const results = await Promise.allSettled(
-                  ids.slice(start, start + 4).map(remove),
-                );
-                failed ||= results.some(
-                  (result) => result.status === "rejected",
-                );
+                const results = await Promise.allSettled(ids.slice(start, start + 4).map(remove));
+                failed ||= results.some((result) => result.status === "rejected");
               }
               if (failed) throw new Error("Partial deletion");
             });
           }}
           className="mb-6 inline-flex items-center gap-2 rounded-lg bg-red-500/10 px-3 py-2 text-[13px] font-medium text-red-600 hover:bg-red-500/15 disabled:opacity-40 dark:text-red-400"
         >
-          {busy === "all" ? (
-            <Loader2 size={15} className="animate-spin" />
-          ) : (
-            <Trash2 size={15} />
-          )}
+          {busy === "all" ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
           {t("Delete all archived chats")}
         </button>
       </div>
       <div className="mb-6 flex flex-wrap gap-2">
         <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-[var(--border)] px-3 py-2">
-          <Search
-            size={16}
-            className="shrink-0 text-[var(--muted-foreground)]"
-          />
+          <Search size={16} className="shrink-0 text-[var(--muted-foreground)]" />
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
@@ -181,9 +179,7 @@ export default function ArchivedChatsSettingsSection() {
         </label>
         <select
           value={kind}
-          onChange={(event) =>
-            setKind(event.target.value as ArchiveKind | "all")
-          }
+          onChange={(event) => setKind(event.target.value as ArchiveKind | "all")}
           aria-label={t("Filter by conversation type")}
           className="rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-[13px]"
         >
@@ -236,15 +232,17 @@ export default function ArchivedChatsSettingsSection() {
           }}
           onRestore={(id) =>
             void mutate(`restore:${id}`, async () => {
-              await updateSessionOrganization(id, { archived: false }, sessionWorkspaceId(sessions.find(item => item.session_id === id)));
+              await updateSessionOrganization(
+                id,
+                { archived: false },
+                sessionWorkspaceId(sessions.find((item) => item.session_id === id)),
+              );
             })
           }
           onDelete={(id) => {
             if (
               !window.confirm(
-                t(
-                  "Permanently delete this chat and its tutor threads? This cannot be undone.",
-                ),
+                t("Permanently delete this chat and its tutor threads? This cannot be undone."),
               )
             )
               return;

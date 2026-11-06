@@ -1,0 +1,41 @@
+{
+  "title": "Schema example \u2014 not a benchmark",
+  "curator": "Local fixture",
+  "source_url": "https://example.invalid/schema-fixture",
+  "license": "CC0 fixture text",
+  "independent_authorship_attested": false,
+  "cases": [
+    {
+      "id": "queue-1",
+      "domain": "data-structures",
+      "family": "fifo-order",
+      "papers": [],
+      "split": "test",
+      "variant": "clean",
+      "pair": "",
+      "prompt": "Which value leaves the queue first?",
+      "sources": [
+        {
+          "source_id": "course-note",
+          "revision": "v1",
+          "locator": "page:1/paragraph:1",
+          "text": "A FIFO queue is initially empty. Enqueue 7, then 3, then 9. Dequeue once."
+        }
+      ],
+      "expected": {
+        "answerable": true,
+        "accepted_answers": [
+          "7"
+        ],
+        "citations": [
+          {
+            "source_id": "course-note",
+            "revision": "v1",
+            "locator": "page:1/paragraph:1"
+          }
+        ],
+        "review_required": false
+      }
+    }
+  ]
+}

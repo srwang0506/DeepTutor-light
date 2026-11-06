@@ -29,17 +29,11 @@ const FavoriteContent = dynamic(() => import("./NotebookFavoriteContent"), {
   ssr: false,
 });
 
-const AddToNote = dynamic(
-  () => import("@/features/notes/components/AddToNote"),
-  { ssr: false },
-);
+const AddToNote = dynamic(() => import("@/features/notes/components/AddToNote"), { ssr: false });
 
-const MarkdownRenderer = dynamic(
-  () => import("@/components/common/MarkdownRenderer"),
-  {
-    ssr: false,
-  },
-);
+const MarkdownRenderer = dynamic(() => import("@/components/common/MarkdownRenderer"), {
+  ssr: false,
+});
 
 interface NotebookRecordRowProps {
   record: NotebookRecordItem;
@@ -52,54 +46,56 @@ interface NotebookRecordRowProps {
     changes: { title?: string; summary?: string; output?: string },
   ) => Promise<void>;
   onDelete: (recordId: string) => Promise<void>;
-  onRelocate: (
-    recordId: string,
-    targetNotebookId: string,
-    mode: "move" | "copy",
-  ) => Promise<void>;
+  onRelocate: (recordId: string, targetNotebookId: string, mode: "move" | "copy") => Promise<void>;
   onOpenSession: (sessionId: string) => void;
 }
 
-const BADGES: Record<
-  string,
-  { labelKey: string; className: string; icon: typeof MessageSquare }
-> = {
-  reading: { labelKey: "Reading", className: "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300", icon: BookOpen },
-  question: { labelKey: "Question", className: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300", icon: FileQuestion },
-  solve: { labelKey: "Solution", className: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300", icon: Calculator },
-  chat: {
-    labelKey: "Chat",
-    className: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
-    icon: MessageSquare,
-  },
-  tutorbot: {
-    labelKey: "Partner",
-    className:
-      "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
-    icon: Bot,
-  },
-  research: {
-    labelKey: "Research",
-    className:
-      "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-    icon: Search,
-  },
-  co_writer: {
-    labelKey: "Learning notebook",
-    className:
-      "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
-    icon: Pencil,
-  },
-  video_learning: {
-    labelKey: "Video Learning",
-    className: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
-    icon: Video,
-  },
-};
+const BADGES: Record<string, { labelKey: string; className: string; icon: typeof MessageSquare }> =
+  {
+    reading: {
+      labelKey: "Reading",
+      className: "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300",
+      icon: BookOpen,
+    },
+    question: {
+      labelKey: "Question",
+      className: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+      icon: FileQuestion,
+    },
+    solve: {
+      labelKey: "Solution",
+      className: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300",
+      icon: Calculator,
+    },
+    chat: {
+      labelKey: "Chat",
+      className: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
+      icon: MessageSquare,
+    },
+    tutorbot: {
+      labelKey: "Partner",
+      className: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
+      icon: Bot,
+    },
+    research: {
+      labelKey: "Research",
+      className: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+      icon: Search,
+    },
+    co_writer: {
+      labelKey: "Learning notebook",
+      className: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+      icon: Pencil,
+    },
+    video_learning: {
+      labelKey: "Video Learning",
+      className: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
+      icon: Video,
+    },
+  };
 
 const FALLBACK_BADGE = {
-  className:
-    "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+  className: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
   icon: NotebookPen,
 };
 
@@ -129,19 +125,28 @@ export default function NotebookRecordRow({
 
   // Re-seed the draft whenever a different record lands in this row, or the
   // saved values change underneath an idle editor.
-  useEffect(() => {
-    if (editing) return;
-    setDraftTitle(record.title);
-    setDraftSummary(record.summary ?? "");
-    setDraftOutput(record.output ?? "");
-  }, [record.id, record.title, record.summary, record.output, editing]);
+  const [derivedInputs0, setDerivedInputs0] = useState<readonly unknown[]>([]);
+  if (
+    derivedInputs0.length !== 5 ||
+    !Object.is(derivedInputs0[0], record.id) ||
+    !Object.is(derivedInputs0[1], record.title) ||
+    !Object.is(derivedInputs0[2], record.summary) ||
+    !Object.is(derivedInputs0[3], record.output) ||
+    !Object.is(derivedInputs0[4], editing)
+  ) {
+    setDerivedInputs0([record.id, record.title, record.summary, record.output, editing]);
+    (() => {
+      if (editing) return;
+      setDraftTitle(record.title);
+      setDraftSummary(record.summary ?? "");
+      setDraftOutput(record.output ?? "");
+    })();
+  }
 
   const badge = BADGES[favoriteKind(record.type, record.metadata)] ?? null;
   const BadgeIcon = badge?.icon ?? FALLBACK_BADGE.icon;
   const partnerName =
-    typeof record.metadata?.partner_name === "string"
-      ? record.metadata.partner_name.trim()
-      : "";
+    typeof record.metadata?.partner_name === "string" ? record.metadata.partner_name.trim() : "";
   const badgeLabel = badge
     ? record.type === "tutorbot" && partnerName
       ? partnerName
@@ -150,9 +155,7 @@ export default function NotebookRecordRow({
 
   const sessionId = String(record.metadata?.session_id ?? "");
   const canOpenSession = record.type === "chat" && Boolean(sessionId);
-  const moveTargets = notebooks.filter(
-    (n) => n.id !== currentNotebookId && !n.unreadable,
-  );
+  const moveTargets = notebooks.filter((n) => n.id !== currentNotebookId && !n.unreadable);
 
   const dirty =
     draftTitle !== record.title ||
@@ -195,8 +198,7 @@ export default function NotebookRecordRow({
       // other values intact.
       const changes: { title?: string; summary?: string; output?: string } = {};
       if (draftTitle !== record.title) changes.title = draftTitle.trim();
-      if (draftSummary !== (record.summary ?? ""))
-        changes.summary = draftSummary;
+      if (draftSummary !== (record.summary ?? "")) changes.summary = draftSummary;
       if (Object.keys(changes).length) await onEdit(record.id, changes);
       setEditing(false);
       notify(t("Record saved"), { tone: "success" });
@@ -238,17 +240,13 @@ export default function NotebookRecordRow({
     }
   };
 
-  const timestamp = record.created_at
-    ? new Date(record.created_at * 1000).toLocaleString()
-    : "";
+  const timestamp = record.created_at ? new Date(record.created_at * 1000).toLocaleString() : "";
 
   const kind = favoriteKind(record.type, record.metadata);
   const messageCount = Number(record.metadata?.message_count ?? 0);
 
   return (
-    <div
-      className={`dt-fav-record${expanded ? " is-open" : ""}${busy ? " is-busy" : ""}`}
-    >
+    <div className={`dt-fav-record${expanded ? " is-open" : ""}${busy ? " is-busy" : ""}`}>
       <div className="dt-fav-record-head">
         <button
           type="button"
@@ -265,9 +263,7 @@ export default function NotebookRecordRow({
             <span className="dt-fav-record-meta">
               <BadgeIcon size={11} aria-hidden />
               {badgeLabel}
-              {messageCount > 0 && (
-                <> · {t("{{count}} messages", { count: messageCount })}</>
-              )}
+              {messageCount > 0 && <> · {t("{{count}} messages", { count: messageCount })}</>}
               {record.created_at ? (
                 <>
                   {" · "}
@@ -463,9 +459,7 @@ function RecordEditor({
       </div>
 
       <p className="px-3 py-2 text-xs text-[var(--muted-foreground)]">
-        {t(
-          "Original content is preserved. Add it to a note to edit and organize it.",
-        )}
+        {t("Original content is preserved. Add it to a note to edit and organize it.")}
       </p>
       <div className="flex items-center justify-between border-b border-[var(--border)]/70 bg-[var(--muted)]/25 px-3 py-1.5">
         <span className="text-[10.5px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">

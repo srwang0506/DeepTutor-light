@@ -16,24 +16,14 @@ import {
 import { useTranslation } from "react-i18next";
 import Tooltip from "@/shared/ui/Tooltip";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import {
-  FeaturePage,
-  PageHeader,
-  pageActionClass,
-} from "@/components/layout/FeaturePage";
+import { FeaturePage, PageHeader, pageActionClass } from "@/components/layout/FeaturePage";
 import { PageBarSlot } from "@/components/layout/PageChrome";
-import {
-  InstanceCrumb,
-  type CrumbItem,
-} from "@/components/layout/LocationCrumbs";
+import { InstanceCrumb, type CrumbItem } from "@/components/layout/LocationCrumbs";
 import "@/components/notebook/favorites.css";
 import NotebookRecordRow from "@/components/notebook/NotebookRecordRow";
 import PickerShell from "@/components/common/PickerShell";
 import { FolderGlyph } from "@/components/reading/library/FolderGlyph";
-import {
-  FavoriteKindIcon,
-  favoriteLabel,
-} from "@/components/notebook/favorite-kinds";
+import { FavoriteKindIcon, favoriteLabel } from "@/components/notebook/favorite-kinds";
 import { favoriteKind } from "@/lib/favorite-content";
 import { RecordTime } from "@/components/sidebar/RecordList";
 import { useNotebookLibrary } from "@/components/notebook/useNotebookLibrary";
@@ -88,8 +78,7 @@ export default function NotebookConsole({
   const library = useNotebookLibrary(initialNotebookId);
   const [banner, setBanner] = useState<string | null>(null);
   const fail = useCallback(
-    (err: unknown) =>
-      setBanner(err instanceof Error ? err.message : String(err)),
+    (err: unknown) => setBanner(err instanceof Error ? err.message : String(err)),
     [],
   );
 
@@ -108,11 +97,7 @@ export default function NotebookConsole({
     >
       <AlertTriangle size={13} />
       <span className="flex-1">{banner}</span>
-      <button
-        type="button"
-        onClick={() => setBanner(null)}
-        aria-label={t("Dismiss")}
-      >
+      <button type="button" onClick={() => setBanner(null)} aria-label={t("Dismiss")}>
         <X size={13} />
       </button>
     </div>
@@ -171,10 +156,7 @@ type Library = ReturnType<typeof useNotebookLibrary>;
 function useCollectionPeeks(notebooks: NotebookSummary[]) {
   const [peeks, setPeeks] = useState<Record<string, NotebookRecordItem[]>>({});
   const signature = notebooks
-    .map(
-      (notebook) =>
-        `${notebook.id}:${notebook.record_count ?? 0}:${notebook.updated_at ?? 0}`,
-    )
+    .map((notebook) => `${notebook.id}:${notebook.record_count ?? 0}:${notebook.updated_at ?? 0}`)
     .join("|");
   useEffect(() => {
     let cancelled = false;
@@ -223,9 +205,7 @@ function NotebookList({
 
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
-    const sorted = [...notebooks].sort(
-      (a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0),
-    );
+    const sorted = [...notebooks].sort((a, b) => (b.updated_at ?? 0) - (a.updated_at ?? 0));
     if (!needle) return sorted;
     return sorted.filter((notebook) =>
       [
@@ -238,10 +218,7 @@ function NotebookList({
         .includes(needle),
     );
   }, [notebooks, peeks, query]);
-  const total = notebooks.reduce(
-    (sum, notebook) => sum + (notebook.record_count ?? 0),
-    0,
-  );
+  const total = notebooks.reduce((sum, notebook) => sum + (notebook.record_count ?? 0), 0);
 
   return (
     <FeaturePage>
@@ -311,9 +288,7 @@ function NotebookList({
             ) : (
               <>
                 <FolderGlyph tone="var(--folder-default)" files={0} size={64} />
-                <p className="dt-fav-home-empty-title">
-                  {t("No notebooks yet.")}
-                </p>
+                <p className="dt-fav-home-empty-title">{t("No notebooks yet.")}</p>
                 <p>
                   {t(
                     "Save a conversation, a research report or a question from anywhere in DeepTutor, and file it in a folder here.",
@@ -411,20 +386,13 @@ function CollectionCard({
             </span>
           </span>
         </span>
-        {notebook.description && (
-          <span className="dt-fav-card-desc">{notebook.description}</span>
-        )}
+        {notebook.description && <span className="dt-fav-card-desc">{notebook.description}</span>}
         {newest.length ? (
           <span className="dt-fav-card-files">
             {newest.map((record) => (
               <span key={record.id} className="dt-fav-card-file">
-                <FavoriteKindIcon
-                  kind={favoriteKind(record.type, record.metadata)}
-                  size={12}
-                />
-                <span className="truncate">
-                  {record.title || t("Favorite content")}
-                </span>
+                <FavoriteKindIcon kind={favoriteKind(record.type, record.metadata)} size={12} />
+                <span className="truncate">{record.title || t("Favorite content")}</span>
               </span>
             ))}
             {count > newest.length && (
@@ -434,9 +402,7 @@ function CollectionCard({
             )}
           </span>
         ) : (
-          <span className="dt-fav-card-files is-empty">
-            {count ? "" : t("Empty folder")}
-          </span>
+          <span className="dt-fav-card-files is-empty">{count ? "" : t("Empty folder")}</span>
         )}
       </button>
       <Tooltip label={t("Edit notebook")} side="bottom">
@@ -486,19 +452,19 @@ function NotebookDetail({
 
   // Resolve moved favorites only after the requested collection has loaded.
   // Never silently open an unrelated record when a saved source is gone.
+  const resourceReset0 = JSON.stringify([initialRecordId, notebookId]);
+  const [resourceReset0Previous, resourceReset0Remember] = useState<string | null>(null);
+  if (resourceReset0Previous !== resourceReset0) {
+    resourceReset0Remember(resourceReset0);
+    setRecordError(null);
+  }
   useEffect(() => {
     let cancelled = false;
-    setRecordError(null);
     if (!initialRecordId) {
       handledRecordRouteRef.current = null;
       return;
     }
-    if (
-      library.loading ||
-      library.detailLoading ||
-      selectedId !== notebookId
-    )
-      return;
+    if (library.loading || library.detailLoading || selectedId !== notebookId) return;
     if (
       selected?.id === notebookId &&
       selected.records.some((record) => record.id === initialRecordId)
@@ -525,9 +491,7 @@ function NotebookDetail({
       })
       .catch(() => {
         if (!cancelled)
-          setRecordError(
-            t("Could not locate this favorite. Try reopening the source link."),
-          );
+          setRecordError(t("Could not locate this favorite. Try reopening the source link."));
       });
     return () => {
       cancelled = true;
@@ -547,9 +511,7 @@ function NotebookDetail({
   const kinds = useMemo(
     () => [
       ...new Set(
-        (selected?.records ?? []).map((record) =>
-          favoriteKind(record.type, record.metadata),
-        ),
+        (selected?.records ?? []).map((record) => favoriteKind(record.type, record.metadata)),
       ),
     ],
     [selected],
@@ -561,8 +523,7 @@ function NotebookDetail({
     return records.filter(
       (record) =>
         record.id === initialRecordId ||
-        ((!recordKind ||
-          favoriteKind(record.type, record.metadata) === recordKind) &&
+        ((!recordKind || favoriteKind(record.type, record.metadata) === recordKind) &&
           `${record.title} ${record.summary ?? ""} ${record.output ?? ""}`
             .toLowerCase()
             .includes(needle)),
@@ -614,8 +575,7 @@ function NotebookDetail({
   }, [name, notebookId, onError, t]);
 
   const openSession = useCallback(
-    (sessionId: string) =>
-      router.push(`/chat/${encodeURIComponent(sessionId)}`),
+    (sessionId: string) => router.push(`/chat/${encodeURIComponent(sessionId)}`),
     [router],
   );
 
@@ -636,10 +596,7 @@ function NotebookDetail({
       </PageBarSlot>
       {banner}
       {recordError && (
-        <p
-          role="alert"
-          className="mb-4 rounded-lg bg-[var(--muted)] px-3 py-2.5 text-[13px]"
-        >
+        <p role="alert" className="mb-4 rounded-lg bg-[var(--muted)] px-3 py-2.5 text-[13px]">
           {recordError}
         </p>
       )}
@@ -654,11 +611,7 @@ function NotebookDetail({
           <PageHeader
             title={
               <span className="inline-flex min-w-0 items-center gap-3">
-                <FolderGlyph
-                  tone={color}
-                  files={selected?.records.length ?? 0}
-                  size={34}
-                />
+                <FolderGlyph tone={color} files={selected?.records.length ?? 0} size={34} />
                 <span className="min-w-0 truncate">{name}</span>
               </span>
             }
@@ -718,11 +671,7 @@ function NotebookDetail({
                 />
               </label>
               {kinds.length > 1 && (
-                <div
-                  className="dt-fav-chips"
-                  role="group"
-                  aria-label={t("Type")}
-                >
+                <div className="dt-fav-chips" role="group" aria-label={t("Type")}>
                   <button
                     type="button"
                     aria-pressed={!recordKind}
@@ -735,9 +684,7 @@ function NotebookDetail({
                       key={value}
                       type="button"
                       aria-pressed={recordKind === value}
-                      onClick={() =>
-                        setRecordKind(recordKind === value ? "" : value)
-                      }
+                      onClick={() => setRecordKind(recordKind === value ? "" : value)}
                     >
                       {t(favoriteLabel(value))}
                     </button>
@@ -791,9 +738,7 @@ function NotebookDetail({
               detail={
                 recordQuery || recordKind
                   ? t("Try a different word.")
-                  : t(
-                      "Save something to it from a chat, research run, or Co-Writer document.",
-                    )
+                  : t("Save something to it from a chat, research run, or Co-Writer document.")
               }
             />
           )}
@@ -811,10 +756,10 @@ function NotebookDetail({
       >
         <p className="text-[13px] leading-relaxed text-[var(--muted-foreground)]">
           {(selected?.record_count ?? 0) > 0
-            ? t(
-                '"{{name}}" and its {{count}} records will be deleted. This cannot be undone.',
-                { name, count: selected?.record_count ?? 0 },
-              )
+            ? t('"{{name}}" and its {{count}} records will be deleted. This cannot be undone.', {
+                name,
+                count: selected?.record_count ?? 0,
+              })
             : t('"{{name}}" will be deleted.', { name })}
         </p>
       </ConfirmDialog>
@@ -837,11 +782,7 @@ function NotebookMetaDialog({
   submitLabel: string;
   initial?: NotebookSummary;
   onCancel: () => void;
-  onSubmit: (changes: {
-    name: string;
-    description: string;
-    color: string;
-  }) => void | Promise<void>;
+  onSubmit: (changes: { name: string; description: string; color: string }) => void | Promise<void>;
 }) {
   const { t } = useTranslation();
   const [name, setName] = useState(initial?.name ?? "");
@@ -868,11 +809,7 @@ function NotebookMetaDialog({
         }}
       >
         <div className="dt-fav-dialog-preview">
-          <FolderGlyph
-            tone={color}
-            files={initial?.record_count ?? 0}
-            size={72}
-          />
+          <FolderGlyph tone={color} files={initial?.record_count ?? 0} size={72} />
         </div>
         <h2 className="dt-fav-dialog-title">{label}</h2>
         <label className="dt-fav-field">
@@ -896,11 +833,7 @@ function NotebookMetaDialog({
         </label>
         <div className="dt-fav-field">
           <span>{t("Colour")}</span>
-          <div
-            className="dt-fav-swatches"
-            role="radiogroup"
-            aria-label={t("Colour")}
-          >
+          <div className="dt-fav-swatches" role="radiogroup" aria-label={t("Colour")}>
             {swatches.map((swatch) => (
               <button
                 key={swatch}
@@ -986,9 +919,7 @@ function ConsoleNotice({
       >
         <Icon size={16} />
       </span>
-      <p className="text-[13.5px] font-medium text-[var(--foreground)]">
-        {title}
-      </p>
+      <p className="text-[13.5px] font-medium text-[var(--foreground)]">{title}</p>
       <p className="max-w-sm text-[12.5px] leading-relaxed text-[var(--muted-foreground)]">
         {detail}
       </p>

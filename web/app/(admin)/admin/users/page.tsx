@@ -84,9 +84,7 @@ export default function AdminUsersPage() {
   const [importError, setImportError] = useState("");
   const [importResult, setImportResult] = useState<UserImportResult | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  const loadData = useCallback(async () => {
     try {
       const data = await listUsers();
       setUsers(data);
@@ -96,6 +94,17 @@ export default function AdminUsersPage() {
       setLoading(false);
     }
   }, [t]);
+  const [loadInputs, setLoadInputs] = useState<typeof loadData | null>(null);
+  if (loadInputs !== loadData) {
+    setLoadInputs(() => loadData);
+    setLoading(true);
+    setError("");
+  }
+  const load = useCallback(() => {
+    setLoading(true);
+    setError("");
+    return loadData();
+  }, [loadData]);
 
   useEffect(() => {
     fetchAuthStatus().then((status) => {
@@ -108,9 +117,9 @@ export default function AdminUsersPage() {
         return;
       }
       setCurrentUser(status.username ?? null);
-      void load();
+      void loadData();
     });
-  }, [router, load]);
+  }, [router, loadData]);
 
   function openCreateDialog() {
     setCreateUsername("");
@@ -157,9 +166,7 @@ export default function AdminUsersPage() {
       setShowCreateDialog(false);
       await load();
     } catch (e) {
-      setCreateError(
-        e instanceof Error ? e.message : t("Failed to create user"),
-      );
+      setCreateError(e instanceof Error ? e.message : t("Failed to create user"));
     } finally {
       setCreateSubmitting(false);
     }
@@ -178,14 +185,10 @@ export default function AdminUsersPage() {
         const newRole = kind === "promote" ? "admin" : "user";
         await setUserRole(user.username, newRole);
         setUsers((prev) =>
-          prev.map((u) =>
-            u.username === user.username ? { ...u, role: newRole } : u,
-          ),
+          prev.map((u) => (u.username === user.username ? { ...u, role: newRole } : u)),
         );
         if (newRole === "admin") {
-          setExpandedUserId((current) =>
-            current === user.id ? null : current,
-          );
+          setExpandedUserId((current) => (current === user.id ? null : current));
         }
       }
       setConfirmTarget(null);
@@ -217,9 +220,7 @@ export default function AdminUsersPage() {
       setImportResult(result);
       await load();
     } catch (e) {
-      setImportError(
-        e instanceof Error ? e.message : t("Failed to import users"),
-      );
+      setImportError(e instanceof Error ? e.message : t("Failed to import users"));
     } finally {
       setImportSubmitting(false);
     }
@@ -240,13 +241,9 @@ export default function AdminUsersPage() {
     try {
       const result = await deleteUsers(selectedUsernames);
       const failed = new Set(
-        result.results
-          .filter((item) => !item.ok)
-          .map((item) => item.username),
+        result.results.filter((item) => !item.ok).map((item) => item.username),
       );
-      setSelectedUsernames((current) =>
-        current.filter((username) => failed.has(username)),
-      );
+      setSelectedUsernames((current) => current.filter((username) => failed.has(username)));
       setShowBatchDeleteConfirm(false);
       await load();
       if (failed.size > 0) {
@@ -259,42 +256,52 @@ export default function AdminUsersPage() {
       }
     } catch (e) {
       setShowBatchDeleteConfirm(false);
-      setActionError(
-        e instanceof Error ? e.message : t("Failed to delete users"),
-      );
+      setActionError(e instanceof Error ? e.message : t("Failed to delete users"));
     } finally {
       setBatchDeleteBusy(false);
     }
   }
 
-  useEffect(() => {
-    if (!expandedUserId) return;
-    const expanded = users.find((user) => user.id === expandedUserId);
-    if (!expanded || expanded.role === "admin") {
-      setExpandedUserId(null);
-    }
-  }, [expandedUserId, users]);
+  const [derivedInputs0, setDerivedInputs0] = useState<readonly unknown[]>([]);
+  if (
+    derivedInputs0.length !== 2 ||
+    !Object.is(derivedInputs0[0], expandedUserId) ||
+    !Object.is(derivedInputs0[1], users)
+  ) {
+    setDerivedInputs0([expandedUserId, users]);
+    (() => {
+      if (!expandedUserId) return;
+      const expanded = users.find((user) => user.id === expandedUserId);
+      if (!expanded || expanded.role === "admin") {
+        setExpandedUserId(null);
+      }
+    })();
+  }
 
-  useEffect(() => {
-    if (selectedUsernames.length === 0) return;
-    const usernames = new Set(users.map((user) => user.username));
-    setSelectedUsernames((current) => {
-      const retained = current.filter((username) => usernames.has(username));
-      return retained.length === current.length ? current : retained;
-    });
-  }, [users, selectedUsernames]);
+  const [derivedInputs1, setDerivedInputs1] = useState<readonly unknown[]>([]);
+  if (
+    derivedInputs1.length !== 2 ||
+    !Object.is(derivedInputs1[0], users) ||
+    !Object.is(derivedInputs1[1], selectedUsernames)
+  ) {
+    setDerivedInputs1([users, selectedUsernames]);
+    (() => {
+      if (selectedUsernames.length === 0) return;
+      const usernames = new Set(users.map((user) => user.username));
+      setSelectedUsernames((current) => {
+        const retained = current.filter((username) => usernames.has(username));
+        return retained.length === current.length ? current : retained;
+      });
+    })();
+  }
 
   const normalizedQuery = query.trim().toLowerCase();
   const filteredUsers = filterUsersByQuery(users, query);
-  const selectableFilteredUsers = filteredUsers.filter(
-    (user) => user.username !== currentUser,
-  );
+  const selectableFilteredUsers = filteredUsers.filter((user) => user.username !== currentUser);
   const selectedUsernameSet = new Set(selectedUsernames);
   const allFilteredSelected =
     selectableFilteredUsers.length > 0 &&
-    selectableFilteredUsers.every((user) =>
-      selectedUsernameSet.has(user.username),
-    );
+    selectableFilteredUsers.every((user) => selectedUsernameSet.has(user.username));
 
   return (
     <div className="h-screen overflow-y-auto bg-[var(--background)] px-4 py-10 [scrollbar-gutter:stable]">
@@ -344,10 +351,7 @@ export default function AdminUsersPage() {
                            hover:text-[var(--foreground)] hover:bg-[var(--card)]
                            disabled:opacity-50 transition-colors"
               >
-                <RefreshCw
-                  size={14}
-                  className={loading ? "animate-spin" : ""}
-                />
+                <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
                 {t("Refresh")}
               </button>
             </div>
@@ -418,10 +422,7 @@ export default function AdminUsersPage() {
           {loading ? (
             <div className="divide-y divide-[var(--border)]" aria-hidden>
               {[0, 1, 2].map((row) => (
-                <div
-                  key={row}
-                  className="flex animate-pulse items-center gap-3 px-5 py-4"
-                >
+                <div key={row} className="flex animate-pulse items-center gap-3 px-5 py-4">
                   <div className="h-8 w-8 rounded-full bg-[var(--muted)]/60" />
                   <div className="flex-1 space-y-2">
                     <div className="h-3 w-36 rounded bg-[var(--muted)]/60" />
@@ -437,11 +438,7 @@ export default function AdminUsersPage() {
             </div>
           ) : users.length === 0 ? (
             <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-              <Users
-                size={28}
-                strokeWidth={1.5}
-                className="text-[var(--muted-foreground)]/50"
-              />
+              <Users size={28} strokeWidth={1.5} className="text-[var(--muted-foreground)]/50" />
               <p className="mt-3 text-sm font-medium text-[var(--foreground)]">
                 {t("No users yet")}
               </p>
@@ -460,11 +457,7 @@ export default function AdminUsersPage() {
             </div>
           ) : filteredUsers.length === 0 ? (
             <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-              <Search
-                size={28}
-                strokeWidth={1.5}
-                className="text-[var(--muted-foreground)]/50"
-              />
+              <Search size={28} strokeWidth={1.5} className="text-[var(--muted-foreground)]/50" />
               <p className="mt-3 text-sm font-medium text-[var(--foreground)]">
                 {t("No users match “{{query}}”", { query: query.trim() })}
               </p>
@@ -508,9 +501,7 @@ export default function AdminUsersPage() {
                   <th className="px-5 py-3 font-medium">{t("Username")}</th>
                   <th className="px-5 py-3 font-medium">{t("Role")}</th>
                   <th className="px-5 py-3 font-medium">{t("Joined")}</th>
-                  <th className="px-5 py-3 font-medium text-right">
-                    {t("Actions")}
-                  </th>
+                  <th className="px-5 py-3 font-medium text-right">{t("Actions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
@@ -561,9 +552,7 @@ export default function AdminUsersPage() {
                                 : "bg-[var(--muted)]/50 text-[var(--muted-foreground)]"
                             }`}
                           >
-                            {isAdmin && (
-                              <ShieldCheck size={11} strokeWidth={2} />
-                            )}
+                            {isAdmin && <ShieldCheck size={11} strokeWidth={2} />}
                             {t(accountRoleLabelKey(user.role))}
                           </span>
                           {!isAdmin && user.preset && (
@@ -602,13 +591,16 @@ export default function AdminUsersPage() {
                                 </button>
                               </Tooltip>
                             )}
-                            <Tooltip label={
+                            <Tooltip
+                              label={
                                 isSelf
                                   ? t("Cannot change your own role")
                                   : user.role === "admin"
                                     ? t("Demote to user")
                                     : t("Promote to admin")
-                              } side="top">
+                              }
+                              side="top"
+                            >
                               <button
                                 onClick={() =>
                                   setConfirmTarget({
@@ -635,17 +627,18 @@ export default function AdminUsersPage() {
                                 )}
                               </button>
                             </Tooltip>
-                            <Tooltip label={
+                            <Tooltip
+                              label={
                                 isSelf
                                   ? t("Cannot delete your own account")
                                   : t("Delete {{username}}", {
                                       username: user.username,
                                     })
-                              } side="top">
+                              }
+                              side="top"
+                            >
                               <button
-                                onClick={() =>
-                                  setConfirmTarget({ kind: "delete", user })
-                                }
+                                onClick={() => setConfirmTarget({ kind: "delete", user })}
                                 disabled={isSelf}
                                 aria-label={
                                   isSelf
@@ -680,9 +673,7 @@ export default function AdminUsersPage() {
                                   learnerUsername={user.username}
                                   users={users}
                                 />
-                                <LearnerProfileEditor
-                                  username={user.username}
-                                />
+                                <LearnerProfileEditor username={user.username} />
                               </>
                             )}
                           </td>
@@ -806,9 +797,7 @@ export default function AdminUsersPage() {
             className="w-full max-w-sm rounded-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-xl"
           >
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-[var(--foreground)]">
-                {t("Add user")}
-              </h2>
+              <h2 className="text-base font-semibold text-[var(--foreground)]">{t("Add user")}</h2>
               <button
                 type="button"
                 onClick={closeCreateDialog}
@@ -883,18 +872,12 @@ export default function AdminUsersPage() {
                       "Chat and Immersive Reading only, with uploads and tools disabled until assigned.",
                     )
                   : createPreset === "custom"
-                    ? t(
-                        "Create an ordinary account, then customize its assignments.",
-                      )
-                    : t(
-                        "Create an ordinary account with the default workspace behavior.",
-                      )}
+                    ? t("Create an ordinary account, then customize its assignments.")
+                    : t("Create an ordinary account with the default workspace behavior.")}
               </p>
             </fieldset>
 
-            {createError && (
-              <p className="mb-3 text-xs text-red-500">{createError}</p>
-            )}
+            {createError && <p className="mb-3 text-xs text-red-500">{createError}</p>}
 
             <div className="flex items-center justify-end gap-2">
               <button
@@ -964,9 +947,7 @@ export default function AdminUsersPage() {
               {t("Header: username,password,preset. Only ordinary user accounts can be imported.")}
             </p>
 
-            {importError && (
-              <p className="mb-3 text-xs text-red-500">{importError}</p>
-            )}
+            {importError && <p className="mb-3 text-xs text-red-500">{importError}</p>}
 
             {importResult && (
               <div className="mb-4">

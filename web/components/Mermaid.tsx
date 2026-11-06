@@ -1,4 +1,5 @@
 "use client";
+import { useKeyedState } from "@/hooks/useKeyedState";
 
 import React, { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -16,9 +17,7 @@ let mermaidLoader: Promise<(typeof import("mermaid"))["default"]> | null = null;
 // first-render palette.
 function cssVar(name: string, fallback: string): string {
   if (typeof window === "undefined") return fallback;
-  const value = getComputedStyle(document.documentElement)
-    .getPropertyValue(name)
-    .trim();
+  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   return value || fallback;
 }
 
@@ -81,21 +80,20 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, className = "" }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [svg, setSvg] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
-  const [stable, setStable] = useState(false);
+  const [stable, setStable] = useKeyedState(chart, false);
   const [id] = useState(() => `mermaid-${++mermaidIdCounter}`);
   const [themeToken, setThemeToken] = useState(0);
   const lastChartRef = useRef(chart);
 
   useEffect(() => {
     lastChartRef.current = chart;
-    setStable(false);
 
     const timer = window.setTimeout(() => {
       if (lastChartRef.current === chart) setStable(true);
     }, DEBOUNCE_MS);
 
     return () => window.clearTimeout(timer);
-  }, [chart]);
+  }, [chart, setStable]);
 
   // Bump a token whenever the app's theme changes so the render effect below
   // re-runs with fresh theme variables. Without this the diagram would keep
@@ -125,9 +123,7 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, className = "" }) => {
       } catch (err) {
         cleanupMermaidOrphans(id);
         if (!cancelled) {
-          setError(
-            err instanceof Error ? err.message : t("Failed to render diagram"),
-          );
+          setError(err instanceof Error ? err.message : t("Failed to render diagram"));
         }
       }
     };
@@ -140,12 +136,8 @@ export const Mermaid: React.FC<MermaidProps> = ({ chart, className = "" }) => {
 
   if (error) {
     return (
-      <div
-        className={`my-4 p-4 bg-red-50 border border-red-200 rounded-lg ${className}`}
-      >
-        <p className="text-red-600 text-sm font-medium mb-2">
-          {t("Diagram rendering error")}
-        </p>
+      <div className={`my-4 p-4 bg-red-50 border border-red-200 rounded-lg ${className}`}>
+        <p className="text-red-600 text-sm font-medium mb-2">{t("Diagram rendering error")}</p>
         <pre className="text-xs text-red-500 whitespace-pre-wrap">{error}</pre>
         <details className="mt-2">
           <summary className="text-xs text-[var(--muted-foreground)] cursor-pointer">

@@ -16,21 +16,29 @@ import {
   type CSSProperties,
 } from "react";
 import { useAppShell } from "@/context/AppShellContext";
-import { ChevronsLeft, ChevronsRight, PanelLeftClose, Search, SquarePen, FolderOpen } from "lucide-react";
+import {
+  ChevronsLeft,
+  ChevronsRight,
+  PanelLeftClose,
+  Search,
+  SquarePen,
+  FolderOpen,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useChatWorkspaces } from "@/hooks/useChatWorkspaces";
 
 import { useSidebarDrawer } from "@/components/layout/AppShell";
 import { useDevice } from "@/hooks/useDevice";
-import type {
-  SessionOrganizationPatch,
-  SessionSummary,
-} from "@/lib/session-api";
+import type { SessionOrganizationPatch, SessionSummary } from "@/lib/session-api";
 import type { MasteryTopicLabel } from "@/lib/learning-api";
 import { isNoteSession } from "@/lib/mastery-session";
 import type { ReadingCollectionLabel } from "@/lib/reading-workspace-api";
 import { useSidebarResize } from "@/hooks/useSidebarResize";
-import { CategoryBody, CategoryTabs, useCategoryNavigation } from "@/components/sidebar/CategoryNavigation";
+import {
+  CategoryBody,
+  CategoryTabs,
+  useCategoryNavigation,
+} from "@/components/sidebar/CategoryNavigation";
 import { isLearningSession } from "@/lib/navigation";
 import Tooltip from "@/shared/ui/Tooltip";
 import { WorkspaceMenu } from "@/components/sidebar/WorkspaceMenu";
@@ -49,22 +57,16 @@ const CommandPalette = dynamic(
 
 // Session data arrives after mount; defer its organization UI with it so
 // every workspace route does not download it as part of the initial shell.
-const OrganizedSessionList = dynamic(
-  () => import("@/components/sessions/OrganizedSessionList"),
-  {
-    ssr: false,
-    loading: () => (
-      <div aria-busy="true" className="space-y-1.5 px-2 py-1">
-        {[1, 2, 3].map((i) => (
-          <div
-            key={i}
-            className="h-4 w-3/4 animate-pulse rounded bg-muted/40"
-          />
-        ))}
-      </div>
-    ),
-  },
-);
+const OrganizedSessionList = dynamic(() => import("@/components/sessions/OrganizedSessionList"), {
+  ssr: false,
+  loading: () => (
+    <div aria-busy="true" className="space-y-1.5 px-2 py-1">
+      {[1, 2, 3].map((i) => (
+        <div key={i} className="h-4 w-3/4 animate-pulse rounded bg-muted/40" />
+      ))}
+    </div>
+  ),
+});
 
 export interface SidebarShellProps {
   /** Reuse the shell's resizing/collapse behavior with embedded navigation. */
@@ -89,10 +91,7 @@ export interface SidebarShellProps {
   masteryTopics?: MasteryTopicLabel[];
   /** Collection labels for grouping reading conversations under their shelf. */
   readingCollections?: ReadingCollectionLabel[];
-  onOrganizeSession?: (
-    sessionId: string,
-    patch: SessionOrganizationPatch,
-  ) => void | Promise<void>;
+  onOrganizeSession?: (sessionId: string, patch: SessionOrganizationPatch) => void | Promise<void>;
   /**
    * Footer content rendered below the nav. Pass a render function to receive
    * the current ``collapsed`` state so footer items (e.g. Admin / Sign out) can
@@ -141,8 +140,7 @@ export function SidebarShell({
 
   // The account links live in the workspace menu, which always shows them in
   // full, open sidebar or rail.
-  const renderedFooter =
-    typeof footerSlot === "function" ? footerSlot(false) : footerSlot;
+  const renderedFooter = typeof footerSlot === "function" ? footerSlot(false) : footerSlot;
   // Conversations read like the learning and partner records: by day, in
   // the order the learner picked, searchable in place.
   const chatView = useRecordView("deeptutor.navigation.chats.sort");
@@ -157,8 +155,7 @@ export function SidebarShell({
     // Always reset to a fresh session (mirrors the old "New Chat" affordance);
     // let modifier-clicks fall through to default Link behavior so middle-click
     // open-in-new-tab still works.
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1)
-      return;
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1) return;
     event.preventDefault();
     startNewChat();
   };
@@ -220,12 +217,19 @@ export function SidebarShell({
       !session.preferences?.parent_session_id &&
       !isNoteSession(session),
   );
-  const visibleSessions = bodySlot ? listed : listed.filter((session) => !isLearningSession(session));
+  const visibleSessions = bodySlot
+    ? listed
+    : listed.filter((session) => !isLearningSession(session));
 
   // Learning conversations are filed under the record they were held in; the
   // learning shelf draws them with the same rows and actions as these.
   const learningSessions: LearningSessions | undefined =
-    !bodySlot && showSessions && onSelectSession && onRenameSession && onDeleteSession && onOrganizeSession
+    !bodySlot &&
+    showSessions &&
+    onSelectSession &&
+    onRenameSession &&
+    onDeleteSession &&
+    onOrganizeSession
       ? {
           rows: listed.filter(isLearningSession),
           activeSessionId,
@@ -300,12 +304,25 @@ export function SidebarShell({
   /* ---- Collapsed state ---- */
   if (collapsed) {
     return (
-      <aside className={`${bodySlot ? "" : "dt-product-sidebar"} dt-rail relative flex h-dvh w-[60px] shrink-0 flex-col items-center bg-[var(--secondary)] py-3 transition-all duration-200`}>
+      <aside
+        className={`${bodySlot ? "" : "dt-product-sidebar"} dt-rail relative flex h-dvh w-[60px] shrink-0 flex-col items-center bg-[var(--secondary)] py-3 transition-all duration-200`}
+      >
         {/* The open sidebar's header, stood on end: the workspace (with its
             menu of settings and account), the way back out, then search. */}
         {bodySlot ? (
-          <Link href={brandHref} prefetch={false} aria-label="DeepTutor" className="dt-rail-brand">
-            <Image src="/brand/color-logo.png" alt="DeepTutor" width={22} height={22} className="h-[22px] w-[22px] rounded-md" />
+          <Link
+            href={brandHref}
+            prefetch={false}
+            aria-label={t("DeepTutor")}
+            className="dt-rail-brand"
+          >
+            <Image
+              src="/brand/color-logo.png"
+              alt={t("DeepTutor")}
+              width={22}
+              height={22}
+              className="h-[22px] w-[22px] rounded-md"
+            />
           </Link>
         ) : (
           <WorkspaceMenu compact accountSlot={renderedFooter} onNavigate={() => drawer?.close()} />
@@ -340,10 +357,18 @@ export function SidebarShell({
           {bodySlot ? bodySlot(true) : <CategoryBody nav={categoryNav} collapsed sessions={null} />}
         </div>
 
-        {footerOverride ? footerOverride(true) : (
+        {footerOverride ? (
+          footerOverride(true)
+        ) : (
           <div className="dt-rail-foot">
             <Tooltip label={t("navigation.newChat")} side="right" shortcut={SHORTCUTS.newChat}>
-              <Link prefetch={false} href="/chat" onClick={handleHomeClick} aria-label={t("navigation.newChat")} className="dt-nav-icon">
+              <Link
+                prefetch={false}
+                href="/chat"
+                onClick={handleHomeClick}
+                aria-label={t("navigation.newChat")}
+                className="dt-nav-icon"
+              >
                 <SquarePen size={17} strokeWidth={1.6} />
               </Link>
             </Tooltip>
@@ -365,14 +390,14 @@ export function SidebarShell({
           <Link href={brandHref} prefetch={false} className="group flex items-center gap-1.5">
             <Image
               src="/brand/color-logo.png"
-              alt="DeepTutor"
+              alt={t("DeepTutor")}
               width={22}
               height={22}
               className="h-[22px] w-[22px] transition-transform duration-200 group-hover:scale-105"
             />
             <Image
               src="/brand/color-word.png"
-              alt="DeepTutor"
+              alt={t("DeepTutor")}
               width={1200}
               height={310}
               priority
@@ -418,7 +443,17 @@ export function SidebarShell({
         </div>
       )}
 
-      {!homeSlot && <Link href="/projects" prefetch={false} onClick={() => drawer?.close()} className="mx-3 mb-2 flex items-center gap-2.5 rounded-lg border border-[var(--border)] px-3 py-2.5 text-xs text-[var(--muted-foreground)] hover:bg-[var(--muted)]"><FolderOpen size={15} strokeWidth={1.5} /><span>{t('Projects', { defaultValue: '项目' })}</span></Link>}
+      {!homeSlot && (
+        <Link
+          href="/projects"
+          prefetch={false}
+          onClick={() => drawer?.close()}
+          className="mx-3 mb-2 flex items-center gap-2.5 rounded-lg border border-[var(--border)] px-3 py-2.5 text-xs text-[var(--muted-foreground)] hover:bg-[var(--muted)]"
+        >
+          <FolderOpen size={15} strokeWidth={1.5} />
+          <span>{t("Projects", { defaultValue: "项目" })}</span>
+        </Link>
+      )}
       {homeSlot ? homeSlot(false) : <CategoryTabs nav={categoryNav} collapsed={false} />}
 
       {/* Partner previews stay visible while their conversation list scrolls. */}
@@ -426,16 +461,40 @@ export function SidebarShell({
         ref={recentsScrollRef}
         className={`min-h-0 flex-1 ${!bodySlot && ["partners", "learning"].includes(categoryNav.category) ? "overflow-hidden" : "overflow-y-auto overscroll-contain pb-2"}`}
       >
-        <Suspense fallback={<div aria-busy="true" className="mx-4 mt-5 h-3 w-28 rounded bg-muted" />}>
-          {bodySlot ? bodySlot(false) : <CategoryBody nav={categoryNav} collapsed={false} sessions={sessionContent} learningSessions={learningSessions} />}
+        <Suspense
+          fallback={<div aria-busy="true" className="mx-4 mt-5 h-3 w-28 rounded bg-muted" />}
+        >
+          {bodySlot ? (
+            bodySlot(false)
+          ) : (
+            <CategoryBody
+              nav={categoryNav}
+              collapsed={false}
+              sessions={sessionContent}
+              learningSessions={learningSessions}
+            />
+          )}
         </Suspense>
       </div>
 
       {/* Secondary nav + footer */}
-      {footerOverride ? footerOverride(false) : (
+      {footerOverride ? (
+        footerOverride(false)
+      ) : (
         <div className="dt-sidebar-footer">
-          <Tooltip label={t("navigation.newChat")} side="top" shortcut={SHORTCUTS.newChat} as="div" className="block w-full">
-            <Link prefetch={false} href="/chat" onClick={handleHomeClick} className="dt-new-conversation">
+          <Tooltip
+            label={t("navigation.newChat")}
+            side="top"
+            shortcut={SHORTCUTS.newChat}
+            as="div"
+            className="block w-full"
+          >
+            <Link
+              prefetch={false}
+              href="/chat"
+              onClick={handleHomeClick}
+              className="dt-new-conversation"
+            >
               <SquarePen size={16} strokeWidth={1.7} />
               <span>{t("navigation.newChat")}</span>
             </Link>

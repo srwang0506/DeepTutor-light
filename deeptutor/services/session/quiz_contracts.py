@@ -25,6 +25,16 @@ CREATE TABLE IF NOT EXISTS quiz_exposures (
     level TEXT NOT NULL CHECK(level IN ('hint','revealed')), occurred REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS quiz_exposure_identity ON quiz_exposures(version,family,occurred);
+CREATE TABLE IF NOT EXISTS quiz_families (
+    workspace TEXT NOT NULL, version TEXT NOT NULL, family TEXT NOT NULL,
+    objective TEXT NOT NULL, descriptor TEXT NOT NULL, revision INTEGER NOT NULL,
+    reviewed REAL NOT NULL, PRIMARY KEY(workspace,version)
+);
+CREATE TABLE IF NOT EXISTS quiz_family_reviews (
+    workspace TEXT NOT NULL, version TEXT NOT NULL, family TEXT NOT NULL,
+    objective TEXT NOT NULL, descriptor TEXT NOT NULL, revision INTEGER NOT NULL,
+    reviewed REAL NOT NULL, PRIMARY KEY(workspace,version,revision)
+);
 CREATE TABLE IF NOT EXISTS quiz_migrations (name TEXT PRIMARY KEY, applied REAL NOT NULL);
 CREATE TABLE IF NOT EXISTS quiz_contracts (
     session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
@@ -62,6 +72,13 @@ class QuizContractStore:
         )
         return str(family), str(metadata.get("objective_id") or "")
 
+    def _reviewed_identity(self, conn, session_id, contract):
+        row = conn.execute(
+            "SELECT family,objective FROM quiz_families WHERE version=? AND workspace=(SELECT COALESCE(json_extract(preferences_json,'$.workspace_id'),'') FROM sessions WHERE id=?)",
+            (contract["question_version"], session_id),
+        ).fetchone()
+        return tuple(row) if row else self._exposure_identity(contract)
+
     def _migrate_quiz_exposures(self, conn):
         """Preserve pre-ledger assistance without rewriting historical grades."""
         name = "exposure_history_v1"
@@ -95,17 +112,21 @@ class QuizContractStore:
     async def record_quiz_exposure(self, session_id, contract, level, event_id):
         if level not in {"hint", "revealed"}:
             raise ValueError("Unknown assistance level")
-        family, objective = self._exposure_identity(contract)
 
         def write():
             with self._connect() as conn:
                 conn.execute("BEGIN IMMEDIATE")
+                family, objective = self._reviewed_identity(conn, session_id, contract)
                 identity = (session_id, contract["question_version"], family, objective, level)
                 old = conn.execute(
                     "SELECT session_id,version,family,objective,level FROM quiz_exposures WHERE id=?",
                     (event_id,),
                 ).fetchone()
-                if old and tuple(old) != identity:
+                if old and (old["session_id"], old["version"], old["level"]) != (
+                    identity[0],
+                    identity[1],
+                    identity[4],
+                ):
                     raise ValueError("Exposure event identity already belongs to a different event")
                 conn.execute(
                     "INSERT OR IGNORE INTO quiz_exposures VALUES (?,?,?,?,?,?,?)",
@@ -124,13 +145,13 @@ class QuizContractStore:
         return await self._run(write)
 
     def _quiz_exposure_in_conn(self, conn, session_id, contract, at=None):
-        family, objective = self._exposure_identity(contract)
+        family, objective = self._reviewed_identity(conn, session_id, contract)
         at = time.time() if at is None else at
         row = conn.execute(
-            "SELECT e.level,e.occurred FROM quiz_exposures e JOIN sessions s ON s.id=e.session_id "
+            "SELECT e.level,e.occurred FROM quiz_exposures e JOIN sessions s ON s.id=e.session_id LEFT JOIN quiz_families f ON f.version=e.version AND f.workspace=COALESCE(json_extract(s.preferences_json,'$.workspace_id'),'') "
             "WHERE COALESCE(json_extract(s.preferences_json,'$.workspace_id'),'') = "
             "(SELECT COALESCE(json_extract(preferences_json,'$.workspace_id'),'') FROM sessions WHERE id=?) "
-            "AND (e.version=? OR (e.family=? AND e.occurred>?)) AND e.occurred<=? "
+            "AND (e.version=? OR (COALESCE(f.family,e.family)=? AND e.occurred>?)) AND e.occurred<=? "
             "ORDER BY (e.level='revealed') DESC,e.occurred DESC LIMIT 1",
             (session_id, contract["question_version"], family, at - 86400, at),
         ).fetchone()
@@ -295,19 +316,34 @@ class QuizContractStore:
                     tracked = metadata.get("exposure_tracking") == 2
                     receipt["evidence_kind"] = "independent" if tracked else "unknown"
                     receipt["independent"] = tracked
-                    family, objective = self._exposure_identity(contract)
+                    family, objective = self._reviewed_identity(conn, row["session_id"], contract)
                     # Only a reviewed objective supports a transfer claim. An edition or
                     # paragraph identifier alone does not establish conceptual equivalence.
-                    if tracked and objective and metadata.get("transfer_objective_verified"):
+                    reviewed_family = conn.execute(
+                        "SELECT 1 FROM quiz_families WHERE version=? AND workspace=(SELECT COALESCE(json_extract(preferences_json,'$.workspace_id'),'') FROM sessions WHERE id=?)",
+                        (contract["question_version"], row["session_id"]),
+                    ).fetchone()
+                    if (
+                        tracked
+                        and objective
+                        and (reviewed_family or metadata.get("transfer_objective_verified"))
+                    ):
                         prior = conn.execute(
-                            "SELECT MAX(e.occurred) FROM quiz_exposures e JOIN sessions s ON s.id=e.session_id "
-                            "WHERE e.objective=? AND e.family!=? AND e.occurred<? AND "
+                            "SELECT MAX(e.occurred) FROM quiz_exposures e JOIN sessions s ON s.id=e.session_id LEFT JOIN quiz_families f ON f.version=e.version AND f.workspace=COALESCE(json_extract(s.preferences_json,'$.workspace_id'),'') "
+                            "WHERE COALESCE(f.objective,e.objective)=? AND COALESCE(f.family,e.family)!=? AND e.occurred<? AND "
                             "COALESCE(json_extract(s.preferences_json,'$.workspace_id'),'')="
                             "(SELECT COALESCE(json_extract(preferences_json,'$.workspace_id'),'') FROM sessions WHERE id=?)",
                             (objective, family, row["created_at"], row["session_id"]),
                         ).fetchone()[0]
                         if prior is not None and row["created_at"] - prior >= 86400:
                             receipt["evidence_kind"] = "delayed_transfer"
+                if json.loads(row["request_json"]).get("offline"):
+                    receipt["independent"] = False
+                    if not exposure:
+                        receipt["evidence_kind"] = "unknown"
+                    receipt["feedback"] = (
+                        receipt.get("feedback") or ""
+                    ) + " 离线作答：独立性未核实，未计为独立掌握或延迟迁移证据。"
                 receipt["exposure_tracking"] = 2
                 attempt["evidence_kind"] = receipt["evidence_kind"]
                 attempt["independent"] = receipt["independent"]
@@ -332,7 +368,7 @@ class QuizContractStore:
                     # Classify first, then atomically record the solution shown with this receipt.
                     # Replaying a receipt cannot reset an earlier disclosure timestamp.
                     contract = json.loads(saved_contract[0])
-                    family, objective = self._exposure_identity(contract)
+                    family, objective = self._reviewed_identity(conn, row["session_id"], contract)
                     conn.execute(
                         "INSERT OR IGNORE INTO quiz_exposures VALUES (?,?,?,?,?,?,?)",
                         (

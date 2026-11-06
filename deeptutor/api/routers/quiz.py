@@ -73,6 +73,43 @@ async def exposure(payload: ExposureInput):
         raise HTTPException(409, str(exc)) from exc
 
 
+from deeptutor.learning import question_families
+
+
+@router.post("/families/suggest")
+async def family_suggestions(payload: ExposureInput):
+    store = get_sqlite_session_store()
+    try:
+        contract = await question_contract(
+            store,
+            payload.session_id,
+            payload.turn_id,
+            payload.question_id,
+            payload.question_version,
+        )
+        # Reviewing the solution family is itself answer disclosure.
+        await store.record_quiz_exposure(payload.session_id, contract, "revealed", payload.event_id)
+        return await question_families.suggest(store, contract, payload.session_id)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@router.post("/families/review")
+async def family_review(payload: question_families.FamilyReview):
+    store = get_sqlite_session_store()
+    try:
+        contract = await question_contract(
+            store,
+            payload.session_id,
+            payload.turn_id,
+            payload.question_id,
+            payload.question_version,
+        )
+        return await question_families.review(store, contract, payload)
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
 @router.get("/{session_id}/{turn_id}/{question_id}")
 async def read_question(session_id: str, turn_id: str, question_id: str, version: str = ""):
     try:

@@ -47,14 +47,7 @@ import { ModelCapabilityFields } from "./ModelCapabilityFields";
 import { ModelTestPanel } from "./ModelTestPanel";
 import { addDiscoveredModels } from "@/lib/model-settings";
 import { ProviderModelDiscovery } from "./ProviderModelDiscovery";
-import {
-  AddCard,
-  CardAction,
-  CardGrid,
-  ModelCard,
-  ProfileCard,
-  SectionHead,
-} from "./ModelCards";
+import { AddCard, CardAction, CardGrid, ModelCard, ProfileCard, SectionHead } from "./ModelCards";
 import { nextProfileName } from "./profile-naming";
 import Tooltip from "@/shared/ui/Tooltip";
 import { searchProviderFields } from "./search-providers";
@@ -140,12 +133,8 @@ export function ServiceConfigEditor({
 
   // Selecting an editor never changes the provider used by the runtime.
   const [openProfileId, setOpenProfileId] = useState<string | null>(null);
-  const [collapsedProfileId, setCollapsedProfileId] = useState<
-    string | null
-  >(null);
-  const [expandedModelId, setExpandedModelId] = useState<string | null>(
-    null,
-  );
+  const [collapsedProfileId, setCollapsedProfileId] = useState<string | null>(null);
+  const [expandedModelId, setExpandedModelId] = useState<string | null>(null);
   const openedProfile =
     profiles.find((item) => item.id === openProfileId) ??
     profiles.find((item) => item.id === inUseProfileId) ??
@@ -165,10 +154,8 @@ export function ServiceConfigEditor({
     base_url: linkedConnection?.base_url || openedProfile?.base_url || "",
     api_key: linkedConnection?.api_key ?? openedProfile?.api_key,
     api_format: openedProfile?.api_format || "auto",
-    api_version:
-      linkedConnection?.api_version ?? openedProfile?.api_version,
-    extra_headers:
-      linkedConnection?.extra_headers ?? openedProfile?.extra_headers,
+    api_version: linkedConnection?.api_version ?? openedProfile?.api_version,
+    extra_headers: linkedConnection?.extra_headers ?? openedProfile?.extra_headers,
     service,
     profile_id: openedProfile?.id,
     connection_id: linkedConnection?.id,
@@ -176,8 +163,7 @@ export function ServiceConfigEditor({
   const liveProfile = getActiveProfile(catalog, service);
   const liveModel = getActiveModel(catalog, service);
   const serviceChanged =
-    JSON.stringify(catalog.services[service]) !==
-    JSON.stringify(draft.services[service]);
+    JSON.stringify(catalog.services[service]) !== JSON.stringify(draft.services[service]);
 
   // Open a newly added provider/model immediately, including additions from
   // linked connections. The payload itself remains in the shared draft store.
@@ -185,10 +171,7 @@ export function ServiceConfigEditor({
   useEffect(() => {
     const added = previousProfiles.current.length
       ? profiles.find(
-          (profile) =>
-            !previousProfiles.current.some(
-              (previous) => previous.id === profile.id,
-            ),
+          (profile) => !previousProfiles.current.some((previous) => previous.id === profile.id),
         )
       : null;
     previousProfiles.current = profiles;
@@ -206,10 +189,7 @@ export function ServiceConfigEditor({
     const added =
       previousModels.current.profileId === openedProfile?.id
         ? models?.find(
-            (model) =>
-              !previousModels.current.models?.some(
-                (previous) => previous.id === model.id,
-              ),
+            (model) => !previousModels.current.models?.some((previous) => previous.id === model.id),
           )
         : null;
     previousModels.current = { profileId: openedProfile?.id, models };
@@ -231,41 +211,25 @@ export function ServiceConfigEditor({
   );
   const updateModelBoolField = useCallback(
     (svc: ServiceName, field: keyof CatalogModel, value: boolean) =>
-      setModelBoolField(
-        svc,
-        field,
-        value,
-        activeProfile?.id,
-        activeModel?.id,
-      ),
+      setModelBoolField(svc, field, value, activeProfile?.id, activeModel?.id),
     [setModelBoolField, activeProfile?.id, activeModel?.id],
   );
   const updateContextWindowField = useCallback(
-    (value: string) =>
-      setContextWindowField(value, activeProfile?.id, activeModel?.id),
+    (value: string) => setContextWindowField(value, activeProfile?.id, activeModel?.id),
     [setContextWindowField, activeProfile?.id, activeModel?.id],
   );
   const updateReasoningEffort = useCallback(
-    (value: string) =>
-      setReasoningEffort(value, activeProfile?.id, activeModel?.id),
+    (value: string) => setReasoningEffort(value, activeProfile?.id, activeModel?.id),
     [setReasoningEffort, activeProfile?.id, activeModel?.id],
   );
   const updateModelCapability = useCallback(
     (key: ModelCapabilityKey, value: boolean | null) =>
-      setModelCapability(
-        service,
-        key,
-        value,
-        activeProfile?.id,
-        activeModel?.id,
-      ),
+      setModelCapability(service, key, value, activeProfile?.id, activeModel?.id),
     [setModelCapability, service, activeProfile?.id, activeModel?.id],
   );
 
   const activeProviderValue =
-    service === "search"
-      ? activeProfile?.provider || ""
-      : activeProfile?.binding || "";
+    service === "search" ? activeProfile?.provider || "" : activeProfile?.binding || "";
   const activeProviderOption = (providers[service] || []).find(
     (option) => option.value === activeProviderValue,
   );
@@ -287,11 +251,10 @@ export function ServiceConfigEditor({
   // so no settings page needs a Suspense boundary for something that only
   // exists after hydration.
   const deepLinkHandled = useRef(false);
+  /* eslint-disable react-hooks/set-state-in-effect -- Consume an external navigation/restoration command through the cancellable imperative controller. Running this transaction during render would repeat I/O or mutate another store. */
   useEffect(() => {
     if (deepLinkHandled.current) return;
-    const requested = new URLSearchParams(window.location.search).get(
-      "profile",
-    );
+    const requested = new URLSearchParams(window.location.search).get("profile");
     if (!requested) {
       deepLinkHandled.current = true;
       return;
@@ -304,14 +267,12 @@ export function ServiceConfigEditor({
     setOpenProfileId(requested);
   }, [profiles]);
 
-  const [showApiKey, setShowApiKey] = useState(false);
-  const [deletingProfile, setDeletingProfile] =
-    useState<CatalogProfile | null>(null);
+  /* eslint-enable react-hooks/set-state-in-effect */ const [showApiKey, setShowApiKey] =
+    useState(false);
+  const [deletingProfile, setDeletingProfile] = useState<CatalogProfile | null>(null);
   const [editingModelId, setEditingModelId] = useState<string | null>(null);
   const [editingModelName, setEditingModelName] = useState("");
-  const [editingProfileId, setEditingProfileId] = useState<string | null>(
-    null,
-  );
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
   const [editingProfileName, setEditingProfileName] = useState("");
   const [modelsSyncing, setModelsSyncing] = useState(false);
 
@@ -327,24 +288,17 @@ export function ServiceConfigEditor({
   }
 
   const searchProviderRaw =
-    service === "search"
-      ? (activeProfile?.provider || "").trim().toLowerCase()
-      : "";
-  const showSearchProviderWarning =
-    service === "search" && Boolean(searchProviderRaw);
+    service === "search" ? (activeProfile?.provider || "").trim().toLowerCase() : "";
+  const showSearchProviderWarning = service === "search" && Boolean(searchProviderRaw);
   // Every judgement below reads the backend's own provider list, so the web app
   // never keeps a second (and drifting) copy of what is supported.
   const searchProviderOption = (providers.search || []).find(
     (option) => option.value === searchProviderRaw,
   );
-  const isDeprecatedSearchProvider =
-    searchProviderOption?.status === "deprecated";
-  const isSupportedSearchProvider =
-    Boolean(searchProviderOption) && !isDeprecatedSearchProvider;
+  const isDeprecatedSearchProvider = searchProviderOption?.status === "deprecated";
+  const isSupportedSearchProvider = Boolean(searchProviderOption) && !isDeprecatedSearchProvider;
   const supportedSearchProviderNames = (providers.search || [])
-    .filter(
-      (option) => option.status !== "deprecated" && option.value !== "none",
-    )
+    .filter((option) => option.status !== "deprecated" && option.value !== "none")
     .map((option) => option.value)
     .join("/");
   // Providers that fail hard rather than falling back need their key before the
@@ -378,27 +332,23 @@ export function ServiceConfigEditor({
     const binding = connection?.binding ?? activeProfile.binding ?? "";
     const baseUrl = connection?.base_url ?? activeProfile.base_url ?? "";
     const apiKey = connection?.api_key ?? activeProfile.api_key ?? "";
-    if (!binding || (!CLI_LOGIN_BINDINGS.has(binding) && !baseUrl.trim()))
-      return;
+    if (!binding || (!CLI_LOGIN_BINDINGS.has(binding) && !baseUrl.trim())) return;
 
     const profileId = activeProfile.id;
     setModelsSyncing(true);
     try {
-      const response = await apiFetch(
-        apiUrl("/api/settings/fetch-models"),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            binding,
-            base_url: baseUrl,
-            api_key: apiKey || null,
-            profile_id: profileId,
-            service,
-            api_format: activeProfile.api_format ?? "auto",
-          }),
-        },
-      );
+      const response = await apiFetch(apiUrl("/api/settings/fetch-models"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          binding,
+          base_url: baseUrl,
+          api_key: apiKey || null,
+          profile_id: profileId,
+          service,
+          api_format: activeProfile.api_format ?? "auto",
+        }),
+      });
       if (!response.ok) {
         const payload = (await response.json().catch(() => ({}))) as {
           detail?: string;
@@ -413,13 +363,9 @@ export function ServiceConfigEditor({
 
       mutateCatalog((next) => {
         const target = next.services[service];
-        const profile = target.profiles.find(
-          (item) => item.id === profileId,
-        );
+        const profile = target.profiles.find((item) => item.id === profileId);
         if (!profile || profile.binding !== binding) return;
-        const existing = new Map(
-          profile.models.map((model) => [model.model, model]),
-        );
+        const existing = new Map(profile.models.map((model) => [model.model, model]));
         profile.models = fetched.map((item, index) => {
           const previous = existing.get(item.id);
           return previous
@@ -434,23 +380,16 @@ export function ServiceConfigEditor({
                 model: item.id,
               };
         });
-        if (
-          service === "llm" &&
-          ["minimax", "minimax_anthropic", "openrouter"].includes(binding)
-        ) {
+        if (service === "llm" && ["minimax", "minimax_anthropic", "openrouter"].includes(binding)) {
           // Discovery recommendations must not erase saved legacy/custom models.
           const discovered = new Set(fetched.map((item) => item.id));
           profile.models.push(
-            ...Array.from(existing.values()).filter(
-              (model) => !discovered.has(model.model),
-            ),
+            ...Array.from(existing.values()).filter((model) => !discovered.has(model.model)),
           );
         }
         if (
           target.active_profile_id === profile.id &&
-          !profile.models.some(
-            (model) => model.id === target.active_model_id,
-          )
+          !profile.models.some((model) => model.id === target.active_model_id)
         ) {
           target.active_model_id = profile.models[0]?.id ?? null;
         }
@@ -469,15 +408,11 @@ export function ServiceConfigEditor({
   };
 
   const commitModelRename = (modelId: string) => {
-    const fallbackIndex =
-      activeProfile?.models.findIndex((model) => model.id === modelId) ??
-      -1;
+    const fallbackIndex = activeProfile?.models.findIndex((model) => model.id === modelId) ?? -1;
     const fallbackName = defaultModelLabel(language, fallbackIndex + 1);
     const nextName = editingModelName.trim() || fallbackName;
     mutateCatalog((next) => {
-      const profile = next.services[service].profiles.find(
-        (item) => item.id === activeProfile?.id,
-      );
+      const profile = next.services[service].profiles.find((item) => item.id === activeProfile?.id);
       const model = profile?.models.find((item) => item.id === modelId);
       if (model) model.name = nextName;
     });
@@ -499,9 +434,7 @@ export function ServiceConfigEditor({
     const nextName = editingProfileName.trim();
     if (nextName) {
       mutateCatalog((next) => {
-        const profile = next.services[service].profiles.find(
-          (item) => item.id === profileId,
-        );
+        const profile = next.services[service].profiles.find((item) => item.id === profileId);
         if (profile) profile.name = nextName;
       });
     }
@@ -549,9 +482,7 @@ export function ServiceConfigEditor({
       {!embedded && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--border)]/70 px-4 py-3">
           <div className="min-w-0">
-            <p className="text-xs text-[var(--muted-foreground)]">
-              {t("Currently active")}
-            </p>
+            <p className="text-xs text-[var(--muted-foreground)]">{t("Currently active")}</p>
             <p className="mt-1 break-words text-sm font-medium">
               {liveProfile
                 ? `${liveProfile.name}${liveModel?.model ? ` · ${liveModel.model}` : ""}`
@@ -590,10 +521,7 @@ export function ServiceConfigEditor({
                     profile={profile}
                     service={service}
                     inUse={profile.id === inUseProfileId}
-                    open={
-                      profile.id === openedProfile?.id &&
-                      collapsedProfileId !== profile.id
-                    }
+                    open={profile.id === openedProfile?.id && collapsedProfileId !== profile.id}
                     renaming={editingProfileId === profile.id}
                     renameValue={editingProfileName}
                     onRenameChange={setEditingProfileName}
@@ -602,8 +530,7 @@ export function ServiceConfigEditor({
                     onRenameStart={() => startProfileRename(profile)}
                     onOpen={() => {
                       setCollapsedProfileId(
-                        profile.id === openedProfile?.id &&
-                          collapsedProfileId !== profile.id
+                        profile.id === openedProfile?.id && collapsedProfileId !== profile.id
                           ? profile.id
                           : null,
                       );
@@ -616,20 +543,15 @@ export function ServiceConfigEditor({
                     }}
                     onUse={() =>
                       mutateCatalog((next) => {
-                        if (service === "task")
-                          next.services.task.mode = "profiles";
-                        next.services[service].active_profile_id =
-                          profile.id;
+                        if (service === "task") next.services.task.mode = "profiles";
+                        next.services[service].active_profile_id = profile.id;
                         if (
                           service !== "search" &&
                           !profile.models.some(
-                            (model) =>
-                              model.id ===
-                              next.services[service].active_model_id,
+                            (model) => model.id === next.services[service].active_model_id,
                           )
                         ) {
-                          next.services[service].active_model_id =
-                            profile.models[0]?.id ?? null;
+                          next.services[service].active_model_id = profile.models[0]?.id ?? null;
                         }
                       })
                     }
@@ -642,9 +564,7 @@ export function ServiceConfigEditor({
                       aria-label={t("Provider configuration")}
                     >
                       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                        <h2 className="text-base font-semibold">
-                          {t("Connection settings")}
-                        </h2>
+                        <h2 className="text-base font-semibold">{t("Connection settings")}</h2>
                         <button
                           type="button"
                           onClick={() => setDeletingProfile(openedProfile)}
@@ -660,25 +580,12 @@ export function ServiceConfigEditor({
                           profile={activeProfile}
                           showApiKey={showApiKey}
                           setShowApiKey={setShowApiKey}
-                          showSearchProviderWarning={
-                            showSearchProviderWarning
-                          }
-                          isSupportedSearchProvider={
-                            isSupportedSearchProvider
-                          }
-                          isDeprecatedSearchProvider={
-                            isDeprecatedSearchProvider
-                          }
-                          searchProviderMissingKey={
-                            searchProviderMissingKey
-                          }
-                          supportedSearchProviderNames={
-                            supportedSearchProviderNames
-                          }
-                          onProviderChanged={(
-                            provider,
-                            previousProvider,
-                          ) => {
+                          showSearchProviderWarning={showSearchProviderWarning}
+                          isSupportedSearchProvider={isSupportedSearchProvider}
+                          isDeprecatedSearchProvider={isDeprecatedSearchProvider}
+                          searchProviderMissingKey={searchProviderMissingKey}
+                          supportedSearchProviderNames={supportedSearchProviderNames}
+                          onProviderChanged={(provider, previousProvider) => {
                             if (service !== "llm" || !activeProfile) return;
                             const crossesCliLoginBoundary =
                               CLI_LOGIN_BINDINGS.has(provider.value) ||
@@ -690,16 +597,10 @@ export function ServiceConfigEditor({
                                 const profile = target.profiles.find(
                                   (item) => item.id === profileId,
                                 );
-                                if (
-                                  !profile ||
-                                  profile.binding !== provider.value
-                                )
-                                  return;
+                                if (!profile || profile.binding !== provider.value) return;
                                 if (CLI_LOGIN_BINDINGS.has(provider.value)) {
                                   profile.models = [];
-                                  if (
-                                    target.active_profile_id === profile.id
-                                  )
+                                  if (target.active_profile_id === profile.id)
                                     target.active_model_id = null;
                                   return;
                                 }
@@ -727,34 +628,22 @@ export function ServiceConfigEditor({
 
                         {service !== "search" &&
                           !isCodexOAuth &&
-                          !CLI_LOGIN_BINDINGS.has(
-                            openedProfile.binding ?? "",
-                          ) && (
+                          !CLI_LOGIN_BINDINGS.has(openedProfile.binding ?? "") && (
                             <ProviderModelDiscovery
                               input={providerProbeInput}
-                              selectedModels={openedProfile.models.map(
-                                (model) => model.model,
-                              )}
+                              selectedModels={openedProfile.models.map((model) => model.model)}
                               onPickMany={(ids) => {
                                 mutateCatalog((next) => {
-                                  const target = next.services[
-                                    service
-                                  ].profiles.find(
+                                  const target = next.services[service].profiles.find(
                                     (item) => item.id === openedProfile.id,
                                   );
                                   if (!target) return;
-                                  const added = addDiscoveredModels(
-                                    target,
-                                    ids,
-                                  );
+                                  const added = addDiscoveredModels(target, ids);
                                   if (
-                                    !next.services[service]
-                                      .active_model_id &&
-                                    next.services[service]
-                                      .active_profile_id === target.id
+                                    !next.services[service].active_model_id &&
+                                    next.services[service].active_profile_id === target.id
                                   )
-                                    next.services[service].active_model_id =
-                                      added[0] ?? null;
+                                    next.services[service].active_model_id = added[0] ?? null;
                                 });
                               }}
                             />
@@ -769,13 +658,9 @@ export function ServiceConfigEditor({
                               action={
                                 <span className="flex items-center gap-2">
                                   {service === "llm" &&
-                                    CLI_LOGIN_BINDINGS.has(
-                                      openedProfile.binding ?? "",
-                                    ) && (
+                                    CLI_LOGIN_BINDINGS.has(openedProfile.binding ?? "") && (
                                       <CardAction
-                                        onClick={() =>
-                                          void syncProviderModels()
-                                        }
+                                        onClick={() => void syncProviderModels()}
                                         disabled={modelsSyncing}
                                       >
                                         <RefreshCw
@@ -784,11 +669,7 @@ export function ServiceConfigEditor({
                                         {t("Sync models")}
                                       </CardAction>
                                     )}
-                                  <CardAction
-                                    onClick={() =>
-                                      addModel(service, openedProfile.id)
-                                    }
-                                  >
+                                  <CardAction onClick={() => addModel(service, openedProfile.id)}>
                                     <Plus className="h-3 w-3" />
                                     {t("Add model")}
                                   </CardAction>
@@ -810,43 +691,25 @@ export function ServiceConfigEditor({
                                   language={language}
                                   index={index}
                                   inUse={
-                                    openedProfile.id === inUseProfileId &&
-                                    model.id === inUseModelId
+                                    openedProfile.id === inUseProfileId && model.id === inUseModelId
                                   }
                                   expanded={model.id === activeModel?.id}
                                   renaming={editingModelId === model.id}
                                   renameValue={editingModelName}
                                   onRenameChange={setEditingModelName}
-                                  onRenameCommit={() =>
-                                    commitModelRename(model.id)
-                                  }
+                                  onRenameCommit={() => commitModelRename(model.id)}
                                   onRenameCancel={cancelModelRename}
-                                  onRenameStart={() =>
-                                    startModelRename(model)
-                                  }
-                                  onToggleExpand={() =>
-                                    setExpandedModelId(model.id)
-                                  }
+                                  onRenameStart={() => startModelRename(model)}
+                                  onToggleExpand={() => setExpandedModelId(model.id)}
                                   onUse={() =>
                                     mutateCatalog((next) => {
-                                      if (service === "task")
-                                        next.services.task.mode =
-                                          "profiles";
-                                      next.services[
-                                        service
-                                      ].active_profile_id =
-                                        openedProfile.id;
-                                      next.services[
-                                        service
-                                      ].active_model_id = model.id;
+                                      if (service === "task") next.services.task.mode = "profiles";
+                                      next.services[service].active_profile_id = openedProfile.id;
+                                      next.services[service].active_model_id = model.id;
                                     })
                                   }
                                   onDelete={() =>
-                                    removeActiveModel(
-                                      service,
-                                      openedProfile.id,
-                                      model.id,
-                                    )
+                                    removeActiveModel(service, openedProfile.id, model.id)
                                   }
                                 />
                               ))}
@@ -855,10 +718,7 @@ export function ServiceConfigEditor({
                         )}
 
                         {service === "search" && (
-                          <ModelTestPanel
-                            service={service}
-                            profile={openedProfile}
-                          />
+                          <ModelTestPanel service={service} profile={openedProfile} />
                         )}
                         {service !== "search" && activeModel && (
                           <section
@@ -879,13 +739,10 @@ export function ServiceConfigEditor({
                                   {t("Configuring model")}
                                 </p>
                                 <h3 className="mt-1 break-words text-base font-semibold text-[var(--foreground)]">
-                                  {activeModel.name?.trim() ||
-                                    activeModel.model ||
-                                    t("Model")}
+                                  {activeModel.name?.trim() || activeModel.model || t("Model")}
                                 </h3>
                                 <p className="mt-1 break-all font-mono text-xs text-[var(--muted-foreground)]">
-                                  {activeModel.model ||
-                                    t("No model id yet")}
+                                  {activeModel.model || t("No model id yet")}
                                 </p>
                               </div>
                             </div>
@@ -896,398 +753,310 @@ export function ServiceConfigEditor({
                                 model={activeModel}
                               />
                             )}
-                            {activeModel &&
-                              (!isCodexOAuth || isBoundManagedCodex) && (
-                                <div className="grid gap-4 sm:grid-cols-2">
-                                  {!isCodexOAuth && (
-                                    <div>
-                                      <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
-                                        {t("Model ID")}
-                                      </div>
-                                      <input
-                                        className={inputClass}
-                                        aria-label={t("Model ID")}
-                                        value={activeModel.model}
-                                        onChange={(e) =>
-                                          updateModelField(
-                                            service,
-                                            "model",
-                                            e.target.value,
-                                          )
-                                        }
-                                        placeholder="gpt-4o"
-                                      />
+                            {activeModel && (!isCodexOAuth || isBoundManagedCodex) && (
+                              <div className="grid gap-4 sm:grid-cols-2">
+                                {!isCodexOAuth && (
+                                  <div>
+                                    <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
+                                      {t("Model ID")}
                                     </div>
-                                  )}
-                                  <div className="sm:col-span-2">
-                                    <ModelTestPanel
-                                      service={service}
-                                      profile={openedProfile}
-                                      model={activeModel}
+                                    <input
+                                      className={inputClass}
+                                      aria-label={t("Model ID")}
+                                      value={activeModel.model}
+                                      onChange={(e) =>
+                                        updateModelField(service, "model", e.target.value)
+                                      }
+                                      placeholder={t("gpt-4o")}
                                     />
                                   </div>
-                                  <details
-                                    className="sm:col-span-2"
-                                    key={activeModel.id}
-                                  >
-                                    <summary className="cursor-pointer py-2 text-[13px] font-medium">
-                                      {t("Advanced model settings")}
-                                    </summary>
-                                    <div className="grid gap-4 pt-3 sm:grid-cols-2">
-                                      {service === "llm" && (
-                                        <>
-                                          {!isCodexOAuth && (
-                                            <>
-                                              <div>
-                                                <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
-                                                  {t("Context Window")}
-                                                </div>
-                                                <input
-                                                  className={inputClass}
-                                                  inputMode="numeric"
-                                                  value={
-                                                    activeModel.context_window ||
-                                                    ""
-                                                  }
-                                                  onChange={(e) =>
-                                                    updateContextWindowField(
-                                                      e.target.value,
-                                                    )
-                                                  }
-                                                  placeholder="65536"
-                                                />
-                                                <ContextWindowMeta
-                                                  model={activeModel}
-                                                />
-                                              </div>
-                                            </>
-                                          )}
-                                          {reasoningOptions.length > 0 && (
+                                )}
+                                <div className="sm:col-span-2">
+                                  <ModelTestPanel
+                                    service={service}
+                                    profile={openedProfile}
+                                    model={activeModel}
+                                  />
+                                </div>
+                                <details className="sm:col-span-2" key={activeModel.id}>
+                                  <summary className="cursor-pointer py-2 text-[13px] font-medium">
+                                    {t("Advanced model settings")}
+                                  </summary>
+                                  <div className="grid gap-4 pt-3 sm:grid-cols-2">
+                                    {service === "llm" && (
+                                      <>
+                                        {!isCodexOAuth && (
+                                          <>
                                             <div>
                                               <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
-                                                {t("Reasoning effort")}
+                                                {t("Context Window")}
                                               </div>
-                                              <div className="relative">
-                                                <select
-                                                  className={selectClass}
-                                                  value={
-                                                    activeModel.reasoning_effort ||
-                                                    ""
-                                                  }
-                                                  onChange={(event) =>
-                                                    updateReasoningEffort(
-                                                      event.target.value,
-                                                    )
-                                                  }
-                                                >
-                                                  {reasoningOptions.map(
-                                                    (option) => (
-                                                      <option
-                                                        className={
-                                                          selectOptionClass
-                                                        }
-                                                        key={
-                                                          option.value ||
-                                                          "auto"
-                                                        }
-                                                        value={option.value}
-                                                      >
-                                                        {t(option.label)}
-                                                      </option>
-                                                    ),
-                                                  )}
-                                                </select>
-                                                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--muted-foreground)]" />
-                                              </div>
-                                              <p className="mt-1.5 text-[11px] leading-relaxed text-[var(--muted-foreground)]">
-                                                {t(
-                                                  "Sets this model's default reasoning depth. Auto leaves the choice to the provider.",
-                                                )}
-                                              </p>
-                                            </div>
-                                          )}
-                                        </>
-                                      )}
-                                      {LLM_SHAPED.has(service) &&
-                                        !isCodexOAuth && (
-                                          <ModelCapabilityFields
-                                            binding={activeProfile?.binding}
-                                            model={activeModel}
-                                            reasoningKnown={
-                                              reasoningOptions.length > 0
-                                            }
-                                            onChange={updateModelCapability}
-                                          />
-                                        )}
-                                      {service === "embedding" && (
-                                        <div>
-                                          <div className="mb-1.5 flex items-center justify-between gap-2">
-                                            <span className="text-[12px] text-[var(--muted-foreground)]">
-                                              {t("Dimension")}
-                                            </span>
-                                            <label className="inline-flex cursor-pointer items-center gap-1.5 text-[11px] text-[var(--muted-foreground)] select-none">
                                               <input
-                                                type="checkbox"
-                                                className="h-3 w-3 cursor-pointer accent-[var(--foreground)]"
-                                                checked={
-                                                  activeModel.send_dimensions !==
-                                                  false
-                                                }
+                                                className={inputClass}
+                                                inputMode="numeric"
+                                                value={activeModel.context_window || ""}
                                                 onChange={(e) =>
-                                                  updateModelBoolField(
-                                                    service,
-                                                    "send_dimensions",
-                                                    e.target.checked,
-                                                  )
+                                                  updateContextWindowField(e.target.value)
                                                 }
+                                                placeholder="65536"
                                               />
-                                              <span>
-                                                {t("Send dimensions")}
-                                              </span>
-                                              <Tooltip
-                                                side="bottom"
-                                                label={t("Send dimensions")}
-                                                description={t(
-                                                  "Some embedding models (e.g. Qwen text-embedding-v4) reject the `dimensions` request param. Turn this off if your provider returns HTTP 400.",
-                                                )}
-                                              >
-                                                <span
-                                                  tabIndex={0}
-                                                  className="inline-flex cursor-help focus:outline-none"
-                                                >
-                                                  <Info className="h-3 w-3 opacity-50 transition-opacity hover:opacity-100 focus:opacity-100" />
-                                                </span>
-                                              </Tooltip>
-                                            </label>
-                                          </div>
-                                          <DimensionField
-                                            activeModel={activeModel}
-                                            activeBinding={
-                                              activeProfile?.binding
-                                            }
-                                            capabilities={null}
-                                            embeddingDefaultDim={
-                                              embeddingDefaultDim
-                                            }
-                                            inputClass={inputClass}
-                                            onChangeDimension={(value) =>
-                                              updateModelField(
-                                                service,
-                                                "dimension",
-                                                value,
-                                              )
-                                            }
-                                          />
-                                        </div>
-                                      )}
-                                      {service === "tts" && (
-                                        <>
-                                          <div>
-                                            <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
-                                              {t("Voice")}
+                                              <ContextWindowMeta model={activeModel} />
                                             </div>
-                                            <input
-                                              className={inputClass}
-                                              value={
-                                                activeModel.voice || ""
-                                              }
-                                              onChange={(e) =>
-                                                updateModelField(
-                                                  service,
-                                                  "voice",
-                                                  e.target.value,
-                                                )
-                                              }
-                                              placeholder="alloy"
-                                            />
-                                            <p className="mt-1.5 text-[11px] text-[var(--muted-foreground)]">
-                                              {t(
-                                                "Provider-specific voice name, e.g. alloy (OpenAI) or model:voice (SiliconFlow).",
-                                              )}
-                                            </p>
-                                          </div>
+                                          </>
+                                        )}
+                                        {reasoningOptions.length > 0 && (
                                           <div>
                                             <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
-                                              {t("Output format")}
+                                              {t("Reasoning effort")}
                                             </div>
                                             <div className="relative">
                                               <select
                                                 className={selectClass}
-                                                value={
-                                                  activeModel.response_format ||
-                                                  "mp3"
-                                                }
-                                                onChange={(e) =>
-                                                  updateModelField(
-                                                    service,
-                                                    "response_format",
-                                                    e.target.value,
-                                                  )
+                                                value={activeModel.reasoning_effort || ""}
+                                                onChange={(event) =>
+                                                  updateReasoningEffort(event.target.value)
                                                 }
                                               >
-                                                {[
-                                                  "mp3",
-                                                  "wav",
-                                                  "opus",
-                                                  "aac",
-                                                  "flac",
-                                                  "pcm",
-                                                ].map((fmt) => (
+                                                {reasoningOptions.map((option) => (
                                                   <option
-                                                    className={
-                                                      selectOptionClass
-                                                    }
-                                                    key={fmt}
-                                                    value={fmt}
+                                                    className={selectOptionClass}
+                                                    key={option.value || "auto"}
+                                                    value={option.value}
                                                   >
-                                                    {fmt}
+                                                    {t(option.label)}
                                                   </option>
                                                 ))}
                                               </select>
                                               <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--muted-foreground)]" />
                                             </div>
-                                          </div>
-                                        </>
-                                      )}
-                                      {service === "imagegen" && (
-                                        <>
-                                          <div>
-                                            <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
-                                              {t("Image size")}
-                                            </div>
-                                            <input
-                                              className={inputClass}
-                                              value={activeModel.size || ""}
-                                              onChange={(e) =>
-                                                updateModelField(
-                                                  service,
-                                                  "size",
-                                                  e.target.value,
-                                                )
-                                              }
-                                              placeholder="1024x1024"
-                                            />
-                                            <p className="mt-1.5 text-[11px] text-[var(--muted-foreground)]">
+                                            <p className="mt-1.5 text-[11px] leading-relaxed text-[var(--muted-foreground)]">
                                               {t(
-                                                "Default pixel size sent with each request. Leave empty for the provider default.",
+                                                "Sets this model's default reasoning depth. Auto leaves the choice to the provider.",
                                               )}
                                             </p>
                                           </div>
-                                          <div>
-                                            <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
-                                              {t("Quality / Style")}
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-2">
-                                              <input
-                                                className={inputClass}
-                                                value={
-                                                  activeModel.quality || ""
-                                                }
-                                                onChange={(e) =>
-                                                  updateModelField(
-                                                    service,
-                                                    "quality",
-                                                    e.target.value,
-                                                  )
-                                                }
-                                                placeholder={t(
-                                                  "quality (e.g. hd)",
-                                                )}
-                                              />
-                                              <input
-                                                className={inputClass}
-                                                value={
-                                                  activeModel.style || ""
-                                                }
-                                                onChange={(e) =>
-                                                  updateModelField(
-                                                    service,
-                                                    "style",
-                                                    e.target.value,
-                                                  )
-                                                }
-                                                placeholder={t(
-                                                  "style (e.g. vivid)",
-                                                )}
-                                              />
-                                            </div>
-                                          </div>
-                                        </>
-                                      )}
-                                      {service === "videogen" && (
-                                        <>
-                                          <div>
-                                            <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
-                                              {t("Aspect ratio")}
-                                            </div>
+                                        )}
+                                      </>
+                                    )}
+                                    {LLM_SHAPED.has(service) && !isCodexOAuth && (
+                                      <ModelCapabilityFields
+                                        binding={activeProfile?.binding}
+                                        model={activeModel}
+                                        reasoningKnown={reasoningOptions.length > 0}
+                                        onChange={updateModelCapability}
+                                      />
+                                    )}
+                                    {service === "embedding" && (
+                                      <div>
+                                        <div className="mb-1.5 flex items-center justify-between gap-2">
+                                          <span className="text-[12px] text-[var(--muted-foreground)]">
+                                            {t("Dimension")}
+                                          </span>
+                                          <label className="inline-flex cursor-pointer items-center gap-1.5 text-[11px] text-[var(--muted-foreground)] select-none">
                                             <input
-                                              className={inputClass}
-                                              value={
-                                                activeModel.aspect_ratio ||
-                                                ""
+                                              type="checkbox"
+                                              className="h-3 w-3 cursor-pointer accent-[var(--foreground)]"
+                                              checked={activeModel.send_dimensions !== false}
+                                              onChange={(e) =>
+                                                updateModelBoolField(
+                                                  service,
+                                                  "send_dimensions",
+                                                  e.target.checked,
+                                                )
                                               }
+                                            />
+                                            <span>{t("Send dimensions")}</span>
+                                            <Tooltip
+                                              side="bottom"
+                                              label={t("Send dimensions")}
+                                              description={t(
+                                                "Some embedding models (e.g. Qwen text-embedding-v4) reject the `dimensions` request param. Turn this off if your provider returns HTTP 400.",
+                                              )}
+                                            >
+                                              <span
+                                                tabIndex={0}
+                                                className="inline-flex cursor-help focus:outline-none"
+                                              >
+                                                <Info className="h-3 w-3 opacity-50 transition-opacity hover:opacity-100 focus:opacity-100" />
+                                              </span>
+                                            </Tooltip>
+                                          </label>
+                                        </div>
+                                        <DimensionField
+                                          activeModel={activeModel}
+                                          activeBinding={activeProfile?.binding}
+                                          capabilities={null}
+                                          embeddingDefaultDim={embeddingDefaultDim}
+                                          inputClass={inputClass}
+                                          onChangeDimension={(value) =>
+                                            updateModelField(service, "dimension", value)
+                                          }
+                                        />
+                                      </div>
+                                    )}
+                                    {service === "tts" && (
+                                      <>
+                                        <div>
+                                          <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
+                                            {t("Voice")}
+                                          </div>
+                                          <input
+                                            className={inputClass}
+                                            value={activeModel.voice || ""}
+                                            onChange={(e) =>
+                                              updateModelField(service, "voice", e.target.value)
+                                            }
+                                            placeholder={t("alloy")}
+                                          />
+                                          <p className="mt-1.5 text-[11px] text-[var(--muted-foreground)]">
+                                            {t(
+                                              "Provider-specific voice name, e.g. alloy (OpenAI) or model:voice (SiliconFlow).",
+                                            )}
+                                          </p>
+                                        </div>
+                                        <div>
+                                          <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
+                                            {t("Output format")}
+                                          </div>
+                                          <div className="relative">
+                                            <select
+                                              className={selectClass}
+                                              value={activeModel.response_format || "mp3"}
                                               onChange={(e) =>
                                                 updateModelField(
                                                   service,
-                                                  "aspect_ratio",
+                                                  "response_format",
                                                   e.target.value,
                                                 )
                                               }
-                                              placeholder="16:9"
-                                            />
-                                            <p className="mt-1.5 text-[11px] text-[var(--muted-foreground)]">
-                                              {t(
-                                                "Defaults sent with each request. Leave empty for the provider default.",
+                                            >
+                                              {["mp3", "wav", "opus", "aac", "flac", "pcm"].map(
+                                                (fmt) => (
+                                                  <option
+                                                    className={selectOptionClass}
+                                                    key={fmt}
+                                                    value={fmt}
+                                                  >
+                                                    {fmt}
+                                                  </option>
+                                                ),
                                               )}
-                                            </p>
+                                            </select>
+                                            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--muted-foreground)]" />
                                           </div>
-                                          <div>
-                                            <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
-                                              {t("Duration / Resolution")}
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-2">
-                                              <input
-                                                className={inputClass}
-                                                inputMode="numeric"
-                                                value={
-                                                  activeModel.duration || ""
-                                                }
-                                                onChange={(e) =>
-                                                  updateModelField(
-                                                    service,
-                                                    "duration",
-                                                    e.target.value,
-                                                  )
-                                                }
-                                                placeholder={t("seconds")}
-                                              />
-                                              <input
-                                                className={inputClass}
-                                                value={
-                                                  activeModel.resolution ||
-                                                  ""
-                                                }
-                                                onChange={(e) =>
-                                                  updateModelField(
-                                                    service,
-                                                    "resolution",
-                                                    e.target.value,
-                                                  )
-                                                }
-                                                placeholder="720p"
-                                              />
-                                            </div>
+                                        </div>
+                                      </>
+                                    )}
+                                    {service === "imagegen" && (
+                                      <>
+                                        <div>
+                                          <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
+                                            {t("Image size")}
                                           </div>
-                                        </>
-                                      )}
-                                    </div>
-                                  </details>
-                                </div>
-                              )}
+                                          <input
+                                            className={inputClass}
+                                            value={activeModel.size || ""}
+                                            onChange={(e) =>
+                                              updateModelField(service, "size", e.target.value)
+                                            }
+                                            placeholder={t("1024x1024")}
+                                          />
+                                          <p className="mt-1.5 text-[11px] text-[var(--muted-foreground)]">
+                                            {t(
+                                              "Default pixel size sent with each request. Leave empty for the provider default.",
+                                            )}
+                                          </p>
+                                        </div>
+                                        <div>
+                                          <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
+                                            {t("Quality / Style")}
+                                          </div>
+                                          <div className="grid grid-cols-2 gap-2">
+                                            <input
+                                              className={inputClass}
+                                              value={activeModel.quality || ""}
+                                              onChange={(e) =>
+                                                updateModelField(service, "quality", e.target.value)
+                                              }
+                                              placeholder={t("quality (e.g. hd)")}
+                                            />
+                                            <input
+                                              className={inputClass}
+                                              value={activeModel.style || ""}
+                                              onChange={(e) =>
+                                                updateModelField(service, "style", e.target.value)
+                                              }
+                                              placeholder={t("style (e.g. vivid)")}
+                                            />
+                                          </div>
+                                        </div>
+                                      </>
+                                    )}
+                                    {service === "videogen" && (
+                                      <>
+                                        <div>
+                                          <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
+                                            {t("Aspect ratio")}
+                                          </div>
+                                          <input
+                                            className={inputClass}
+                                            value={activeModel.aspect_ratio || ""}
+                                            onChange={(e) =>
+                                              updateModelField(
+                                                service,
+                                                "aspect_ratio",
+                                                e.target.value,
+                                              )
+                                            }
+                                            placeholder="16:9"
+                                          />
+                                          <p className="mt-1.5 text-[11px] text-[var(--muted-foreground)]">
+                                            {t(
+                                              "Defaults sent with each request. Leave empty for the provider default.",
+                                            )}
+                                          </p>
+                                        </div>
+                                        <div>
+                                          <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
+                                            {t("Duration / Resolution")}
+                                          </div>
+                                          <div className="grid grid-cols-2 gap-2">
+                                            <input
+                                              className={inputClass}
+                                              inputMode="numeric"
+                                              value={activeModel.duration || ""}
+                                              onChange={(e) =>
+                                                updateModelField(
+                                                  service,
+                                                  "duration",
+                                                  e.target.value,
+                                                )
+                                              }
+                                              placeholder={t("seconds")}
+                                            />
+                                            <input
+                                              className={inputClass}
+                                              value={activeModel.resolution || ""}
+                                              onChange={(e) =>
+                                                updateModelField(
+                                                  service,
+                                                  "resolution",
+                                                  e.target.value,
+                                                )
+                                              }
+                                              placeholder={t("720p")}
+                                            />
+                                          </div>
+                                        </div>
+                                      </>
+                                    )}
+                                  </div>
+                                </details>
+                              </div>
+                            )}
                           </section>
                         )}
                       </div>
-
                     </section>
                   )}
               </div>
@@ -1300,10 +1069,7 @@ export function ServiceConfigEditor({
         <div>
           <SectionHead title={t("Providers")} />
           <CardGrid>
-            <AddCard
-              label={t("Add provider")}
-              onClick={() => addProfile(service)}
-            />
+            <AddCard label={t("Add provider")} onClick={() => addProfile(service)} />
           </CardGrid>
         </div>
       )}
@@ -1323,15 +1089,12 @@ export function ServiceConfigEditor({
           onCancel={() => setDeletingProfile(null)}
         >
           {deletingProfile.id === inUseProfileId
-            ? t(
-                "This is your active {{service}} provider — deleting it switches to {{next}}.",
-                {
-                  service: t(SERVICE_LABEL[service]),
-                  next:
-                    profiles.find((item) => item.id !== deletingProfile.id)
-                      ?.name ?? t("nothing configured"),
-                },
-              )
+            ? t("This is your active {{service}} provider — deleting it switches to {{next}}.", {
+                service: t(SERVICE_LABEL[service]),
+                next:
+                  profiles.find((item) => item.id !== deletingProfile.id)?.name ??
+                  t("nothing configured"),
+              })
             : t(
                 "This removes {{count}} model(s) and its saved credentials. This can't be undone.",
                 { count: deletingProfile.models.length },
@@ -1358,9 +1121,7 @@ function defaultModelLabel(language: AppLanguage, index: number): string {
 function formatCompactTokens(value: string | number | undefined): string {
   if (value === undefined || value === "") return "";
   const parsed =
-    typeof value === "number"
-      ? value
-      : Number.parseInt(String(value).replace(/[^\d]/g, ""), 10);
+    typeof value === "number" ? value : Number.parseInt(String(value).replace(/[^\d]/g, ""), 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return "";
   if (parsed >= 1_000_000) {
     const m = parsed / 1_000_000;
@@ -1377,18 +1138,14 @@ function formatVoiceBadge(value: string | undefined): string {
   const voice = (value || "").trim();
   if (!voice) return "";
   // "model:voice" → show just the voice segment to keep the chip compact.
-  const tail = voice.includes(":")
-    ? voice.slice(voice.lastIndexOf(":") + 1)
-    : voice;
+  const tail = voice.includes(":") ? voice.slice(voice.lastIndexOf(":") + 1) : voice;
   return tail.length > 14 ? `${tail.slice(0, 13)}…` : tail;
 }
 
 function formatDimensionBadge(value: string | number | undefined): string {
   if (value === undefined || value === "") return "";
   const parsed =
-    typeof value === "number"
-      ? value
-      : Number.parseInt(String(value).replace(/[^\d]/g, ""), 10);
+    typeof value === "number" ? value : Number.parseInt(String(value).replace(/[^\d]/g, ""), 10);
   if (!Number.isFinite(parsed) || parsed <= 0) return "";
   return `${parsed}d`;
 }
@@ -1444,10 +1201,7 @@ function ProfileFields({
   isDeprecatedSearchProvider: boolean;
   searchProviderMissingKey: boolean;
   supportedSearchProviderNames: string;
-  onProviderChanged: (
-    provider: ProviderOption,
-    previousProvider: string,
-  ) => void;
+  onProviderChanged: (provider: ProviderOption, previousProvider: string) => void;
 }) {
   const { t } = useTranslation();
   const {
@@ -1465,9 +1219,7 @@ function ProfileFields({
     (svc: ServiceName, field: keyof CatalogProfile, value: string) => {
       if (
         profile.connection_id &&
-        ["api_key", "base_url", "api_version", "extra_headers"].includes(
-          field,
-        )
+        ["api_key", "base_url", "api_version", "extra_headers"].includes(field)
       ) {
         updateConnectionField(
           profile.connection_id,
@@ -1476,12 +1228,7 @@ function ProfileFields({
         );
       } else setProfileField(svc, field, value, profile.id);
     },
-    [
-      setProfileField,
-      updateConnectionField,
-      profile.id,
-      profile.connection_id,
-    ],
+    [setProfileField, updateConnectionField, profile.id, profile.connection_id],
   );
   const updateModelField = useCallback(
     (svc: ServiceName, field: keyof CatalogModel, value: string) =>
@@ -1490,40 +1237,26 @@ function ProfileFields({
   );
   // Shared credentials are edited at their source, preserving the link.
   const linkedConnection =
-    (draft.connections ?? []).find(
-      (item) => item.id === profile.connection_id,
-    ) ?? null;
+    (draft.connections ?? []).find((item) => item.id === profile.connection_id) ?? null;
 
-  const providerValue =
-    service === "search" ? profile.provider || "" : profile.binding || "";
+  const providerValue = service === "search" ? profile.provider || "" : profile.binding || "";
   const providerOption = (providers[service] || []).find(
     (option) => option.value === providerValue,
   );
   const isManagedCodex = isManagedCodexProfile(profile);
-  const isCodexOAuth = isCodexOAuthProfile(
-    service,
-    providerValue,
-    providerOption,
-    profile,
-  );
-  const isCodeBuddyAuth =
-    service === "llm" && providerValue === "codebuddy";
-  const isCliLogin =
-    service === "llm" && CLI_LOGIN_BINDINGS.has(providerValue);
-  const apiFormats = LLM_SHAPED.has(service)
-    ? (providerOption?.api_formats ?? [])
-    : [];
+  const isCodexOAuth = isCodexOAuthProfile(service, providerValue, providerOption, profile);
+  const isCodeBuddyAuth = service === "llm" && providerValue === "codebuddy";
+  const isCliLogin = service === "llm" && CLI_LOGIN_BINDINGS.has(providerValue);
+  const apiFormats = LLM_SHAPED.has(service) ? (providerOption?.api_formats ?? []) : [];
   const supportsApiFormatSelection = apiFormats.length > 1;
-  const apiFormat =
-    profile.api_format || providerOption?.default_api_format || "auto";
+  const apiFormat = profile.api_format || providerOption?.default_api_format || "auto";
   const changeApiFormat = (next: string) => {
     updateProfileField(service, "api_format", next);
     // A vendor may serve the new format at a different endpoint (MiniMax:
     // /v1 vs /anthropic). Follow it only while the field still holds the old
     // format's default — a hand-typed URL is the user's and stays.
     const baseUrls = providerOption?.base_urls ?? {};
-    const previousDefault =
-      baseUrls[apiFormat] ?? providerOption?.base_url ?? "";
+    const previousDefault = baseUrls[apiFormat] ?? providerOption?.base_url ?? "";
     const nextDefault = baseUrls[next] ?? providerOption?.base_url ?? "";
     const current = String(profile.base_url || "").trim();
     if (
@@ -1543,28 +1276,19 @@ function ProfileFields({
         ? searchProviderFields(profile.provider, providerOption)
         : { apiKey: true, baseUrl: true, baseUrlRequired: false };
   const missingRequiredBaseUrl =
-    fields.baseUrlRequired &&
-    !String(linkedConnection?.base_url || profile.base_url || "").trim();
+    fields.baseUrlRequired && !String(linkedConnection?.base_url || profile.base_url || "").trim();
   const endpoint = linkedConnection?.base_url || profile.base_url || "";
-  const defaultEndpoint =
-    providerOption?.base_urls?.[apiFormat] ||
-    providerOption?.base_url ||
-    "";
+  const defaultEndpoint = providerOption?.base_urls?.[apiFormat] || providerOption?.base_url || "";
   const showConnectionOptions =
     fields.baseUrlRequired ||
     !defaultEndpoint ||
     ["custom", "ollama", "vllm", "azure_openai"].includes(providerValue) ||
-    Boolean(
-      endpoint &&
-      endpoint.replace(/\/$/, "") !== defaultEndpoint.replace(/\/$/, ""),
-    );
+    Boolean(endpoint && endpoint.replace(/\/$/, "") !== defaultEndpoint.replace(/\/$/, ""));
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <div className="sm:col-span-2">
-        <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
-          {t("Provider")}
-        </div>
+        <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">{t("Provider")}</div>
         <div className="relative">
           {providerValue && (
             <ProviderIcon
@@ -1582,30 +1306,19 @@ function ProfileFields({
               const val = e.target.value;
               const field = service === "search" ? "provider" : "binding";
               const options = providers[service] || [];
-              const previousLabel =
-                options.find((p) => p.value === providerValue)?.label ?? "";
+              const previousLabel = options.find((p) => p.value === providerValue)?.label ?? "";
               const match = options.find((p) => p.value === val);
               updateProfileField(service, field, val);
               // The new vendor may not speak the format the old one did.
               if (
                 match &&
                 LLM_SHAPED.has(service) &&
-                !(match.api_formats ?? []).includes(
-                  profile.api_format ?? "auto",
-                )
+                !(match.api_formats ?? []).includes(profile.api_format ?? "auto")
               ) {
-                updateProfileField(
-                  service,
-                  "api_format",
-                  match.default_api_format ?? "auto",
-                );
+                updateProfileField(service, "api_format", match.default_api_format ?? "auto");
               }
               // Keep an un-customized profile name tracking its provider.
-              const renamed = nextProfileName(
-                profile.name,
-                previousLabel,
-                match?.label ?? "",
-              );
+              const renamed = nextProfileName(profile.name, previousLabel, match?.label ?? "");
               if (renamed !== profile.name) {
                 updateProfileField(service, "name", renamed);
               }
@@ -1638,18 +1351,11 @@ function ProfileFields({
             {(providers[service] || [])
               .filter(
                 (p) =>
-                  p.status !== "deprecated" &&
-                  (p.status !== "legacy" || p.value === providerValue),
+                  p.status !== "deprecated" && (p.status !== "legacy" || p.value === providerValue),
               )
               .map((p) => (
-                <option
-                  className={selectOptionClass}
-                  key={p.value}
-                  value={p.value}
-                >
-                  {p.status === "legacy"
-                    ? t("{{label}} (legacy)", { label: p.label })
-                    : p.label}
+                <option className={selectOptionClass} key={p.value} value={p.value}>
+                  {p.status === "legacy" ? t("{{label}} (legacy)", { label: p.label }) : p.label}
                 </option>
               ))}
           </select>
@@ -1667,20 +1373,14 @@ function ProfileFields({
           >
             {isSupportedSearchProvider
               ? searchProviderMissingKey
-                ? t(
-                    "{{provider}} requires an API key. It will fail hard without credentials.",
-                    {
-                      provider: providerOption?.label ?? providerValue,
-                    },
-                  )
+                ? t("{{provider}} requires an API key. It will fail hard without credentials.", {
+                    provider: providerOption?.label ?? providerValue,
+                  })
                 : t("Supported provider.")
               : isDeprecatedSearchProvider
-                ? t(
-                    "Deprecated provider. Switch to one of: {{providers}}.",
-                    {
-                      providers: supportedSearchProviderNames,
-                    },
-                  )
+                ? t("Deprecated provider. Switch to one of: {{providers}}.", {
+                    providers: supportedSearchProviderNames,
+                  })
                 : t("Unsupported provider. Use one of: {{providers}}.", {
                     providers: supportedSearchProviderNames,
                   })}
@@ -1720,9 +1420,7 @@ function ProfileFields({
       )}
       {fields.apiKey && (
         <div className="sm:col-span-2">
-          <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
-            {t("API Key")}
-          </div>
+          <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">{t("API Key")}</div>
           <div className="relative">
             <input
               type={showApiKey ? "text" : "password"}
@@ -1731,10 +1429,8 @@ function ProfileFields({
               className={`${inputClass} pr-10 font-mono disabled:opacity-60`}
               value={linkedConnection?.api_key ?? profile.api_key}
               aria-label={t("API Key")}
-              onChange={(e) =>
-                updateProfileField(service, "api_key", e.target.value)
-              }
-              placeholder="sk-..."
+              onChange={(e) => updateProfileField(service, "api_key", e.target.value)}
+              placeholder={t("sk-...")}
             />
             <span className="absolute right-1 top-1/2 -translate-y-1/2">
               <Tooltip label={showApiKey ? t("Hide API key") : t("Show API key")} side="top">
@@ -1744,11 +1440,7 @@ function ProfileFields({
                   className="rounded-md p-1.5 text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
                   aria-label={showApiKey ? t("Hide API key") : t("Show API key")}
                 >
-                  {showApiKey ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
+                  {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </Tooltip>
             </span>
@@ -1771,17 +1463,13 @@ function ProfileFields({
             {fields.baseUrl && (
               <div className="sm:col-span-2">
                 <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
-                  {service === "embedding"
-                    ? t("Endpoint URL")
-                    : t("Base URL")}
+                  {service === "embedding" ? t("Endpoint URL") : t("Base URL")}
                 </div>
                 <input
                   className={`${inputClass} disabled:opacity-60`}
                   value={linkedConnection?.base_url || profile.base_url}
                   aria-label={t("Base URL")}
-                  onChange={(e) =>
-                    updateProfileField(service, "base_url", e.target.value)
-                  }
+                  onChange={(e) => updateProfileField(service, "base_url", e.target.value)}
                   placeholder={
                     service === "embedding"
                       ? "https://api.openai.com/v1/embeddings"
@@ -1799,9 +1487,7 @@ function ProfileFields({
                 )}
                 {missingRequiredBaseUrl && (
                   <p className="mt-1.5 text-[11px] text-amber-600 dark:text-amber-400">
-                    {t(
-                      "Required — without it, search falls back to DuckDuckGo.",
-                    )}
+                    {t("Required — without it, search falls back to DuckDuckGo.")}
                   </p>
                 )}
               </div>
@@ -1815,21 +1501,11 @@ function ProfileFields({
                   <select
                     className={selectClass}
                     aria-label={t("API format")}
-                    value={
-                      apiFormats.includes(apiFormat)
-                        ? apiFormat
-                        : apiFormats[0]
-                    }
-                    onChange={(event) =>
-                      changeApiFormat(event.target.value)
-                    }
+                    value={apiFormats.includes(apiFormat) ? apiFormat : apiFormats[0]}
+                    onChange={(event) => changeApiFormat(event.target.value)}
                   >
                     {apiFormats.map((format) => (
-                      <option
-                        className={selectOptionClass}
-                        key={format}
-                        value={format}
-                      >
+                      <option className={selectOptionClass} key={format} value={format}>
                         {t(API_FORMAT_LABELS[format] ?? format)}
                       </option>
                     ))}
@@ -1850,9 +1526,7 @@ function ProfileFields({
               <input
                 className={inputClass}
                 value={linkedConnection?.api_version ?? profile.api_version}
-                onChange={(e) =>
-                  updateProfileField(service, "api_version", e.target.value)
-                }
+                onChange={(e) => updateProfileField(service, "api_version", e.target.value)}
                 placeholder={t("Optional")}
               />
             </div>
@@ -1864,9 +1538,7 @@ function ProfileFields({
                 <input
                   className={inputClass}
                   value={profile.proxy || ""}
-                  onChange={(e) =>
-                    updateProfileField(service, "proxy", e.target.value)
-                  }
+                  onChange={(e) => updateProfileField(service, "proxy", e.target.value)}
                   placeholder={t("http://127.0.0.1:7890 (optional)")}
                 />
               </div>
@@ -1878,17 +1550,10 @@ function ProfileFields({
                 <textarea
                   className={`${inputClass} min-h-[84px] resize-y`}
                   value={stringifyExtraHeaders(
-                    linkedConnection?.extra_headers ??
-                      profile.extra_headers,
+                    linkedConnection?.extra_headers ?? profile.extra_headers,
                   )}
-                  onChange={(e) =>
-                    updateProfileField(
-                      service,
-                      "extra_headers",
-                      e.target.value,
-                    )
-                  }
-                  placeholder='{"APP-Code":"your-app-code"}'
+                  onChange={(e) => updateProfileField(service, "extra_headers", e.target.value)}
+                  placeholder={t('{"APP-Code":"your-app-code"}')}
                 />
               </div>
             )}

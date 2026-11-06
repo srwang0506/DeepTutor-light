@@ -1,4 +1,5 @@
 'use client'
+import { useKeyedState } from '@/hooks/useKeyedState'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import Link from 'next/link'
@@ -27,9 +28,9 @@ function ScopedNoteReview() {
   const target = params.get('card'),
     targetPage = params.get('page')
   const autoOpen = params.get('review') === '1'
-  const [cards, setCards] = useState<Card[]>([])
-  const [open, setOpen] = useState(false)
-  const [revealed, setRevealed] = useState(false)
+  const [cards, setCards] = useKeyedState<Card[]>(autoOpen, [])
+  const [open, setOpen] = useKeyedState(autoOpen, autoOpen)
+  const [revealed, setRevealed] = useKeyedState(autoOpen, false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const pending = useRef(false)
@@ -42,22 +43,19 @@ function ScopedNoteReview() {
   }, [])
   useEffect(() => {
     let active = true
-    setCards([])
-    setRevealed(false)
-    setOpen(autoOpen)
     void noteRequest<{ cards: Card[] }>('/review/due')
-      .then(r => {
+      .then((r) => {
         if (!active) return
-        const match = r.cards.find(c => c.card_id === target && c.page_id === targetPage)
-        setCards(match ? [match, ...r.cards.filter(c => c !== match)] : r.cards)
+        const match = r.cards.find((c) => c.card_id === target && c.page_id === targetPage)
+        setCards(match ? [match, ...r.cards.filter((c) => c !== match)] : r.cards)
       })
-      .catch(e => {
+      .catch((e) => {
         if (active) setError(String(e))
       })
     return () => {
       active = false
     }
-  }, [workspace, autoOpen, target, targetPage])
+  }, [workspace, autoOpen, target, targetPage, setCards])
   const card = cards[0]
   const exportAll = async () => {
     if (pending.current) return
@@ -89,7 +87,7 @@ function ScopedNoteReview() {
         expected_content_hash: card.content_hash,
       })
       if (!mounted.current) return
-      setCards(c => c.slice(1))
+      setCards((c) => c.slice(1))
       setRevealed(false)
     } catch (err) {
       if (mounted.current) setError(String(err))
@@ -110,10 +108,10 @@ function ScopedNoteReview() {
         action,
       })
       if (!mounted.current) return
-      if (action === 'keep' && card.due_at > Date.now() / 1000) setCards(c => c.slice(1))
+      if (action === 'keep' && card.due_at > Date.now() / 1000) setCards((c) => c.slice(1))
       else
-        setCards(c =>
-          c.map((item, index) => (index === 0 ? { ...item, needs_schedule_review: false } : item))
+        setCards((c) =>
+          c.map((item, index) => (index === 0 ? { ...item, needs_schedule_review: false } : item)),
         )
       setRevealed(false)
     } catch (err) {

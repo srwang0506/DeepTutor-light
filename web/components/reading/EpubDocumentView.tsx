@@ -1,5 +1,6 @@
 "use client";
 
+import { useHydratedState } from "@/hooks/useHydratedState";
 import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -91,10 +92,7 @@ type EpubBook = {
     percentageFromCfi?: (cfi: string) => number | null;
     generate?: (characters: number) => Promise<unknown>;
   };
-  renderTo: (
-    element: Element,
-    options: Record<string, unknown>,
-  ) => EpubRendition;
+  renderTo: (element: Element, options: Record<string, unknown>) => EpubRendition;
   destroy: () => void;
 };
 
@@ -135,11 +133,7 @@ function applyEpubDisplayPreferences(
   rendition.themes.fontSize(`${preferences.fontSize}px`);
   // epub.js sets column-width but leaves column-count automatic. A wide pane
   // can fit a third visible column after the sidebar collapses (#1447).
-  rendition.themes.override(
-    "column-count",
-    preferences.spreadMode === "none" ? "1" : "2",
-    true,
-  );
+  rendition.themes.override("column-count", preferences.spreadMode === "none" ? "1" : "2", true);
 }
 
 export interface EpubDocumentViewProps {
@@ -198,17 +192,16 @@ export function EpubDocumentView({
   const activeSpreadRef = useRef(DEFAULT_READER_DISPLAY_PREFERENCES.spreadMode);
   const relayoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const relayoutAnchorRef = useRef<string | undefined>(undefined);
-  const [preferences, setPreferences] = useState<ReaderDisplayPreferences>(
+  const [preferences, setPreferences] = useHydratedState<ReaderDisplayPreferences>(
+    loadReaderDisplayPreferences,
     DEFAULT_READER_DISPLAY_PREFERENCES,
   );
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
-    const saved = loadReaderDisplayPreferences();
-    preferencesRef.current = saved;
-    setPreferences(saved);
-  }, []);
+    preferencesRef.current = preferences;
+  }, [preferences]);
 
   const updatePreferences = useCallback(
     (next: Partial<ReaderDisplayPreferences>) => {
@@ -217,7 +210,7 @@ export function EpubDocumentView({
       setPreferences(merged);
       saveReaderDisplayPreferences(merged);
     },
-    [],
+    [setPreferences],
   );
 
   const scheduleRelayout = useCallback((anchor?: string) => {
@@ -232,8 +225,7 @@ export function EpubDocumentView({
       const width = Math.round(bounds.width);
       const height = Math.round(bounds.height);
       if (!width || !height) return;
-      const cfi =
-        relayoutAnchorRef.current ?? rendition.currentLocation()?.start?.cfi;
+      const cfi = relayoutAnchorRef.current ?? rendition.currentLocation()?.start?.cfi;
       relayoutAnchorRef.current = undefined;
       rendition.resize(width, height);
       if (cfi) {
@@ -288,18 +280,19 @@ export function EpubDocumentView({
       const href = location.start?.href ?? "";
       const nextLocator = locatorForEpubHref(href, refsRef.current) || 1;
       const cfi = location.start?.cfi ?? "";
-      const observed = location.atEnd ? 1
-        : book?.locations?.percentageFromCfi?.(cfi) ?? location.start?.percentage;
-      const percentage = typeof observed === "number" && Number.isFinite(observed)
-        ? Math.min(1, Math.max(0, observed)) : null;
+      const observed = location.atEnd
+        ? 1
+        : (book?.locations?.percentageFromCfi?.(cfi) ?? location.start?.percentage);
+      const percentage =
+        typeof observed === "number" && Number.isFinite(observed)
+          ? Math.min(1, Math.max(0, observed))
+          : null;
       // A spine entry is a chapter, not a fraction of the whole text (#1673).
       // Until CFI locations are ready, publish uncertainty instead of 100%.
       progressChangeRef.current?.(percentage);
       locatorRef.current = nextLocator;
       visibleChangeRef.current?.(nextLocator);
-      headingsChangeRef.current?.(
-        headingsByLocatorRef.current.get(nextLocator) ?? [],
-      );
+      headingsChangeRef.current?.(headingsByLocatorRef.current.get(nextLocator) ?? []);
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
         void saveReadingPosition(materialId, {
@@ -318,9 +311,7 @@ export function EpubDocumentView({
       const selection = contents.window?.getSelection?.();
       const quote = cleanQuote(selection?.toString() ?? "");
       if (!quote || !cfi) return;
-      const rect = selection?.rangeCount
-        ? selection.getRangeAt(0).getBoundingClientRect()
-        : null;
+      const rect = selection?.rangeCount ? selection.getRangeAt(0).getBoundingClientRect() : null;
       onSelection({
         locator:
           locatorForEpubHref(
@@ -330,17 +321,14 @@ export function EpubDocumentView({
         quote,
         rects: [],
         sourceAnchor: cfi,
-        anchor: rect
-          ? { x: rect.left + rect.width / 2, y: rect.top }
-          : { x: 0, y: 0 },
+        anchor: rect ? { x: rect.left + rect.width / 2, y: rect.top } : { x: 0, y: 0 },
       });
     };
 
     const onRenditionKey = (rawEvent: unknown) => {
       const event = rawEvent as KeyboardEvent;
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey)
-        return;
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
       if (!allowsEpubPageTurn(event.target)) return;
       event.preventDefault();
       turnPage(event.key === "ArrowLeft" ? "previous" : "next");
@@ -352,17 +340,12 @@ export function EpubDocumentView({
       if (!doc?.body || doc.body.dataset.dtReaderReady === "true") return;
       doc.body.dataset.dtReaderReady = "true";
       const href = (doc.location?.pathname ?? "").replace(/^\//, "");
-      const locator =
-        locatorForEpubHref(href, refsRef.current) || locatorRef.current;
+      const locator = locatorForEpubHref(href, refsRef.current) || locatorRef.current;
       const sourceHref = bookRef.current?.spine.get(locator - 1)?.href || href;
       const headingElements = Array.from(
         doc.querySelectorAll<HTMLElement>("h1,h2,h3,h4,h5,h6"),
       ).filter((element) => (element.textContent ?? "").trim());
-      const headings = extractEpubHeadings(
-        headingElements,
-        locator,
-        sourceHref,
-      );
+      const headings = extractEpubHeadings(headingElements, locator, sourceHref);
       headingElements.forEach((element, index) => {
         element.id = headings[index].id;
       });
@@ -421,9 +404,7 @@ export function EpubDocumentView({
         if (!response.ok) throw new Error(t("Could not load this section."));
         const bytes = await response.arrayBuffer();
         if (cancelled) return;
-        const createBook = module.default as unknown as (
-          input?: ArrayBuffer,
-        ) => EpubBook;
+        const createBook = module.default as unknown as (input?: ArrayBuffer) => EpubBook;
         // Calling epubjs with bytes in its constructor swallows open errors and
         // leaves `ready` pending forever. Open explicitly so damaged packages
         // reach the reader's error state instead of an endless skeleton.
@@ -449,35 +430,29 @@ export function EpubDocumentView({
         rendition.hooks.content.register(installContentSafety);
         const fallbackHref =
           book.spine.get((position?.locator ?? 1) - 1)?.href ??
-          refsRef.current.find(
-            (ref) => ref.locator === (position?.locator ?? 1),
-          )?.source_href;
+          refsRef.current.find((ref) => ref.locator === (position?.locator ?? 1))?.source_href;
         try {
-          await rendition.display(
-            position?.source_anchor || fallbackHref || undefined,
-          );
+          await rendition.display(position?.source_anchor || fallbackHref || undefined);
         } catch {
           await rendition.display(
-            fallbackHref ??
-              book.spine.get(0)?.href ??
-              refsRef.current[0]?.source_href,
+            fallbackHref ?? book.spine.get(0)?.href ?? refsRef.current[0]?.source_href,
           );
         }
         if (cancelled) return;
         setLoading(false);
-        void book.locations?.generate?.(1600).then(() => {
-          if (cancelled || !rendition) return;
-          const location = rendition.currentLocation();
-          if (location) onRelocated(location);
-        }).catch(() => {
-          // CFI navigation still works when progress cannot be calculated.
-        });
+        void book.locations
+          ?.generate?.(1600)
+          .then(() => {
+            if (cancelled || !rendition) return;
+            const location = rendition.currentLocation();
+            if (location) onRelocated(location);
+          })
+          .catch(() => {
+            // CFI navigation still works when progress cannot be calculated.
+          });
       } catch (error) {
         if (cancelled) return;
-        const message =
-          error instanceof Error
-            ? error.message
-            : t("Could not load this section.");
+        const message = error instanceof Error ? error.message : t("Could not load this section.");
         setLoadError(message);
         errorRef.current?.(message);
         setLoading(false);
@@ -528,23 +503,18 @@ export function EpubDocumentView({
 
   useEffect(() => {
     if (!headingJump || !renditionRef.current || !bookRef.current) return;
-    const section = bookRef.current.spine.get(
-      (headingJump.locator ?? locatorRef.current) - 1,
-    );
+    const section = bookRef.current.spine.get((headingJump.locator ?? locatorRef.current) - 1);
     const sourceHref = section?.href || headingJump.sourceHref;
     if (!sourceHref) return;
-    void renditionRef.current
-      .display(`${sourceHref}#${headingJump.id}`)
-      .catch(() => {
-        // A damaged publisher anchor leaves the reader on the current page.
-      });
+    void renditionRef.current.display(`${sourceHref}#${headingJump.id}`).catch(() => {
+      // A damaged publisher anchor leaves the reader on the current page.
+    });
   }, [headingJump, loading]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
-      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey)
-        return;
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
       if (!allowsEpubPageTurn(event.target)) return;
       event.preventDefault();
       turnPage(event.key === "ArrowLeft" ? "previous" : "next");
@@ -586,10 +556,7 @@ export function EpubDocumentView({
           `dt-epub-annotation-${annotation.annotation_id}`,
           {
             fill: HIGHLIGHT_COLORS[annotation.color] ?? HIGHLIGHT_COLORS.yellow,
-            "fill-opacity":
-              annotation.annotation_id === highlightedAnnotationId
-                ? "0.8"
-                : "0.55",
+            "fill-opacity": annotation.annotation_id === highlightedAnnotationId ? "0.8" : "0.55",
           },
         );
       }
@@ -613,13 +580,9 @@ export function EpubDocumentView({
         await section.load(bookRef.current.load.bind(bookRef.current));
         const matches = section.find(jump.quote);
         if (matches.length !== 1) return;
-        renditionRef.current.annotations.highlight(
-          matches[0].cfi,
-          {},
-          undefined,
-          "dt-epub-jump",
-          { fill: "rgba(99, 102, 241, 0.35)" },
-        );
+        renditionRef.current.annotations.highlight(matches[0].cfi, {}, undefined, "dt-epub-jump", {
+          fill: "rgba(99, 102, 241, 0.35)",
+        });
         window.setTimeout(() => {
           renditionRef.current?.annotations.remove(matches[0].cfi, "highlight");
         }, 2200);
@@ -642,11 +605,7 @@ export function EpubDocumentView({
       style={surface}
     >
       <div className="flex shrink-0 items-center gap-2 overflow-x-auto border-b border-[var(--border)] px-2 py-2 sm:px-3">
-        <ReaderDisplayControls
-          preferences={preferences}
-          onChange={updatePreferences}
-          showSpread
-        />
+        <ReaderDisplayControls preferences={preferences} onChange={updatePreferences} showSpread />
       </div>
       <div className="relative min-h-0 flex-1">
         <div

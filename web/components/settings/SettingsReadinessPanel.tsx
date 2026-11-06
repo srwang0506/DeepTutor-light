@@ -87,16 +87,12 @@ function refineRow(
 
   const service = name as ServiceName;
   const profile = getActiveProfile(catalog, service);
-  refined.provider =
-    (service === "search" ? profile?.provider : profile?.binding) ?? "";
+  refined.provider = (service === "search" ? profile?.provider : profile?.binding) ?? "";
   refined.model =
     service === "search"
       ? (profile?.provider ?? "")
       : (getActiveModel(catalog, service)?.model ?? "");
-  if (
-    currentDiagnosticsResult(catalog, service, diagnosticsResults)?.state ===
-    "failed"
-  ) {
+  if (currentDiagnosticsResult(catalog, service, diagnosticsResults)?.state === "failed") {
     refined.state = "misconfigured";
     refined.detail_code = "connection_test_failed";
   }
@@ -116,16 +112,10 @@ function refineRow(
  * capability the install needs, or one that was configured and now fails, is
  * allowed to raise its voice.
  */
-export default function SettingsReadinessPanel({
-  enabled,
-}: {
-  enabled: boolean;
-}) {
+export default function SettingsReadinessPanel({ enabled }: { enabled: boolean }) {
   const { t } = useTranslation();
   const { catalog, diagnosticsResults, draftState } = useSettings();
-  const [snapshot, setSnapshot] = useState<SettingsReadinessSnapshot | null>(
-    null,
-  );
+  const [snapshot, setSnapshot] = useState<SettingsReadinessSnapshot | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
 
@@ -137,27 +127,36 @@ export default function SettingsReadinessPanel({
   // at tests/e2e/settings-navigation.audit.ts honest: it mocks
   // ``/api/settings/readiness`` and expects the section to render the mocked
   // matrix regardless of catalogEditable.
-  const refresh = useCallback(async () => {
+  const refreshData = useCallback(async () => {
+    return fetchSettingsReadiness()
+      .then(async (resolvedState0) => {
+        setSnapshot(resolvedState0);
+      })
+      .catch(() => {
+        setError(true);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
+  const [refreshInputs, setRefreshInputs] = useState<typeof refreshData | null>(null);
+  if (refreshInputs !== refreshData) {
+    setRefreshInputs(() => refreshData);
     setLoading(true);
     setError(false);
-    try {
-      setSnapshot(await fetchSettingsReadiness());
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  }
+  const refresh = useCallback(() => {
+    setLoading(true);
+    setError(false);
+    return refreshData();
+  }, [refreshData]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
+    void refreshData();
+  }, [refreshData]);
 
   const rows = useMemo(
-    () =>
-      (snapshot?.rows ?? []).map((row) =>
-        refineRow(row, catalog, diagnosticsResults),
-      ),
+    () => (snapshot?.rows ?? []).map((row) => refineRow(row, catalog, diagnosticsResults)),
     [snapshot, catalog, diagnosticsResults],
   );
   const groups = useMemo(() => groupReadinessRows(rows), [rows]);
@@ -294,9 +293,7 @@ export default function SettingsReadinessPanel({
                     className="flex flex-wrap items-center justify-between gap-x-4 gap-y-0.5 border-b border-[var(--border)]/50 py-2.5"
                   >
                     <span className="min-w-0 text-[12.5px] text-[var(--foreground)]">
-                      <span className={SEVERITY_TONES[item.severity]}>
-                        {item.label}
-                      </span>
+                      <span className={SEVERITY_TONES[item.severity]}>{item.label}</span>
                       {/* A code with no sentence must not leave a dangling
                           separator behind — the label stands on its own. */}
                       {item.detail && (
@@ -322,11 +319,7 @@ export default function SettingsReadinessPanel({
 
             <div data-testid="settings-readiness-matrix">
               {groups.map(([section, sectionRows]) => (
-                <ReadinessGroup
-                  key={section}
-                  section={section}
-                  rows={sectionRows}
-                />
+                <ReadinessGroup key={section} section={section} rows={sectionRows} />
               ))}
             </div>
           </>
@@ -340,13 +333,7 @@ function detailText(t: (key: string) => string, code: string): string {
   return EXPLAINED_DETAIL_CODES.has(code) ? t(`readiness.detail.${code}`) : "";
 }
 
-function ReadinessGroup({
-  section,
-  rows,
-}: {
-  section: string;
-  rows: PanelRow[];
-}) {
+function ReadinessGroup({ section, rows }: { section: string; rows: PanelRow[] }) {
   const { t } = useTranslation();
   const prominent = rows.filter(isProminentReadinessRow);
   const folded = rows.filter((row) => !isProminentReadinessRow(row));
@@ -404,15 +391,9 @@ function ReadinessRow({ row }: { row: PanelRow }) {
             {label}
           </Link>
         ) : (
-          <span className="text-[12.5px] text-[var(--foreground)]">
-            {label}
-          </span>
+          <span className="text-[12.5px] text-[var(--foreground)]">{label}</span>
         )}
-        {detail && (
-          <span className="text-[11.5px] text-[var(--muted-foreground)]">
-            {detail}
-          </span>
-        )}
+        {detail && <span className="text-[11.5px] text-[var(--muted-foreground)]">{detail}</span>}
       </span>
       <span className="flex min-w-0 items-center gap-2">
         {row.model && (

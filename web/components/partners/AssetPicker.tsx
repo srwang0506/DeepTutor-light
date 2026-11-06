@@ -1,4 +1,5 @@
 "use client";
+import { useLayoutEffect } from "react";
 
 /**
  * Multi-select picker for the three asset classes a partner can be equipped
@@ -53,9 +54,7 @@ function ChipGroup({
         )}
       </h4>
       {options.length === 0 ? (
-        <p className="text-[13px] text-[var(--muted-foreground)]">
-          {emptyText}
-        </p>
+        <p className="text-[13px] text-[var(--muted-foreground)]">{emptyText}</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           {options.map((option) => {
@@ -101,7 +100,9 @@ export default function AssetPicker({
   const [notebooks, setNotebooks] = useState<Option[]>([]);
   const [loading, setLoading] = useState(true);
   const latest = useRef({ value, onChange });
-  latest.current = { value, onChange };
+  useLayoutEffect(() => {
+    latest.current = { value, onChange };
+  }, [value, onChange]);
 
   useEffect(() => {
     void (async () => {
@@ -119,9 +120,7 @@ export default function AssetPicker({
             .filter(
               (kb) =>
                 kb.available !== false &&
-                !["subagent", "obsidian", "marginnote4"].includes(
-                  String(kb.metadata?.type ?? ""),
-                ),
+                !["subagent", "obsidian", "marginnote4"].includes(String(kb.metadata?.type ?? "")),
             )
             .map((kb) => ({
               id: kb.id || kb.name,
@@ -158,9 +157,7 @@ export default function AssetPicker({
 
   if (loading) {
     return (
-      <p className="text-[13px] text-[var(--muted-foreground)]">
-        {t("Loading your library…")}
-      </p>
+      <p className="text-[13px] text-[var(--muted-foreground)]">{t("Loading your library…")}</p>
     );
   }
 
@@ -168,17 +165,13 @@ export default function AssetPicker({
     const current = value[key];
     onChange({
       ...value,
-      [key]: current.includes(id)
-        ? current.filter((x) => x !== id)
-        : [...current, id],
+      [key]: current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
     });
   };
 
   const visible = (options: Option[], hidden?: string[]) =>
     hidden && hidden.length > 0
-      ? options.filter(
-          (o) => !hidden.includes(o.id) && !hidden.includes(o.label),
-        )
+      ? options.filter((o) => !hidden.includes(o.id) && !hidden.includes(o.label))
       : options;
 
   return (

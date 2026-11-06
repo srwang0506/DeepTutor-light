@@ -1,4 +1,5 @@
 "use client";
+import { useLayoutEffect } from "react";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
@@ -38,19 +39,14 @@ type AttachmentSettingsPayload = {
   restart_required_for_larger_uploads: boolean;
 };
 
-function normalizeDraft(
-  payload: AttachmentSettingsPayload,
-): AttachmentSettings {
+function normalizeDraft(payload: AttachmentSettingsPayload): AttachmentSettings {
   return { ...payload.settings };
 }
 
 export default function AttachmentSettingsPage() {
   const { t } = useTranslation();
-  const { registerExtension, pendingExtensionPayload, draftRevision } =
-    useSettings();
-  const [payload, setPayload] = useState<AttachmentSettingsPayload | null>(
-    null,
-  );
+  const { registerExtension, pendingExtensionPayload, draftRevision } = useSettings();
+  const [payload, setPayload] = useState<AttachmentSettingsPayload | null>(null);
   const [draft, setDraft] = useState<AttachmentSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,12 +57,9 @@ export default function AttachmentSettingsPage() {
       setLoading(true);
       setError(null);
       try {
-        const response = await apiFetch(
-          apiUrl(EXTENSION_ENDPOINTS["chat-attachments"]),
-        );
+        const response = await apiFetch(apiUrl(EXTENSION_ENDPOINTS["chat-attachments"]));
         const data = (await response.json().catch(() => ({}))) as
-          | AttachmentSettingsPayload
-          | { detail?: string };
+          AttachmentSettingsPayload | { detail?: string };
         if (!response.ok) {
           throw new Error(
             "detail" in data && data.detail
@@ -78,8 +71,7 @@ export default function AttachmentSettingsPage() {
         const next = data as AttachmentSettingsPayload;
         setPayload(next);
         const pending = pendingExtensionPayload("chat-attachments") as
-          | AttachmentSettings
-          | undefined;
+          AttachmentSettings | undefined;
         setDraft(pending ?? normalizeDraft(next));
       } catch (err) {
         if (!cancelled) {
@@ -108,23 +100,21 @@ export default function AttachmentSettingsPage() {
 
   // Flush through the global Apply (top toolbar) instead of a local button.
   const draftRef = useRef(draft);
-  draftRef.current = draft;
+  useLayoutEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
   const save = useCallback(async () => {
     const current = draftRef.current;
     if (!current) return;
     setError(null);
     try {
-      const response = await apiFetch(
-        apiUrl(EXTENSION_ENDPOINTS["chat-attachments"]),
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(current),
-        },
-      );
+      const response = await apiFetch(apiUrl(EXTENSION_ENDPOINTS["chat-attachments"]), {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(current),
+      });
       const data = (await response.json().catch(() => ({}))) as
-        | AttachmentSettingsPayload
-        | { detail?: string };
+        AttachmentSettingsPayload | { detail?: string };
       if (!response.ok) {
         throw new Error(
           "detail" in data && data.detail
@@ -191,9 +181,7 @@ export default function AttachmentSettingsPage() {
                   min={bounds?.max_file_mb[0] ?? 1}
                   max={bounds?.max_file_mb[1] ?? 1024}
                   value={draft.max_file_mb}
-                  onChange={(event) =>
-                    setField("max_file_mb")(Number(event.target.value))
-                  }
+                  onChange={(event) => setField("max_file_mb")(Number(event.target.value))}
                 />
               }
             />
@@ -209,9 +197,7 @@ export default function AttachmentSettingsPage() {
                   min={bounds?.max_total_mb[0] ?? 1}
                   max={bounds?.max_total_mb[1] ?? 2048}
                   value={draft.max_total_mb}
-                  onChange={(event) =>
-                    setField("max_total_mb")(Number(event.target.value))
-                  }
+                  onChange={(event) => setField("max_total_mb")(Number(event.target.value))}
                 />
               }
             />
@@ -236,17 +222,13 @@ export default function AttachmentSettingsPage() {
                   max={bounds?.chars[1] ?? 5000000}
                   step={10000}
                   value={draft.max_chars_per_doc}
-                  onChange={(event) =>
-                    setField("max_chars_per_doc")(Number(event.target.value))
-                  }
+                  onChange={(event) => setField("max_chars_per_doc")(Number(event.target.value))}
                 />
               }
             />
             <SettingRow
               title={t("Max characters per message")}
-              description={t(
-                "Total extracted text across all documents on one message.",
-              )}
+              description={t("Total extracted text across all documents on one message.")}
               control={
                 <input
                   className={`${inputClass} w-36`}
@@ -255,9 +237,7 @@ export default function AttachmentSettingsPage() {
                   max={bounds?.chars[1] ?? 5000000}
                   step={10000}
                   value={draft.max_chars_total}
-                  onChange={(event) =>
-                    setField("max_chars_total")(Number(event.target.value))
-                  }
+                  onChange={(event) => setField("max_chars_total")(Number(event.target.value))}
                 />
               }
             />

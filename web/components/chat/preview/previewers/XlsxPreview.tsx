@@ -1,4 +1,5 @@
 "use client";
+import { useKeyedState } from "@/hooks/useKeyedState";
 
 import { useEffect, useState } from "react";
 import { AlertCircle, Loader2 } from "lucide-react";
@@ -25,25 +26,19 @@ interface SheetModel {
 export default function XlsxPreview({ url }: { url: string }) {
   const { t } = useTranslation();
   const src = useBinarySource(url);
-  const [sheets, setSheets] = useState<SheetModel[] | null>(null);
-  const [active, setActive] = useState(0);
-  const [failed, setFailed] = useState(false);
+  const [sheets, setSheets] = useKeyedState<SheetModel[] | null>(url, null);
+  const [active, setActive] = useKeyedState(url, 0);
+  const [failedState, setFailed] = useKeyedState(url, false);
+  const failed = src.kind === "error" || failedState;
 
   useEffect(() => {
-    if (src.kind === "error") {
-      setFailed(true);
-      return;
-    }
     if (src.kind !== "ready") return;
 
     let cancelled = false;
-    setFailed(false);
-    setSheets(null);
     (async () => {
       try {
         const mod = await import("exceljs");
-        const ExcelJS =
-          (mod as unknown as { default?: typeof mod }).default ?? mod;
+        const ExcelJS = (mod as unknown as { default?: typeof mod }).default ?? mod;
         if (cancelled) return;
         const wb = new ExcelJS.Workbook();
         await wb.xlsx.load(src.buffer);
@@ -78,15 +73,13 @@ export default function XlsxPreview({ url }: { url: string }) {
     return () => {
       cancelled = true;
     };
-  }, [src]);
+  }, [setActive, setFailed, setSheets, src]);
 
   if (failed) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 px-8 text-center text-[12px] text-[var(--muted-foreground)]">
         <AlertCircle size={18} strokeWidth={1.7} className="opacity-70" />
-        <p>
-          {t("Couldn't render this spreadsheet — use Download to open it.")}
-        </p>
+        <p>{t("Couldn't render this spreadsheet — use Download to open it.")}</p>
       </div>
     );
   }
@@ -124,9 +117,7 @@ export default function XlsxPreview({ url }: { url: string }) {
                   <td
                     key={c}
                     className={`max-w-[280px] truncate border border-[var(--border)]/40 px-2 py-1 ${
-                      r === 0
-                        ? "bg-[var(--muted)]/35 font-medium"
-                        : "bg-[var(--card)]"
+                      r === 0 ? "bg-[var(--muted)]/35 font-medium" : "bg-[var(--card)]"
                     }`}
                     title={cell}
                   >

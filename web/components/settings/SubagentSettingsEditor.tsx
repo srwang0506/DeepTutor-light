@@ -290,9 +290,7 @@ const GROK_PERMISSION_MODES: { value: string; label: Lang }[] = [
 ];
 
 function defaultsForKind(kind: string): typeof DEFAULTS {
-  return kind === "grok"
-    ? { ...DEFAULTS, permission_mode: "dontAsk" }
-    : DEFAULTS;
+  return kind === "grok" ? { ...DEFAULTS, permission_mode: "dontAsk" } : DEFAULTS;
 }
 
 const SANDBOXES: { value: string; label: Lang }[] = [
@@ -337,41 +335,54 @@ export function SubagentSettingsEditor({ kind }: { kind: string }) {
   const { applying: busy, draftRevision } = useSettings();
   const [error, setError] = useState<string | null>(null);
 
-  const Glyph = agentGlyph(kind);
+  const glyph = { Icon: agentGlyph(kind) };
 
   const fetchOptions = useCallback(async () => {
     const all = await getBackendOptions();
     return all.find((o) => o.kind === kind) ?? null;
   }, [kind]);
 
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      const [opts, settings] = await Promise.all([
-        fetchOptions(),
-        // An editor must show what is stored, never a cached copy.
-        getSubagentSettings({ force: true }),
-      ]);
-      setOptions(opts);
-      const stored = settings.backends?.[kind] ?? {};
-      setLiveConfig({ ...defaultsForKind(kind), ...stored });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
+  const loadData = useCallback(async () => {
+    return Promise.all([
+      fetchOptions(),
+      // An editor must show what is stored, never a cached copy.
+      getSubagentSettings({ force: true }),
+    ])
+      .then(async ([opts, settings]) => {
+        setOptions(opts);
+        const stored = settings.backends?.[kind] ?? {};
+        setLiveConfig({ ...defaultsForKind(kind), ...stored });
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : String(err));
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [fetchOptions, kind]);
+  const [loadInputs, setLoadInputs] = useState<typeof loadData | null>(null);
+  if (loadInputs !== loadData) {
+    setLoadInputs(() => loadData);
+    setError(null);
+  }
+  const load = useCallback(() => {
+    setError(null);
+    return loadData();
+  }, [loadData]);
 
   useEffect(() => {
-    void load();
-  }, [load, draftRevision]);
+    void loadData();
+  }, [loadData, draftRevision]);
 
   const sync = useCallback(async () => {
     setSyncing(true);
     setError(null);
     try {
       // Actively re-pull this backend's catalog (CC scrapes /model live).
-      setOptions(await syncBackendOptions(kind));
+      {
+        const resolvedState0 = await syncBackendOptions(kind);
+        setOptions(resolvedState0);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -379,18 +390,18 @@ export function SubagentSettingsEditor({ kind }: { kind: string }) {
     }
   }, [kind]);
 
-  const save = useCallback(async (patch: Partial<SubagentBackendConfig>) => {
-    setConfig((prev) => ({ ...prev, ...patch }));
-  }, [setConfig]);
+  const save = useCallback(
+    async (patch: Partial<SubagentBackendConfig>) => {
+      setConfig((prev) => ({ ...prev, ...patch }));
+    },
+    [setConfig],
+  );
 
   const features = KIND_FEATURES[kind] ?? FALLBACK_FEATURES;
   const isRemote = kind === "hermes_remote";
   const isGrok = kind === "grok";
   const permissionModes = isGrok ? GROK_PERMISSION_MODES : PERMISSION_MODES;
-  const knownSlugs = useMemo(
-    () => new Set((options?.models ?? []).map((m) => m.slug)),
-    [options],
-  );
+  const knownSlugs = useMemo(() => new Set((options?.models ?? []).map((m) => m.slug)), [options]);
   const showCustomModel =
     customModel || (config.model !== "" && !knownSlugs.has(config.model ?? ""));
 
@@ -415,11 +426,7 @@ export function SubagentSettingsEditor({ kind }: { kind: string }) {
       // Reset an effort the newly chosen model doesn't support.
       const m = options?.models.find((x) => x.slug === value);
       const patch: Partial<SubagentBackendConfig> = { model: value };
-      if (
-        config.effort &&
-        m?.efforts?.length &&
-        !m.efforts.includes(config.effort)
-      ) {
+      if (config.effort && m?.efforts?.length && !m.efforts.includes(config.effort)) {
         patch.effort = "";
       }
       void save(patch);
@@ -505,7 +512,7 @@ export function SubagentSettingsEditor({ kind }: { kind: string }) {
                       : "text-amber-600 dark:text-amber-400"
                   }`}
                 >
-                  {Glyph ? <Glyph size={15} /> : null}
+                  {glyph.Icon ? <glyph.Icon size={15} /> : null}
                   {options.available ? (
                     <CheckCircle2 className="h-3.5 w-3.5" />
                   ) : (
@@ -556,9 +563,7 @@ export function SubagentSettingsEditor({ kind }: { kind: string }) {
                     onClick={() => void sync()}
                     className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-2.5 py-1.5 text-[12px] font-medium text-[var(--foreground)] transition-colors hover:border-[var(--foreground)]/40 disabled:opacity-60"
                   >
-                    <RefreshCw
-                      className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`}
-                    />
+                    <RefreshCw className={`h-3.5 w-3.5 ${syncing ? "animate-spin" : ""}`} />
                     {tr({ zh: "同步", en: "Sync" })}
                   </button>
                 )
@@ -686,9 +691,7 @@ export function SubagentSettingsEditor({ kind }: { kind: string }) {
                       </option>
                     ))}
                     {options.allow_custom_model && (
-                      <option value={CUSTOM}>
-                        {tr({ zh: "自定义…", en: "Custom…" })}
-                      </option>
+                      <option value={CUSTOM}>{tr({ zh: "自定义…", en: "Custom…" })}</option>
                     )}
                   </select>
                   {showCustomModel && (
@@ -701,12 +704,8 @@ export function SubagentSettingsEditor({ kind }: { kind: string }) {
                         en: "Enter a model name",
                       })}
                       value={config.model ?? ""}
-                      onChange={(e) =>
-                        setConfig((p) => ({ ...p, model: e.target.value }))
-                      }
-                      onBlur={(e) =>
-                        void save({ model: e.target.value.trim() })
-                      }
+                      onChange={(e) => setConfig((p) => ({ ...p, model: e.target.value }))}
+                      onBlur={(e) => void save({ model: e.target.value.trim() })}
                     />
                   )}
                 </div>
@@ -729,12 +728,8 @@ export function SubagentSettingsEditor({ kind }: { kind: string }) {
                         en: "Blank uses CLI default",
                       })}
                       value={config.effort ?? ""}
-                      onChange={(e) =>
-                        setConfig((p) => ({ ...p, effort: e.target.value }))
-                      }
-                      onBlur={(e) =>
-                        void save({ effort: e.target.value.trim() })
-                      }
+                      onChange={(e) => setConfig((p) => ({ ...p, effort: e.target.value }))}
+                      onBlur={(e) => void save({ effort: e.target.value.trim() })}
                     />
                   ) : (
                     <select
@@ -763,9 +758,7 @@ export function SubagentSettingsEditor({ kind }: { kind: string }) {
           {features.systemPrompt && (
             <SettingSection
               title={tr({ zh: "系统提示", en: "System prompt" })}
-              description={`${tr(
-                SYSTEM_PROMPT_HINT[kind] ?? SYSTEM_PROMPT_HINT.claude_code,
-              )} ${tr({
+              description={`${tr(SYSTEM_PROMPT_HINT[kind] ?? SYSTEM_PROMPT_HINT.claude_code)} ${tr({
                 zh: "留空则使用 DeepTutor 的默认委派提示。",
                 en: "Blank uses DeepTutor's default delegate instruction.",
               })}`}
@@ -780,9 +773,7 @@ export function SubagentSettingsEditor({ kind }: { kind: string }) {
                     en: "(blank uses the default delegate instruction)",
                   })}
                   value={config.system_prompt ?? ""}
-                  onChange={(e) =>
-                    setConfig((p) => ({ ...p, system_prompt: e.target.value }))
-                  }
+                  onChange={(e) => setConfig((p) => ({ ...p, system_prompt: e.target.value }))}
                   onBlur={(e) => void save({ system_prompt: e.target.value })}
                 />
               </div>
@@ -815,13 +806,8 @@ export function SubagentSettingsEditor({ kind }: { kind: string }) {
                     aria-label={tr({ zh: "权限模式", en: "Permission mode" })}
                     className={`${selectClass} w-[260px]`}
                     disabled={busy}
-                    value={
-                      config.permission_mode ??
-                      defaultsForKind(kind).permission_mode
-                    }
-                    onChange={(e) =>
-                      void save({ permission_mode: e.target.value })
-                    }
+                    value={config.permission_mode ?? defaultsForKind(kind).permission_mode}
+                    onChange={(e) => void save({ permission_mode: e.target.value })}
                   >
                     {permissionModes.map((o) => (
                       <option key={o.value} value={o.value}>

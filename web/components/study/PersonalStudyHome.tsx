@@ -137,7 +137,7 @@ function StudyHome({ workspace }: { workspace: string }) {
       timezone,
       AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]),
       chatAllowed,
-      notesAllowed
+      notesAllowed,
     )
     if (!alive.current || current !== version.current) return
     setSnapshot(data)
@@ -177,7 +177,7 @@ function StudyHome({ workspace }: { workspace: string }) {
         ...patch,
       })
       if (!alive.current) return
-      setSnapshot(previous => (previous ? { ...previous, preferences } : previous))
+      setSnapshot((previous) => (previous ? { ...previous, preferences } : previous))
       setNotice(
         patch.deferral?.action === 'tomorrow'
           ? zh
@@ -185,7 +185,7 @@ function StudyHome({ workspace }: { workspace: string }) {
             : 'Deferred until tomorrow. Your learning and review records stay unchanged.'
           : zh
             ? '安排已保存。'
-            : 'Plan saved.'
+            : 'Plan saved.',
       )
     } catch (e) {
       if (alive.current)
@@ -196,19 +196,20 @@ function StudyHome({ workspace }: { workspace: string }) {
               : 'Another tab changed this plan. Reload before editing.'
             : zh
               ? '安排没有保存成功。请重试，你的学习记录仍然保留。'
-              : 'Could not save your plan. Your learning records are still saved.'
+              : 'Could not save your plan. Your learning records are still saved.',
         )
     } finally {
       busy.current = false
       if (alive.current) setSaving(false)
     }
   }
+  const [planNow] = useState(() => Date.now() / 1000)
   const plan = snapshot
-    ? buildStudyPlan(snapshot, workspace, snapshot.preferences?.now ?? Date.now() / 1000)
+    ? buildStudyPlan(snapshot, workspace, snapshot.preferences?.now ?? planNow)
     : null
   const first = plan?.selected[0]
   const text = (a: string, b: string) => (zh ? a : b)
-  const validGoals = snapshot?.sources.mastery.filter(t => t.metadata.status === 'active') ?? []
+  const validGoals = snapshot?.sources.mastery.filter((t) => t.metadata.status === 'active') ?? []
   const reviewed = snapshot?.summary?.reviewed_today
   return (
     <FeaturePage className="personal-study-page">
@@ -223,7 +224,7 @@ function StudyHome({ workspace }: { workspace: string }) {
             <p>
               {text(
                 '把重要的事往前推进一点。按自己的节奏，理解、练习，再回来验证。',
-                'Make a little room to understand, practice, and return to what matters.'
+                'Make a little room to understand, practice, and return to what matters.',
               )}
             </p>
           </div>
@@ -239,7 +240,7 @@ function StudyHome({ workspace }: { workspace: string }) {
             {text('今天有多少时间？', 'How much time do you have?')}
           </span>
           <div role="group" aria-label={text('今日学习时间', 'Study time today')}>
-            {[15, 30, 45, 60, 90].map(minutes => (
+            {[15, 30, 45, 60, 90].map((minutes) => (
               <button
                 key={minutes}
                 aria-pressed={plan?.budget === minutes}
@@ -259,7 +260,7 @@ function StudyHome({ workspace }: { workspace: string }) {
               {error ||
                 text(
                   '部分记录暂时无法读取，以下仅展示已加载的内容。',
-                  'Some records are unavailable. Only loaded information is shown below.'
+                  'Some records are unavailable. Only loaded information is shown below.',
                 )}
             </span>
             <button
@@ -294,7 +295,7 @@ function StudyHome({ workspace }: { workspace: string }) {
                       plan?.deferred.length ? '今天先留一点余地。' : '从一个想弄懂的问题开始。',
                       plan?.deferred.length
                         ? 'Leave some space today.'
-                        : 'Start with something you want to understand.'
+                        : 'Start with something you want to understand.',
                     )}
                 </h2>
                 <p>
@@ -302,7 +303,7 @@ function StudyHome({ workspace }: { workspace: string }) {
                     ? reasons[first.reason][zh ? 0 : 1]
                     : text(
                         '选一份资料，或直接提出问题。目标、练习和进展会逐渐在这里接起来。',
-                        'Open some material or ask a question. Your goals, practice and progress will come together here.'
+                        'Open some material or ask a question. Your goals, practice and progress will come together here.',
                       )}
                 </p>
                 <div className="study-start-actions">
@@ -312,7 +313,7 @@ function StudyHome({ workspace }: { workspace: string }) {
                   >
                     {text(
                       first ? '接着学' : chatAllowed ? '开始提问' : '打开我的学习',
-                      first ? 'Continue' : chatAllowed ? 'Ask a question' : 'Open my learning'
+                      first ? 'Continue' : chatAllowed ? 'Ask a question' : 'Open my learning',
                     )}
                     <ArrowRight size={16} />
                   </Link>
@@ -337,7 +338,7 @@ function StudyHome({ workspace }: { workspace: string }) {
                 <p className="study-section-help">
                   {text(
                     '先接续待答问题，再做到期复习，最后推进最近的学习。用时是建议，你可以随时调整。',
-                    'Unfinished questions first, then due reviews and recent learning. Times are suggestions; adjust your pace anytime.'
+                    'Unfinished questions first, then due reviews and recent learning. Times are suggestions; adjust your pace anytime.',
                   )}
                 </p>
                 {plan?.selected.length ? (
@@ -360,17 +361,17 @@ function StudyHome({ workspace }: { workspace: string }) {
                       {plan?.deferred.length
                         ? text(
                             '已把这些学习安排留到明天，也可以随时放回今天。',
-                            'Your learning is set aside for tomorrow. Bring it back whenever you like.'
+                            'Your learning is set aside for tomorrow. Bring it back whenever you like.',
                           )
                         : text(
                             '还没有需要安排的学习记录。',
-                            'There is no learning to schedule yet.'
+                            'There is no learning to schedule yet.',
                           )}
                     </p>
                     <Link
                       href={scopedUrl(
                         readingAllowed ? '/learning/reading' : '/learning',
-                        workspace
+                        workspace,
                       )}
                     >
                       {text('打开我的学习', 'Open my learning')} →
@@ -387,10 +388,10 @@ function StudyHome({ workspace }: { workspace: string }) {
                   <p>
                     {text(
                       '只是暂时移出今日安排，不会修改原有复习排期。',
-                      'Hidden from today’s plan. The original review schedule is unchanged.'
+                      'Hidden from today’s plan. The original review schedule is unchanged.',
                     )}
                   </p>
-                  {plan.deferred.map(item => (
+                  {plan.deferred.map((item) => (
                     <div key={item.key}>
                       <span>{item.title}</span>
                       <button
@@ -410,11 +411,11 @@ function StudyHome({ workspace }: { workspace: string }) {
                   <summary>
                     {text(
                       `还有 ${plan.later.length} 项，可以慢慢来`,
-                      `${plan.later.length} more, at your pace`
+                      `${plan.later.length} more, at your pace`,
                     )}
                     <ChevronDown size={15} />
                   </summary>
-                  {plan.later.map(item => (
+                  {plan.later.map((item) => (
                     <Link key={item.key} href={item.href}>
                       <span>{item.title}</span>
                       <ArrowUpRight size={14} />
@@ -437,7 +438,7 @@ function StudyHome({ workspace }: { workspace: string }) {
                   <p>
                     {text(
                       '来自已保存的复习记录。阅读、看答案和独立作答会留下不同的证据。',
-                      'From saved review records. Reading, viewing answers and independent attempts provide different evidence.'
+                      'From saved review records. Reading, viewing answers and independent attempts provide different evidence.',
                     )}
                   </p>
                   <Link href={scopedUrl('/learning/practice', workspace)}>
@@ -453,19 +454,19 @@ function StudyHome({ workspace }: { workspace: string }) {
                     <Route size={17} />
                   </div>
                   {validGoals.length ? (
-                    validGoals.slice(0, 3).map(topic => (
+                    validGoals.slice(0, 3).map((topic) => (
                       <Link
                         key={topic.path_id}
                         href={scopedUrl(
                           `/learning/mastery/${encodeURIComponent(topic.path_id)}`,
-                          workspace
+                          workspace,
                         )}
                       >
                         <strong>{topic.name || topic.metadata.goal}</strong>
                         <span>
                           {text(
                             `${topic.map.counts.mastered} / ${topic.map.counts.total} 个目标已达标`,
-                            `${topic.map.counts.mastered} / ${topic.map.counts.total} objectives met`
+                            `${topic.map.counts.mastered} / ${topic.map.counts.total} objectives met`,
                           )}
                         </span>
                       </Link>
@@ -474,7 +475,7 @@ function StudyHome({ workspace }: { workspace: string }) {
                     <p>
                       {text(
                         '把“想学会什么”写成一个目标，再和导师一起调整路径。',
-                        'Turn something you want to learn into a goal, then shape the path with your tutor.'
+                        'Turn something you want to learn into a goal, then shape the path with your tutor.',
                       )}
                     </p>
                   )}

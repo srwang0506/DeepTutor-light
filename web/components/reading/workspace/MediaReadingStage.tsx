@@ -44,10 +44,7 @@ import {
   youtubeVideoId,
 } from "@/lib/reading-video-sources";
 import { type ReadingLibraryMaterial } from "@/lib/reading-workspace-api";
-import {
-  stepTranscriptMatch,
-  transcriptMatchIndexes,
-} from "@/lib/transcript-search";
+import { stepTranscriptMatch, transcriptMatchIndexes } from "@/lib/transcript-search";
 import { transcriptFollowScrollTop } from "@/lib/transcript-follow";
 import { YouTubeReadingPlayer } from "./YouTubeReadingPlayer";
 import { BilibiliReadingPlayer } from "./BilibiliReadingPlayer";
@@ -106,7 +103,13 @@ export function MediaReadingStage({
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteError, setNoteError] = useState("");
   const noteRevision = useRef(0);
-  const noteTarget = useRef<{ materialId: string; locator: number; quote: string; seconds: number; annotation?: AnnotationItem } | null>(null);
+  const noteTarget = useRef<{
+    materialId: string;
+    locator: number;
+    quote: string;
+    seconds: number;
+    annotation?: AnnotationItem;
+  } | null>(null);
   const [editingNoteId, setEditingNoteId] = useState("");
   const [noteEditorOpen, setNoteEditorOpen] = useState(false);
   const activeRef = refs.find((row) => row.locator === activeLocator);
@@ -115,15 +118,12 @@ export function MediaReadingStage({
     () => transcriptMatchIndexes(transcript, normalizedTranscriptQuery),
     [transcript, normalizedTranscriptQuery],
   );
-  const activeTranscriptIndex = transcript.findIndex(
-    (row) => row.locator === activeLocator,
-  );
+  const activeTranscriptIndex = transcript.findIndex((row) => row.locator === activeLocator);
   const activeCue = activeTranscriptIndex >= 0 ? transcript[activeTranscriptIndex] : null;
   const activeNotes = annotations.filter(
     (row) => row.locator === activeLocator && row.kind === "note",
   );
-  const nextCue =
-    activeTranscriptIndex >= 0 ? transcript[activeTranscriptIndex + 1] : null;
+  const nextCue = activeTranscriptIndex >= 0 ? transcript[activeTranscriptIndex + 1] : null;
   const timedRefs = useMemo(
     () =>
       refs
@@ -149,8 +149,7 @@ export function MediaReadingStage({
     const onFullscreenChange = () =>
       setIsFullscreen(document.fullscreenElement === mediaStageRef.current);
     document.addEventListener("fullscreenchange", onFullscreenChange);
-    return () =>
-      document.removeEventListener("fullscreenchange", onFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
   }, []);
 
   const toggleFullscreen = useCallback(() => {
@@ -162,46 +161,95 @@ export function MediaReadingStage({
     }
     const request = node.requestFullscreen();
     if (request) {
-      request.catch(() =>
-        setPlayerError(t("Fullscreen is unavailable for this player.")),
-      );
+      request.catch(() => setPlayerError(t("Fullscreen is unavailable for this player.")));
     }
   }, [t]);
 
   const startNote = useCallback(() => {
     if (!activeCue) return;
     noteRevision.current += 1;
-    noteTarget.current = { materialId: material.material_id, locator: activeCue.locator,
-      quote: activeCue.text, seconds: controllerRef.current?.tracksPosition ? controllerRef.current.currentTime() : (timeFromSourceHref(activeCue.sourceHref) ?? time) };
-    setEditingNoteId(""); setNoteDraft(""); setNoteError(""); setNoteEditorOpen(true);
+    noteTarget.current = {
+      materialId: material.material_id,
+      locator: activeCue.locator,
+      quote: activeCue.text,
+      seconds: controllerRef.current?.tracksPosition
+        ? controllerRef.current.currentTime()
+        : (timeFromSourceHref(activeCue.sourceHref) ?? time),
+    };
+    setEditingNoteId("");
+    setNoteDraft("");
+    setNoteError("");
+    setNoteEditorOpen(true);
   }, [activeCue, material.material_id, time]);
 
-  const editNote = useCallback((annotation: AnnotationItem) => {
-    noteRevision.current += 1;
-    noteTarget.current = { materialId: material.material_id, locator: annotation.locator,
-      quote: annotation.quote, seconds: timeFromSourceHref(annotation.source_anchor) ?? 0, annotation };
-    setEditingNoteId(annotation.annotation_id); setNoteDraft(annotation.note); setNoteError(""); setNoteEditorOpen(true);
-  }, [material.material_id]);
+  const editNote = useCallback(
+    (annotation: AnnotationItem) => {
+      noteRevision.current += 1;
+      noteTarget.current = {
+        materialId: material.material_id,
+        locator: annotation.locator,
+        quote: annotation.quote,
+        seconds: timeFromSourceHref(annotation.source_anchor) ?? 0,
+        annotation,
+      };
+      setEditingNoteId(annotation.annotation_id);
+      setNoteDraft(annotation.note);
+      setNoteError("");
+      setNoteEditorOpen(true);
+    },
+    [material.material_id],
+  );
 
   const cancelNote = useCallback(() => {
-    noteRevision.current += 1; noteTarget.current = null;
-    setNoteDraft(""); setEditingNoteId(""); setNoteError(""); setNoteEditorOpen(false);
+    noteRevision.current += 1;
+    noteTarget.current = null;
+    setNoteDraft("");
+    setEditingNoteId("");
+    setNoteError("");
+    setNoteEditorOpen(false);
   }, []);
 
-  useEffect(() => { cancelNote(); }, [material.material_id, cancelNote]);
+  const [noteMaterial, setNoteMaterial] = useState(material.material_id);
+  if (noteMaterial !== material.material_id) {
+    setNoteMaterial(material.material_id);
+    setNoteDraft("");
+    setEditingNoteId("");
+    setNoteError("");
+    setNoteEditorOpen(false);
+  }
+  useEffect(() => {
+    noteRevision.current += 1;
+    noteTarget.current = null;
+  }, [material.material_id]);
 
   const saveNote = useCallback(async () => {
     const target = noteTarget.current;
-    if (!target || target.materialId !== material.material_id || !noteDraft.trim() || noteSaving) return;
+    if (!target || target.materialId !== material.material_id || !noteDraft.trim() || noteSaving)
+      return;
     const revision = noteRevision.current;
     const editing = target.annotation;
     const now = Date.now() / 1000;
-    const draft = { annotation_id: editing?.annotation_id, locator: target.locator,
-      kind: "note" as const, quote: target.quote, note: noteDraft.trim(), source_anchor: `#t=${target.seconds}` };
-    const optimistic: AnnotationItem = { ...draft, annotation_id: editing?.annotation_id || `pending-${Date.now()}`,
-      material_revision: editing?.material_revision ?? 1, color: editing?.color || "yellow",
-      rects: [], selectors: [], author: editing?.author || "user", created_at: editing?.created_at || now, updated_at: now };
-    setNoteSaving(true); setNoteError("");
+    const draft = {
+      annotation_id: editing?.annotation_id,
+      locator: target.locator,
+      kind: "note" as const,
+      quote: target.quote,
+      note: noteDraft.trim(),
+      source_anchor: `#t=${target.seconds}`,
+    };
+    const optimistic: AnnotationItem = {
+      ...draft,
+      annotation_id: editing?.annotation_id || `pending-${Date.now()}`,
+      material_revision: editing?.material_revision ?? 1,
+      color: editing?.color || "yellow",
+      rects: [],
+      selectors: [],
+      author: editing?.author || "user",
+      created_at: editing?.created_at || now,
+      updated_at: now,
+    };
+    setNoteSaving(true);
+    setNoteError("");
     try {
       const saved = await saveMark(draft, optimistic);
       if (revision !== noteRevision.current) return;
@@ -209,20 +257,19 @@ export function MediaReadingStage({
       else setNoteError(t("That annotation could not be saved."));
     } catch {
       if (revision === noteRevision.current) setNoteError(t("That annotation could not be saved."));
-    } finally { setNoteSaving(false); }
+    } finally {
+      setNoteSaving(false);
+    }
   }, [material.material_id, noteDraft, noteSaving, saveMark, cancelNote, t]);
 
-  const selectCue = useCallback(
-    (row: TranscriptRow) => {
-      const seconds = timeFromSourceHref(row.sourceHref);
-      if (seconds !== null) {
-        controllerRef.current?.seek(seconds);
-        setReadingViewport({ locator: row.locator, timeSeconds: seconds });
-      }
-      onLocatorChangeRef.current(row.locator);
-    },
-    [],
-  );
+  const selectCue = useCallback((row: TranscriptRow) => {
+    const seconds = timeFromSourceHref(row.sourceHref);
+    if (seconds !== null) {
+      controllerRef.current?.seek(seconds);
+      setReadingViewport({ locator: row.locator, timeSeconds: seconds });
+    }
+    onLocatorChangeRef.current(row.locator);
+  }, []);
 
   const moveTranscriptMatch = useCallback(
     (direction: 1 | -1) => {
@@ -249,24 +296,18 @@ export function MediaReadingStage({
   useEffect(() => {
     if (!followTranscript || !activeCue) return;
     const list = transcriptListRef.current;
-    const activeRow = list?.querySelector<HTMLButtonElement>(
-      '[data-active-cue="true"]',
-    );
+    const activeRow = list?.querySelector<HTMLButtonElement>('[data-active-cue="true"]');
     if (!list || !activeRow) return;
     const targetTop = transcriptFollowScrollTop({
       rowOffset:
-        activeRow.getBoundingClientRect().top -
-        list.getBoundingClientRect().top +
-        list.scrollTop,
+        activeRow.getBoundingClientRect().top - list.getBoundingClientRect().top + list.scrollTop,
       rowHeight: activeRow.clientHeight,
       viewportHeight: list.clientHeight,
       contentHeight: list.scrollHeight,
       currentScrollTop: list.scrollTop,
     });
     if (Math.abs(targetTop - list.scrollTop) < 1) return;
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     list.scrollTo({
       top: targetTop,
       behavior: prefersReducedMotion ? "instant" : "smooth",
@@ -288,17 +329,12 @@ export function MediaReadingStage({
   const persist = useCallback(() => {
     const current = stateRef.current;
     if (current.time < 0 || !refs.length) return;
-    const locator = Math.max(
-      1,
-      activeLocatorRef.current || locatorAtTime(current.time),
-    );
+    const locator = Math.max(1, activeLocatorRef.current || locatorAtTime(current.time));
     void saveReadingPosition(material.material_id, {
       locator,
       source_anchor: `#t=${Math.floor(current.time)}`,
       percentage:
-        current.duration > 0
-          ? Math.min(1, Math.max(0, current.time / current.duration))
-          : 0,
+        current.duration > 0 ? Math.min(1, Math.max(0, current.time / current.duration)) : 0,
     }).catch(() => undefined);
     lastSavedRef.current = current.time;
   }, [locatorAtTime, material.material_id, refs.length]);
@@ -322,13 +358,10 @@ export function MediaReadingStage({
 
   const [untrackedPlayback, setUntrackedPlayback] = useState(false);
 
-  const handleController = useCallback(
-    (controller: ReadingMediaController | null) => {
-      controllerRef.current = controller;
-      setUntrackedPlayback(controller ? !controller.tracksPosition : false);
-    },
-    [],
-  );
+  const handleController = useCallback((controller: ReadingMediaController | null) => {
+    controllerRef.current = controller;
+    setUntrackedPlayback(controller ? !controller.tracksPosition : false);
+  }, []);
 
   const handlePlayerError = useCallback(
     (error: number | string) => {
@@ -345,9 +378,7 @@ export function MediaReadingStage({
           ),
         );
       } else if (typeof error === "number") {
-        setPlayerError(
-          t("YouTube playback failed ({{code}}).", { code: error }),
-        );
+        setPlayerError(t("YouTube playback failed ({{code}}).", { code: error }));
       } else {
         setPlayerError(error);
       }
@@ -378,10 +409,7 @@ export function MediaReadingStage({
             : youtubeEntryTime(material.source_url);
         const nextStart = savedTime ?? entry;
         setStartSeconds(nextStart);
-        if (
-          position.locator > 0 &&
-          refs.some((row) => row.locator === position.locator)
-        ) {
+        if (position.locator > 0 && refs.some((row) => row.locator === position.locator)) {
           activeLocatorRef.current = position.locator;
           notifyLocator(position.locator);
         }
@@ -391,27 +419,15 @@ export function MediaReadingStage({
     return () => {
       cancelled = true;
     };
-  }, [
-    material.material_id,
-    material.source_kind,
-    material.source_url,
-    notifyLocator,
-    refs,
-  ]);
+  }, [material.material_id, material.source_kind, material.source_url, notifyLocator, refs]);
 
   useEffect(() => {
-    if (
-      material.source_kind === "youtube" ||
-      material.source_kind === "bilibili"
-    )
-      return;
-    const node =
-      material.render_mode === "audio" ? audioRef.current : videoRef.current;
+    if (material.source_kind === "youtube" || material.source_kind === "bilibili") return;
+    const node = material.render_mode === "audio" ? audioRef.current : videoRef.current;
     if (!node) return;
     const controller = html5ReadingController(node);
     controllerRef.current = controller;
-    const report = () =>
-      handleTime(controller.currentTime(), controller.duration());
+    const report = () => handleTime(controller.currentTime(), controller.duration());
     const ready = () => {
       if (startSeconds > 0) controller.seek(startSeconds);
       report();
@@ -428,13 +444,7 @@ export function MediaReadingStage({
       if (controllerRef.current === controller) controllerRef.current = null;
       controller.destroy();
     };
-  }, [
-    handleTime,
-    material.render_mode,
-    material.source_kind,
-    persist,
-    startSeconds,
-  ]);
+  }, [handleTime, material.render_mode, material.source_kind, persist, startSeconds]);
 
   useEffect(() => {
     if (playbackLocatorRef.current === activeLocator) {
@@ -459,19 +469,12 @@ export function MediaReadingStage({
       if (locator >= 1) notifyLocator(locator);
     };
     window.addEventListener(READER_ACTION_EVENT, onReaderAction);
-    return () =>
-      window.removeEventListener(READER_ACTION_EVENT, onReaderAction);
+    return () => window.removeEventListener(READER_ACTION_EVENT, onReaderAction);
   }, [material.material_id, notifyLocator]);
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
-      if (
-        event.button !== 0 ||
-        event.metaKey ||
-        event.ctrlKey ||
-        event.shiftKey ||
-        event.altKey
-      ) {
+      if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
         return;
       }
       const anchor = (event.target as HTMLElement | null)?.closest?.(
@@ -494,9 +497,9 @@ export function MediaReadingStage({
       if ((event as CustomEvent<{ moved?: boolean }>).detail?.moved) return;
       window.setTimeout(() => {
         const answers = document.querySelectorAll('[role="article"]');
-        const anchor = answers[
-          answers.length - 1
-        ]?.querySelector<HTMLAnchorElement>('a[href^="#dt-media-time-"]');
+        const anchor = answers[answers.length - 1]?.querySelector<HTMLAnchorElement>(
+          'a[href^="#dt-media-time-"]',
+        );
         const seconds = mediaTimeFromHref(anchor?.getAttribute("href"));
         if (seconds === null) return;
         controllerRef.current?.seek(seconds);
@@ -522,11 +525,7 @@ export function MediaReadingStage({
   const lastReferenceTime = timedRefs.length
     ? Number(timedRefs[timedRefs.length - 1].time || 0)
     : 0;
-  const timelineDuration = Math.max(
-    duration,
-    material.duration_seconds || 0,
-    lastReferenceTime,
-  );
+  const timelineDuration = Math.max(duration, material.duration_seconds || 0, lastReferenceTime);
   const officialUrl = youtubeId
     ? `https://youtu.be/${youtubeId}?t=${Math.floor(time)}`
     : bilibiliSource
@@ -555,9 +554,7 @@ export function MediaReadingStage({
           <button
             type="button"
             onClick={toggleFullscreen}
-            aria-label={
-              isFullscreen ? t("Exit fullscreen") : t("Enter fullscreen")
-            }
+            aria-label={isFullscreen ? t("Exit fullscreen") : t("Enter fullscreen")}
             aria-pressed={isFullscreen}
             className="rounded-md p-1.5 text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--primary)]"
           >
@@ -582,9 +579,7 @@ export function MediaReadingStage({
             ref={mediaStageRef}
             data-fullscreen={isFullscreen || undefined}
             className={`relative flex flex-col gap-3 ${
-              isFullscreen
-                ? "min-h-0 flex-1 bg-black p-3 sm:p-5"
-                : ""
+              isFullscreen ? "min-h-0 flex-1 bg-black p-3 sm:p-5" : ""
             }`}
           >
             {isFullscreen && (
@@ -682,14 +677,15 @@ export function MediaReadingStage({
                     }`}
                   >
                     <span className="w-9 shrink-0 text-right text-[10px] tabular-nums text-[var(--muted-foreground)]">
-                      {formatMediaTime(
-                        timeFromSourceHref(row.sourceHref) || 0,
-                      )}
+                      {formatMediaTime(timeFromSourceHref(row.sourceHref) || 0)}
                     </span>
                     <span className="line-clamp-1 min-w-0">{row.text}</span>
                   </button>
                 ) : index === 0 ? (
-                  <p key="caption-current-empty" className="truncate px-1 py-0.5 text-[var(--muted-foreground)]">
+                  <p
+                    key="caption-current-empty"
+                    className="truncate px-1 py-0.5 text-[var(--muted-foreground)]"
+                  >
                     {transcriptUnavailable ? t("No transcript available") : t("Beginning")}
                   </p>
                 ) : null,
@@ -742,17 +738,17 @@ export function MediaReadingStage({
             </div>
             <div className="flex items-center gap-1">
               <Tooltip label={t("Add segment note")}>
-<button
-                type="button"
-                onClick={startNote}
-                disabled={!activeCue}
-                aria-label={t("Add segment note")}
+                <button
+                  type="button"
+                  onClick={startNote}
+                  disabled={!activeCue}
+                  aria-label={t("Add segment note")}
 
-                className="rounded-md p-1.5 text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--primary)] disabled:opacity-40"
-              >
-                <StickyNote size={12} />
-              </button>
-</Tooltip>
+                  className="rounded-md p-1.5 text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--primary)] disabled:opacity-40"
+                >
+                  <StickyNote size={12} />
+                </button>
+              </Tooltip>
               <button
                 type="button"
                 onClick={() => onLocatorChange(Math.max(1, activeLocator - 1))}
@@ -763,9 +759,7 @@ export function MediaReadingStage({
               </button>
               <button
                 type="button"
-                onClick={() =>
-                  onLocatorChange(Math.min(refs.length, activeLocator + 1))
-                }
+                onClick={() => onLocatorChange(Math.min(refs.length, activeLocator + 1))}
                 disabled={activeLocator >= refs.length}
                 className="rounded-lg px-2 py-1 text-[10.5px] text-[var(--muted-foreground)] hover:bg-[var(--muted)] disabled:opacity-30"
               >
@@ -783,7 +777,10 @@ export function MediaReadingStage({
                 <textarea
                   value={noteDraft}
                   data-testid="media-note-input"
-                  onChange={(event) => { noteRevision.current += 1; setNoteDraft(event.target.value); }}
+                  onChange={(event) => {
+                    noteRevision.current += 1;
+                    setNoteDraft(event.target.value);
+                  }}
                   onKeyDown={(event) => {
                     if (event.key === "Escape") {
                       event.preventDefault();
@@ -793,7 +790,11 @@ export function MediaReadingStage({
                   rows={3}
                   className="dt-soft-input mt-2 w-full resize-y rounded-lg bg-[var(--background)] p-2 text-[11.5px] leading-relaxed outline-none"
                 />
-                {noteError && <p role="alert" className="mt-2 text-xs text-destructive">{noteError}</p>}
+                {noteError && (
+                  <p role="alert" className="mt-2 text-xs text-destructive">
+                    {noteError}
+                  </p>
+                )}
                 <div className="mt-2 flex justify-end gap-1">
                   <button
                     type="button"
@@ -819,19 +820,10 @@ export function MediaReadingStage({
             {activeNotes.length ? (
               <ul className="divide-y divide-[var(--border)] dark:divide-[var(--border)]">
                 {activeNotes.map((annotation) => (
-                  <li
-                    key={annotation.annotation_id}
-                    className="flex items-start gap-3 px-3 py-2"
-                  >
-                    <StickyNote
-                      size={12}
-                      className="mt-0.5 shrink-0 text-[var(--primary)]"
-                    />
+                  <li key={annotation.annotation_id} className="flex items-start gap-3 px-3 py-2">
+                    <StickyNote size={12} className="mt-0.5 shrink-0 text-[var(--primary)]" />
                     <div className="min-w-0 flex-1">
-                      <p
-                        data-testid="media-note-body"
-                        className="text-[11.5px] leading-relaxed"
-                      >
+                      <p data-testid="media-note-body" className="text-[11.5px] leading-relaxed">
                         {annotation.note}
                       </p>
                       <p className="mt-1 line-clamp-2 text-[10px] text-[var(--muted-foreground)]">
@@ -840,33 +832,33 @@ export function MediaReadingStage({
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
                       <Tooltip label={t("Edit note")}>
-<button
-                        type="button"
-                        onClick={() => editNote(annotation)}
-                        aria-label={t("Edit note")}
+                        <button
+                          type="button"
+                          onClick={() => editNote(annotation)}
+                          aria-label={t("Edit note")}
 
-                        className="rounded-md p-1.5 text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--primary)]"
-                      >
-                        <Pencil size={11} />
-                      </button>
-</Tooltip>
+                          className="rounded-md p-1.5 text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--primary)]"
+                        >
+                          <Pencil size={11} />
+                        </button>
+                      </Tooltip>
                       <Tooltip label={t("Delete note")}>
-<button
-                        type="button"
-                        onClick={() => void removeMark(annotation)}
-                        aria-label={t("Delete note")}
+                        <button
+                          type="button"
+                          onClick={() => void removeMark(annotation)}
+                          aria-label={t("Delete note")}
 
-                        className="rounded-md p-1.5 text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--destructive)]"
-                      >
-                        <Trash2 size={11} />
-                      </button>
-</Tooltip>
+                          className="rounded-md p-1.5 text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--destructive)]"
+                        >
+                          <Trash2 size={11} />
+                        </button>
+                      </Tooltip>
                     </div>
                   </li>
                 ))}
               </ul>
             ) : (
-                !noteEditorOpen && (
+              !noteEditorOpen && (
                 <button
                   type="button"
                   onClick={startNote}
@@ -945,9 +937,7 @@ export function MediaReadingStage({
                 </button>
                 <button
                   type="button"
-                  onClick={() =>
-                    setFollowTranscript((current) => !current)
-                  }
+                  onClick={() => setFollowTranscript((current) => !current)}
                   disabled={Boolean(normalizedTranscriptQuery)}
                   aria-pressed={followTranscript}
                   className={`inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[10px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
@@ -968,14 +958,11 @@ export function MediaReadingStage({
               onWheel={() => setFollowTranscript(false)}
               onTouchMove={() => setFollowTranscript(false)}
               onPointerDown={(event) => {
-                if (event.target === event.currentTarget)
-                  setFollowTranscript(false);
+                if (event.target === event.currentTarget) setFollowTranscript(false);
               }}
               onKeyDown={(event) => {
                 if (
-                  ["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End"].includes(
-                    event.key,
-                  )
+                  ["ArrowDown", "ArrowUp", "PageDown", "PageUp", "Home", "End"].includes(event.key)
                 )
                   setFollowTranscript(false);
               }}
@@ -1023,9 +1010,7 @@ export function MediaReadingStage({
                         <span className="w-9 shrink-0 text-right text-[10px] tabular-nums text-[var(--muted-foreground)]">
                           {row.title}
                         </span>
-                        <span className="line-clamp-2 min-w-0 leading-[1.5]">
-                          {row.text}
-                        </span>
+                        <span className="line-clamp-2 min-w-0 leading-[1.5]">{row.text}</span>
                       </button>
                     );
                   })}

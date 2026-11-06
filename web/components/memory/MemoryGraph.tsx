@@ -88,8 +88,7 @@ export default function MemoryGraph() {
     origTy: number;
   } | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async () => {
     try {
       const snap = await fetchMemorySnapshot();
       setGraph(buildGraph(snap));
@@ -97,10 +96,19 @@ export default function MemoryGraph() {
       setLoading(false);
     }
   }, []);
+  const [loadInputs, setLoadInputs] = useState<typeof loadData | null>(null);
+  if (loadInputs !== loadData) {
+    setLoadInputs(() => loadData);
+    setLoading(true);
+  }
+  const load = useCallback(() => {
+    setLoading(true);
+    return loadData();
+  }, [loadData]);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void loadData();
+  }, [loadData]);
 
   // ── Derived: active node id used by hover *or* explicit selection.
   const activeId = selected ?? hover?.node.id ?? null;
@@ -293,13 +301,7 @@ export default function MemoryGraph() {
 
 // ───────────────────────────────────────────────────────────── Header
 
-function Header({
-  onRefresh,
-  loading,
-}: {
-  onRefresh: () => void;
-  loading: boolean;
-}) {
+function Header({ onRefresh, loading }: { onRefresh: () => void; loading: boolean }) {
   const { t } = useTranslation();
   return (
     <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--background)]/80 px-6 py-3 backdrop-blur md:px-10">
@@ -328,9 +330,7 @@ function Header({
         className="inline-flex items-center gap-1.5 rounded-md border border-[var(--border)] bg-[var(--background)] px-2.5 py-1 text-[12px] text-[var(--muted-foreground)] transition hover:bg-[var(--muted)] disabled:opacity-50"
         disabled={loading}
       >
-        <RefreshCw
-          className={loading ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"}
-        />
+        <RefreshCw className={loading ? "h-3.5 w-3.5 animate-spin" : "h-3.5 w-3.5"} />
         {t("Refresh")}
       </button>
     </div>
@@ -371,16 +371,8 @@ function GraphView({
 
   const visibleEdges = useMemo(() => {
     return graph.edges.filter((e) => {
-      const sLayer = e.source.startsWith("L1")
-        ? "L1"
-        : e.source.startsWith("L2")
-          ? "L2"
-          : "L3";
-      const tLayer = e.target.startsWith("L1")
-        ? "L1"
-        : e.target.startsWith("L2")
-          ? "L2"
-          : "L3";
+      const sLayer = e.source.startsWith("L1") ? "L1" : e.source.startsWith("L2") ? "L2" : "L3";
+      const tLayer = e.target.startsWith("L1") ? "L1" : e.target.startsWith("L2") ? "L2" : "L3";
       return layerOn[sLayer as Layer] && layerOn[tLayer as Layer];
     });
   }, [graph.edges, layerOn]);
@@ -410,11 +402,7 @@ function GraphView({
         </radialGradient>
         <radialGradient id="halo-l1" cx="50%" cy="50%" r="50%">
           <stop offset="0%" stopColor="var(--foreground)" stopOpacity="0.08" />
-          <stop
-            offset="100%"
-            stopColor="var(--foreground)"
-            stopOpacity="0.01"
-          />
+          <stop offset="100%" stopColor="var(--foreground)" stopOpacity="0.01" />
         </radialGradient>
       </defs>
 
@@ -517,8 +505,7 @@ function GraphView({
                   dominantBaseline="central"
                   style={{ userSelect: "none" }}
                 >
-                  {c.count.toLocaleString()}{" "}
-                  {c.layer === "L2" ? t("facts") : t("traces")}
+                  {c.count.toLocaleString()} {c.layer === "L2" ? t("facts") : t("traces")}
                 </text>
               </g>
             );
@@ -548,7 +535,7 @@ function GraphView({
               dominantBaseline="central"
               style={{ letterSpacing: "0.08em", userSelect: "none" }}
             >
-              L3
+              {t("L3")}
             </text>
             <text
               x={DEFAULT_LAYOUT.width / 2}
@@ -596,14 +583,9 @@ function GraphView({
             const s = nodeIdx.get(e.source);
             const t2 = nodeIdx.get(e.target);
             if (!s || !t2) return null;
-            const dim =
-              highlight !== null &&
-              !highlight.has(e.source) &&
-              !highlight.has(e.target);
+            const dim = highlight !== null && !highlight.has(e.source) && !highlight.has(e.target);
             const focused =
-              highlight !== null &&
-              highlight.has(e.source) &&
-              highlight.has(e.target);
+              highlight !== null && highlight.has(e.source) && highlight.has(e.target);
             const opacity = dim
               ? 0.04
               : focused
@@ -644,12 +626,8 @@ function GraphView({
                 focused={focused}
                 dim={dim}
                 onEnter={showNodeHover}
-                onLeave={(node) =>
-                  setHover((cur) => (cur?.node.id === node.id ? null : cur))
-                }
-                onClick={() =>
-                  setSelected((cur) => (cur === n.id ? null : n.id))
-                }
+                onLeave={(node) => setHover((cur) => (cur?.node.id === node.id ? null : cur))}
+                onClick={() => setSelected((cur) => (cur === n.id ? null : n.id))}
               />
             );
           })}
@@ -899,9 +877,7 @@ function Legend({ graph }: { graph: MemoryGraph }) {
               className="inline-block h-2 w-2 rounded-full"
               style={{ background: LAYER_COLOR[layer] }}
             />
-            <span className="font-medium text-[var(--foreground)]">
-              {layer}
-            </span>
+            <span className="font-medium text-[var(--foreground)]">{layer}</span>
             <span>{byLayer[layer]}</span>
           </span>
         ))}
@@ -976,16 +952,12 @@ function nodeMeta(
   if (n.layer === "L2") {
     return {
       layerLabel: t("L2 · curated"),
-      clusterLabel: t(
-        SURFACE_LABEL[cluster as keyof typeof SURFACE_LABEL] || cluster,
-      ),
+      clusterLabel: t(SURFACE_LABEL[cluster as keyof typeof SURFACE_LABEL] || cluster),
     };
   }
   return {
     layerLabel: t("L1 · raw trace"),
-    clusterLabel: t(
-      SURFACE_LABEL[cluster as keyof typeof SURFACE_LABEL] || cluster,
-    ),
+    clusterLabel: t(SURFACE_LABEL[cluster as keyof typeof SURFACE_LABEL] || cluster),
   };
 }
 

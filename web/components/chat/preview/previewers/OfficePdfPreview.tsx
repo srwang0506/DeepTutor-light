@@ -1,4 +1,5 @@
 "use client";
+import { useKeyedState } from "@/hooks/useKeyedState";
 
 import { useEffect, useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
@@ -30,7 +31,7 @@ export default function OfficePdfPreview({
   fallback: ReactNode;
 }) {
   const { t } = useTranslation();
-  const [state, setState] = useState<PreviewState>({
+  const [state, setState] = useKeyedState<PreviewState>(`${url}|${filename}`, {
     kind: "loading",
     sourceUrl: url,
   });
@@ -38,7 +39,6 @@ export default function OfficePdfPreview({
   useEffect(() => {
     const controller = new AbortController();
     let pdfUrl: string | null = null;
-    setState({ kind: "loading", sourceUrl: url });
 
     (async () => {
       try {
@@ -95,7 +95,7 @@ export default function OfficePdfPreview({
       controller.abort();
       if (pdfUrl) URL.revokeObjectURL(pdfUrl);
     };
-  }, [filename, url]);
+  }, [filename, setState, url]);
 
   const current = state.sourceUrl === url ? state : { kind: "loading" as const };
   if (current.kind === "ready") {

@@ -37,7 +37,7 @@ export default function SoulEditor({
     <div className="overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--background)] transition-colors focus-within:border-[var(--ring)]">
       <div className="flex items-center justify-between border-b border-[var(--border)] bg-[var(--muted)]/40 py-1.5 pl-4 pr-1.5">
         <span className="font-mono text-[11px] tracking-wide text-[var(--muted-foreground)]">
-          SOUL.md
+          {t("SOUL.md")}
         </span>
         <div className="relative grid grid-cols-2 rounded-lg bg-[var(--muted)] p-0.5">
           <span
@@ -71,24 +71,15 @@ export default function SoulEditor({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={
-            placeholder ??
-            t(
-              "# Soul\nDescribe who this partner is, how it speaks, what it values…",
-            )
+            placeholder ?? t("# Soul\nDescribe who this partner is, how it speaks, what it values…")
           }
           spellCheck={false}
           className={`block w-full resize-none bg-transparent px-4 py-3.5 font-mono text-[13px] leading-[1.7] text-[var(--foreground)] outline-none placeholder:text-[var(--muted-foreground)]/60 ${heightClass}`}
         />
       ) : (
-        <div
-          className={`overflow-y-auto px-5 py-4 animate-fade-in ${heightClass}`}
-        >
+        <div className={`overflow-y-auto px-5 py-4 animate-fade-in ${heightClass}`}>
           {value.trim() ? (
-            <MarkdownRenderer
-              content={value}
-              variant="compact"
-              className="!font-sans"
-            />
+            <MarkdownRenderer content={value} variant="compact" className="!font-sans" />
           ) : (
             <p className="text-[13px] italic text-[var(--muted-foreground)]">
               {t("Nothing to preview yet.")}

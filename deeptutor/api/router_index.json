@@ -1,5 +1,5 @@
 {
-  "fingerprint": "285d95435b3172ac6f6e0be5f8b9eda1593a68f3368f5c1be3fea15748c1bbd3",
+  "fingerprint": "e998dd27b8a174a841306955c0aff81a01844c41cd23e2265f49669c61ebeed5",
   "routers": {
     "deeptutor.api.routers.auth:router": [
       {
@@ -1152,6 +1152,22 @@
     ],
     "deeptutor.api.routers.dashboard:router": [
       {
+        "path": "/study-preferences",
+        "name": "get_study_preferences",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/study-preferences",
+        "name": "update_study_preferences",
+        "kind": "http",
+        "methods": [
+          "PATCH"
+        ]
+      },
+      {
         "path": "/recent",
         "name": "get_recent_activities",
         "kind": "http",
@@ -1202,6 +1218,760 @@
       {
         "path": "/{entry_id}",
         "name": "get_activity_entry",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      }
+    ],
+    "deeptutor.api.routers.studio:router": [
+      {
+        "path": "/library",
+        "name": "library",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/works",
+        "name": "work",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/editions",
+        "name": "edition",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/editions/{identifier}/pdf",
+        "name": "attach",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/editions/{identifier}/files/{digest}",
+        "name": "original",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/editions/{identifier}/files/{digest}/pages/{page}",
+        "name": "original_page",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/editions/{identifier}/project",
+        "name": "project_use",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/bibliography/import",
+        "name": "import_bibliography",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/bibliography/export",
+        "name": "export_bibliography",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/records/{kind}",
+        "name": "records",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/record/{identifier}",
+        "name": "record",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/record/{identifier}/impact",
+        "name": "impact",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/evidence",
+        "name": "add_evidence",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/observations",
+        "name": "add_observation",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/observations/{identifier}",
+        "name": "update_observation",
+        "kind": "http",
+        "methods": [
+          "PATCH"
+        ]
+      },
+      {
+        "path": "/compare",
+        "name": "compare",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/claims",
+        "name": "add_claim",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/claims/{identifier}",
+        "name": "edit_claim",
+        "kind": "http",
+        "methods": [
+          "PUT"
+        ]
+      },
+      {
+        "path": "/screening",
+        "name": "screening",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/runs",
+        "name": "add_run",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/runs/{identifier}",
+        "name": "update_run",
+        "kind": "http",
+        "methods": [
+          "PATCH"
+        ]
+      },
+      {
+        "path": "/runs/import",
+        "name": "import_runs",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/artifacts",
+        "name": "artifact",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/artifacts/{identifier}/files/{name}",
+        "name": "artifact_file",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/discover",
+        "name": "discover",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/discover/{identifier}/graph",
+        "name": "graph",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/manuscripts",
+        "name": "manuscript",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/manuscripts/import",
+        "name": "import_manuscript",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/files",
+        "name": "manuscript_files",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/file",
+        "name": "manuscript_file",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/file",
+        "name": "edit_manuscript_file",
+        "kind": "http",
+        "methods": [
+          "PUT"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/proposals",
+        "name": "proposal",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/proposals/{identifier}/accept",
+        "name": "accept",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/audit",
+        "name": "audit",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/compile",
+        "name": "compile_manuscript",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/builds/{identifier}/{name}",
+        "name": "build_file",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/submission-plan",
+        "name": "submission_plan",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/submissions",
+        "name": "submit",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/submissions/{identifier}/download",
+        "name": "submission_download",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/reviews",
+        "name": "review",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/connections",
+        "name": "add_connection",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/connections/{identifier}",
+        "name": "update_connection",
+        "kind": "http",
+        "methods": [
+          "PATCH"
+        ]
+      },
+      {
+        "path": "/connections/{identifier}/read",
+        "name": "read_connection",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/snapshots/{identifier}/text",
+        "name": "snapshot_text",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/snapshots/{identifier}/run",
+        "name": "import_remote_run",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/evidence/{identifier}/review",
+        "name": "review_evidence",
+        "kind": "http",
+        "methods": [
+          "PATCH"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/recovery",
+        "name": "manuscript_recovery",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/recovery",
+        "name": "resolve_manuscript_recovery",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/builds/{identifier}/cancel",
+        "name": "cancel_build",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/builds/{identifier}/retry",
+        "name": "retry_build",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/citations",
+        "name": "manuscript_citations",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/citations",
+        "name": "add_manuscript_citation",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/passages",
+        "name": "manuscript_passages",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/passages",
+        "name": "bind_manuscript_passage",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/outline",
+        "name": "manuscript_outline",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/reviews/{identifier}",
+        "name": "update_review",
+        "kind": "http",
+        "methods": [
+          "PATCH"
+        ]
+      },
+      {
+        "path": "/discover/{identifier}/next",
+        "name": "next_discovery_page",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/discover/{identifier}/collect",
+        "name": "collect_discovery",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/subscriptions",
+        "name": "create_subscription",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/subscriptions/{identifier}",
+        "name": "update_subscription",
+        "kind": "http",
+        "methods": [
+          "PATCH"
+        ]
+      },
+      {
+        "path": "/subscriptions/{identifier}/refresh",
+        "name": "refresh_subscription",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/snapshots/{identifier}/run-draft",
+        "name": "remote_run_draft",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/writing/preferences",
+        "name": "writing_preferences",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/writing/preferences",
+        "name": "update_writing_preferences",
+        "kind": "http",
+        "methods": [
+          "PUT"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/assist",
+        "name": "writing_assist",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/connectors",
+        "name": "connectors",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/actions",
+        "name": "action",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/works/{identifier}",
+        "name": "work_detail",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/continuations",
+        "name": "continuations",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/resume",
+        "name": "resume_reading",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/bibliography/export-report",
+        "name": "bibliography_export_report",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/builds/{identifier}/source-map/locate",
+        "name": "source_map",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/submissions/{identifier}/response-export",
+        "name": "response_export",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/integrations",
+        "name": "integration_sources",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/integrations",
+        "name": "integration_create",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/integrations/{identifier}",
+        "name": "integration_edit",
+        "kind": "http",
+        "methods": [
+          "PATCH"
+        ]
+      },
+      {
+        "path": "/integrations/{identifier}/refresh",
+        "name": "integration_refresh",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/integrations/{identifier}/objects",
+        "name": "integration_objects",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/runs/{identifier}/events",
+        "name": "integration_run_events",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/reviews/protocols",
+        "name": "review_protocol_create",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/reviews/protocols/{identifier}",
+        "name": "review_protocol_report",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/reviews/protocols/{identifier}/decisions",
+        "name": "review_protocol_decide",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/reviews/protocols/{identifier}/extractions",
+        "name": "review_protocol_extract",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/reviews/protocols/{identifier}/export",
+        "name": "review_protocol_export",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/portable/export",
+        "name": "portable_export",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/portable/preview",
+        "name": "portable_preview",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/portable/apply",
+        "name": "portable_apply",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/portable/transfers",
+        "name": "portable_transfers",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/evaluations/suites",
+        "name": "evaluation_suite_upload",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/evaluations/suites",
+        "name": "evaluation_suites",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/evaluations/runs",
+        "name": "evaluation_start",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/evaluations/runs/{identifier}/next",
+        "name": "evaluation_next",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/evaluations/runs",
+        "name": "evaluation_runs",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/evaluations/runs/{identifier}",
+        "name": "evaluation_report",
         "kind": "http",
         "methods": [
           "GET"
@@ -1774,6 +2544,14 @@
       {
         "path": "/documents/{doc_id}/review",
         "name": "grade_note_card",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/documents/{doc_id}/review/schedule",
+        "name": "resolve_note_card_schedule",
         "kind": "http",
         "methods": [
           "POST"
@@ -3454,6 +4232,64 @@
         ]
       }
     ],
+    "deeptutor.api.routers.quiz:router": [
+      {
+        "path": "/submit",
+        "name": "submit",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/attempts/{session_id}/{attempt_id}",
+        "name": "status",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/attempts/{session_id}/{attempt_id}/cancel",
+        "name": "cancel",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/exposures",
+        "name": "exposure",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/families/suggest",
+        "name": "family_suggestions",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/families/review",
+        "name": "family_review",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/{session_id}/{turn_id}/{question_id}",
+        "name": "read_question",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      }
+    ],
     "deeptutor.api.routers.settings:public_router": [
       {
         "path": "/ui",
@@ -4257,6 +5093,22 @@
         "kind": "http",
         "methods": [
           "PUT"
+        ]
+      },
+      {
+        "path": "/projects/overview",
+        "name": "project_overview",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/projects/recall",
+        "name": "project_recall",
+        "kind": "http",
+        "methods": [
+          "GET"
         ]
       }
     ],

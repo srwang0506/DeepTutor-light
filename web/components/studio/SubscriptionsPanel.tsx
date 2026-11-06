@@ -1,4 +1,5 @@
 'use client'
+import { useTranslation } from 'react-i18next'
 import { useEffect, useState } from 'react'
 import { BookmarkPlus, RefreshCw, Rss } from 'lucide-react'
 import { post, records, studio, type StudioRecord } from '@/lib/studio-api'
@@ -36,6 +37,8 @@ export default function SubscriptionsPanel({
   yearTo: number | null
   openResult: (id: string) => Promise<void>
 }) {
+  const { t } = useTranslation()
+
   const [items, setItems] = useState<StudioRecord<Subscription>[]>([]),
     [expanded, setExpanded] = useState(false),
     [rss, setRss] = useState(false),
@@ -47,7 +50,7 @@ export default function SubscriptionsPanel({
     const abort = new AbortController()
     records<Subscription>(workspace, 'subscription', abort.signal)
       .then(setItems)
-      .catch(e => {
+      .catch((e) => {
         if (!abort.signal.aborted) op.setError(e.message)
       })
     return () => abort.abort()
@@ -103,7 +106,8 @@ export default function SubscriptionsPanel({
       <div className="studio-actions">
         <Action secondary onClick={() => setExpanded(!expanded)}>
           <Rss size={13} />
-          保存的检索与订阅 · {items.length}
+          {t('保存的检索与订阅 ·')}
+          {items.length}
         </Action>
         <Action
           secondary
@@ -111,7 +115,7 @@ export default function SubscriptionsPanel({
           onClick={() => op.run(saveSearch)}
         >
           <BookmarkPlus size={13} />
-          保存当前检索
+          {t('保存当前检索')}
         </Action>
       </div>
       <ErrorNotice message={op.error} />
@@ -123,10 +127,11 @@ export default function SubscriptionsPanel({
       {expanded && (
         <>
           <p className="studio-note">
-            开启自动刷新后，软件运行期间每 24
-            小时访问一次对应来源。新题录进入检索快照，是否收藏和纳入研究仍由你决定。
+            {t(
+              '开启自动刷新后，软件运行期间每 24 小时访问一次对应来源。新题录进入检索快照，是否收藏和纳入研究仍由你决定。',
+            )}
           </p>
-          {items.map(item => (
+          {items.map((item) => (
             <article className="studio-card" key={item.id} style={{ marginBottom: 10 }}>
               <h3>{item.data.title}</h3>
               <p className="studio-note">
@@ -156,7 +161,7 @@ export default function SubscriptionsPanel({
                     }
                   >
                     <RefreshCw size={12} />
-                    刷新
+                    {t('刷新')}
                   </Action>
                   <Action secondary disabled={op.busy} onClick={() => op.run(() => toggle(item))}>
                     {item.data.enabled ? '暂停自动刷新' : '开启自动刷新'}
@@ -168,7 +173,7 @@ export default function SubscriptionsPanel({
                     disabled={op.busy}
                     onClick={() => op.run(() => openResult(item.data.last_discovery_id!))}
                   >
-                    打开快照
+                    {t('打开快照')}
                   </Action>
                 )}
               </footer>
@@ -177,28 +182,28 @@ export default function SubscriptionsPanel({
           {rss ? (
             <div className="studio-panel">
               <Field label="订阅名称">
-                <input value={title} onChange={e => setTitle(e.target.value)} />
+                <input value={title} onChange={(e) => setTitle(e.target.value)} />
               </Field>
               <Field label="公开 HTTPS RSS / Atom 地址">
                 <input
                   type="url"
                   value={url}
-                  onChange={e => setUrl(e.target.value)}
-                  placeholder="https://…"
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder={t('https://…')}
                 />
               </Field>
               <div className="studio-actions">
                 <Action disabled={!title || !url || op.busy} onClick={() => op.run(saveFeed)}>
-                  保存订阅源
+                  {t('保存订阅源')}
                 </Action>
                 <Action secondary onClick={() => setRss(false)}>
-                  取消
+                  {t('取消')}
                 </Action>
               </div>
             </div>
           ) : (
             <Action secondary onClick={() => setRss(true)}>
-              添加 RSS / Atom 订阅源
+              {t('添加 RSS / Atom 订阅源')}
             </Action>
           )}
         </>

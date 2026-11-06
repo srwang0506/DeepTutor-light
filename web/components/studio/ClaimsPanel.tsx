@@ -1,4 +1,5 @@
 'use client'
+import { useTranslation } from 'react-i18next'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Plus } from 'lucide-react'
@@ -16,6 +17,8 @@ type Edge = {
 }
 type Claim = { title: string; status: string; note: string; edges: Edge[] }
 export default function ClaimsPanel({ workspace }: { workspace: string }) {
+  const { t } = useTranslation()
+
   const op = useOperation(),
     [claims, setClaims] = useState<StudioRecord<Claim>[]>([]),
     [sources, setSources] = useState<StudioRecord<Source>[]>([]),
@@ -47,19 +50,19 @@ export default function ClaimsPanel({ workspace }: { workspace: string }) {
         setClaims(c)
         setSources([...e, ...o, ...a])
       })
-      .catch(e => {
+      .catch((e) => {
         if (!abort.signal.aborted) op.setError(e.message)
       })
     return () => abort.abort()
   }, [workspace]) // eslint-disable-line react-hooks/exhaustive-deps
   function update(index: number, patch: Partial<Edge>) {
-    setEdges(values => values.map((edge, i) => (i === index ? { ...edge, ...patch } : edge)))
+    setEdges((values) => values.map((edge, i) => (i === index ? { ...edge, ...patch } : edge)))
   }
   return (
     <>
       <div className="studio-toolbar">
         <p className="studio-note">
-          同一份材料可以支持一个限定结论，也可以反驳另一个概括。关系逐条核对，版本固定。
+          {t('同一份材料可以支持一个限定结论，也可以反驳另一个概括。关系逐条核对，版本固定。')}
         </p>
         <Action
           onClick={() => {
@@ -72,12 +75,12 @@ export default function ClaimsPanel({ workspace }: { workspace: string }) {
           }}
         >
           <Plus size={15} />
-          记录主张
+          {t('记录主张')}
         </Action>
       </div>
       <ErrorNotice message={open ? '' : op.error} />
       <div className="studio-card-list">
-        {claims.map(c => (
+        {claims.map((c) => (
           <article key={c.id} className="studio-card">
             <span className={`studio-badge ${c.data.status === 'confirmed' ? 'good' : 'warn'}`}>
               {
@@ -96,7 +99,8 @@ export default function ClaimsPanel({ workspace }: { workspace: string }) {
               className="studio-outlink"
               href={scopedUrl(`/objects/${c.id}?revision=${c.revision}`, workspace)}
             >
-              查看 {c.data.edges?.length || 0} 条来源关系 ↗
+              {t('查看')}
+              {c.data.edges?.length || 0} {t('条来源关系 ↗')}
             </Link>
             <button
               className="studio-link-button"
@@ -111,14 +115,14 @@ export default function ClaimsPanel({ workspace }: { workspace: string }) {
                 setOpen(true)
               }}
             >
-              继续核对
+              {t('继续核对')}
             </button>
           </article>
         ))}
       </div>
       {!claims.length && (
-        <StudioEmpty title="给结论留出被检验的空间">
-          记录支持证据、相反解释与限定条件；未核实的想法可以先保存为假设。
+        <StudioEmpty title={t('给结论留出被检验的空间')}>
+          {t('记录支持证据、相反解释与限定条件；未核实的想法可以先保存为假设。')}
         </StudioEmpty>
       )}
       <Dialog
@@ -144,7 +148,7 @@ export default function ClaimsPanel({ workspace }: { workspace: string }) {
               })
             }
           >
-            保存主张
+            {t('保存主张')}
           </Action>
         }
       >
@@ -152,15 +156,15 @@ export default function ClaimsPanel({ workspace }: { workspace: string }) {
         <Field label="要检验的具体主张">
           <textarea
             value={title}
-            onChange={e => setTitle(e.target.value)}
-            placeholder="写明适用数据、条件和范围，避免把局部结果写成普遍结论。"
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={t('写明适用数据、条件和范围，避免把局部结果写成普遍结论。')}
           />
         </Field>
         <Field label="状态">
-          <select value={status} onChange={e => setStatus(e.target.value)}>
-            <option value="draft">假设 / 待核实</option>
-            <option value="disputed">存在反证</option>
-            <option value="confirmed">已核实</option>
+          <select value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="draft">{t('假设 / 待核实')}</option>
+            <option value="disputed">{t('存在反证')}</option>
+            <option value="confirmed">{t('已核实')}</option>
           </select>
         </Field>
         {edges.map((edge, index) => (
@@ -169,8 +173,8 @@ export default function ClaimsPanel({ workspace }: { workspace: string }) {
               <Field label="来源与冻结版本">
                 <select
                   value={edge.source_id}
-                  onChange={e => {
-                    const source = sources.find(s => s.id === e.target.value)
+                  onChange={(e) => {
+                    const source = sources.find((s) => s.id === e.target.value)
                     if (source)
                       update(index, {
                         source_id: source.id,
@@ -180,10 +184,11 @@ export default function ClaimsPanel({ workspace }: { workspace: string }) {
                       })
                   }}
                 >
-                  <option value="">选择来源</option>
-                  {sources.map(s => (
+                  <option value="">{t('选择来源')}</option>
+                  {sources.map((s) => (
                     <option value={s.id} key={s.id}>
-                      {s.data.title || s.data.label} · v{s.revision}
+                      {s.data.title || s.data.label} {t('· v')}
+                      {s.revision}
                     </option>
                   ))}
                 </select>
@@ -191,7 +196,7 @@ export default function ClaimsPanel({ workspace }: { workspace: string }) {
               <Field label="与这条主张的关系">
                 <select
                   value={edge.role}
-                  onChange={e => update(index, { role: e.target.value, review: 'unreviewed' })}
+                  onChange={(e) => update(index, { role: e.target.value, review: 'unreviewed' })}
                 >
                   {[
                     ['supports', '支持'],
@@ -209,31 +214,31 @@ export default function ClaimsPanel({ workspace }: { workspace: string }) {
             <Field label="限定条件与核对理由">
               <textarea
                 value={edge.qualifiers}
-                onChange={e => update(index, { qualifiers: e.target.value })}
+                onChange={(e) => update(index, { qualifiers: e.target.value })}
               />
             </Field>
             <label className="studio-check">
               <input
                 type="checkbox"
                 checked={edge.review === 'confirmed'}
-                onChange={e =>
+                onChange={(e) =>
                   update(index, { review: e.target.checked ? 'confirmed' : 'unreviewed' })
                 }
               />
-              我核对过这份来源与当前主张之间的关系
+              {t('我核对过这份来源与当前主张之间的关系')}
             </label>
             <button
               className="studio-link-button"
-              onClick={() => setEdges(v => v.filter((_, i) => i !== index))}
+              onClick={() => setEdges((v) => v.filter((_, i) => i !== index))}
             >
-              移除这一关系
+              {t('移除这一关系')}
             </button>
           </div>
         ))}
         <Action
           secondary
           onClick={() =>
-            setEdges(v => [
+            setEdges((v) => [
               ...v,
               {
                 source_id: '',
@@ -245,10 +250,10 @@ export default function ClaimsPanel({ workspace }: { workspace: string }) {
             ])
           }
         >
-          添加来源关系
+          {t('添加来源关系')}
         </Action>
         <Field label="说明与相反解释">
-          <textarea value={note} onChange={e => setNote(e.target.value)} />
+          <textarea value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
       </Dialog>
     </>

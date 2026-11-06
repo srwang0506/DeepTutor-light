@@ -30,10 +30,7 @@ import { describeMcpError } from "@/lib/mcp-store";
 export function useMcpServers(surface: McpSurface) {
   const { t } = useTranslation();
 
-  const [servers, setServers] = useState<Record<
-    string,
-    McpServerConfig
-  > | null>(null);
+  const [servers, setServers] = useState<Record<string, McpServerConfig> | null>(null);
   const [statusRows, setStatusRows] = useState<McpStatusRow[]>([]);
   /** The per-user extras (secret markers, rejects, deployment view, cap). */
   const [userView, setUserView] = useState<McpUserView | null>(null);
@@ -58,12 +55,12 @@ export function useMcpServers(surface: McpSurface) {
   }, []);
 
   const load = useCallback(async () => {
-    try {
-      applyState(await loadMcpSurface(surface));
-      setLoadError(null);
-    } catch (err) {
-      setLoadError(describeMcpError(err, t));
-    }
+    return loadMcpSurface(surface)
+      .then((state) => {
+        applyState(state);
+        setLoadError(null);
+      })
+      .catch((err) => setLoadError(describeMcpError(err, t)));
   }, [surface, t, applyState]);
 
   useEffect(() => {
@@ -127,8 +124,14 @@ export function useMcpServers(surface: McpSurface) {
       try {
         const origin = surface.writes === "per-server" ? "account" : "deployment";
         const workspaces = await resourceUsage("mcp", `${origin}:${name}`);
-        const impact = workspaces.length ? "\n\n" + t("Used by workspaces: {{names}}", { names: workspaces.join(", ") }) : "";
-        if (typeof window !== "undefined" && !window.confirm(t('Delete MCP server "{{name}}"?', { name }) + impact)) return;
+        const impact = workspaces.length
+          ? "\n\n" + t("Used by workspaces: {{names}}", { names: workspaces.join(", ") })
+          : "";
+        if (
+          typeof window !== "undefined" &&
+          !window.confirm(t('Delete MCP server "{{name}}"?', { name }) + impact)
+        )
+          return;
       } catch (err) {
         setSaveError(describeMcpError(err, t));
         return;
@@ -187,8 +190,7 @@ export function useMcpServers(surface: McpSurface) {
       try {
         const url = await authorizeSpaceMcpServer(surface.basePath, name);
         if (!url) throw new Error("no authorization URL");
-        if (typeof window !== "undefined")
-          window.open(url, "_blank", "noopener");
+        if (typeof window !== "undefined") window.open(url, "_blank", "noopener");
       } catch (err) {
         setSaveError(describeMcpError(err, t));
       } finally {
@@ -218,10 +220,7 @@ export function useMcpServers(surface: McpSurface) {
     setEditingKey((prev) => (prev === name ? null : name));
   }, []);
 
-  const serverNames = useMemo(
-    () => (servers ? Object.keys(servers).sort() : []),
-    [servers],
-  );
+  const serverNames = useMemo(() => (servers ? Object.keys(servers).sort() : []), [servers]);
 
   return {
     servers,

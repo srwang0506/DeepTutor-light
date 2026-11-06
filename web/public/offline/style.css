@@ -1,0 +1,139 @@
+:root {
+  font:
+    15px/1.6 -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  color: #262a34;
+  background: #f6f7f9;
+  color-scheme: light;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 48px 24px;
+}
+header {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+}
+h1 {
+  font-size: 30px;
+  letter-spacing: -0.6px;
+  margin: 20px 0 8px;
+}
+h2 {
+  font-size: 18px;
+  white-space: pre-wrap;
+}
+p {
+  color: #626977;
+}
+a {
+  color: #5368bd;
+  text-decoration: none;
+}
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+  margin: 28px 0;
+}
+.toolbar label {
+  display: grid;
+  font-size: 12px;
+  gap: 5px;
+}
+button,
+select,
+textarea {
+  font: inherit;
+  border-radius: 9px;
+  border: 1px solid #d8dce5;
+  padding: 10px 14px;
+}
+button {
+  background: #596bc0;
+  color: white;
+  cursor: pointer;
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+.secondary,
+select {
+  background: transparent;
+  color: inherit;
+}
+article {
+  padding: 24px;
+  background: white;
+  border: 1px solid #e2e5ec;
+  border-radius: 16px;
+  margin: 16px 0;
+}
+textarea {
+  display: block;
+  width: 100%;
+  min-height: 150px;
+  background: transparent;
+  color: inherit;
+  resize: vertical;
+  margin: 15px 0;
+}
+pre {
+  white-space: pre-wrap;
+  font: inherit;
+}
+iframe {
+  width: 100%;
+  height: 70vh;
+  border: 0;
+  margin-top: 12px;
+}
+.actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.footnote {
+  font-size: 12px;
+  margin-top: 32px;
+}
+#status {
+  min-height: 24px;
+}
+#network {
+  white-space: nowrap;
+  font-size: 13px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    background: #16181e;
+    color: #e9eaf0;
+    color-scheme: dark;
+  }
+  article {
+    background: #20232c;
+    border-color: #353a49;
+  }
+  p {
+    color: #a7adbc;
+  }
+  textarea,
+  select {
+    border-color: #414857;
+  }
+  a {
+    color: #a5b4ff;
+  }
+}

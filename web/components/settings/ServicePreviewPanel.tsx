@@ -66,17 +66,18 @@ function Preview({ service, profile, model }: Props) {
       request.current?.abort()
       if (mediaUrl.current) URL.revokeObjectURL(mediaUrl.current)
     },
-    []
+    [],
   )
-  useEffect(() => {
-    if (!file) {
-      setAudioUrl('')
-      return
-    }
-    const url = URL.createObjectURL(file)
-    setAudioUrl(url)
-    return () => URL.revokeObjectURL(url)
-  }, [file])
+  useEffect(
+    () => () => {
+      if (audioUrl) URL.revokeObjectURL(audioUrl)
+    },
+    [audioUrl],
+  )
+  function chooseFile(next: File | null) {
+    setFile(next)
+    setAudioUrl(next ? URL.createObjectURL(next) : '')
+  }
   function clearResult() {
     setResult(null)
     setState('idle')
@@ -94,7 +95,7 @@ function Preview({ service, profile, model }: Props) {
         controller.abort()
         setState('timeout')
       },
-      service === 'videogen' ? 610000 : 130000
+      service === 'videogen' ? 610000 : 130000,
     )
     try {
       let audio = ''
@@ -149,9 +150,9 @@ function Preview({ service, profile, model }: Props) {
               const next: Result = { kind: event.kind, text: event.text, results: event.results }
               if (event.kind === 'image' || event.kind === 'video') {
                 const raw = atob(event.data)
-                const bytes = Uint8Array.from(raw, char => char.charCodeAt(0))
+                const bytes = Uint8Array.from(raw, (char) => char.charCodeAt(0))
                 mediaUrl.current = URL.createObjectURL(
-                  new Blob([bytes], { type: event.content_type })
+                  new Blob([bytes], { type: event.content_type }),
                 )
                 next.url = mediaUrl.current
               }
@@ -203,7 +204,7 @@ function Preview({ service, profile, model }: Props) {
               accept=".wav,.mp3,.m4a,.webm,.ogg,.flac,audio/*"
               disabled={running}
               className={`${inputClass} file:mr-3 file:rounded-md file:border-0 file:px-3 file:py-1.5 file:text-xs`}
-              onChange={e => {
+              onChange={(e) => {
                 clearResult()
                 const next = e.target.files?.[0] || null
                 if (
@@ -212,12 +213,12 @@ function Preview({ service, profile, model }: Props) {
                     next.size > 8 * 1024 * 1024 ||
                     !audioTypes[next.name.split('.').pop()?.toLowerCase() || ''])
                 ) {
-                  setFile(null)
+                  chooseFile(null)
                   setState('invalidAudio')
                   e.target.value = ''
                   return
                 }
-                setFile(next)
+                chooseFile(next)
               }}
             />
           </label>
@@ -236,7 +237,7 @@ function Preview({ service, profile, model }: Props) {
             {t(
               service === 'search'
                 ? 'settings.servicePreview.query'
-                : 'settings.servicePreview.prompt'
+                : 'settings.servicePreview.prompt',
             )}
           </span>
           <textarea
@@ -246,7 +247,7 @@ function Preview({ service, profile, model }: Props) {
             value={text}
             disabled={running}
             placeholder={t(`settings.servicePreview.placeholder.${service}`)}
-            onChange={e => {
+            onChange={(e) => {
               clearResult()
               setText(e.target.value)
             }}

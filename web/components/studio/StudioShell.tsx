@@ -1,4 +1,5 @@
 'use client'
+import { useTranslation } from 'react-i18next'
 import Link from 'next/link'
 import { ArrowUpRight, BookOpen, FlaskConical, Layers3, PenLine, Server } from 'lucide-react'
 import { type ReactNode, useRef, useState } from 'react'
@@ -20,18 +21,20 @@ export function StudioShell({
   children: ReactNode
   action?: ReactNode
 }) {
+  const { t } = useTranslation()
+
   return (
     <section className="studio-page">
       <div className="studio-inner">
         <header className="studio-header">
           <div>
-            <span className="studio-eyebrow">PERSONAL STUDIO · 学习与科研</span>
+            <span className="studio-eyebrow">{t('PERSONAL STUDIO · 学习与科研')}</span>
             <h1>{title}</h1>
             <p>{description}</p>
           </div>
           {action}
         </header>
-        <nav className="studio-nav" aria-label="研究工作界面">
+        <nav className="studio-nav" aria-label={t('研究工作界面')}>
           {[
             ['library', '/library', '资料库', BookOpen],
             ['evidence', '/studio/evidence', '证据与比较', Layers3],

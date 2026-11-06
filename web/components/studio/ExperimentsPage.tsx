@@ -1,4 +1,7 @@
 'use client'
+import { useTranslation } from 'react-i18next'
+import IntegrationSources from './IntegrationSources'
+import LiveRunTimeline from './LiveRunTimeline'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowUpRight, Download, FlaskConical, Plus, Upload } from 'lucide-react'
@@ -82,6 +85,8 @@ export default function ExperimentsPage() {
   return <Experiments key={workspace} workspace={workspace} />
 }
 function Experiments({ workspace }: { workspace: string }) {
+  const { t } = useTranslation()
+
   const op = useOperation(),
     [runs, setRuns] = useState<StudioRecord<Run>[]>([]),
     [selected, setSelected] = useState<StudioRecord<Run> | null>(null),
@@ -103,7 +108,7 @@ function Experiments({ workspace }: { workspace: string }) {
     const a = new AbortController()
     records<Run>(workspace, 'run', a.signal)
       .then(setRuns)
-      .catch(e => {
+      .catch((e) => {
         if (!a.signal.aborted) op.setError(e.message)
       })
     return () => a.abort()
@@ -112,7 +117,7 @@ function Experiments({ workspace }: { workspace: string }) {
     setEditing(row || null)
     const data = row
       ? (Object.fromEntries(
-          Object.keys(blank()).map(key => [key, row.data[key as keyof Run]])
+          Object.keys(blank()).map((key) => [key, row.data[key as keyof Run]]),
         ) as unknown as Run)
       : blank()
     setDraft(data)
@@ -143,7 +148,7 @@ function Experiments({ workspace }: { workspace: string }) {
     const url = URL.createObjectURL(
       new Blob([JSON.stringify({ schema: 'deeptutor-run-v1', record: row }, null, 2)], {
         type: 'application/json',
-      })
+      }),
     )
     const a = document.createElement('a')
     a.href = url
@@ -155,7 +160,7 @@ function Experiments({ workspace }: { workspace: string }) {
     <StudioShell
       workspace={workspace}
       active="experiments"
-      title="把一次实验，留成可复查的记录。"
+      title={t('把一次实验，留成可复查的记录。')}
       description="代码版本、命令、环境和原始产物一起保存。成功、失败与静态检查，都有各自的位置。"
       action={
         <div className="studio-actions">
@@ -167,15 +172,20 @@ function Experiments({ workspace }: { workspace: string }) {
             }}
           >
             <Upload size={14} />
-            导入记录
+            {t('导入记录')}
           </Action>
           <Action onClick={() => edit()}>
             <Plus size={14} />
-            记录实验
+            {t('记录实验')}
           </Action>
         </div>
       }
     >
+      <IntegrationSources
+        workspace={workspace}
+        provider="local_log"
+        onChange={() => void reload()}
+      />
       <ErrorNotice message={op.error} />
       <div className="studio-toolbar">
         <div className="studio-pills">
@@ -191,15 +201,15 @@ function Experiments({ workspace }: { workspace: string }) {
           ))}
         </div>
         <Link className="studio-outlink" href={scopedUrl('/studio/connections', workspace)}>
-          从 SSH 或 GitHub 读取
+          {t('从 SSH 或 GitHub 读取')}
           <ArrowUpRight size={13} />
         </Link>
       </div>
       <div className="studio-grid studio-experiments-grid">
         <div className="studio-card-list">
           {runs
-            .filter(r => filter === 'all' || r.data.status === filter)
-            .map(row => (
+            .filter((r) => filter === 'all' || r.data.status === filter)
+            .map((row) => (
               <article className="studio-card" key={row.id}>
                 <div className="studio-actions">
                   <FlaskConical size={15} />
@@ -211,7 +221,9 @@ function Experiments({ workspace }: { workspace: string }) {
                       ? ' · 来源自述'
                       : ''}
                   </span>
-                  {row.data.remote_source && <span className="studio-badge">远程快照导入</span>}
+                  {row.data.remote_source && (
+                    <span className="studio-badge">{t('远程快照导入')}</span>
+                  )}
                 </div>
                 <h3 style={{ marginTop: 12 }}>
                   <button style={{ textAlign: 'left' }} onClick={() => setSelected(row)}>
@@ -229,45 +241,49 @@ function Experiments({ workspace }: { workspace: string }) {
                 </p>
                 <footer>
                   <button className="studio-link-button" onClick={() => setSelected(row)}>
-                    查看原始记录
+                    {t('查看原始记录')}
                     <ArrowUpRight size={12} />
                   </button>
                   <button className="studio-link-button" onClick={() => edit(row)}>
-                    补全 / 编辑
+                    {t('补全 / 编辑')}
                   </button>
                 </footer>
               </article>
             ))}
           {!runs.length && (
-            <StudioEmpty title="记录真实的实验过程">
-              可以手动填写，也可以导入 CSV /
-              JSON，或从服务器抓取日志快照。导入行为本身不会被记作成功运行。
+            <StudioEmpty title={t('记录真实的实验过程')}>
+              {t(
+                '可以手动填写，也可以导入 CSV / JSON，或从服务器抓取日志快照。导入行为本身不会被记作成功运行。',
+              )}
             </StudioEmpty>
           )}
         </div>
         <aside>
           {selected ? (
             <div className="studio-panel">
+              <LiveRunTimeline key={selected.id} workspace={workspace} runId={selected.id} />
               <div className="studio-actions" style={{ justifyContent: 'space-between' }}>
                 <h2 style={{ margin: 0 }}>{selected.data.title}</h2>
                 <button className="studio-link-button" onClick={() => download(selected)}>
                   <Download size={12} />
-                  导出
+                  {t('导出')}
                 </button>
               </div>
               <p className="studio-note">
-                {statusLabels[selected.data.status]} · 修订 {selected.revision}
+                {statusLabels[selected.data.status]} {t('· 修订')}
+                {selected.revision}
               </p>
               {selected.data.missing?.length ? (
                 <div className="studio-badges">
-                  {selected.data.missing.map(key => (
+                  {selected.data.missing.map((key) => (
                     <span className="studio-badge warn" key={key}>
-                      {fieldLabels[key] || key}待补
+                      {fieldLabels[key] || key}
+                      {t('待补')}
                     </span>
                   ))}
                 </div>
               ) : null}
-              <h3 className="studio-section-title">运行来源</h3>
+              <h3 className="studio-section-title">{t('运行来源')}</h3>
               <p className="studio-note">
                 {selected.data.execution_verified
                   ? '系统已记录执行见证。'
@@ -286,14 +302,17 @@ function Experiments({ workspace }: { workspace: string }) {
                 selected.data.tracking_snapshot.adapter !== 'plain_log' && (
                   <section className="studio-panel" style={{ marginBottom: 16 }}>
                     <h3 className="studio-section-title">
-                      外部运行快照 · {selected.data.tracking_snapshot.adapter}
+                      {t('外部运行快照 ·')}
+                      {selected.data.tracking_snapshot.adapter}
                     </h3>
                     <p className="studio-note">
-                      来源 ID：{selected.data.tracking_snapshot.external_id || '未提供'} ·
-                      来源声明状态：{selected.data.tracking_snapshot.declared_status || '未知'}
+                      {t('来源 ID：')}
+                      {selected.data.tracking_snapshot.external_id || '未提供'}{' '}
+                      {t('· 来源声明状态：')}
+                      {selected.data.tracking_snapshot.declared_status || '未知'}
                     </p>
                     <p className="studio-note">
-                      指标样本保留原名与步骤；进入比较矩阵前仍需核对评估协议。
+                      {t('指标样本保留原名与步骤；进入比较矩阵前仍需核对评估协议。')}
                     </p>
                     <div className="studio-source-picker">
                       {selected.data.tracking_snapshot.metric_samples
@@ -301,49 +320,56 @@ function Experiments({ workspace }: { workspace: string }) {
                         .map((metric, i) => (
                           <div className="studio-outline-row" key={i}>
                             {metric.name} · {metric.value}
-                            <small>step {metric.step ?? '未知'}</small>
+                            <small>
+                              {t('step')}
+                              {metric.step ?? '未知'}
+                            </small>
                           </div>
                         ))}
                     </div>
                     {selected.data.tracking_snapshot.metric_samples.length > 50 && (
-                      <p className="studio-note">显示前 50 条，导出记录包含全部样本。</p>
+                      <p className="studio-note">{t('显示前 50 条，导出记录包含全部样本。')}</p>
                     )}
                   </section>
                 )}
               {selected.data.remote_source && (
                 <>
                   <p className="studio-note" style={{ overflowWrap: 'anywhere' }}>
-                    读取自 {selected.data.remote_source.target}:{selected.data.remote_source.path}
+                    {t('读取自')}
+                    {selected.data.remote_source.target}:{selected.data.remote_source.path}
                   </p>
                   <p className="studio-note" style={{ overflowWrap: 'anywhere' }}>
-                    SHA-256 {selected.data.remote_source.content_hash}
+                    {t('SHA-256')}
+                    {selected.data.remote_source.content_hash}
                   </p>
                   {selected.data.remote_source.repository_observed_commit && (
                     <p className="studio-note">
-                      读取时 HEAD：
+                      {t('读取时 HEAD：')}
                       {selected.data.remote_source.repository_observed_commit.slice(0, 12)}
-                      。这是观测版本，需要另行核对实验运行版本。
+                      {t('。这是观测版本，需要另行核对实验运行版本。')}
                     </p>
                   )}
                 </>
               )}
-              <h3 className="studio-section-title">命令与配置</h3>
+              <h3 className="studio-section-title">{t('命令与配置')}</h3>
               <pre className="studio-diff">
                 {selected.data.command || '运行命令尚未记录'}
                 {'\n\n'}
                 {JSON.stringify(selected.data.configuration, null, 2)}
               </pre>
-              <h3 className="studio-section-title">原始日志</h3>
+              <h3 className="studio-section-title">{t('原始日志')}</h3>
               <pre className="studio-diff">{selected.data.log || '尚无原始日志'}</pre>
             </div>
           ) : (
             <div className="studio-panel">
-              <h2>复现，需要完整的上下文。</h2>
+              <h2>{t('复现，需要完整的上下文。')}</h2>
               <p>
-                选中左侧记录，可以查看运行命令、原始配置、日志和来源。元信息缺失不会被默认值掩盖。
+                {t(
+                  '选中左侧记录，可以查看运行命令、原始配置、日志和来源。元信息缺失不会被默认值掩盖。',
+                )}
               </p>
               <p className="studio-note">
-                实验结果可以在“证据与比较”中和文献报告放在一起，按同一套评估条件核对。
+                {t('实验结果可以在“证据与比较”中和文献报告放在一起，按同一套评估条件核对。')}
               </p>
             </div>
           )}
@@ -358,7 +384,7 @@ function Experiments({ workspace }: { workspace: string }) {
         className="studio-dialog"
         footer={
           <Action disabled={op.busy || !draft.title.trim()} onClick={() => op.run(save)}>
-            保存记录
+            {t('保存记录')}
           </Action>
         }
       >
@@ -367,13 +393,13 @@ function Experiments({ workspace }: { workspace: string }) {
           <Field label="名称">
             <input
               value={draft.title}
-              onChange={e => setDraft(d => ({ ...d, title: e.target.value }))}
+              onChange={(e) => setDraft((d) => ({ ...d, title: e.target.value }))}
             />
           </Field>
           <Field label="状态">
             <select
               value={draft.status}
-              onChange={e => setDraft(d => ({ ...d, status: e.target.value }))}
+              onChange={(e) => setDraft((d) => ({ ...d, status: e.target.value }))}
             >
               {Object.entries(statusLabels).map(([value, label]) => (
                 <option key={value} value={value}>
@@ -384,22 +410,22 @@ function Experiments({ workspace }: { workspace: string }) {
           </Field>
           <div className="studio-form-grid">
             {(['repository', 'commit', 'dataset', 'split', 'hardware', 'checkpoint'] as const).map(
-              key => (
+              (key) => (
                 <Field key={key} label={fieldLabels[key]}>
                   <input
                     value={draft[key]}
-                    onChange={e => setDraft(d => ({ ...d, [key]: e.target.value }))}
+                    onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
                   />
                 </Field>
-              )
+              ),
             )}
             <Field label="随机种子">
               <input
                 type="number"
                 step="1"
                 value={draft.seed ?? ''}
-                onChange={e =>
-                  setDraft(d => ({
+                onChange={(e) =>
+                  setDraft((d) => ({
                     ...d,
                     seed: e.target.value === '' ? null : Number(e.target.value),
                   }))
@@ -410,27 +436,27 @@ function Experiments({ workspace }: { workspace: string }) {
           <Field label="运行命令">
             <textarea
               value={draft.command}
-              onChange={e => setDraft(d => ({ ...d, command: e.target.value }))}
+              onChange={(e) => setDraft((d) => ({ ...d, command: e.target.value }))}
             />
           </Field>
           <Field label="配置 · JSON">
             <textarea
               rows={6}
               value={config}
-              onChange={e => setConfig(e.target.value)}
+              onChange={(e) => setConfig(e.target.value)}
               spellCheck={false}
             />
           </Field>
           <Field label="环境与依赖">
             <textarea
               value={draft.environment}
-              onChange={e => setDraft(d => ({ ...d, environment: e.target.value }))}
+              onChange={(e) => setDraft((d) => ({ ...d, environment: e.target.value }))}
             />
           </Field>
           <Field label="实际代码补丁">
             <textarea
               value={draft.patch}
-              onChange={e => setDraft(d => ({ ...d, patch: e.target.value }))}
+              onChange={(e) => setDraft((d) => ({ ...d, patch: e.target.value }))}
               spellCheck={false}
             />
           </Field>
@@ -438,7 +464,7 @@ function Experiments({ workspace }: { workspace: string }) {
             <textarea
               rows={7}
               value={draft.log}
-              onChange={e => setDraft(d => ({ ...d, log: e.target.value }))}
+              onChange={(e) => setDraft((d) => ({ ...d, log: e.target.value }))}
               spellCheck={false}
             />
           </Field>
@@ -447,13 +473,13 @@ function Experiments({ workspace }: { workspace: string }) {
       <Dialog
         open={importing}
         onClose={() => !op.busy && setImporting(false)}
-        title="导入实验记录"
+        title={t('导入实验记录')}
         description="每行一条记录。字段使用 title、status、repository、commit、command、dataset、split、seed 等名称。"
         size="lg"
         className="studio-dialog"
         footer={
           <Action disabled={op.busy || !input.trim()} onClick={() => op.run(importRows)}>
-            解析并导入
+            {t('解析并导入')}
           </Action>
         }
       >
@@ -463,7 +489,7 @@ function Experiments({ workspace }: { workspace: string }) {
             <input
               type="file"
               accept=".json,.csv"
-              onChange={e => {
+              onChange={(e) => {
                 const f = e.target.files?.[0]
                 if (f)
                   op.run(async () => {
@@ -475,27 +501,28 @@ function Experiments({ workspace }: { workspace: string }) {
             />
           </Field>
           <Field label="格式">
-            <select value={format} onChange={e => setFormat(e.target.value)}>
-              <option value="json">JSON</option>
-              <option value="csv">CSV</option>
+            <select value={format} onChange={(e) => setFormat(e.target.value)}>
+              <option value="json">{t('JSON')}</option>
+              <option value="csv">{t('CSV')}</option>
             </select>
           </Field>
           <Field label="记录内容">
             <textarea
               rows={8}
               value={input}
-              onChange={e => setInput(e.target.value)}
+              onChange={(e) => setInput(e.target.value)}
               spellCheck={false}
             />
           </Field>
           {result && (
             <div className="studio-card-list">
-              {result.entries.map(row => (
+              {result.entries.map((row) => (
                 <p
                   key={row.index}
                   className={row.status === 'error' ? 'studio-error' : 'studio-note'}
                 >
-                  第 {row.index + 1} 条：{row.status === 'error' ? row.detail : '已导入'}
+                  第 {row.index + 1} {t('条：')}
+                  {row.status === 'error' ? row.detail : '已导入'}
                 </p>
               ))}
             </div>

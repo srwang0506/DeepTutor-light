@@ -1,5 +1,6 @@
 "use client";
 
+import { useKeyedState } from "@/hooks/useKeyedState";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -95,24 +96,18 @@ const MODE_DESCRIPTIONS: Record<string, string> = {
     "Entity-focused retrieval over the relevant local subgraph — fast and economical.",
   "graphrag:global":
     "Map-reduce over global community summaries — best for broad, thematic questions.",
-  "graphrag:drift":
-    "Local retrieval with dynamic follow-ups — balances precision and coverage.",
+  "graphrag:drift": "Local retrieval with dynamic follow-ups — balances precision and coverage.",
   "graphrag:basic": "Plain vector retrieval — the lightest option.",
   "lightrag:naive": "Plain vector retrieval, without the knowledge graph.",
   "lightrag:local": "Local context focused on the most relevant entities.",
   "lightrag:global": "Theme-level retrieval over global relationships.",
-  "lightrag:hybrid":
-    "Combines local and global retrieval — a solid general default.",
+  "lightrag:hybrid": "Combines local and global retrieval — a solid general default.",
   "lightrag:mix": "Fuses knowledge-graph and vector retrieval.",
-  "lightrag-server:naive":
-    "Plain vector retrieval, without the knowledge graph.",
-  "lightrag-server:local":
-    "Local context focused on the most relevant entities.",
+  "lightrag-server:naive": "Plain vector retrieval, without the knowledge graph.",
+  "lightrag-server:local": "Local context focused on the most relevant entities.",
   "lightrag-server:global": "Theme-level retrieval over global relationships.",
-  "lightrag-server:hybrid":
-    "Combines local and global retrieval — a solid general default.",
-  "lightrag-server:mix":
-    "Fuses knowledge-graph and vector retrieval — the server's default.",
+  "lightrag-server:hybrid": "Combines local and global retrieval — a solid general default.",
+  "lightrag-server:mix": "Fuses knowledge-graph and vector retrieval — the server's default.",
 };
 
 // Model kinds each engine needs (for the in-place pickers). "vision" isn't a
@@ -217,9 +212,7 @@ function CopyableCommand({ command }: { command: string }) {
   const [outcome, setOutcome] = useState<"idle" | "copied" | "failed">("idle");
   return (
     <div className="flex items-center justify-between gap-2 rounded-lg border border-[var(--border)] bg-[var(--muted)]/40 px-3 py-2">
-      <code className="truncate font-mono text-[12px] text-[var(--foreground)]">
-        {command}
-      </code>
+      <code className="truncate font-mono text-[12px] text-[var(--foreground)]">{command}</code>
       <button
         type="button"
         onClick={() => {
@@ -235,11 +228,7 @@ function CopyableCommand({ command }: { command: string }) {
         }}
         className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-[11px] font-medium text-[var(--muted-foreground)] transition-colors hover:text-[var(--foreground)]"
       >
-        {outcome === "copied" ? (
-          <Check className="h-3 w-3" />
-        ) : (
-          <Copy className="h-3 w-3" />
-        )}
+        {outcome === "copied" ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
         {outcome === "copied"
           ? t("Copied")
           : outcome === "failed"
@@ -270,9 +259,7 @@ function NumberField({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[12px] font-medium text-[var(--foreground)]">
-        {label}
-      </span>
+      <span className="text-[12px] font-medium text-[var(--foreground)]">{label}</span>
       <input
         type="number"
         min={min}
@@ -282,11 +269,7 @@ function NumberField({
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-[13px] text-[var(--foreground)] outline-none transition-colors focus:border-[var(--foreground)]/25 disabled:opacity-50"
       />
-      {hint && (
-        <span className="text-[11px] text-[var(--muted-foreground)]">
-          {hint}
-        </span>
-      )}
+      {hint && <span className="text-[11px] text-[var(--muted-foreground)]">{hint}</span>}
     </label>
   );
 }
@@ -306,9 +289,7 @@ function TextField({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[12px] font-medium text-[var(--foreground)]">
-        {label}
-      </span>
+      <span className="text-[12px] font-medium text-[var(--foreground)]">{label}</span>
       <input
         type="text"
         value={value}
@@ -316,11 +297,7 @@ function TextField({
         onChange={(e) => onChange(e.target.value)}
         className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-1.5 text-[13px] text-[var(--foreground)] outline-none transition-colors focus:border-[var(--foreground)]/25"
       />
-      {hint && (
-        <span className="text-[11px] text-[var(--muted-foreground)]">
-          {hint}
-        </span>
-      )}
+      {hint && <span className="text-[11px] text-[var(--muted-foreground)]">{hint}</span>}
     </label>
   );
 }
@@ -336,14 +313,20 @@ function ModeSelector({
 }) {
   const { t } = useTranslation();
   const modes = useMemo(() => provider.modes ?? [], [provider.modes]);
-  const [selected, setSelected] = useState(
-    provider.default_mode || modes[0] || "",
-  );
+  const [selected, setSelected] = useState(provider.default_mode || modes[0] || "");
   const [pending, setPending] = useState<string | null>(null);
 
-  useEffect(() => {
-    setSelected(provider.default_mode || modes[0] || "");
-  }, [provider.default_mode, modes]);
+  const [derivedInputs0, setDerivedInputs0] = useState<readonly unknown[]>([]);
+  if (
+    derivedInputs0.length !== 2 ||
+    !Object.is(derivedInputs0[0], provider.default_mode) ||
+    !Object.is(derivedInputs0[1], modes[0])
+  ) {
+    setDerivedInputs0([provider.default_mode, modes[0]]);
+    (() => {
+      setSelected(provider.default_mode || modes[0] || "");
+    })();
+  }
 
   const pick = async (mode: string) => {
     if (mode === selected) return;
@@ -416,9 +399,7 @@ export function LlamaIndexForm({
         setLoaded(cfg);
         setForm(cfg);
       })
-      .catch((err) =>
-        onError(err instanceof Error ? err.message : String(err)),
-      );
+      .catch((err) => onError(err instanceof Error ? err.message : String(err)));
     return () => {
       cancelled = true;
     };
@@ -460,8 +441,7 @@ export function LlamaIndexForm({
         chunk_size: form.chunk_size,
         chunk_overlap: form.chunk_overlap,
         image_description_concurrency: form.image_description_concurrency,
-        image_description_timeout_seconds:
-          form.image_description_timeout_seconds,
+        image_description_timeout_seconds: form.image_description_timeout_seconds,
       });
       setLoaded(next);
       setForm(next);
@@ -528,9 +508,7 @@ export function LlamaIndexForm({
                   <span className="font-mono text-[12.5px] font-medium text-[var(--foreground)]">
                     {p.id}
                   </span>
-                  {active && (
-                    <Check className="h-3.5 w-3.5 text-[var(--primary)]" />
-                  )}
+                  {active && <Check className="h-3.5 w-3.5 text-[var(--primary)]" />}
                 </div>
                 <span className="text-[11.5px] leading-snug text-[var(--muted-foreground)]">
                   {t(p.desc)}
@@ -573,9 +551,7 @@ export function LlamaIndexForm({
       {/* Reranking */}
       <div>
         <div className="mb-2 flex items-baseline justify-between gap-2">
-          <span className="text-[12px] font-medium text-[var(--foreground)]">
-            {t("Reranking")}
-          </span>
+          <span className="text-[12px] font-medium text-[var(--foreground)]">{t("Reranking")}</span>
           <span className="text-[11px] text-[var(--muted-foreground)]">
             {t("Applies on the next query")}
           </span>
@@ -628,9 +604,7 @@ export function LlamaIndexForm({
                   <span className="font-mono text-[12.5px] font-medium text-[var(--foreground)]">
                     {indexType.id}
                   </span>
-                  {active && (
-                    <Check className="h-3.5 w-3.5 text-[var(--primary)]" />
-                  )}
+                  {active && <Check className="h-3.5 w-3.5 text-[var(--primary)]" />}
                 </div>
                 <span className="text-[11.5px] leading-snug text-[var(--muted-foreground)]">
                   {t(indexType.desc)}
@@ -669,9 +643,7 @@ export function LlamaIndexForm({
       {/* Chunking */}
       <div>
         <div className="mb-2 flex items-baseline justify-between gap-2">
-          <span className="text-[12px] font-medium text-[var(--foreground)]">
-            {t("Chunking")}
-          </span>
+          <span className="text-[12px] font-medium text-[var(--foreground)]">{t("Chunking")}</span>
           <span className="text-[11px] text-[var(--muted-foreground)]">
             {t("Applies on the next re-index")}
           </span>
@@ -760,9 +732,7 @@ export function ImaForm({
         setConfig(cfg);
         setClientId(cfg.client_id || "");
       })
-      .catch((err) =>
-        onError(err instanceof Error ? err.message : String(err)),
-      );
+      .catch((err) => onError(err instanceof Error ? err.message : String(err)));
     return () => {
       cancelled = true;
     };
@@ -819,9 +789,7 @@ export function ImaForm({
           disabled={saving}
           autoComplete="off"
           placeholder={
-            keySet
-              ? t("•••••••• (configured — leave blank to keep)")
-              : t("Enter your IMA API key")
+            keySet ? t("•••••••• (configured — leave blank to keep)") : t("Enter your IMA API key")
           }
           className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-[13px] text-[var(--foreground)] outline-none transition-colors focus:border-[var(--foreground)]/25 disabled:opacity-50"
         />
@@ -912,14 +880,8 @@ function ToggleField({
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex flex-col">
-        <span className="text-[12px] font-medium text-[var(--foreground)]">
-          {label}
-        </span>
-        {hint && (
-          <span className="text-[11px] text-[var(--muted-foreground)]">
-            {hint}
-          </span>
-        )}
+        <span className="text-[12px] font-medium text-[var(--foreground)]">{label}</span>
+        {hint && <span className="text-[11px] text-[var(--muted-foreground)]">{hint}</span>}
       </div>
       <button
         type="button"
@@ -968,10 +930,7 @@ function SaveButton({
 }
 
 /** Shared loader + dirty-tracking scaffold for the small engine config forms. */
-function useEngineForm<T>(
-  load: () => Promise<T>,
-  onError: (m: string) => void,
-) {
+function useEngineForm<T>(load: () => Promise<T>, onError: (m: string) => void) {
   const [loaded, setLoaded] = useState<T | null>(null);
   const [form, setForm] = useState<T | null>(null);
   const [saving, setSaving] = useState(false);
@@ -984,9 +943,7 @@ function useEngineForm<T>(
         setLoaded(cfg);
         setForm(cfg);
       })
-      .catch((err) =>
-        onError(err instanceof Error ? err.message : String(err)),
-      );
+      .catch((err) => onError(err instanceof Error ? err.message : String(err)));
     return () => {
       cancelled = true;
     };
@@ -997,8 +954,7 @@ function useEngineForm<T>(
     () => !!form && !!loaded && JSON.stringify(form) !== JSON.stringify(loaded),
     [form, loaded],
   );
-  const patch = (p: Partial<T>) =>
-    setForm((prev) => (prev ? { ...prev, ...p } : prev));
+  const patch = (p: Partial<T>) => setForm((prev) => (prev ? { ...prev, ...p } : prev));
   return { loaded, form, setLoaded, setForm, saving, setSaving, dirty, patch };
 }
 
@@ -1013,10 +969,7 @@ export function GraphRagForm({
 }) {
   const { t } = useTranslation();
   const { form, setLoaded, setForm, saving, setSaving, dirty, patch } =
-    useEngineForm<GraphRagConfig>(
-      () => getGraphRagConfig({ force: true }),
-      onError,
-    );
+    useEngineForm<GraphRagConfig>(() => getGraphRagConfig({ force: true }), onError);
 
   if (!form) return <FormSkeleton />;
 
@@ -1078,10 +1031,7 @@ export function LightRagForm({
   const auth = useAuthStatus();
   const canEdit = auth.statusAvailable && (!auth.enabled || auth.isAdmin);
   const { form, setLoaded, setForm, saving, setSaving, dirty, patch } =
-    useEngineForm<LightRagConfig>(
-      () => getLightRagConfig({ force: true }),
-      onError,
-    );
+    useEngineForm<LightRagConfig>(() => getLightRagConfig({ force: true }), onError);
 
   if (!form) return <FormSkeleton />;
   const save = async () => {
@@ -1133,9 +1083,7 @@ export function LightRagForm({
           build — the divider and note keep that from surprising anyone. */}
       <div className="space-y-4 border-t border-[var(--border)] pt-4">
         <div className="space-y-0.5">
-          <div className="text-[12px] font-medium text-[var(--foreground)]">
-            {t("Indexing")}
-          </div>
+          <div className="text-[12px] font-medium text-[var(--foreground)]">{t("Indexing")}</div>
           <div className="text-[11px] text-[var(--muted-foreground)]">
             {t("Applies the next time a knowledge base is built or rebuilt.")}
           </div>
@@ -1185,21 +1133,13 @@ export function LightRagModelsForm({
   const auth = useAuthStatus();
   const canEdit = auth.statusAvailable && (!auth.enabled || auth.isAdmin);
   const { form, setLoaded, setForm, saving, setSaving, dirty, patch } =
-    useEngineForm<LightRagConfig>(
-      () => getLightRagConfig({ force: true }),
-      onError,
-    );
+    useEngineForm<LightRagConfig>(() => getLightRagConfig({ force: true }), onError);
 
   if (!form) return <FormSkeleton />;
-  const legacyBase = selectionFromLightRagDefault(
-    catalog.options,
-    form,
-    catalog.activeDefault,
-  );
+  const legacyBase = selectionFromLightRagDefault(catalog.options, form, catalog.activeDefault);
   const legacyOption = catalog.options.find(
     (option) =>
-      option.profile_id === legacyBase?.profile_id &&
-      option.model_id === legacyBase?.model_id,
+      option.profile_id === legacyBase?.profile_id && option.model_id === legacyBase?.model_id,
   );
   const roleModels =
     form.role_models ??
@@ -1210,10 +1150,7 @@ export function LightRagModelsForm({
           form.llm_model_max_async,
         )
       : null);
-  const validationError = roleModelsValidationError(
-    roleModels,
-    catalog.options,
-  );
+  const validationError = roleModelsValidationError(roleModels, catalog.options);
 
   const save = async () => {
     if (!roleModels) {
@@ -1257,9 +1194,7 @@ export function LightRagModelsForm({
           "KEYWORD and QUERY apply to subsequent queries. EXTRACT and VLM apply to new or fully rebuilt indexes; published indexes keep their pinned models.",
         )}
       </p>
-      {validationError && (
-        <p className="text-xs text-red-600">{t(validationError)}</p>
-      )}
+      {validationError && <p className="text-xs text-red-600">{t(validationError)}</p>}
       <SaveButton
         dirty={dirty || (!form.role_models && roleModels !== null)}
         saving={saving}
@@ -1295,9 +1230,7 @@ function LightRagServerForm({
         setLoaded(config);
         setServerUrl(config.server_url);
       })
-      .catch((err) =>
-        onError(err instanceof Error ? err.message : String(err)),
-      );
+      .catch((err) => onError(err instanceof Error ? err.message : String(err)));
     return () => {
       cancelled = true;
     };
@@ -1314,13 +1247,14 @@ function LightRagServerForm({
     setProbing(true);
     setProbe(null);
     try {
-      setProbe(
-        await probeLightRagServer({
+      {
+        const resolvedState0 = await probeLightRagServer({
           serverUrl: normalizedUrl,
           apiKey,
           useSavedApiKey: !apiKey && loaded.api_key_set,
-        }),
-      );
+        });
+        setProbe(resolvedState0);
+      }
     } catch (err) {
       onError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1414,9 +1348,7 @@ function LightRagServerForm({
             <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
           )}
           <span>
-            {probe.ok
-              ? t("Connected to LightRAG server")
-              : probe.error || t("Could not connect")}
+            {probe.ok ? t("Connected to LightRAG server") : probe.error || t("Could not connect")}
           </span>
         </div>
       )}
@@ -1461,36 +1393,30 @@ function ModelsSection({
   onError: (message: string) => void;
 }) {
   const { t } = useTranslation();
-  const kinds = useMemo(
-    () => ENGINE_MODEL_KINDS[providerId] ?? [],
-    [providerId],
-  );
-  const [data, setData] = useState<ModelOptionsByKind | null>(null);
-  const [failed, setFailed] = useState(false);
+  const kinds = useMemo(() => ENGINE_MODEL_KINDS[providerId] ?? [], [providerId]);
+  const [data, setData] = useKeyedState<ModelOptionsByKind | null>(providerId, null);
+  const [failed, setFailed] = useKeyedState(providerId, false);
   const [busyKind, setBusyKind] = useState<string | null>(null);
   const [testingKind, setTestingKind] = useState<string | null>(null);
-  const [draftSelections, setDraftSelections] = useState<
-    Record<string, string>
-  >({});
-  const [compatibility, setCompatibility] = useState<{
+  const [draftSelections, setDraftSelections] = useKeyedState<Record<string, string>>(
+    providerId,
+    {},
+  );
+  const [compatibility, setCompatibility] = useKeyedState<{
     testedKey: string;
     result: GraphRagModelCompatibility;
-  } | null>(null);
+  } | null>(providerId, null);
 
   useEffect(() => {
     if (kinds.length === 0) return;
     let cancelled = false;
-    setData(null);
-    setFailed(false);
-    setDraftSelections({});
-    setCompatibility(null);
     getEngineModelOptions(kinds)
       .then((d) => !cancelled && setData(d))
       .catch(() => !cancelled && setFailed(true));
     return () => {
       cancelled = true;
     };
-  }, [kinds]);
+  }, [kinds, setData, setFailed]);
 
   const select = useCallback(
     async (kind: string, profileId: string, modelId: string) => {
@@ -1504,7 +1430,7 @@ function ModelsSection({
         setBusyKind(null);
       }
     },
-    [onError],
+    [onError, setData],
   );
 
   const testCandidate = useCallback(
@@ -1520,7 +1446,7 @@ function ModelsSection({
         setTestingKind(null);
       }
     },
-    [onError],
+    [onError, setCompatibility],
   );
 
   if (kinds.length === 0) return null;
@@ -1553,9 +1479,7 @@ function ModelsSection({
             const hasOptions = (entry?.options.length ?? 0) > 0;
             const isGraphRagChat = providerId === "graphrag" && kind === "llm";
             const visibleCompatibility =
-              isGraphRagChat && compatibility?.testedKey === value
-                ? compatibility.result
-                : null;
+              isGraphRagChat && compatibility?.testedKey === value ? compatibility.result : null;
             const canApply = canApplyGraphRagModelCandidate({
               activeKey,
               candidateKey: value,
@@ -1624,11 +1548,7 @@ function ModelsSection({
                         ) : (
                           <ShieldCheck className="h-3.5 w-3.5" />
                         )}
-                        {t(
-                          testingKind === kind
-                            ? "Testing compatibility…"
-                            : "Test compatibility",
-                        )}
+                        {t(testingKind === kind ? "Testing compatibility…" : "Test compatibility")}
                       </button>
                       {canApply && (
                         <button
@@ -1681,9 +1601,7 @@ function ModelsSection({
                                   : "Compatibility could not be verified",
                             )}
                           </p>
-                          <p className="mt-0.5 opacity-90">
-                            {t(visibleCompatibility.message)}
-                          </p>
+                          <p className="mt-0.5 opacity-90">{t(visibleCompatibility.message)}</p>
                         </div>
                       </div>
                     )}
@@ -1691,9 +1609,7 @@ function ModelsSection({
                 )}
                 {kind === "llm" && providerId === "lightrag" && (
                   <span className="text-[11px] text-[var(--muted-foreground)]">
-                    {t(
-                      "Multimodal documents need a vision-capable chat model.",
-                    )}
+                    {t("Multimodal documents need a vision-capable chat model.")}
                   </span>
                 )}
               </div>
@@ -1741,9 +1657,7 @@ function CheckRow({
           </span>
         )}
         {detail && (
-          <div className="text-[11px] leading-snug text-[var(--muted-foreground)]">
-            {t(detail)}
-          </div>
+          <div className="text-[11px] leading-snug text-[var(--muted-foreground)]">{t(detail)}</div>
         )}
       </div>
     </li>
@@ -1770,7 +1684,10 @@ function EnvRequirements({
   const runCheck = async () => {
     setChecking(true);
     try {
-      setReport(await getEnginePreflight(providerId));
+      {
+        const resolvedState1 = await getEnginePreflight(providerId);
+        setReport(resolvedState1);
+      }
     } catch (err) {
       onError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -1884,11 +1801,7 @@ export default function EngineDetail({
 
         {/* Header */}
         <div className="flex items-start gap-3">
-          <KnowledgeEngineIcon
-            engine={provider.id}
-            size={38}
-            className="mt-0.5"
-          />
+          <KnowledgeEngineIcon engine={provider.id} size={38} className="mt-0.5" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="font-serif text-[20px] font-semibold tracking-tight text-[var(--foreground)]">
@@ -1921,9 +1834,7 @@ export default function EngineDetail({
         {hasModes && (
           <Section label={t("Retrieval mode")} icon={Workflow}>
             <p className="-mt-1 mb-3 text-[11.5px] leading-snug text-[var(--muted-foreground)]">
-              {t(
-                "The default for new searches. A knowledge base can still override it per-KB.",
-              )}
+              {t("The default for new searches. A knowledge base can still override it per-KB.")}
             </p>
             <ModeSelector provider={provider} onSelectMode={onSelectMode} />
           </Section>
@@ -1965,17 +1876,10 @@ export default function EngineDetail({
         )}
 
         {/* Models — in-place pickers for the kinds this engine needs */}
-        <ModelsSection
-          providerId={provider.id}
-          onChanged={onChanged}
-          onError={onError}
-        />
+        <ModelsSection providerId={provider.id} onChanged={onChanged} onError={onError} />
 
         {/* Knowledge bases on this engine */}
-        <Section
-          label={`${t("Knowledge bases")} · ${engineKbs.length}`}
-          icon={Database}
-        >
+        <Section label={`${t("Knowledge bases")} · ${engineKbs.length}`} icon={Database}>
           {engineKbs.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-[var(--border)] px-4 py-8 text-center text-[12px] text-[var(--muted-foreground)]">
               {t("No knowledge bases use this engine yet.")}
@@ -1998,9 +1902,7 @@ export default function EngineDetail({
                       <KnowledgeEngineIcon engine={provider.id} size={24} />
                       <span
                         className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${
-                          ready
-                            ? "bg-emerald-500"
-                            : "bg-[var(--muted-foreground)]"
+                          ready ? "bg-emerald-500" : "bg-[var(--muted-foreground)]"
                         }`}
                       />
                       <span className="truncate text-[13px] font-medium text-[var(--foreground)]">

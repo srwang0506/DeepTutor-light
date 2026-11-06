@@ -71,33 +71,42 @@ export default function DocumentParsingSettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const { applying: busy, draftRevision } = useSettings();
 
-  const load = useCallback(async () => {
-    setError(null);
-    try {
-      const response = await apiFetch(apiUrl("/api/settings/document-parsing"));
-      const payload = (await response.json().catch(() => ({}))) as
-        | DocumentParsingPayload
-        | { detail?: string };
-      if (!response.ok) {
-        throw new Error(
-          "detail" in payload && payload.detail
-            ? payload.detail
-            : t("Failed to load document parsing settings."),
-        );
-      }
-      setLiveData(payload as DocumentParsingPayload);
-      return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-      return false;
-    } finally {
-      setLoading(false);
-    }
+  const loadData = useCallback(async () => {
+    return apiFetch(apiUrl("/api/settings/document-parsing"))
+      .then(async (response) => {
+        const payload = (await response.json().catch(() => ({}))) as
+          DocumentParsingPayload | { detail?: string };
+        if (!response.ok) {
+          throw new Error(
+            "detail" in payload && payload.detail
+              ? payload.detail
+              : t("Failed to load document parsing settings."),
+          );
+        }
+        setLiveData(payload as DocumentParsingPayload);
+        return true;
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : String(err));
+        return false;
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [t]);
+  const [loadInputs, setLoadInputs] = useState<typeof loadData | null>(null);
+  if (loadInputs !== loadData) {
+    setLoadInputs(() => loadData);
+    setError(null);
+  }
+  const load = useCallback(() => {
+    setError(null);
+    return loadData();
+  }, [loadData]);
 
   useEffect(() => {
-    void load();
-  }, [load, draftRevision]);
+    void loadData();
+  }, [loadData, draftRevision]);
 
   // Availability is live metadata, even when the editable settings are a draft.
   const availableEngines = liveData?.available_engines ?? data?.available_engines ?? [];
@@ -107,7 +116,9 @@ export default function DocumentParsingSettingsPage() {
     setData((current) => {
       if (!current) return current;
       const engines = { ...current.engines };
-      for (const [name, patch] of Object.entries((body.engines ?? {}) as Record<string, Record<string, unknown>>)) {
+      for (const [name, patch] of Object.entries(
+        (body.engines ?? {}) as Record<string, Record<string, unknown>>,
+      )) {
         engines[name] = { ...engines[name], ...patch };
       }
       return { ...current, ...body, engines } as DocumentParsingPayload;
@@ -132,7 +143,10 @@ export default function DocumentParsingSettingsPage() {
       )}
 
       {!loading && error && (
-        <div role="alert" className="mb-5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-[13px] text-red-600 dark:text-red-300">
+        <div
+          role="alert"
+          className="mb-5 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-[13px] text-red-600 dark:text-red-300"
+        >
           {error}
         </div>
       )}
@@ -165,9 +179,7 @@ export default function DocumentParsingSettingsPage() {
                     key={engine.id}
                     type="button"
                     disabled={busy}
-                    onClick={() =>
-                      !active && putDocumentParsing({ engine: engine.id })
-                    }
+                    onClick={() => !active && putDocumentParsing({ engine: engine.id })}
                     className={`flex items-start justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-colors disabled:opacity-60 ${
                       active
                         ? "border-[var(--foreground)] bg-[var(--card)]"
@@ -191,9 +203,7 @@ export default function DocumentParsingSettingsPage() {
                         )}
                       </div>
                       <p className="mt-1 text-[12px] text-[var(--muted-foreground)]">
-                        {descriptionKey
-                          ? t(descriptionKey)
-                          : engine.description}
+                        {descriptionKey ? t(descriptionKey) : engine.description}
                       </p>
                     </div>
                   </button>
@@ -210,61 +220,41 @@ export default function DocumentParsingSettingsPage() {
             <DoclingPanel
               slice={data.engines.docling || {}}
               readiness={readiness.docling}
-              available={
-                availableEngines.find((e) => e.id === "docling")
-                  ?.available ?? false
-              }
+              available={availableEngines.find((e) => e.id === "docling")?.available ?? false}
               busy={busy}
               onInstalled={load}
               tokenSet={data.docling?.api_token_set ?? false}
-              onSave={(patch) =>
-                putDocumentParsing({ engines: { docling: patch } })
-              }
+              onSave={(patch) => putDocumentParsing({ engines: { docling: patch } })}
             />
           )}
 
           {data.engine === "markitdown" && (
             <MarkItDownPanel
               slice={data.engines.markitdown || {}}
-              available={
-                availableEngines.find((e) => e.id === "markitdown")
-                  ?.available ?? false
-              }
+              available={availableEngines.find((e) => e.id === "markitdown")?.available ?? false}
               busy={busy}
               onInstalled={load}
-              onSave={(patch) =>
-                putDocumentParsing({ engines: { markitdown: patch } })
-              }
+              onSave={(patch) => putDocumentParsing({ engines: { markitdown: patch } })}
             />
           )}
 
           {data.engine === "pymupdf4llm" && (
             <PyMuPDF4LLMPanel
               slice={data.engines.pymupdf4llm || {}}
-              available={
-                availableEngines.find((e) => e.id === "pymupdf4llm")
-                  ?.available ?? false
-              }
+              available={availableEngines.find((e) => e.id === "pymupdf4llm")?.available ?? false}
               busy={busy}
               onInstalled={load}
-              onSave={(patch) =>
-                putDocumentParsing({ engines: { pymupdf4llm: patch } })
-              }
+              onSave={(patch) => putDocumentParsing({ engines: { pymupdf4llm: patch } })}
             />
           )}
 
           {data.engine === "liteparse" && (
             <LiteParsePanel
               slice={data.engines.liteparse || {}}
-              available={
-                availableEngines.find((e) => e.id === "liteparse")
-                  ?.available ?? false
-              }
+              available={availableEngines.find((e) => e.id === "liteparse")?.available ?? false}
               busy={busy}
               onInstalled={load}
-              onSave={(patch) =>
-                putDocumentParsing({ engines: { liteparse: patch } })
-              }
+              onSave={(patch) => putDocumentParsing({ engines: { liteparse: patch } })}
             />
           )}
 
@@ -273,9 +263,7 @@ export default function DocumentParsingSettingsPage() {
               slice={data.engines.tika || {}}
               readiness={readiness.tika}
               busy={busy}
-              onSave={(patch) =>
-                putDocumentParsing({ engines: { tika: patch } })
-              }
+              onSave={(patch) => putDocumentParsing({ engines: { tika: patch } })}
             />
           )}
         </>
@@ -295,11 +283,7 @@ function TextOnlyPanel() {
     >
       <SettingRow
         title={t("Model status")}
-        control={
-          <ReadinessBadge
-            readiness={{ ready: true, reason: "ready", message: "" }}
-          />
-        }
+        control={<ReadinessBadge readiness={{ ready: true, reason: "ready", message: "" }} />}
       />
     </SettingSection>
   );
@@ -373,12 +357,7 @@ function DoclingPanel({
   onSave: (patch: Record<string, unknown>) => Promise<boolean>;
 }) {
   const { t } = useTranslation();
-  const mode =
-    slice.mode === "remote"
-      ? "remote"
-      : slice.mode === "local"
-        ? "local"
-        : "local";
+  const mode = slice.mode === "remote" ? "remote" : slice.mode === "local" ? "local" : "local";
   const isRemote = mode === "remote";
   const doOcr = Boolean(slice.do_ocr);
   const doTables = slice.do_table_structure !== false;
@@ -401,14 +380,11 @@ function DoclingPanel({
         api_base_url: remoteDraft.url.trim() || DEFAULT_DOCLING_URL,
       };
       if (tokenTouched) body.api_token = tokenDraft;
-      const response = await apiFetch(
-        apiUrl("/api/settings/document-parsing/docling/test"),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        },
-      );
+      const response = await apiFetch(apiUrl("/api/settings/document-parsing/docling/test"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
       const data = (await response.json().catch(() => ({}))) as {
         ok?: boolean;
         message?: string;
@@ -423,9 +399,7 @@ function DoclingPanel({
       }
       setTestResult({
         ok: Boolean(data.ok),
-        message:
-          data.message ||
-          (data.ok ? t("Ready to parse.") : t("Connection test failed.")),
+        message: data.message || (data.ok ? t("Ready to parse.") : t("Connection test failed.")),
       });
     } catch (err) {
       setTestResult({
@@ -451,12 +425,8 @@ function DoclingPanel({
           title={t("Mode")}
           description={
             isRemote
-              ? t(
-                  "Documents are sent to a Docling Serve server for conversion.",
-                )
-              : t(
-                  "Parsing runs on this machine using the installed docling package.",
-                )
+              ? t("Documents are sent to a Docling Serve server for conversion.")
+              : t("Parsing runs on this machine using the installed docling package.")
           }
           control={
             <div className="inline-flex rounded-lg border border-[var(--border)] p-0.5">
@@ -510,12 +480,8 @@ function DoclingPanel({
             title={t("API key")}
             description={
               tokenSet
-                ? t(
-                    "A key is saved. Type to replace it; leave blank to keep it.",
-                  )
-                : t(
-                    "Optional. Sent as the X-Api-Key header for a secured server.",
-                  )
+                ? t("A key is saved. Type to replace it; leave blank to keep it.")
+                : t("Optional. Sent as the X-Api-Key header for a secured server.")
             }
             control={
               <input
@@ -559,15 +525,12 @@ function DoclingPanel({
                   {testing && <Loader2 className="h-3 w-3 animate-spin" />}
                   {t("Test")}
                 </button>
-
               </div>
             }
           />
           <div className="px-1 pb-4">
             <span className="text-[12px] text-[var(--muted-foreground)]">
-              {t(
-                  "Apply pending settings using the bar below.",
-                )}
+              {t("Apply pending settings using the bar below.")}
             </span>
           </div>
         </SettingSection>
@@ -592,11 +555,7 @@ function DoclingPanel({
             title={t("OCR scanned pages")}
             description={t("Slower; enable for image-only PDFs.")}
             control={
-              <Toggle
-                checked={doOcr}
-                disabled={busy}
-                onChange={(v) => onSave({ do_ocr: v })}
-              />
+              <Toggle checked={doOcr} disabled={busy} onChange={(v) => onSave({ do_ocr: v })} />
             }
           />
         </SettingSection>
@@ -619,11 +578,7 @@ function DoclingPanel({
         >
           <ReadinessNotice readiness={readiness} />
           {readiness && !readiness.ready && (
-            <ModelDownloadRow
-              engineId="docling"
-              title={t("Docling")}
-              onDownloaded={onInstalled}
-            />
+            <ModelDownloadRow engineId="docling" title={t("Docling")} onDownloaded={onInstalled} />
           )}
           <SettingRow
             title={t("Allow automatic model download")}
@@ -652,11 +607,7 @@ function DoclingPanel({
             title={t("OCR scanned pages")}
             description={t("Slower; enable for image-only PDFs.")}
             control={
-              <Toggle
-                checked={doOcr}
-                disabled={busy}
-                onChange={(v) => onSave({ do_ocr: v })}
-              />
+              <Toggle checked={doOcr} disabled={busy} onChange={(v) => onSave({ do_ocr: v })} />
             }
           />
         </SettingSection>
@@ -680,7 +631,9 @@ function TikaPanel({
 }) {
   const { t } = useTranslation();
   const draftUrl = String(slice.server_url ?? "");
-  const setDraftUrl = (server_url: string) => { void onSave({ server_url }); };
+  const setDraftUrl = (server_url: string) => {
+    void onSave({ server_url });
+  };
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{
     ok: boolean;
@@ -691,16 +644,13 @@ function TikaPanel({
     setTesting(true);
     setTestResult(null);
     try {
-      const response = await apiFetch(
-        apiUrl("/api/settings/document-parsing/tika/test"),
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            server_url: draftUrl.trim() || DEFAULT_TIKA_URL,
-          }),
-        },
-      );
+      const response = await apiFetch(apiUrl("/api/settings/document-parsing/tika/test"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          server_url: draftUrl.trim() || DEFAULT_TIKA_URL,
+        }),
+      });
       const data = (await response.json().catch(() => ({}))) as {
         ok?: boolean;
         message?: string;
@@ -715,9 +665,7 @@ function TikaPanel({
       }
       setTestResult({
         ok: Boolean(data.ok),
-        message:
-          data.message ||
-          (data.ok ? t("Ready to parse.") : t("Connection test failed.")),
+        message: data.message || (data.ok ? t("Ready to parse.") : t("Connection test failed.")),
       });
     } catch (err) {
       setTestResult({
@@ -781,15 +729,12 @@ function TikaPanel({
               {testing && <Loader2 className="h-3 w-3 animate-spin" />}
               {t("Test")}
             </button>
-
           </div>
         }
       />
       <div className="px-1 pb-4">
         <span className="text-[12px] text-[var(--muted-foreground)]">
-          {t(
-            "Apply pending settings using the bar below.",
-          )}
+          {t("Apply pending settings using the bar below.")}
         </span>
       </div>
     </SettingSection>
@@ -863,8 +808,7 @@ function PyMuPDF4LLMPanel({
 }) {
   const { t } = useTranslation();
   const writeImages = slice.write_images !== false;
-  const imageFormat =
-    typeof slice.image_format === "string" ? slice.image_format : "png";
+  const imageFormat = typeof slice.image_format === "string" ? slice.image_format : "png";
   const imageDpi = typeof slice.image_dpi === "number" ? slice.image_dpi : 150;
 
   if (!available) {
@@ -955,19 +899,14 @@ function LiteParsePanel({
   onSave: (patch: Record<string, unknown>) => void;
 }) {
   const { t } = useTranslation();
-  const imageMode =
-    typeof slice.image_mode === "string" ? slice.image_mode : "placeholder";
+  const imageMode = typeof slice.image_mode === "string" ? slice.image_mode : "placeholder";
   const extractLinks = slice.extract_links !== false;
   const extractImages = Boolean(slice.extract_images);
   const maxPages = typeof slice.max_pages === "number" ? slice.max_pages : 0;
 
   if (!available) {
     return (
-      <NotInstalledSection
-        engineId="liteparse"
-        title={t("LiteParse")}
-        onInstalled={onInstalled}
-      />
+      <NotInstalledSection engineId="liteparse" title={t("LiteParse")} onInstalled={onInstalled} />
     );
   }
 
@@ -1054,12 +993,7 @@ type JobStatus = {
 // cursor-based log filtered by `kind` → call onDone once on success. Only one
 // job runs server-side at a time, so the kind filter keeps each card's view to
 // its own job.
-function useBackgroundJob(
-  kind: JobKind,
-  startUrl: string,
-  engineId: string,
-  onDone: () => void,
-) {
+function useBackgroundJob(kind: JobKind, startUrl: string, engineId: string, onDone: () => void) {
   const { t } = useTranslation();
   const [job, setJob] = useState<JobStatus | null>(null);
   const [starting, setStarting] = useState(false);
@@ -1071,9 +1005,7 @@ function useBackgroundJob(
     const timer = setInterval(async () => {
       try {
         const response = await apiFetch(
-          apiUrl(
-            `/api/settings/document-parsing/job/status?cursor=${cursor.current}`,
-          ),
+          apiUrl(`/api/settings/document-parsing/job/status?cursor=${cursor.current}`),
         );
         if (!response.ok) return;
         const data = (await response.json()) as {
@@ -1226,11 +1158,7 @@ function JobButton({
       disabled={starting}
       className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-[var(--foreground)] px-3 py-1.5 text-[12px] font-medium text-[var(--background)] transition-opacity hover:opacity-80 disabled:opacity-40"
     >
-      {starting ? (
-        <Loader2 className="h-3 w-3 animate-spin" />
-      ) : (
-        <Download className="h-3 w-3" />
-      )}
+      {starting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
       {label}
     </button>
   );
@@ -1254,40 +1182,73 @@ function NotInstalledSection({
     setChecking(true);
     setChecked(false);
     try {
-      setChecked(await onInstalled());
+      {
+        const resolvedState0 = await onInstalled();
+        setChecked(resolvedState0);
+      }
     } finally {
       setChecking(false);
     }
   }
 
-  const commandClass = "mt-1 block whitespace-pre-wrap break-words rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 font-mono text-[11px] text-[var(--foreground)]";
+  const commandClass =
+    "mt-1 block whitespace-pre-wrap break-words rounded-lg border border-[var(--border)] bg-[var(--card)] px-3 py-2 font-mono text-[11px] text-[var(--foreground)]";
 
   return (
     <SettingSection
       title={title}
-      description={t("This local parser is not installed. Choose the instructions for your server deployment; packages cannot be installed while DeepTutor is running.")}
+      description={t(
+        "This local parser is not installed. Choose the instructions for your server deployment; packages cannot be installed while DeepTutor is running.",
+      )}
     >
       <div className="space-y-4 px-1 pb-4 text-[12px] leading-relaxed text-[var(--muted-foreground)]">
         <div>
           <h3 className="font-medium text-[var(--foreground)]">{t("Docker")}</h3>
-          <p>{t("Add this extra to DEEPTUTOR_EXTRAS in your existing deployment configuration, preserving other extras. Recreate the same service with its existing configuration and mounts.")}</p>
-          <code className={commandClass}>parse-{engineId}</code>
-          <p className="mt-1">{t("Startup reapplies extras. Installation failures do not stop the server: inspect startup logs, then recheck availability. Data mounts preserve user data, not installed Python packages.")}</p>
+          <p>
+            {t(
+              "Add this extra to DEEPTUTOR_EXTRAS in your existing deployment configuration, preserving other extras. Recreate the same service with its existing configuration and mounts.",
+            )}
+          </p>
+          <code className={commandClass}>
+            {t("parse-")}
+            {engineId}
+          </code>
+          <p className="mt-1">
+            {t(
+              "Startup reapplies extras. Installation failures do not stop the server: inspect startup logs, then recheck availability. Data mounts preserve user data, not installed Python packages.",
+            )}
+          </p>
         </div>
         <div>
           <h3 className="font-medium text-[var(--foreground)]">{t("Source checkout")}</h3>
-          <p>{t("Stop DeepTutor. Run from the checkout in the server's Python environment, then restart the same instance.")}</p>
-          <code className={commandClass}>python scripts/install_extras.py parse-{engineId}</code>
+          <p>
+            {t(
+              "Stop DeepTutor. Run from the checkout in the server's Python environment, then restart the same instance.",
+            )}
+          </p>
+          <code className={commandClass}>
+            {t("python scripts/install_extras.py parse-")}
+            {engineId}
+          </code>
         </div>
         <div>
           <h3 className="font-medium text-[var(--foreground)]">{t("Wheel installation")}</h3>
-          <p>{t("Stop DeepTutor. Run in the server's Python environment, then restart with the same runtime home. Do not run this over a source checkout.")}</p>
-          <code className={commandClass}>deeptutor module install parser-{engineId}</code>
+          <p>
+            {t(
+              "Stop DeepTutor. Run in the server's Python environment, then restart with the same runtime home. Do not run this over a source checkout.",
+            )}
+          </p>
+          <code className={commandClass}>
+            {t("deeptutor module install parser-")}
+            {engineId}
+          </code>
         </div>
       </div>
       <SettingRow
         title={t("Recheck availability")}
-        description={t("After restarting, refresh parser availability here. This does not install packages or apply pending settings.")}
+        description={t(
+          "After restarting, refresh parser availability here. This does not install packages or apply pending settings.",
+        )}
         control={
           <button
             type="button"
@@ -1301,7 +1262,13 @@ function NotInstalledSection({
         }
       />
       <p role="status" className="px-1 pb-2 text-[12px] text-[var(--muted-foreground)]">
-        {checking ? t("Checking availability…") : checked ? t("Availability refreshed. This parser is still unavailable; check the installation and startup logs, then retry.") : ""}
+        {checking
+          ? t("Checking availability…")
+          : checked
+            ? t(
+                "Availability refreshed. This parser is still unavailable; check the installation and startup logs, then retry.",
+              )
+            : ""}
       </p>
     </SettingSection>
   );
@@ -1331,9 +1298,7 @@ function ModelDownloadRow({
     <>
       <SettingRow
         title={t("Download models")}
-        description={t(
-          "Fetch the model weights onto the server now — no terminal needed.",
-        )}
+        description={t("Fetch the model weights onto the server now — no terminal needed.")}
         control={
           <JobButton
             running={job?.state === "running"}

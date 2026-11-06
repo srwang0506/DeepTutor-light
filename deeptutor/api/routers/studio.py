@@ -17,7 +17,9 @@ from deeptutor.studio import (
     discovery,
     evidence,
     experiments,
+    integrations,
     manuscripts,
+    reviews,
     subscriptions,
     writing,
 )
@@ -170,6 +172,7 @@ async def records(
         "citation",
         "collection",
         "subscription",
+        "review_protocol",
     ],
     q: str = Query("", max_length=2000),
 ):
@@ -813,3 +816,301 @@ async def response_export(identifier: str):
     from deeptutor.studio.writing import export_response
 
     return await operation(export_response, Studio(), identifier)
+
+
+class IntegrationUpdate(integrations.SourceInput):
+    expected_revision: int = Field(ge=1)
+
+
+@router.get("/integrations")
+async def integration_sources():
+    return {"sources": await operation(integrations.list_sources, Studio())}
+
+
+@router.post("/integrations", dependencies=[Depends(require_admin)])
+async def integration_create(payload: integrations.SourceInput):
+    return await operation(integrations.save, Studio(), payload)
+
+
+@router.patch("/integrations/{identifier}", dependencies=[Depends(require_admin)])
+async def integration_edit(identifier: str, payload: IntegrationUpdate):
+    return await operation(
+        integrations.save,
+        Studio(),
+        integrations.SourceInput(**payload.model_dump(exclude={"expected_revision"})),
+        identifier,
+        payload.expected_revision,
+    )
+
+
+@router.post("/integrations/{identifier}/refresh", dependencies=[Depends(require_admin)])
+async def integration_refresh(identifier: str):
+    try:
+        return await integrations.refresh(Studio(), identifier)
+    except Missing as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except Conflict as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except (ValueError, OSError) as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(502, "Source sync failed; its saved cursor is retained.") from exc
+
+
+@router.get("/integrations/{identifier}/objects")
+async def integration_objects(identifier: str, after: str = Query("", max_length=200)):
+    items = await operation(integrations.source_rows, Studio(), identifier, 101, after)
+    return {"items": items[:100], "next_cursor": items[99]["key"] if len(items) > 100 else ""}
+
+
+@router.get("/runs/{identifier}/events")
+async def integration_run_events(
+    identifier: str,
+    after: str = Query("", pattern=r"^(latest|\d*)$"),
+    limit: int = Query(1000, ge=1, le=2000),
+    before: int = Query(0, ge=0),
+):
+    return await operation(integrations.run_events, Studio(), identifier, after, limit, before)
+
+
+@router.post("/reviews/protocols")
+async def review_protocol_create(payload: reviews.ProtocolInput):
+    return await operation(reviews.create, Studio(), payload)
+
+
+@router.get("/reviews/protocols/{identifier}")
+async def review_protocol_report(identifier: str):
+    return await operation(reviews.report, Studio(), identifier)
+
+
+@router.post("/reviews/protocols/{identifier}/decisions")
+async def review_protocol_decide(identifier: str, payload: reviews.DecisionInput):
+    return await operation(reviews.decide, Studio(), identifier, payload)
+
+
+@router.post("/reviews/protocols/{identifier}/extractions")
+async def review_protocol_extract(identifier: str, payload: reviews.ExtractionInput):
+    return await operation(reviews.extract, Studio(), identifier, payload)
+
+
+@router.get("/reviews/protocols/{identifier}/export")
+async def review_protocol_export(identifier: str):
+    return Response(
+        await operation(reviews.export_csv, Studio(), identifier),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=review-extraction.csv"},
+    )
+
+
+class PortableExport(Command):
+    passphrase: str = Field(min_length=12, max_length=256, repr=False)
+
+
+class PortableApply(Command):
+    batch_id: str = Field(pattern=r"^[a-f0-9]{64}$")
+    choices: dict[str, Literal["keep", "incoming"]] = Field(default_factory=dict, max_length=20000)
+
+
+def portable_context():
+    from deeptutor.services.path_service import get_path_service
+    from deeptutor.services.session import get_sqlite_session_store
+
+    return {"paths": get_path_service(), "sessions": get_sqlite_session_store()}
+
+
+from fastapi import Request
+
+
+def release_request_lease(request):
+    lease = getattr(request.state, "workspace_activity", None)
+    if lease is not None:
+        lease.close()
+        del request.state.workspace_activity
+
+
+def portable_exclusive(fn, *args, **kwargs):
+    from deeptutor.services.workspace.activity import data_activity
+
+    with data_activity(exclusive=True):
+        return fn(*args, **kwargs)
+
+
+@router.post("/portable/export")
+async def portable_export(payload: PortableExport, request: Request):
+    from deeptutor.studio import portable
+
+    release_request_lease(request)
+    data = await operation(
+        portable_exclusive, portable.export, Studio(), payload.passphrase, **portable_context()
+    )
+    return Response(
+        data,
+        media_type="application/octet-stream",
+        headers={
+            "Content-Disposition": 'attachment; filename="project.dtsync"',
+            "Cache-Control": "no-store",
+        },
+    )
+
+
+@router.post("/portable/preview")
+async def portable_preview(file: UploadFile = File(...), passphrase: str = Form(...)):
+    from deeptutor.studio import portable
+
+    return await operation(
+        portable.preview,
+        Studio(),
+        await file_bytes(file, portable.LIMIT + 100),
+        passphrase,
+        **portable_context(),
+    )
+
+
+@router.post("/portable/apply")
+async def portable_apply(payload: PortableApply, request: Request):
+    from deeptutor.studio import portable
+
+    release_request_lease(request)
+    return await operation(
+        portable_exclusive,
+        portable.apply,
+        Studio(),
+        payload.batch_id,
+        payload.choices,
+        **portable_context(),
+    )
+
+
+@router.get("/portable/transfers")
+async def portable_transfers():
+    from deeptutor.studio import portable
+
+    def read():
+        store = Studio()
+        with store.db(write=True) as db:
+            portable.schema(db)
+            return [
+                dict(r)
+                for r in db.execute(
+                    "SELECT id,peer,state,created FROM portable_batches WHERE scope=? ORDER BY created DESC LIMIT 30",
+                    (store.project,),
+                )
+            ]
+
+    return await operation(read)
+
+
+@router.post("/evaluations/suites")
+async def evaluation_suite_upload(file: UploadFile = File(...)):
+    import json
+
+    from deeptutor.studio import evaluations
+
+    raw = await file_bytes(file, 4_000_000)
+    try:
+        command = evaluations.Suite.model_validate(json.loads(raw))
+    except (ValueError, UnicodeError) as exc:
+        raise HTTPException(422, str(exc)) from exc
+    result = await operation(evaluations.freeze, Studio(), command)
+    return {
+        "id": result["id"],
+        "title": result["data"]["title"],
+        "digest": result["data"]["digest"],
+        "cases": len(command.cases),
+    }
+
+
+@router.get("/evaluations/suites")
+async def evaluation_suites():
+    def read():
+        return [
+            {
+                "id": r["id"],
+                "title": r["data"]["title"],
+                "digest": r["data"]["digest"],
+                "cases": len(r["data"]["cases"]),
+            }
+            for r in Studio().list("evaluation_suite", limit=100)
+        ]
+
+    return await operation(read)
+
+
+class EvaluationStart(Command):
+    suite_id: str
+    llm_selection: LLMSelectionPayload | None = None
+
+
+class EvaluationNext(Command):
+    llm_selection: LLMSelectionPayload | None = None
+
+
+def evaluation_model(config):
+    return {
+        "binding": config.binding,
+        "provider_mode": config.provider_mode,
+        "model": config.model,
+        "reasoning_effort": config.reasoning_effort,
+        "temperature": config.temperature,
+    }
+
+
+@router.post("/evaluations/runs")
+async def evaluation_start(payload: EvaluationStart):
+    from deeptutor.services.model_selection.runtime import (
+        activate_llm_selection,
+        reset_llm_selection,
+    )
+    from deeptutor.studio import evaluations
+
+    config, token = activate_llm_selection(_validated_llm_selection(payload.llm_selection))
+    try:
+        return await operation(
+            evaluations.start, Studio(), payload.suite_id, evaluation_model(config)
+        )
+    finally:
+        reset_llm_selection(token)
+
+
+@router.post("/evaluations/runs/{identifier}/next")
+async def evaluation_next(identifier: str, payload: EvaluationNext):
+    from deeptutor.services.llm import factory
+    from deeptutor.services.model_selection.runtime import (
+        activate_llm_selection,
+        reset_llm_selection,
+    )
+    from deeptutor.studio import evaluations
+
+    config, token = activate_llm_selection(_validated_llm_selection(payload.llm_selection))
+    try:
+        return await evaluations.advance(
+            Studio(), identifier, evaluation_model(config), factory.complete
+        )
+    except (Conflict, Missing, ValueError) as exc:
+        raise HTTPException(409, str(exc)) from exc
+    finally:
+        reset_llm_selection(token)
+
+
+@router.get("/evaluations/runs")
+async def evaluation_runs():
+    def read():
+        return [
+            {
+                "id": r["id"],
+                "state": r["data"]["state"],
+                "model": r["data"]["model"],
+                "completed": len(r["data"]["results"]),
+                "total": len(r["data"]["case_ids"]),
+            }
+            for r in Studio().list("evaluation_run", limit=100)
+        ]
+
+    return await operation(read)
+
+
+@router.get("/evaluations/runs/{identifier}")
+async def evaluation_report(identifier: str):
+    from deeptutor.studio import evaluations
+
+    return await operation(evaluations.report, Studio(), identifier)

@@ -2,16 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import {
-  ArrowUpRight,
-  Check,
-  ChevronDown,
-  Eye,
-  EyeOff,
-  Plus,
-  Trash2,
-  X,
-} from "lucide-react";
+import { ArrowUpRight, Check, ChevronDown, Eye, EyeOff, Plus, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import ProviderIcon from "@/components/common/ProviderIcon";
@@ -126,9 +117,7 @@ export function ConnectionsEditor() {
   const standaloneServices = useMemo(
     () =>
       CONNECTABLE_SERVICES.filter((service) =>
-        draft.services[service].profiles.some(
-          (profile) => !profile.connection_id,
-        ),
+        draft.services[service].profiles.some((profile) => !profile.connection_id),
       ),
     [draft],
   );
@@ -179,17 +168,12 @@ export function ConnectionsEditor() {
           onCancel={() => setAdding(false)}
           onCreate={(input, services) => {
             const connection = addConnection(input);
-            const { created, activated } = linkConnectionToServices(
-              connection,
-              services,
-            );
+            const { created, activated } = linkConnectionToServices(connection, services);
             setAdding(false);
             // The row already lists which services it feeds, so the toast
             // says the one thing that cannot be seen there: which existing
             // selections were left alone.
-            const kept = created.filter(
-              (service) => !activated.includes(service),
-            );
+            const kept = created.filter((service) => !activated.includes(service));
             setToast(
               created.length === 0
                 ? t("Connection added.")
@@ -197,13 +181,10 @@ export function ConnectionsEditor() {
                   ? t("Configured {{count}} services and made them active.", {
                       count: created.length,
                     })
-                  : t(
-                      "Configured {{count}} services — {{kept}} kept your existing choice.",
-                      {
-                        count: created.length,
-                        kept: kept.map(label).join(zh ? "、" : ", "),
-                      },
-                    ),
+                  : t("Configured {{count}} services — {{kept}} kept your existing choice.", {
+                      count: created.length,
+                      kept: kept.map(label).join(zh ? "、" : ", "),
+                    }),
             );
           }}
         />
@@ -218,14 +199,9 @@ export function ConnectionsEditor() {
           </p>
           {standaloneServices.length > 0 && (
             <p className="mt-2 text-[12px] leading-relaxed text-[var(--muted-foreground)]">
-              {t(
-                "Credentials are currently entered separately for {{services}}.",
-                {
-                  services: standaloneServices
-                    .map(label)
-                    .join(zh ? "、" : ", "),
-                },
-              )}
+              {t("Credentials are currently entered separately for {{services}}.", {
+                services: standaloneServices.map(label).join(zh ? "、" : ", "),
+              })}
             </p>
           )}
         </div>
@@ -243,32 +219,23 @@ export function ConnectionsEditor() {
               editing={editingId === connection.id}
               confirmingDelete={confirmDeleteId === connection.id}
               label={label}
-              onEdit={() =>
-                setEditingId(editingId === connection.id ? null : connection.id)
-              }
-              onField={(field, value) =>
-                updateConnectionField(connection.id, field, value)
-              }
+              onEdit={() => setEditingId(editingId === connection.id ? null : connection.id)}
+              onField={(field, value) => updateConnectionField(connection.id, field, value)}
               onLink={(service, model) => {
-                const { activated } = linkConnectionToServices(connection, [
-                  { service, model },
-                ]);
+                const { activated } = linkConnectionToServices(connection, [{ service, model }]);
                 setToast(
                   activated.includes(service)
                     ? t("{{service}} now uses {{name}}.", {
                         service: label(service),
                         name: connection.name,
                       })
-                    : t(
-                        "Added a {{service}} profile — switch to it on its own page.",
-                        { service: label(service) },
-                      ),
+                    : t("Added a {{service}} profile — switch to it on its own page.", {
+                        service: label(service),
+                      }),
                 );
               }}
               onAskDelete={() =>
-                setConfirmDeleteId(
-                  confirmDeleteId === connection.id ? null : connection.id,
-                )
+                setConfirmDeleteId(confirmDeleteId === connection.id ? null : connection.id)
               }
               onDelete={() => {
                 removeConnection(connection.id);
@@ -314,19 +281,13 @@ function ConnectionRow({
   const [showKey, setShowKey] = useState(false);
 
   const available = CONNECTABLE_SERVICES.filter(
-    (service) =>
-      target?.services[service] &&
-      !linked.some((item) => item.service === service),
+    (service) => target?.services[service] && !linked.some((item) => item.service === service),
   );
 
   return (
     <div className={first ? "" : "border-t border-[var(--border)]/50"}>
       <div className="flex items-start gap-3 py-3.5">
-        <ProviderIcon
-          provider={connection.provider}
-          size={18}
-          className="mt-0.5 shrink-0"
-        />
+        <ProviderIcon provider={connection.provider} size={18} className="mt-0.5 shrink-0" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <span className="text-[13px] font-medium text-[var(--foreground)]">
@@ -360,12 +321,7 @@ function ConnectionRow({
                 <button
                   key={service}
                   type="button"
-                  onClick={() =>
-                    onLink(
-                      service,
-                      target?.services[service]?.default_model ?? "",
-                    )
-                  }
+                  onClick={() => onLink(service, target?.services[service]?.default_model ?? "")}
                   className="inline-flex h-6 items-center gap-1 rounded-md border border-[var(--border)] px-2 text-[11px] text-[var(--muted-foreground)] transition-colors hover:border-[var(--ring)] hover:text-[var(--foreground)]"
                 >
                   <Plus className="h-3 w-3" />
@@ -425,9 +381,7 @@ function ConnectionRow({
       {editing && (
         <div className="grid gap-3 border-t border-[var(--border)] bg-[var(--muted)]/15 px-4 py-4 sm:grid-cols-2">
           <div>
-            <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
-              {t("Name")}
-            </div>
+            <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">{t("Name")}</div>
             <input
               className={inputClass}
               aria-label={t("Name")}
@@ -436,9 +390,7 @@ function ConnectionRow({
             />
           </div>
           <div>
-            <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
-              {t("Base URL")}
-            </div>
+            <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">{t("Base URL")}</div>
             <input
               className={inputClass}
               aria-label={t("Base URL")}
@@ -448,9 +400,7 @@ function ConnectionRow({
             />
           </div>
           <div className="sm:col-span-2">
-            <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
-              {t("API Key")}
-            </div>
+            <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">{t("API Key")}</div>
             <div className="relative">
               <input
                 type={showKey ? "text" : "password"}
@@ -460,7 +410,7 @@ function ConnectionRow({
                 aria-label={t("API Key")}
                 value={connection.api_key}
                 onChange={(event) => onField("api_key", event.target.value)}
-                placeholder="sk-..."
+                placeholder={t("sk-...")}
               />
               <button
                 type="button"
@@ -468,17 +418,11 @@ function ConnectionRow({
                 aria-label={showKey ? t("Hide API key") : t("Show API key")}
                 className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
               >
-                {showKey ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
+                {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
             <p className="mt-1.5 text-[11px] text-[var(--muted-foreground)]">
-              {t(
-                "Saving pushes these values into every profile this connection supplies.",
-              )}
+              {t("Saving pushes these values into every profile this connection supplies.")}
             </p>
           </div>
           <div className="sm:col-span-2">
@@ -530,9 +474,7 @@ function AddConnectionPanel({
   const [llmModel, setLlmModel] = useState("");
 
   const target = targets.find((item) => item.provider === provider) ?? null;
-  const supported = CONNECTABLE_SERVICES.filter(
-    (service) => target?.services[service],
-  );
+  const supported = CONNECTABLE_SERVICES.filter((service) => target?.services[service]);
 
   const label = (service: ServiceName) =>
     zh ? SERVICE_LABEL[service].zh : SERVICE_LABEL[service].en;
@@ -543,11 +485,7 @@ function AddConnectionPanel({
     const spec = targets.find((item) => item.provider === next);
     // Everything the vendor can serve starts checked: the whole point is that
     // one key configures the lot, and unchecking is cheaper than hunting.
-    setSelected(
-      new Set(
-        CONNECTABLE_SERVICES.filter((service) => spec?.services[service]),
-      ),
-    );
+    setSelected(new Set(CONNECTABLE_SERVICES.filter((service) => spec?.services[service])));
   };
 
   const toggle = (service: ServiceName) => {
@@ -565,9 +503,7 @@ function AddConnectionPanel({
     <div className="mb-4 rounded-xl border border-[var(--border)] bg-[var(--muted)]/15 px-4 py-4">
       <div className="grid gap-3 sm:grid-cols-2">
         <div>
-          <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
-            {t("Provider")}
-          </div>
+          <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">{t("Provider")}</div>
           <div className="relative">
             {provider && (
               <ProviderIcon
@@ -586,11 +522,7 @@ function AddConnectionPanel({
                 {t("Select provider...")}
               </option>
               {targets.map((item) => (
-                <option
-                  className={selectOptionClass}
-                  key={item.provider}
-                  value={item.provider}
-                >
+                <option className={selectOptionClass} key={item.provider} value={item.provider}>
                   {item.label}
                 </option>
               ))}
@@ -599,9 +531,7 @@ function AddConnectionPanel({
           </div>
         </div>
         <div>
-          <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
-            {t("Base URL")}
-          </div>
+          <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">{t("Base URL")}</div>
           <input
             className={inputClass}
             aria-label={t("Base URL")}
@@ -614,9 +544,7 @@ function AddConnectionPanel({
           </p>
         </div>
         <div className="sm:col-span-2">
-          <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">
-            {t("API Key")}
-          </div>
+          <div className="mb-1.5 text-[12px] text-[var(--muted-foreground)]">{t("API Key")}</div>
           <div className="relative">
             <input
               type={showKey ? "text" : "password"}
@@ -626,7 +554,7 @@ function AddConnectionPanel({
               aria-label={t("API Key")}
               value={apiKey}
               onChange={(event) => setApiKey(event.target.value)}
-              placeholder="sk-..."
+              placeholder={t("sk-...")}
             />
             <button
               type="button"
@@ -634,11 +562,7 @@ function AddConnectionPanel({
               aria-label={showKey ? t("Hide API key") : t("Show API key")}
               className="absolute right-1 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]"
             >
-              {showKey ? (
-                <EyeOff className="h-4 w-4" />
-              ) : (
-                <Eye className="h-4 w-4" />
-              )}
+              {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </button>
           </div>
         </div>
@@ -649,10 +573,7 @@ function AddConnectionPanel({
           <ProviderModelDiscovery
             input={{
               binding: target.services.llm?.provider || provider,
-              base_url:
-                baseUrl.trim() ||
-                target.services.llm?.base_url ||
-                target.default_base_url,
+              base_url: baseUrl.trim() || target.services.llm?.base_url || target.default_base_url,
               api_key: apiKey,
             }}
             onPick={target.services.llm ? setLlmModel : undefined}

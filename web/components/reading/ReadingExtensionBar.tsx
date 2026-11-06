@@ -145,9 +145,13 @@ function ExtensionToolbar({
   // clocks. A result belongs to the document: keyed on `locator` as well, an
   // ordinary scroll erased a card the reader was still reading, since
   // `locator` is the scroll-derived *viewport* locator.
-  useEffect(() => {
-    setResult(null);
-  }, [materialId]);
+  const [derivedInputs0, setDerivedInputs0] = useState<readonly unknown[]>([]);
+  if (derivedInputs0.length !== 1 || !Object.is(derivedInputs0[0], materialId)) {
+    setDerivedInputs0([materialId]);
+    (() => {
+      setResult(null);
+    })();
+  }
 
   // Speech, on the other hand, must stop the moment the reader navigates
   // away from the passage being read aloud — so this one keeps both keys.
@@ -234,9 +238,7 @@ function ExtensionToolbar({
               type="button"
               disabled={disabled}
               aria-label={
-                shortLabel && builtInLabel
-                  ? `${t(shortLabel)} — ${t(builtInLabel)}`
-                  : undefined
+                shortLabel && builtInLabel ? `${t(shortLabel)} — ${t(builtInLabel)}` : undefined
               }
               onClick={() => void run(extension, action)}
               className={readingActionClass(ageMode, key)}
@@ -267,9 +269,7 @@ function ExtensionToolbar({
                   : "inline-flex w-max flex-none max-sm:min-w-0 max-sm:w-0 max-sm:flex-1 [&>span]:w-full [&>span>button]:w-full"
               }
             >
-              <Tooltip label={t("Select text in the document first.")}>
-                {button}
-              </Tooltip>
+              <Tooltip label={t("Select text in the document first.")}>{button}</Tooltip>
             </span>
           );
         })}
@@ -438,10 +438,7 @@ export function ExtensionResult({
       {terms.length ? (
         <dl className="mt-2 space-y-2">
           {terms.map((term, index) => (
-            <div
-              key={`${index}-${term.term}`}
-              className="pt-2.5 first:pt-0"
-            >
+            <div key={`${index}-${term.term}`} className="pt-2.5 first:pt-0">
               <dt className="font-medium">{term.term}</dt>
               <dd className="mt-1 text-[var(--muted-foreground)]">{term.meaning}</dd>
               <dd className="mt-1 text-[var(--muted-foreground)]">{term.usage}</dd>
