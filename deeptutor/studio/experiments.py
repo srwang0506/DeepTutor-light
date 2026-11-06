@@ -5,9 +5,11 @@ import io
 import json
 from pathlib import Path
 
+from . import import_receipts
 from .database import Conflict, encoded, sha
 from .evidence import compare_observations
 from .models import RunInput
+from .read_set import ReadSet
 
 
 def create_run(
@@ -43,29 +45,54 @@ def create_run(
     )
     data["log_hash"] = store.save_blob(command.log.encode()) if command.log else None
     data["patch_hash"] = store.save_blob(command.patch.encode()) if command.patch else None
+    data["execution_verified"] = False
+    data["execution_witness"] = "imported_statement" if import_identity else "author_statement"
     if provenance:
         data.update(provenance)
     with store.db(write=True) as db:
         if import_identity:
             key, payload_hash = import_identity
+            received = import_receipts.lookup(store, db, "run", key, payload_hash)
+            if received:
+                return received
             existing = db.execute(
-                "SELECT id FROM records WHERE kind='run' AND scope=? AND json_extract(data,'$.import_key')=?",
+                "SELECT r.id,v.data FROM records r JOIN revisions v ON v.id=r.id WHERE r.kind='run' AND r.scope=? AND json_extract(v.data,'$.import_key')=? ORDER BY v.revision LIMIT 1",
                 (store.project, key),
             ).fetchone()
             if existing:
                 record = store.record(db, existing[0], "run")
-                if record["data"]["import_payload_hash"] != payload_hash:
+                if json.loads(existing[1])["import_payload_hash"] != payload_hash:
                     raise Conflict(
                         "This import key was already used with different content. Use a new snapshot identity."
                     )
+                import_receipts.save(
+                    store,
+                    db,
+                    "run",
+                    key,
+                    command.model_dump(),
+                    record["id"],
+                    payload_hash=payload_hash,
+                )
                 return record
             data.update(import_key=key, import_payload_hash=payload_hash)
         if identifier:
             previous = store.record(db, identifier, "run")["data"]
-            for field in ("remote_source", "execution_verified", "tracking_snapshot"):
+            for field in (
+                "remote_source",
+                "execution_verified",
+                "execution_witness",
+                "tracking_snapshot",
+                "import_key",
+                "import_payload_hash",
+            ):
                 if field in previous:
                     data[field] = previous[field]
         row = store.put(db, "run", data, identifier=identifier, expected=expected)
+        if import_identity:
+            import_receipts.save(
+                store, db, "run", key, command.model_dump(), row["id"], payload_hash=payload_hash
+            )
         for source, relation in sources:
             store.link(db, source, row["id"], relation)
         return row
@@ -95,9 +122,10 @@ def csv_cell(value):
 def make_table(store, title, identifiers):
     if not 1 <= len(identifiers) <= 100 or len(set(identifiers)) != len(identifiers):
         raise ValueError("Select 1–100 distinct observations.")
-    rows = [store.get(i, "observation") for i in identifiers]
+    read_set = ReadSet.capture(store, identifiers, rules={"comparison": 2, "units": "exact_si_v1"})
+    rows = [read_set.get(i, "observation") for i in identifiers]
     comparisons = [
-        {"left": identifiers[0], "right": i, **compare_observations(store, identifiers[0], i)}
+        {"left": identifiers[0], "right": i, **compare_observations(read_set, identifiers[0], i)}
         for i in identifiers[1:]
     ]
     comparable = len(rows) > 1 and all(c["status"] == "comparable" for c in comparisons)
@@ -145,13 +173,20 @@ def make_table(store, title, identifiers):
                 "type": "table",
                 "files": files,
                 "input_snapshots": rows,
+                "read_set": read_set.manifest(),
                 "comparisons": comparisons,
                 "comparable": comparable,
                 "ranking_applied": False,
             },
         )
         for identifier in identifiers:
-            store.link(db, identifier, artifact["id"], "table_input")
+            store.link(
+                db,
+                identifier,
+                artifact["id"],
+                "table_input",
+                source_revision=read_set.get(identifier)["revision"],
+            )
         return artifact
 
 
@@ -181,12 +216,14 @@ def make_figure(store, title, identifiers):
     import sys
     import tempfile
 
-    if not 2 <= len(identifiers) <= 30:
+    if not 2 <= len(identifiers) <= 30 or len(set(identifiers)) != len(identifiers):
         raise ValueError("Choose 2–30 observations for a comparison figure.")
+    read_set = ReadSet.capture(store, identifiers, rules={"comparison": 2, "units": "exact_si_v1"})
+    rows = [read_set.get(i, "observation") for i in identifiers]
     factors = [1.0]
     comparisons = []
     for identifier in identifiers[1:]:
-        comparison = compare_observations(store, identifiers[0], identifier)
+        comparison = compare_observations(read_set, identifiers[0], identifier)
         if comparison["status"] != "comparable":
             raise ValueError(
                 "Plotting comparative values requires verified matching evaluation conditions."
@@ -197,7 +234,6 @@ def make_figure(store, title, identifiers):
             )
         )
         comparisons.append(comparison)
-    rows = [store.get(i, "observation") for i in identifiers]
     with tempfile.TemporaryDirectory(prefix="deeptutor-figure-") as tmp:
         root = Path(tmp)
         (root / "inputs.json").write_text(encoded(rows))
@@ -233,11 +269,18 @@ def make_figure(store, title, identifiers):
                 "type": "figure",
                 "files": files,
                 "input_snapshots": rows,
+                "read_set": read_set.manifest(),
                 "script_version": 2,
             },
         )
         for identifier in identifiers:
-            store.link(db, identifier, record["id"], "figure_input")
+            store.link(
+                db,
+                identifier,
+                record["id"],
+                "figure_input",
+                source_revision=read_set.get(identifier)["revision"],
+            )
         return record
 
 

@@ -21,6 +21,21 @@ def capability_cookie_name(capability):
     return COOKIE + "_" + hashlib.sha256(capability.encode()).hexdigest()[:12]
 
 
+def browser_token(capability, purpose="session"):
+    return hmac.new(
+        capability.encode(), f"browser-{purpose}-v1".encode(), hashlib.sha256
+    ).hexdigest()
+
+
+def local_launch_url(url, capability):
+    return (
+        url
+        + ("&" if "?" in url else "?")
+        + "dt_bootstrap="
+        + browser_token(capability, "bootstrap")
+    )
+
+
 class LocalAccessMiddleware:
     def __init__(self, app, *, enabled, capability, origins):
         self.app = app
@@ -52,11 +67,11 @@ class LocalAccessMiddleware:
         except Exception:
             pass
         name = capability_cookie_name(self.capability or "")
-        token = headers.get(HEADER, "") or (cookie[name].value if name in cookie else "")
+        service_token = headers.get(HEADER, "")
+        token = service_token or (cookie[name].value if name in cookie else "")
+        expected = self.capability if service_token else browser_token(self.capability or "")
         authenticated = bool(
-            self.capability
-            and token
-            and hmac.compare_digest(token.encode(), self.capability.encode())
+            self.capability and token and hmac.compare_digest(token.encode(), expected.encode())
         )
         if allowed and (
             authenticated or public or (scope.get("method") == "OPTIONS" and origin in self.origins)

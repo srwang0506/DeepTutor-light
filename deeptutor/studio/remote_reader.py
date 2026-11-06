@@ -47,7 +47,20 @@ def checked(path, roots):
 
 def read_file(path):
     # O_NOFOLLOW rejects a link swapped into place after validation.
-    fd = os.open(path, os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | os.O_NONBLOCK)
+    # Pin every directory component with openat, so swapping an intermediate
+    # directory for a symlink cannot redirect this read outside the allowlist.
+    if not hasattr(os, "O_NOFOLLOW") or os.open not in os.supports_dir_fd:
+        raise ValueError("This host cannot safely pin path components.")
+    path = Path(path)
+    directory = os.open(path.anchor, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        for part in path.parts[1:-1]:
+            next_fd = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=directory)
+            os.close(directory)
+            directory = next_fd
+        fd = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=directory)
+    finally:
+        os.close(directory)
     with os.fdopen(fd, "rb") as source:
         before = os.fstat(source.fileno())
         if not stat.S_ISREG(before.st_mode) or before.st_size > MAX_FILE:

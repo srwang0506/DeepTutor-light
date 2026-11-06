@@ -12,7 +12,10 @@ from deeptutor.studio.models import EditionInput, WorkInput
 
 
 @pytest.mark.asyncio
-async def test_selection_creates_durable_versioned_quiz_and_replay_has_no_model_call(tmp_path):
+@pytest.mark.parametrize("attach_during_generation", [False, True])
+async def test_selection_creates_durable_versioned_quiz_and_replay_has_no_model_call(
+    tmp_path, attach_during_generation
+):
     store = Studio(tmp_path / "studio", "project")
     sessions = SQLiteSessionStore(db_path=tmp_path / "session.db")
     work = catalog.create_work(store, WorkInput(title="Queues"))
@@ -37,6 +40,10 @@ async def test_selection_creates_durable_versioned_quiz_and_replay_has_no_model_
 
     async def complete(*args, **kwargs):
         calls.append(True)
+        if attach_during_generation:
+            with fitz.open() as added:
+                added.new_page().insert_text((72, 72), "Another source attachment")
+                catalog.attach_pdf(store, edition["id"], added.tobytes(), "new.pdf", 2)
         return json.dumps(
             {
                 "questions": [
@@ -56,6 +63,14 @@ async def test_selection_creates_durable_versioned_quiz_and_replay_has_no_model_
     activity = store.get(receipt["operation_id"])
     assert len(activity["data"]["questions"]) == 3
     assert all(q["question_version"] for q in activity["data"]["questions"])
+    with store.db() as db:
+        assert (
+            db.execute(
+                "SELECT source_revision FROM dependencies WHERE target=?", (activity["id"],)
+            ).fetchone()[0]
+            == 2
+        )
+    assert activity["data"]["read_set"]["records"][edition["id"]]["revision"] == 2
     assert (await sessions.get_turn(activity["data"]["turn_id"]))["status"] == "completed"
     assert await actions.practice(store, sessions, request, complete) == receipt
     assert calls == [True]

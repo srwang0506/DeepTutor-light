@@ -135,11 +135,18 @@ PROFILE_EXTENSIONS = {
 
 
 def compare_protocols(a: Protocol, b: Protocol):
-    fields = set(Protocol.model_fields) - {"not_applicable", "direction", "profile", "extensions"}
+    fields = set(Protocol.model_fields) - {
+        "not_applicable",
+        "direction",
+        "profile",
+        "extensions",
+        "field_states",
+    }
     unknown = []
     differences = []
     matched = []
     conversions = []
+    conflicts = []
     essential = PROTOCOL_PROFILES[a.profile] | PROTOCOL_PROFILES[b.profile]
     if a.profile != b.profile:
         differences.append({"field": "profile", "left": a.profile, "right": b.profile})
@@ -148,8 +155,12 @@ def compare_protocols(a: Protocol, b: Protocol):
         # Scientific symbols and units are case-sensitive (mW != MW).
         if field not in {"unit", "metric", "threshold"}:
             x, y = x.casefold(), y.casefold()
-        na = field in a.not_applicable
-        nb = field in b.not_applicable
+        sa, sb = a.field_states[field], b.field_states[field]
+        if "conflict" in {sa, sb}:
+            conflicts.append(field)
+            continue
+        na = sa == "not_applicable"
+        nb = sb == "not_applicable"
         if na and nb:
             if field in essential:
                 unknown.append(field)
@@ -157,10 +168,11 @@ def compare_protocols(a: Protocol, b: Protocol):
                 matched.append(field)
             continue
         if (
-            not x
+            "unknown" in {sa, sb}
+            or not x
             or not y
-            or x in {"unknown", "n/a", "?", "未知"}
-            or y in {"unknown", "n/a", "?", "未知"}
+            or x.casefold() in {"unknown", "n/a", "?", "未知"}
+            or y.casefold() in {"unknown", "n/a", "?", "未知"}
         ):
             unknown.append(field)
         elif field == "threshold" and x != y:
@@ -221,7 +233,15 @@ def compare_protocols(a: Protocol, b: Protocol):
     elif a.direction != b.direction:
         differences.append({"field": "direction", "left": a.direction, "right": b.direction})
     return {
-        "status": "incomparable" if differences else "unknown" if unknown else "comparable",
+        "status": "conflict"
+        if conflicts
+        else "incomparable"
+        if differences
+        else "unknown"
+        if unknown
+        else "comparable",
+        "conflicts": conflicts,
+        "field_states": {"left": a.field_states, "right": b.field_states},
         "unknown": unknown,
         "differences": differences,
         "matched": matched,
@@ -236,9 +256,13 @@ def create_observation(store, command: ObservationInput, identifier=None, expect
         if command.origin == "reported" and source["kind"] != "evidence":
             raise ValueError("Reported results require a pinned original-source evidence record.")
         if command.origin == "executed" and (
-            source["kind"] != "run" or source["data"]["status"] != "succeeded"
+            source["kind"] != "run"
+            or source["data"]["status"] != "succeeded"
+            or source["data"].get("execution_verified") is not True
         ):
-            raise ValueError("Executed results require a run that actually succeeded.")
+            raise ValueError(
+                "Executed results require a successful run witnessed by the system; imported logs and author statements remain unverified."
+            )
         if command.origin == "static_check" and source["kind"] != "run":
             raise ValueError("A static check needs a run record marked static_only.")
         if command.origin == "static_check" and source["data"]["status"] != "static_only":
@@ -278,6 +302,13 @@ def compare_observations(store, left, right):
         result["status"] = "unknown"
         result["unknown"].append("source_revision")
     for row in (a, b):
+        if (
+            row["data"]["origin"] == "executed"
+            and store.get(row["data"]["source_id"], "run")["data"].get("execution_verified")
+            is not True
+        ):
+            result["status"] = "unknown"
+            result["unknown"].append("execution_witness")
         if row["data"]["origin"] == "reported":
             original = store.get(row["data"]["source_id"], "evidence")
             if original["data"]["verification"] != "confirmed" or not evidence_ready(
@@ -350,7 +381,11 @@ def validate_support(store, db, identifier, seen=None):
         source = store.record(db, data["source_id"])
         if data["origin"] == "reported":
             validate_support(store, db, source["id"], seen)
-        elif source["kind"] != "run" or source["data"]["status"] != "succeeded":
+        elif (
+            source["kind"] != "run"
+            or source["data"]["status"] != "succeeded"
+            or source["data"].get("execution_verified") is not True
+        ):
             raise ValueError("An executed result needs its successful run record.")
     elif row["kind"] == "artifact":
         inputs = data.get("input_snapshots", [])

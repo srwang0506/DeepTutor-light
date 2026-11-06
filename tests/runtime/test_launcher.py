@@ -374,7 +374,11 @@ def test_reclaim_requires_same_deployment_and_dead_launcher(tmp_path, monkeypatc
             "from multiprocessing.spawn import spawn_main",
         ]
     resolved_role = "start.frontend" if role == "start.frontend" else "start.backend"
-    monkeypatch.setattr(psutil, "Process", lambda _pid: process)
+    monkeypatch.setattr(
+        psutil,
+        "Process",
+        lambda pid: SimpleNamespace(exe=lambda: sys.executable) if pid == os.getpid() else process,
+    )
     monkeypatch.setattr(launcher, "_is_pid_alive", lambda _pid: False)
 
     def inspect():
@@ -416,7 +420,11 @@ def test_reclaim_rejects_unverified_backend_identity(tmp_path, monkeypatch, faul
         exe=lambda: "/another/python" if fault == "interpreter" else sys.executable,
         cwd=lambda: str(tmp_path / "other") if fault == "cwd" else str(tmp_path),
     )
-    monkeypatch.setattr(psutil, "Process", lambda _pid: process)
+    monkeypatch.setattr(
+        psutil,
+        "Process",
+        lambda pid: SimpleNamespace(exe=lambda: sys.executable) if pid == os.getpid() else process,
+    )
     monkeypatch.setattr(launcher, "_is_pid_alive", lambda _pid: False)
     assert (
         launcher._owned_orphan_started_at(

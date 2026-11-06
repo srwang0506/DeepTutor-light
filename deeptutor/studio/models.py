@@ -76,6 +76,9 @@ class Protocol(Command):
     direction: Literal["higher", "lower", "unknown"] = "unknown"
     not_applicable: list[str] = Field(default_factory=list, max_length=12)
     extensions: dict[str, str] = Field(default_factory=dict, max_length=30)
+    field_states: dict[str, Literal["known", "unknown", "not_applicable", "conflict"]] = Field(
+        default_factory=dict, max_length=12
+    )
 
     @model_validator(mode="after")
     def applicable_conditions(self):
@@ -86,7 +89,28 @@ class Protocol(Command):
             "not_applicable",
             "profile",
             "extensions",
+            "field_states",
         }
+        if not set(self.field_states) <= fields:
+            raise ValueError("Unsupported protocol state field.")
+        for field in fields:
+            value = getattr(self, field).strip()
+            state = self.field_states.get(field)
+            missing = not value or value.casefold() in {"unknown", "n/a", "?", "未知"}
+            if state == "known" and missing:
+                raise ValueError("A known protocol field needs a concrete value.")
+            if state == "not_applicable" and value:
+                raise ValueError("Not-applicable fields cannot contain a value.")
+            if field in self.not_applicable and state not in {None, "not_applicable"}:
+                raise ValueError("Protocol field state conflicts with not-applicable selection.")
+            self.field_states.setdefault(
+                field,
+                "not_applicable"
+                if field in self.not_applicable
+                else "unknown"
+                if missing
+                else "known",
+            )
         if (
             len(set(self.not_applicable)) != len(self.not_applicable)
             or not set(self.not_applicable) <= fields

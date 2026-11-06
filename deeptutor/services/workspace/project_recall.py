@@ -27,7 +27,7 @@ from deeptutor.services.workspace.project_policy import resolve_sources
 
 MAX_DOCUMENTS = 16000
 MAX_SESSIONS = 2000
-INDEX_VERSION = "5"
+INDEX_VERSION = "6"
 STOP = set(
     "the a an is are was were of for to in on and or with my i me please about what how this that from remember using".split()
 )
@@ -36,12 +36,17 @@ STOP = set(
 def tokens(text: str) -> list[str]:
     text = unicodedata.normalize("NFKC", text).casefold()
     result = []
-    for part in re.findall(r"[\u3400-\u9fff]+|[a-z0-9_]+", text):
+    # Encode punctuation-bearing scientific identifiers as single FTS-safe terms.
+    # A query for C++ must not match C, and F@0.01 must not match F@0.1.
+    pattern = r"[^\W_]+(?:\+{1,2}|#|@\d+(?:\.\d+)?)(?![\w.+])|[\u3400-\u9fff]+|[^\W_]+(?:_[^\W_]+)*"
+    for part in re.findall(pattern, text, re.UNICODE):
         if re.fullmatch(r"[\u3400-\u9fff]+", part):
             result.extend(part[i : i + 2] for i in range(len(part) - 1))
             if len(part) == 1:
                 result.append(part)
-        elif part not in STOP and len(part) > 1:
+        elif any(c in part for c in "+#@"):
+            result.append("sym" + part.encode().hex())
+        elif part not in STOP:
             result.append(part)
     return result
 

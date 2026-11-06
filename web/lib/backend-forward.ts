@@ -19,12 +19,16 @@ const UNTRUSTED_FORWARD_HEADERS = [
 
 export function prepareBackendForwardHeaders(
   source: Headers,
-  { allowWebSocketUpgrade = false }: { allowWebSocketUpgrade?: boolean } = {}
+  {
+    allowWebSocketUpgrade = false,
+    localCallback = false,
+  }: { allowWebSocketUpgrade?: boolean; localCallback?: boolean } = {}
 ): Headers {
   // NextRequest.nextUrl.host is the Next server's bind address in standalone
   // and source deployments. The HTTP Host header carries the requested
   // frontend host through Next's proxy, including when TLS ends upstream.
-  if (!localRequestAllowed(source)) throw new Error('Untrusted local request origin')
+  if (!localRequestAllowed(source, !localCallback))
+    throw new Error('Untrusted local request origin')
   const frontendHost = source.get('host')
   const headers = new Headers(source)
   const connectionTokens = (headers.get('connection') || '')

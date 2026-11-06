@@ -7,6 +7,7 @@ import time
 from . import catalog
 from .contracts import ActionReceipt, ActionRequest, ObjectRef
 from .database import Conflict, encoded, sha
+from .read_set import ReadSet
 
 
 def resolve(store, ref):
@@ -36,7 +37,16 @@ def receipt(row):
 
 
 async def practice(store, sessions, request: ActionRequest, complete):
-    source = resolve(store, request.target)
+    read_set = ReadSet.capture(
+        store,
+        [request.target.id],
+        revisions={request.target.id: request.target.revision},
+        locators={request.target.id: request.target.locator.model_dump()},
+        rules={"practice": 2},
+    )
+    source = read_set.get(request.target.id)
+    if source["kind"] != request.target.kind or source["scope"] != request.target.scope:
+        raise ValueError("Object identity or scope does not match this source.")
     if source["kind"] != "edition":
         raise ValueError("Choose an original edition for source-grounded practice.")
     if set(request.permissions) != {"read_source", "create_practice"}:
@@ -75,6 +85,7 @@ async def practice(store, sessions, request: ActionRequest, complete):
         data = {
             "title": f"原文理解练习 · 第 {loc.page} 页",
             "source": request.target.model_dump(),
+            "read_set": read_set.manifest(),
             "request": payload,
             "request_hash": digest,
             "idempotency_key": request.idempotency_key,
@@ -133,7 +144,16 @@ async def practice(store, sessions, request: ActionRequest, complete):
                         "explanation": "材料依据：" + question.evidence,
                         "metadata": {
                             "source_scope": {"studio_object": request.target.model_dump()},
-                            "question_family": sha(quote.encode()),
+                            "question_family": sha(
+                                encoded(
+                                    {
+                                        "prompt": question.prompt,
+                                        "answer": question.choices[question.correct_choice_index],
+                                    }
+                                ).encode()
+                            ),
+                            "question_family_schema": 2,
+                            "source_group": sha(quote.encode()),
                             "objective_id": "source:" + source["id"],
                             "answer_origin": "source_grounded_model",
                         },
@@ -173,7 +193,9 @@ async def practice(store, sessions, request: ActionRequest, complete):
                 identifier=row["id"],
                 expected=row["revision"],
             )
-            store.link(db, source["id"], row["id"], "practice_source")
+            store.link(
+                db, source["id"], row["id"], "practice_source", source_revision=source["revision"]
+            )
         return receipt(row)
     except Exception as exc:
         with store.db(write=True) as db:

@@ -60,9 +60,15 @@ async def exposure(payload: ExposureInput):
             payload.question_id,
             payload.question_version,
         )
-        return await store.record_quiz_exposure(
+        result = await store.record_quiz_exposure(
             payload.session_id, contract, payload.level, payload.event_id
         )
+        if payload.level == "revealed":
+            result.update(
+                correct_answer=contract["correct_answer"],
+                explanation=contract.get("explanation", ""),
+            )
+        return result
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from exc
 
@@ -70,8 +76,12 @@ async def exposure(payload: ExposureInput):
 @router.get("/{session_id}/{turn_id}/{question_id}")
 async def read_question(session_id: str, turn_id: str, question_id: str, version: str = ""):
     try:
-        return await question_contract(
-            get_sqlite_session_store(), session_id, turn_id, question_id, version
+        from deeptutor.learning.quiz_views import learning_question
+
+        return learning_question(
+            await question_contract(
+                get_sqlite_session_store(), session_id, turn_id, question_id, version
+            )
         )
     except ValueError as exc:
         raise HTTPException(409, str(exc)) from exc

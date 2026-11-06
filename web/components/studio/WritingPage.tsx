@@ -102,6 +102,14 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     [packing, setPacking] = useState(false),
     [packageKind, setPackageKind] = useState('submission'),
     [allowlist, setAllowlist] = useState<string[]>([]),
+    [packagePlan, setPackagePlan] = useState<{
+      build_id: string
+      files: string[]
+      required: string[]
+      reasons: Record<string, string[]>
+      unresolved: { path: string; command: string; expression: string }[]
+    } | null>(null),
+    [dynamicConfirmed, setDynamicConfirmed] = useState(false),
     [newFile, setNewFile] = useState(false),
     [newPath, setNewPath] = useState(''),
     [conflict, setConflict] = useState<OpenFile | null>(null)
@@ -113,7 +121,10 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     previewUrl = useRef('')
   const latest = builds.find(b => b.data.manuscript_id === active?.id),
     successful = builds.find(
-      b => b.data.manuscript_id === active?.id && b.data.status === 'succeeded'
+      b =>
+        b.data.manuscript_id === active?.id &&
+        b.data.status === 'succeeded' &&
+        b.data.purpose !== 'submission_validation'
     )
   const previewStale =
     !!successful &&
@@ -515,11 +526,12 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     await reload()
   }
   async function pack() {
-    if (!active || !successful) return
+    if (!active || !packagePlan) return
     await post(workspace, `/manuscripts/${active.id}/submissions`, {
       paths: allowlist,
       kind: packageKind,
-      build_id: successful.id,
+      build_id: packagePlan.build_id,
+      confirm_dynamic: dynamicConfirmed,
     })
     setPacking(false)
     await reload()
@@ -731,10 +743,19 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
             <Action
               secondary
               disabled={!successful || op.busy}
-              onClick={() => {
-                setAllowlist(Object.keys(successful!.data.input_files))
-                setPacking(true)
-              }}
+              onClick={() =>
+                op.run(async () => {
+                  const plan = await studio<NonNullable<typeof packagePlan>>(
+                    workspace,
+                    `/manuscripts/${active.id}/submission-plan?build_id=${successful!.id}`
+                  )
+                  setPackagePlan(plan)
+                  setPackageKind('submission')
+                  setAllowlist(plan.required)
+                  setDynamicConfirmed(false)
+                  setPacking(true)
+                })
+              }
             >
               <Download size={13} />
               投稿快照
@@ -1091,31 +1112,80 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
         size="md"
         className="studio-dialog"
         footer={
-          <Action onClick={() => op.run(pack)} disabled={op.busy || !allowlist.length}>
+          <Action
+            onClick={() => op.run(pack)}
+            disabled={
+              op.busy ||
+              !allowlist.length ||
+              (packageKind === 'submission' &&
+                !!packagePlan?.unresolved.length &&
+                !dynamicConfirmed)
+            }
+          >
             冻结此版本
           </Action>
         }
       >
         <ErrorNotice message={op.error} />
         <Field label="用途">
-          <select value={packageKind} onChange={e => setPackageKind(e.target.value)}>
+          <select
+            value={packageKind}
+            onChange={e => {
+              setPackageKind(e.target.value)
+              setAllowlist(
+                e.target.value === 'archive'
+                  ? packagePlan?.files || []
+                  : packagePlan?.required || []
+              )
+              setDynamicConfirmed(false)
+            }}
+          >
             <option value="submission">对外投稿 · 干净编译验证</option>
             <option value="archive">内部研究归档</option>
           </select>
         </Field>
-        {successful &&
-          Object.keys(successful.data.input_files).map(path => (
-            <label className="studio-check" key={path}>
+        {packagePlan?.files.map(path => (
+          <label className="studio-check" key={path}>
+            <input
+              type="checkbox"
+              checked={allowlist.includes(path)}
+              disabled={packageKind === 'submission' && packagePlan.required.includes(path)}
+              onChange={e =>
+                setAllowlist(a => (e.target.checked ? [...a, path] : a.filter(p => p !== path)))
+              }
+            />
+            <span>
+              {path}
+              <small className="studio-note">
+                {' '}
+                ·{' '}
+                {packageKind === 'archive'
+                  ? '内部归档'
+                  : packagePlan.reasons[path]?.join('；') || '可选附件 · 默认不导出'}
+              </small>
+            </span>
+          </label>
+        ))}
+        {packageKind === 'submission' && !!packagePlan?.unresolved.length && (
+          <div>
+            <p className="studio-note">
+              以下依赖由动态宏决定，请核对所需附件。选择完成后仍须通过干净编译。
+            </p>
+            {packagePlan.unresolved.map((item, index) => (
+              <p key={index} className="studio-note">
+                {item.path} · {item.command}: {item.expression}
+              </p>
+            ))}
+            <label className="studio-check">
               <input
                 type="checkbox"
-                checked={allowlist.includes(path)}
-                onChange={e =>
-                  setAllowlist(a => (e.target.checked ? [...a, path] : a.filter(p => p !== path)))
-                }
+                checked={dynamicConfirmed}
+                onChange={e => setDynamicConfirmed(e.target.checked)}
               />
-              {path}
+              我已核对动态依赖和对外导出的附件
             </label>
-          ))}
+          </div>
+        )}
         <p className="studio-note">
           这里导出的是成功构建时的源文件。未重新编译的修改不会混入这份投稿快照。
         </p>

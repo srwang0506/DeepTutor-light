@@ -11323,6 +11323,23 @@ export interface paths {
     readonly patch?: never;
     readonly trace?: never;
   };
+  readonly "/api/studio/manuscripts/{identifier}/submission-plan": {
+    readonly parameters: {
+      readonly query?: never;
+      readonly header?: never;
+      readonly path?: never;
+      readonly cookie?: never;
+    };
+    /** Submission Plan */
+    readonly get: operations["submission_plan_api_studio_manuscripts__identifier__submission_plan_get"];
+    readonly put?: never;
+    readonly post?: never;
+    readonly delete?: never;
+    readonly options?: never;
+    readonly head?: never;
+    readonly patch?: never;
+    readonly trace?: never;
+  };
   readonly "/api/studio/manuscripts/{identifier}/submissions": {
     readonly parameters: {
       readonly query?: never;
@@ -18131,6 +18148,11 @@ export interface components {
       readonly extensions?: {
         readonly [key: string]: string;
       };
+      /** Field States */
+      readonly field_states?: {
+        readonly [key: string]:
+          "known" | "unknown" | "not_applicable" | "conflict";
+      };
       /**
        * Input
        * @default
@@ -18399,7 +18421,16 @@ export interface components {
       readonly error?: string | null;
       /** Evidence Kind */
       readonly evidence_kind?:
-        ("independent" | "assisted" | "correction") | null;
+        | (
+            | "independent"
+            | "assisted"
+            | "correction"
+            | "delayed_transfer"
+            | "unknown"
+          )
+        | null;
+      /** Exposure Tracking */
+      readonly exposure_tracking?: number | null;
       /** Feedback */
       readonly feedback?: string | null;
       /**
@@ -19637,6 +19668,11 @@ export interface components {
     readonly SubmissionInput: {
       /** Build Id */
       readonly build_id: string;
+      /**
+       * Confirm Dynamic
+       * @default false
+       */
+      readonly confirm_dynamic: boolean;
       /**
        * Kind
        * @default submission
@@ -47422,6 +47458,43 @@ export interface operations {
         readonly "application/json": components["schemas"]["RecoveryResolution"];
       };
     };
+    readonly responses: {
+      /** @description Successful Response */
+      readonly 200: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      readonly 422: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  readonly submission_plan_api_studio_manuscripts__identifier__submission_plan_get: {
+    readonly parameters: {
+      readonly query: {
+        readonly build_id: string;
+      };
+      readonly header?: {
+        readonly Authorization?: string | null;
+      };
+      readonly path: {
+        readonly identifier: string;
+      };
+      readonly cookie?: {
+        readonly dt_token?: string | null;
+      };
+    };
+    readonly requestBody?: never;
     readonly responses: {
       /** @description Successful Response */
       readonly 200: {

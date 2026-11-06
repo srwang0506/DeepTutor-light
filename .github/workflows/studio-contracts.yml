@@ -9,6 +9,7 @@ on:
       - 'deeptutor/studio/**'
       - 'deeptutor/services/session/**'
       - 'deeptutor/learning/quiz.py'
+      - 'deeptutor/learning/quiz_views.py'
       - 'deeptutor/api/**'
       - 'deeptutor/runtime/**'
       - 'web/**'
@@ -54,7 +55,9 @@ jobs:
       - name: Verify domain regressions and legacy session migration
         run: >-
           python -m pytest -q tests/studio tests/learning/test_study_quiz.py
+          tests/learning/test_study_operations.py
           tests/services/session/test_sqlite_store.py
+          tests/runtime/test_launcher.py tests/runtime/test_launcher_lifecycle.py
           --junitxml=studio-domain-results.xml
       - name: Verify client contracts and editing state
         working-directory: web

@@ -1,4 +1,6 @@
 import asyncio
+import json
+import time
 
 from pydantic import ValidationError
 import pytest
@@ -48,6 +50,144 @@ async def test_duplicate_submissions_commit_one_attempt(quiz):
     with pytest.raises(ValueError, match="different answer"):
         await submit_quiz(store, request.model_copy(update={"answer": "B"}))
     assert await store.quiz_submission(request.attempt_id, "other") is None
+
+
+@pytest.mark.asyncio
+async def test_wrong_feedback_is_disclosure_but_does_not_reclassify_first_attempt(quiz):
+    store, request = quiz
+    first = await submit_quiz(store, request.model_copy(update={"answer": "B"}))
+    assert first["result"] == "incorrect" and first["independent"] is True
+    second = await submit_quiz(
+        store, request.model_copy(update={"attempt_id": "corrected-attempt-1234567"})
+    )
+    assert second["result"] == "correct" and second["evidence_kind"] == "correction"
+    assert (await store.quiz_submission(request.attempt_id, "s"))["independent"] is True
+    with store._connect() as conn:
+        assert (
+            conn.execute(
+                "SELECT COUNT(*) FROM quiz_exposures WHERE id LIKE 'feedback:%'"
+            ).fetchone()[0]
+            == 2
+        )
+
+
+@pytest.mark.asyncio
+async def test_different_question_same_paragraph_does_not_inherit_exposure(quiz):
+    store, request = quiz
+    q = await question_contract(store, "s", "t", "q")
+    await store.record_quiz_exposure("s", q, "revealed", "first-question-reveal")
+    other = await store.register_quiz_question(
+        "s",
+        "t",
+        {
+            **q,
+            "question_id": "stack",
+            "question": "Which ordering does a stack use?",
+            "metadata": {"question_family": "stack-lifo", "source_group": "shared-paragraph"},
+        },
+    )
+    receipt = await submit_quiz(
+        store,
+        request.model_copy(
+            update={"question_id": "stack", "question_version": other["question_version"]}
+        ),
+    )
+    assert receipt["result"] == "correct" and receipt["evidence_kind"] == "independent"
+
+
+@pytest.mark.asyncio
+async def test_question_read_and_activity_details_never_return_reference(quiz, monkeypatch):
+    from deeptutor.api.routers import quiz as router
+    from deeptutor.learning.quiz_views import learning_activity
+
+    store, _ = quiz
+    monkeypatch.setattr(router, "get_sqlite_session_store", lambda: store)
+    visible = await router.read_question("s", "t", "q")
+    assert "correct_answer" not in visible and "explanation" not in visible
+    original = await question_contract(store, "s", "t", "q")
+    activity = learning_activity(
+        {"kind": "activity", "data": {"questions": [original], "read_set": {"secret": "answer"}}}
+    )
+    assert "correct_answer" not in json.dumps(activity) and "read_set" not in activity["data"]
+    disclosed = await router.exposure(
+        router.ExposureInput(
+            session_id="s",
+            turn_id="t",
+            question_id="q",
+            level="revealed",
+            event_id="intentional-reveal-123456",
+        )
+    )
+    assert disclosed["correct_answer"] == "A"
+    with store._connect() as conn:
+        assert conn.execute("SELECT COUNT(*) FROM quiz_exposures").fetchone()[0] == 1
+
+
+@pytest.mark.asyncio
+async def test_completion_tracks_answers_not_generation_turn(quiz):
+    store, request = quiz
+    await store.update_turn_status("t", "completed")
+    assert (await store.quiz_progress("s", "t")) == {"total": 1, "answered": 0, "complete": False}
+    await submit_quiz(store, request)
+    assert (await store.quiz_progress("s", "t")) == {"total": 1, "answered": 1, "complete": True}
+
+
+@pytest.mark.asyncio
+async def test_legacy_receipt_preserves_grade_without_inventing_independence(quiz):
+    store, request = quiz
+    await submit_quiz(store, request)
+    with store._connect() as conn:
+        row = conn.execute("SELECT receipt_json FROM quiz_submissions").fetchone()
+        receipt = json.loads(row[0])
+        receipt.pop("exposure_tracking")
+        conn.execute("UPDATE quiz_submissions SET receipt_json=?", (json.dumps(receipt),))
+    receipt = await store.quiz_submission(request.attempt_id, "s")
+    assert receipt["result"] == "correct"
+    assert receipt["evidence_kind"] == "unknown" and not receipt["independent"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "elapsed,reviewed,expected",
+    [(86401, True, "delayed_transfer"), (3600, True, "independent"), (86401, False, "independent")],
+)
+async def test_transfer_requires_distinct_family_delay_and_reviewed_objective(
+    quiz, elapsed, reviewed, expected
+):
+    store, request = quiz
+    q = await question_contract(store, "s", "t", "q")
+    previous = await store.register_quiz_question(
+        "s",
+        "t",
+        {
+            **q,
+            "question_id": "previous",
+            "metadata": {"question_family": "previous-example", "objective_id": "queue-order"},
+        },
+    )
+    await store.record_quiz_exposure("s", previous, "revealed", "previous-example-reveal")
+    with store._connect() as conn:
+        conn.execute("UPDATE quiz_exposures SET occurred=?", (time.time() - elapsed,))
+    transfer = await store.register_quiz_question(
+        "s",
+        "t",
+        {
+            **q,
+            "question_id": "transfer",
+            "metadata": {
+                "question_family": "unseen-example",
+                "objective_id": "queue-order",
+                "transfer_objective_verified": reviewed,
+            },
+        },
+    )
+    receipt = await submit_quiz(
+        store,
+        request.model_copy(
+            update={"question_id": "transfer", "question_version": transfer["question_version"]}
+        ),
+    )
+    assert receipt["evidence_kind"] == expected
 
 
 @pytest.mark.asyncio

@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 import subprocess
 
 import bibtexparser
@@ -361,7 +362,7 @@ def test_ten_thousand_work_library_can_find_old_editions_without_truncation(stor
                 )
             ]
         )
-        assert "SEARCH e USING INDEX editions_by_work (<expr>=?)" in plan
+        assert re.search(r"SEARCH e USING INDEX editions_by_work .*<expr>=\?", plan)
     assert catalog.library_page(store, "∞")["works"][0]["id"] == "work-0"
     assert (
         catalog.library_page(store, "10.1234/paper-0")["works"][0]["editions"][0]["id"]

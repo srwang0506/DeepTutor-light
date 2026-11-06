@@ -183,7 +183,9 @@ async def records(
 async def record(identifier: str, revision: int | None = Query(None, ge=1)):
     store = Studio()
     row = await operation(store.revision, identifier, revision)
-    return {**row, "stale": await operation(store.stale, identifier)}
+    from deeptutor.learning.quiz_views import learning_activity
+
+    return {**learning_activity(row), "stale": await operation(store.stale, identifier)}
 
 
 @router.get("/record/{identifier}/impact")
@@ -409,16 +411,28 @@ async def build_file(
     )
 
 
+@router.get("/manuscripts/{identifier}/submission-plan")
+async def submission_plan(identifier: str, build_id: str):
+    return await operation(manuscripts.submission_plan, Studio(), identifier, build_id)
+
+
 class SubmissionInput(Command):
     kind: Literal["submission", "archive"] = "submission"
     paths: list[str] = Field(min_length=1, max_length=2000)
     build_id: str
+    confirm_dynamic: bool = False
 
 
 @router.post("/manuscripts/{identifier}/submissions")
 async def submit(identifier: str, payload: SubmissionInput):
     return await operation(
-        manuscripts.submission, Studio(), identifier, payload.paths, payload.build_id, payload.kind
+        manuscripts.submission,
+        Studio(),
+        identifier,
+        payload.paths,
+        payload.build_id,
+        payload.kind,
+        payload.confirm_dynamic,
     )
 
 
@@ -747,9 +761,15 @@ async def work_detail(identifier: str):
 
 @router.get("/continuations")
 async def continuations():
+    from deeptutor.services.session import get_sqlite_session_store
     from deeptutor.studio.resume import pending
 
-    return {"items": await operation(pending, Studio())}
+    items = await operation(pending, Studio())
+    sessions = get_sqlite_session_store()
+    for item in items:
+        if item["kind"] == "activity":
+            item["progress"] = await sessions.quiz_progress(item["session_id"], item["turn_id"])
+    return {"items": [i for i in items if i.get("progress", {}).get("complete") is not True][:8]}
 
 
 from deeptutor.studio.contracts import ObjectRef

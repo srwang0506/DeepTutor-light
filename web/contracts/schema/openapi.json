@@ -11010,6 +11010,20 @@
             "title": "Extensions",
             "type": "object"
           },
+          "field_states": {
+            "additionalProperties": {
+              "enum": [
+                "known",
+                "unknown",
+                "not_applicable",
+                "conflict"
+              ],
+              "type": "string"
+            },
+            "maxProperties": 12,
+            "title": "Field States",
+            "type": "object"
+          },
           "input": {
             "default": "",
             "maxLength": 500,
@@ -11489,7 +11503,9 @@
                 "enum": [
                   "independent",
                   "assisted",
-                  "correction"
+                  "correction",
+                  "delayed_transfer",
+                  "unknown"
                 ],
                 "type": "string"
               },
@@ -11498,6 +11514,17 @@
               }
             ],
             "title": "Evidence Kind"
+          },
+          "exposure_tracking": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exposure Tracking"
           },
           "feedback": {
             "anyOf": [
@@ -14295,6 +14322,11 @@
           "build_id": {
             "title": "Build Id",
             "type": "string"
+          },
+          "confirm_dynamic": {
+            "default": false,
+            "title": "Confirm Dynamic",
+            "type": "boolean"
           },
           "kind": {
             "default": "submission",
@@ -71188,6 +71220,87 @@
           }
         },
         "summary": "Resolve Manuscript Recovery",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/manuscripts/{identifier}/submission-plan": {
+      "get": {
+        "operationId": "submission_plan_api_studio_manuscripts__identifier__submission_plan_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "identifier",
+            "required": true,
+            "schema": {
+              "title": "Identifier",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "build_id",
+            "required": true,
+            "schema": {
+              "title": "Build Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submission Plan",
         "tags": [
           "studio"
         ]

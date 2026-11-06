@@ -6,7 +6,8 @@ import re
 import time
 from urllib.parse import unquote, urlsplit
 
-from .database import Conflict, Studio
+from . import bibliographic_merge, import_receipts
+from .database import Conflict, Studio, encoded, sha
 from .models import EditionInput, WorkInput
 
 
@@ -117,8 +118,11 @@ def page_source(store, edition_id, digest, page, region=None):
             x0, y0, x1, y1 = region
             if not 0 <= x0 < x1 <= 1 or not 0 <= y0 < y1 <= 1:
                 raise ValueError("Invalid page region")
-            clip = fitz.Rect(
-                x0 * p.rect.width, y0 * p.rect.height, x1 * p.rect.width, y1 * p.rect.height
+            clip = (
+                fitz.Rect(
+                    x0 * p.rect.width, y0 * p.rect.height, x1 * p.rect.width, y1 * p.rect.height
+                )
+                * p.derotation_matrix
             )
         return {
             "text": p.get_text(clip=clip)[:100000],
@@ -327,7 +331,21 @@ def import_bibliography(store, text, format):
                 "https",
             }:
                 raise ValueError("Source URLs must use HTTP or HTTPS.")
+            arrival = {"format": format, "record": item["original"]}
+            arrival_key = sha(encoded(arrival).encode())
             with store.db(write=True) as db:
+                received = import_receipts.lookup(
+                    store, db, "bibliography", arrival_key, arrival_key
+                )
+                if received:
+                    db.execute(
+                        "INSERT OR IGNORE INTO project_library VALUES (?,?,?,?)",
+                        (store.project, received["id"], "reading", time.time()),
+                    )
+                    results.append(
+                        {"index": index, "status": "existing", "edition_id": received["id"]}
+                    )
+                    continue
                 known = db.execute(
                     "SELECT edition_id FROM identifiers WHERE (scheme='doi' AND value=? AND value!='') OR (scheme='arxiv' AND value=? AND value!='')",
                     (doi, arxiv),
@@ -337,12 +355,50 @@ def import_bibliography(store, text, format):
                     raise Conflict("Identifiers refer to different editions. Resolve manually.")
                 if identities:
                     edition = store.record(db, next(iter(identities)), "edition")
+                    enriched = bibliographic_merge.merge(
+                        edition["data"], arrival, item.get("citekey", "")
+                    )
+                    for key in ("doi", "arxiv", "citekey", "venue", "url"):
+                        if not enriched.get(key):
+                            enriched[key] = getattr(edition_command, key)
+                    work = store.record(db, enriched["work_id"], "work")
+                    work_data = dict(work["data"])
+                    for key, value in command.model_dump().items():
+                        if not work_data.get(key) and value:
+                            work_data[key] = value
+                    if work_data != work["data"]:
+                        store.put(
+                            db, "work", work_data, identifier=work["id"], expected=work["revision"]
+                        )
+                    edition = store.put(
+                        db,
+                        "edition",
+                        enriched,
+                        identifier=edition["id"],
+                        expected=edition["revision"],
+                    )
+                    for scheme in ("doi", "arxiv"):
+                        if enriched.get(scheme):
+                            db.execute(
+                                "INSERT OR IGNORE INTO identifiers VALUES (?,?,?)",
+                                (scheme, enriched[scheme], edition["id"]),
+                            )
+                    store.link(db, enriched["work_id"], edition["id"], "edition_of")
+                    import_receipts.save(
+                        store, db, "bibliography", arrival_key, arrival, edition["id"]
+                    )
                     db.execute(
                         "INSERT OR IGNORE INTO project_library VALUES (?,?,?,?)",
                         (store.project, edition["id"], "reading", time.time()),
                     )
                     results.append(
-                        {"index": index, "status": "existing", "edition_id": edition["id"]}
+                        {
+                            "index": index,
+                            "status": "existing",
+                            "edition_id": edition["id"],
+                            "enriched": True,
+                            "conflicts": len(enriched["bibliographic_conflicts"]),
+                        }
                     )
                     continue
                 work = store.put(db, "work", command.model_dump())
@@ -355,6 +411,7 @@ def import_bibliography(store, text, format):
                         "bibliographic_source": {"format": format, "record": item["original"]},
                     },
                 )
+                import_receipts.save(store, db, "bibliography", arrival_key, arrival, edition["id"])
                 db.execute(
                     "INSERT INTO project_library VALUES (?,?,?,?)",
                     (store.project, edition["id"], "reading", time.time()),
@@ -366,6 +423,10 @@ def import_bibliography(store, text, format):
 
 
 def bibliography(store, edition_ids, keys=None):
+    from .read_set import ReadSet
+
+    if not isinstance(store, ReadSet):
+        store = ReadSet.capture(store, edition_ids, rules={"bibliography": 2})
     import bibtexparser
     from bibtexparser.bibdatabase import BibDatabase
 
@@ -424,6 +485,12 @@ def bibliography(store, edition_ids, keys=None):
                     entry[dest] = str(value[0] if isinstance(value, list) else value)
             if raw.get("EP") and entry.get("pages"):
                 entry["pages"] += "--" + raw["EP"][0]
+        if edition.get("bibliographic_merged"):
+            entry.update(edition["bibliographic_merged"])
+            entry["ID"] = key
+            entry["title"] = work["title"]
+            if work["authors"]:
+                entry["author"] = " and ".join(work["authors"])
         entries.append(entry)
     database = BibDatabase()
     database.entries = entries
@@ -441,6 +508,9 @@ def work_details(store, identifier):
 
 
 def bibliography_export(store, edition_ids, format="bibtex", keys=None):
+    from .read_set import ReadSet
+
+    store = ReadSet.capture(store, edition_ids, rules={"bibliography": 2})
     if format not in {"bibtex", "ris", "csl"}:
         raise ValueError("Choose BibTeX, RIS or CSL JSON.")
     losses, originals = [], []

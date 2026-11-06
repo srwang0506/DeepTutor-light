@@ -5,6 +5,7 @@ import re
 from . import catalog, manuscripts
 from .database import Conflict, sha
 from .models import FileEdit
+from .read_set import ReadSet
 
 
 def citations(store, identifier, query=""):
@@ -35,7 +36,8 @@ def add_citation(store, identifier, edition_id, key):
             raise Conflict(
                 "This citation key already exists in the manuscript. Select it or choose another key."
             )
-        generated = catalog.bibliography(store, [edition_id], {edition_id: key})
+        read_set = ReadSet.capture(store, [edition_id], rules={"bibliography": 2})
+        generated = catalog.bibliography(read_set, [edition_id], {edition_id: key})
         path = "studio-references.bib"
         target = manuscripts.project_file(store, identifier, path)
         current = (
@@ -59,9 +61,16 @@ def add_citation(store, identifier, edition_id, key):
                     "path": path,
                     "file_hash": result["hash"],
                     "bibliography": generated,
+                    "read_set": read_set.manifest(),
                 },
             )
-            store.link(db, edition_id, row["id"], "bibliography_source")
+            store.link(
+                db,
+                edition_id,
+                row["id"],
+                "bibliography_source",
+                source_revision=read_set.get(edition_id)["revision"],
+            )
             store.link(db, row["id"], identifier, "manuscript_bibliography")
         return {
             "citation": row,

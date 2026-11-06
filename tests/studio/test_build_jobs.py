@@ -47,7 +47,7 @@ def test_queue_deduplicates_and_cancellation_stops_worker(store, monkeypatch):
                 expected=current["revision"],
             )
 
-    monkeypatch.setattr(manuscripts, "execute_build", execute)
+    monkeypatch.setattr(manuscripts, "_execute_build", execute)
     mid = manuscript(store)
     try:
         first = builds.enqueue(store, mid)

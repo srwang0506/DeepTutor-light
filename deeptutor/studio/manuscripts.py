@@ -215,7 +215,7 @@ def resolve_recovery(store, identifier, journal_name, disk_hash, choice):
         raw = read_bounded(journal, 2_000_000)
         journal_hash = store.save_blob(raw) if raw else sha(b"")
         with store.db(write=True) as db:
-            store.put(
+            recovery = store.put(
                 db,
                 "recovery",
                 {
@@ -228,6 +228,11 @@ def resolve_recovery(store, identifier, journal_name, disk_hash, choice):
                     "resolved": time.time(),
                 },
             )
+            prepared = {} if conflict.get("invalid") else json.loads(raw)
+            if selected == prepared.get("after") and prepared.get("proposal"):
+                _finalize_proposal(
+                    store, db, identifier, prepared["proposal"], selected, recovery["id"]
+                )
         journal.unlink()
         return {"resolved": True, "choice": choice, "hash": selected}
 
@@ -403,15 +408,19 @@ def factual_changes(before, after):
     ]
 
 
-def propose(store, identifier, command: ProposalInput):
+def propose(store, identifier, command: ProposalInput, *, read_set=None):
     current = read_file(store, identifier, command.path)
     if current["hash"] != command.base_hash:
         raise Conflict("Reload this file before proposing a change.")
     if not 0 <= command.start <= command.end <= len(current["text"]):
         raise ValueError("Selection is outside the file.")
     before = current["text"][command.start : command.end]
+    from .read_set import ReadSet
+
+    read_set = read_set or ReadSet.capture(store, command.source_ids, rules={"writing_context": 1})
     payload = {
         **command.model_dump(),
+        "read_set": read_set.manifest(),
         "manuscript_id": identifier,
         "before": before,
         "status": "pending",
@@ -437,7 +446,13 @@ def propose(store, identifier, command: ProposalInput):
                 )
         row = store.put(db, "proposal", payload)
         for source in command.source_ids:
-            store.link(db, source, row["id"], "evidence_for_edit")
+            store.link(
+                db,
+                source,
+                row["id"],
+                "evidence_for_edit",
+                source_revision=read_set.get(source)["revision"],
+            )
         return row
 
 
@@ -472,7 +487,13 @@ def _finalize_proposal(store, db, manuscript, operation, applied_hash, change_id
         expected=proposal["revision"],
     )
     for source in data["source_ids"]:
-        store.link(db, source, manuscript, "manuscript_evidence")
+        consumed = db.execute(
+            "SELECT source_revision FROM dependencies WHERE source=? AND target=? AND relation='evidence_for_edit'",
+            (source, proposal["id"]),
+        ).fetchone()
+        if consumed is None:
+            raise Conflict("The proposal's original evidence revision is unavailable.")
+        store.link(db, source, manuscript, "manuscript_evidence", source_revision=consumed[0])
     return row
 
 
@@ -594,6 +615,50 @@ def compile_project(store, identifier):
 
 
 def execute_build(store, build, cancelled=None):
+    from filelock import Timeout
+
+    from .builds import lease
+
+    try:
+        with lease(store, build["id"]):
+            with store.db(write=True) as db:
+                current = store.record(db, build["id"], "build")
+                if current["data"]["status"] != "queued":
+                    return current
+                build = store.put(
+                    db,
+                    "build",
+                    {**current["data"], "status": "running", "worker_started": time.time()},
+                    identifier=build["id"],
+                    expected=current["revision"],
+                )
+            try:
+                return _execute_build(store, build, cancelled)
+            except Exception as exc:
+                # Keep completion/failure under the same OS lease, including unexpected
+                # errors. A stale worker must never overwrite another owner's result.
+                digest = store.save_blob(
+                    f"Build worker failed: {type(exc).__name__}: {exc}".encode()
+                )
+                with store.db(write=True) as db:
+                    current = store.record(db, build["id"], "build")
+                    return store.put(
+                        db,
+                        "build",
+                        {
+                            **current["data"],
+                            "status": "failed",
+                            "finished": time.time(),
+                            "outputs": {"build.log": digest},
+                        },
+                        identifier=build["id"],
+                        expected=current["revision"],
+                    )
+    except Timeout:
+        return store.get(build["id"], "build")
+
+
+def _execute_build(store, build, cancelled=None):
     from .connections import ProcessCancelled
 
     snapshots = build["data"]["input_files"]
@@ -612,11 +677,9 @@ def execute_build(store, build, cancelled=None):
                 target = root / path
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes(blob_bytes(store, digest))
-            resolved_compiler = Path(compiler).resolve()
-            tex_root = next(
-                (p.parent for p in resolved_compiler.parents if p.name == "texmf-dist"),
-                resolved_compiler.parents[2],
-            )
+            from .tex_sandbox import distribution_roots
+
+            tex_root = distribution_roots(compiler)
             engine = {"pdflatex": "-pdf", "xelatex": "-xelatex", "lualatex": "-lualatex"}[
                 build["data"]["engine"]
             ]
@@ -693,11 +756,12 @@ def execute_build(store, build, cancelled=None):
         )
 
 
-def dependency_closure(store, snapshots, main_file):
+def dependency_manifest(store, snapshots, main_file):
     """Resolve literal TeX dependencies from frozen bytes; clean compilation checks dynamic ones."""
     if main_file not in snapshots:
         raise ValueError("The build has no main TeX source.")
     required, pending = set(), [main_file]
+    reasons, unresolved = {main_file: ["Main TeX source"]}, []
     extensions = {
         "input": ["", ".tex"],
         "include": ["", ".tex"],
@@ -728,23 +792,47 @@ def dependency_closure(store, snapshots, main_file):
             for name in names.split(","):
                 name = name.strip()
                 if "\\" in name or "#" in name:
-                    continue  # Dynamic macros require explicitly selected assets plus clean build.
-                candidates = [
-                    str(relative_path(str(Path(root) / (name + ext))))
-                    for root in roots
-                    for ext in extensions[command]
-                ]
+                    unresolved.append({"path": path, "command": command, "expression": name})
+                    continue
+                candidates = []
+                for root in roots:
+                    for ext in extensions[command]:
+                        candidate = str(Path(root) / (name + ext))
+                        # A suffixless candidate is legitimate TeX syntax, not a file
+                        # to reject before trying .tex/.bib or graphic extensions.
+                        if Path(candidate).suffix.lower() not in SOURCE_EXTENSIONS:
+                            continue
+                        candidates.append(str(relative_path(candidate)))
                 found = next(
                     (candidate for candidate in candidates if candidate in snapshots), None
                 )
                 if found:
                     pending.append(found)
+                    reasons.setdefault(found, []).append(f"{path}: \\{command}{{{name}}}")
                 elif command not in {"usepackage", "documentclass", "bibliographystyle"}:
                     raise ValueError(f"Missing source dependency: {name}")
-    return required
+    return {"required": sorted(required), "reasons": reasons, "unresolved": unresolved}
 
 
-def submission(store, identifier, paths, build_id, kind="submission"):
+def dependency_closure(store, snapshots, main_file):
+    return set(dependency_manifest(store, snapshots, main_file)["required"])
+
+
+def submission_plan(store, identifier, build_id):
+    build = store.get(build_id, "build")
+    if build["data"]["manuscript_id"] != identifier or build["data"]["status"] != "succeeded":
+        raise ValueError("Choose a successful build of this manuscript.")
+    main = (
+        build["data"].get("main_file") or store.get(identifier, "manuscript")["data"]["main_file"]
+    )
+    return {
+        "build_id": build_id,
+        "files": sorted(build["data"]["input_files"]),
+        **dependency_manifest(store, build["data"]["input_files"], main),
+    }
+
+
+def submission(store, identifier, paths, build_id, kind="submission", confirm_dynamic=False):
     if not paths or len(paths) > 2000 or len(set(paths)) != len(paths):
         raise ValueError("Choose an explicit, distinct file allowlist.")
     build = store.get(build_id, "build")
@@ -783,7 +871,12 @@ def submission(store, identifier, paths, build_id, kind="submission"):
             for p in paths
         ):
             raise ValueError("Use internal archive for notes, configuration or research logs.")
-        paths = sorted(set(paths) | dependency_closure(store, snapshots, main))
+        manifest = dependency_manifest(store, snapshots, main)
+        if manifest["unresolved"] and not confirm_dynamic:
+            raise ValueError(
+                "Dynamic TeX dependencies need explicit file selection and confirmation before export."
+            )
+        paths = sorted(set(paths) | set(manifest["required"]))
         with store.db(write=True) as db:
             validation = store.put(
                 db,
@@ -827,6 +920,14 @@ def submission(store, identifier, paths, build_id, kind="submission"):
                 "kind": kind,
                 "validation_build_id": validation["id"] if validation else None,
                 "files": {p: snapshots[p] for p in paths},
+                "inclusion_reasons": {
+                    p: (manifest["reasons"].get(p) or ["Explicitly selected attachment"])
+                    if kind == "submission"
+                    else ["Internal archive selection"]
+                    for p in paths
+                },
+                "dynamic_dependencies": manifest["unresolved"] if kind == "submission" else [],
+                "dynamic_confirmed": bool(confirm_dynamic) if kind == "submission" else False,
                 "archive_hash": digest,
                 "created": time.time(),
             },

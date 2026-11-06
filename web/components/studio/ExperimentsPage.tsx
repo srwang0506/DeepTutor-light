@@ -10,6 +10,8 @@ import { Action, ErrorNotice, Field, StudioEmpty, StudioShell, useOperation } fr
 interface Run {
   title: string
   status: string
+  execution_verified?: boolean
+  execution_witness?: string
   repository: string
   commit: string
   patch: string
@@ -36,7 +38,6 @@ interface Run {
     declared_status: string | null
     metric_samples: { name: string; value: number; step?: number; timestamp?: number }[]
   }
-  execution_verified?: boolean
 }
 const blank = (): Run => ({
   title: '',
@@ -203,9 +204,12 @@ function Experiments({ workspace }: { workspace: string }) {
                 <div className="studio-actions">
                   <FlaskConical size={15} />
                   <span
-                    className={`studio-badge ${row.data.status === 'succeeded' ? 'good' : row.data.status === 'failed' ? 'warn' : ''}`}
+                    className={`studio-badge ${row.data.status === 'succeeded' && row.data.execution_verified ? 'good' : row.data.status === 'failed' ? 'warn' : ''}`}
                   >
                     {statusLabels[row.data.status]}
+                    {row.data.status === 'succeeded' && !row.data.execution_verified
+                      ? ' · 来源自述'
+                      : ''}
                   </span>
                   {row.data.remote_source && <span className="studio-badge">远程快照导入</span>}
                 </div>
@@ -264,6 +268,14 @@ function Experiments({ workspace }: { workspace: string }) {
                 </div>
               ) : null}
               <h3 className="studio-section-title">运行来源</h3>
+              <p className="studio-note">
+                {selected.data.execution_verified
+                  ? '系统已记录执行见证。'
+                  : selected.data.execution_witness === 'imported_statement' ||
+                      selected.data.remote_source
+                    ? '状态来自导入记录；系统未观察该进程执行。'
+                    : '状态来自作者记录；系统未观察该进程执行。'}
+              </p>
               <p style={{ overflowWrap: 'anywhere' }}>
                 {selected.data.repository || '尚未记录仓库'}
               </p>

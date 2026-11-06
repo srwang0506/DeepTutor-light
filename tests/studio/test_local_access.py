@@ -4,7 +4,7 @@ from starlette.applications import Starlette
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from deeptutor.api.local_access import LocalAccessMiddleware, capability_cookie_name
+from deeptutor.api.local_access import LocalAccessMiddleware, browser_token, capability_cookie_name
 
 
 @pytest.mark.asyncio
@@ -39,7 +39,8 @@ async def test_local_capability_applies_to_http_without_trusting_loopback():
                 "/secret",
                 headers={
                     "cookie": capability_cookie_name("test-local-capability")
-                    + "=test-local-capability",
+                    + "="
+                    + browser_token("test-local-capability"),
                     "origin": "http://127.0.0.1:3782",
                 },
             )
@@ -67,7 +68,7 @@ async def test_websocket_uses_same_origin_and_capability_boundary():
         "headers": [
             (b"host", b"localhost:8001"),
             (b"origin", b"https://attacker.example"),
-            (b"cookie", (capability_cookie_name("test") + "=test").encode()),
+            (b"cookie", (capability_cookie_name("test") + "=" + browser_token("test")).encode()),
         ],
     }
     await app(scope, None, send)

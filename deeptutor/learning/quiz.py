@@ -38,8 +38,11 @@ class QuizReceipt(BaseModel):
     confidence: float | None = None
     projection_status: Literal["complete", "pending"] = "complete"
     entry_id: int | None = None
+    exposure_tracking: int | None = None
     independent: bool = False
-    evidence_kind: Literal["independent", "assisted", "correction"] | None = None
+    evidence_kind: (
+        Literal["independent", "assisted", "correction", "delayed_transfer", "unknown"] | None
+    ) = None
 
 
 async def question_contract(store, session_id, turn_id, question_id, version=""):
@@ -63,7 +66,9 @@ async def question_contract(store, session_id, turn_id, question_id, version="")
                         {**qa, "metadata": {**row.get("metadata", {}), **qa.get("metadata", {})}}
                     )
         if candidates:
-            contract = await store.register_quiz_question(session_id, turn_id, candidates[-1])
+            legacy = candidates[-1]
+            legacy["metadata"] = {**legacy.get("metadata", {}), "legacy_reference_delivery": True}
+            contract = await store.register_quiz_question(session_id, turn_id, legacy)
     if contract is None:
         raise ValueError("The saved question version is unavailable. Generate a new question.")
     issues = (contract.get("metadata") or {}).get("issues")

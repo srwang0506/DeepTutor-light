@@ -8,6 +8,16 @@ def save(store, ref: ObjectRef):
     row = resolve(store, ref)
     if row["kind"] != "edition" or not ref.locator.page:
         raise ValueError("Choose a source page to resume.")
+    from .catalog import page_source
+
+    loc = ref.locator
+    if not loc.blob_hash or not any(
+        f["hash"] == loc.blob_hash for f in row["data"].get("files", [])
+    ):
+        raise ValueError("Choose a file belonging to this source revision.")
+    original = page_source(store, ref.id, loc.blob_hash, loc.page, loc.region)
+    if loc.quote and " ".join(loc.quote.split()) not in " ".join(original["text"].split()):
+        raise ValueError("Selection does not match the original page.")
     with store.db(write=True) as db:
         old = db.execute(
             "SELECT id FROM records WHERE scope=? AND kind='resume' AND json_extract(data,'$.source.id')=?",
@@ -58,7 +68,8 @@ def pending(store):
             for item in db.execute(
                 "SELECT id FROM records WHERE scope=? AND kind=? AND ("
                 + condition
-                + ") ORDER BY updated DESC LIMIT 3",
+                + ") ORDER BY updated DESC LIMIT "
+                + ("500" if kind == "activity" else "3"),
                 (store.project, kind),
             ):
                 row = store.record(db, item[0])
@@ -74,6 +85,8 @@ def pending(store):
                         or kind,
                         "source": row["data"].get("source"),
                         "manuscript_id": row["data"].get("manuscript_id"),
+                        "session_id": row["data"].get("session_id"),
+                        "turn_id": row["data"].get("turn_id"),
                     }
                 )
-    return sorted(rows, key=lambda r: r["updated"], reverse=True)[:8]
+    return sorted(rows, key=lambda r: r["updated"], reverse=True)

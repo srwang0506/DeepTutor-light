@@ -225,6 +225,21 @@ function LibraryHome({ workspace }: { workspace: string }) {
                             <Upload size={13} />
                           </button>
                         )}
+                        {!!e.data.bibliographic_sources?.length && (
+                          <details className="studio-note">
+                            <summary>
+                              导入来源 {e.data.bibliographic_sources.length} · 字段冲突{' '}
+                              {e.data.bibliographic_conflicts?.length || 0}
+                            </summary>
+                            <p>引用键：{e.data.citekey_aliases?.join('、') || e.data.citekey}</p>
+                            {e.data.bibliographic_conflicts?.map((c, i) => (
+                              <p key={i}>
+                                {c.field}：保留 {String(c.retained)}；新来件 {String(c.incoming)}
+                              </p>
+                            ))}
+                            <p>原始来件均已保留；冲突字段不会自动覆盖。</p>
+                          </details>
+                        )}
                         {!e.project_role && (
                           <button
                             className="studio-outlink"
@@ -328,15 +343,18 @@ function LibraryHome({ workspace }: { workspace: string }) {
                 onClick={() =>
                   void op.run(async () => {
                     if (dialog === 'import') {
-                      const result = await post<{ entries: { status: string; detail?: string }[] }>(
-                        workspace,
-                        '/bibliography/import',
-                        { text: bibliography, format }
-                      )
+                      const result = await post<{
+                        entries: {
+                          status: string
+                          detail?: string
+                          enriched?: boolean
+                          conflicts?: number
+                        }[]
+                      }>(workspace, '/bibliography/import', { text: bibliography, format })
                       await reload()
                       const errors = result.entries.filter(e => e.status === 'error')
                       setNotice(
-                        `已处理 ${result.entries.length} 条；${errors.length} 条需要检查。${errors.map(e => e.detail).join('；')}`
+                        `已处理 ${result.entries.length} 条；补全 ${result.entries.filter(e => e.enriched).length} 条；${result.entries.reduce((n, e) => n + (e.conflicts || 0), 0)} 项字段冲突已保留；${errors.length} 条需要检查。${errors.map(e => e.detail).join('；')}`
                       )
                       if (!errors.length) setDialog(null)
                     } else if (dialog === 'attach' && selected && file) {

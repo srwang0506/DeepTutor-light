@@ -701,7 +701,11 @@ def _owned_orphan_started_at(
                     for i in range(len(args) - 2)
                 ):
                     if (
-                        Path(candidate.exe()).resolve() == Path(sys.executable).resolve()
+                        # Framework Python on macOS execs Python.app; sys.executable
+                        # remains its distinct bin/python launcher. Compare actual
+                        # running executable identities, never a filename heuristic.
+                        Path(candidate.exe()).resolve()
+                        == Path(psutil.Process(os.getpid()).exe()).resolve()
                         and Path(candidate.cwd()).resolve() == runtime_home.resolve()
                     ):
                         return process.create_time()
@@ -1576,7 +1580,9 @@ def start(
         auth_enabled=auth_enabled,
         dev=dev,
     )
-    existing_frontend = _detect_existing_source_frontend(frontend)
+    # Local capability tokens belong to a launcher lifetime. A previously started
+    # frontend cannot authenticate this new backend with its old token.
+    existing_frontend = _detect_existing_source_frontend(frontend) if auth_enabled else None
     if existing_frontend is not None and not _http_ready(
         existing_frontend.url, timeout=FRONTEND_REUSE_PROBE_TIMEOUT
     ):
@@ -1770,7 +1776,7 @@ def start(
         processes.append(backend)
         _wait_for_http(
             name=_t("start.backend"),
-            url=f"http://127.0.0.1:{backend_port}/",
+            url=f"http://127.0.0.1:{backend_port}/health/ready",
             process=backend,
             timeout=BACKEND_READY_TIMEOUT,
             env_name=BACKEND_READY_TIMEOUT_ENV,
@@ -1813,9 +1819,14 @@ def start(
                 backend_port=backend_port,
                 frontend_port=frontend_port,
             )
-        _log(_t("start.open_in_browser", url=frontend_url))
+        launch_url = frontend_url
+        if common_env.get("DEEPTUTOR_LOCAL_CAPABILITY"):
+            from deeptutor.api.local_access import local_launch_url
+
+            launch_url = local_launch_url(frontend_url, common_env["DEEPTUTOR_LOCAL_CAPABILITY"])
+        _log(_t("start.open_in_browser", url=launch_url))
         if open_browser:
-            _open_frontend_in_browser(frontend_url)
+            _open_frontend_in_browser(launch_url)
 
         while not should_stop():
             if _handoff_pending_update(runtime_home, restart_argv=restart_argv):

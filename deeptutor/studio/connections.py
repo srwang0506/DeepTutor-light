@@ -307,14 +307,15 @@ def read_connection(store, identifier, request, *, transport=None):
             content = base64.b64decode(result.pop("content"), validate=True)
             if len(content) > remote_reader.MAX_FILE or sha(content) != result["sha256"]:
                 raise ValueError("Remote content failed its integrity check.")
-            content_hash = store.save_blob(content)
-            result["content_hash"] = content_hash
         with store.db(write=True) as db:
             current = store.record(db, identifier, "connection")
             if current["revision"] != connection["revision"] or not current["data"]["enabled"]:
                 raise Conflict(
                     "Connection scope changed during reading. Review it before retrying."
                 )
+            if request.operation == "read":
+                content_hash = store.save_blob(content)
+                result["content_hash"] = content_hash
             row = store.put(
                 db,
                 "remote_snapshot",

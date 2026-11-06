@@ -199,7 +199,9 @@ function ObjectView({
               </p>
               <div className="studio-form-grid">
                 {Object.entries(d.protocol || {})
-                  .filter(([key]) => !['extensions', 'not_applicable'].includes(key))
+                  .filter(
+                    ([key]) => !['extensions', 'not_applicable', 'field_states'].includes(key)
+                  )
                   .map(([key, value]) => (
                     <div key={key}>
                       <span className="studio-eyebrow">{key}</span>

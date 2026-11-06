@@ -27,45 +27,17 @@ def lease(store, identifier):
 
 def run(store, identifier):
     try:
-        with _WORKERS, lease(store, identifier):
-            with store.db(write=True) as db:
-                row = store.record(db, identifier, "build")
-                if row["data"]["status"] != "queued":
-                    return
-                row = store.put(
-                    db,
-                    "build",
-                    {**row["data"], "status": "running", "worker_started": time.time()},
-                    identifier=identifier,
-                    expected=row["revision"],
-                )
+        with _WORKERS:
+            row = store.get(identifier, "build")
+            if row["data"]["status"] != "queued":
+                return
 
             def cancelled():
                 return _STOP.is_set() or store.get(identifier, "build")["data"].get(
                     "cancel_requested", False
                 )
 
-            try:
-                manuscripts.execute_build(store, row, cancelled)
-            except Exception as exc:
-                # Unexpected failures remain inspectable instead of a forever-running spinner.
-                digest = store.save_blob(
-                    f"Build worker failed: {type(exc).__name__}: {exc}".encode()
-                )
-                with store.db(write=True) as db:
-                    row = store.record(db, identifier, "build")
-                    store.put(
-                        db,
-                        "build",
-                        {
-                            **row["data"],
-                            "status": "failed",
-                            "finished": time.time(),
-                            "outputs": {"build.log": digest},
-                        },
-                        identifier=identifier,
-                        expected=row["revision"],
-                    )
+            manuscripts.execute_build(store, row, cancelled)
     except Timeout:
         pass  # Another process already owns this durable job.
     finally:

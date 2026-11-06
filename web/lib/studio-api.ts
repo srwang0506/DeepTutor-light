@@ -27,6 +27,14 @@ export interface OriginalFile {
   outline: { level: number; title: string; page: number }[]
 }
 export interface EditionData {
+  bibliographic_sources?: { format: string; record: Record<string, unknown> }[]
+  bibliographic_conflicts?: {
+    field: string
+    retained: unknown
+    incoming: unknown
+    source: string
+  }[]
+  citekey_aliases?: string[]
   work_id: string
   label: string
   doi: string
@@ -76,11 +84,12 @@ export type Protocol = Record<
 > & {
   direction: 'higher' | 'lower' | 'unknown'
   not_applicable: string[]
+  field_states?: Record<string, 'known' | 'unknown' | 'not_applicable' | 'conflict'>
   profile?: string
   extensions?: Record<string, string>
 }
 export const PROTOCOL_FIELDS: [
-  keyof Omit<Protocol, 'direction' | 'not_applicable' | 'profile' | 'extensions'>,
+  keyof Omit<Protocol, 'direction' | 'not_applicable' | 'profile' | 'extensions' | 'field_states'>,
   string,
 ][] = [
   ['dataset', '数据集'],
@@ -150,6 +159,7 @@ export interface ManuscriptData {
   status: string
 }
 export interface BuildData {
+  purpose?: string
   manuscript_id: string
   status: string
   input_files: Record<string, string>

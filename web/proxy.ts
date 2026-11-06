@@ -1,4 +1,4 @@
-import { localGuard, withLocalSession } from './lib/local-access'
+import { localGuard, bootstrapLocalSession } from './lib/local-access'
 import { NextRequest, NextResponse } from 'next/server'
 import { parseAuthEnabled } from './lib/api'
 import { resolveBackendApiBase } from './lib/backend-runtime-config'
@@ -48,17 +48,22 @@ function redirectToLogin(
 }
 
 export function proxy(req: NextRequest): NextResponse {
-  if (req.method === 'GET' && isPublicStaticAsset(req.nextUrl.pathname))
-    return NextResponse.next()
+  if (req.method === 'GET' && isPublicStaticAsset(req.nextUrl.pathname)) return NextResponse.next()
+  const bootstrap = bootstrapLocalSession(req)
+  if (bootstrap) return bootstrap
   const callback = req.method === 'GET' && isCodexCallbackPath(req.nextUrl.pathname)
-  const rejected = callback ? null : localGuard(req)
+  const rejected = callback ? null : localGuard(req, isBackendPath(req.nextUrl.pathname))
   if (rejected) return rejected
   const { pathname, search } = req.nextUrl
 
   if (isCodexCallbackPath(pathname)) {
+    if (!callback) return new NextResponse(null, { status: 405 })
     return NextResponse.rewrite(new URL(CODEX_CALLBACK_API_PATH + search, API_BASE_URL), {
       request: {
-        headers: prepareBackendForwardHeaders(new Headers({ host: req.headers.get('host') || '' })),
+        headers: prepareBackendForwardHeaders(
+          new Headers({ host: req.headers.get('host') || '' }),
+          { localCallback: true }
+        ),
       },
     })
   }
@@ -85,7 +90,7 @@ export function proxy(req: NextRequest): NextResponse {
   //    isAuthExempt: that exemption is what keeps the logo/banner images
   //    loading once login is enabled — issue #599).
   if (!AUTH_ENABLED || isAuthExempt(pathname)) {
-    return withLocalSession(NextResponse.next())
+    return NextResponse.next()
   }
 
   const token = req.cookies.get(COOKIE_NAME)?.value
@@ -93,7 +98,7 @@ export function proxy(req: NextRequest): NextResponse {
     return redirectToLogin(req, { clearCookie: Boolean(token) })
   }
 
-  return withLocalSession(NextResponse.next())
+  return NextResponse.next()
 }
 
 export const config = {

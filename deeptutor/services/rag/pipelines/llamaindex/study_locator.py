@@ -24,7 +24,7 @@ def locator_intent(query):
     text = unicodedata.normalize("NFC", query)
     for kind, label in LABELS.items():
         match = re.search(
-            rf"(?:第\s*(?P<zh>{NUMBER})\s*(?:{label}))|(?:(?:{label})\s*\(?\s*(?P<en>{NUMBER})(?![\w.]))",
+            rf"(?:第\s*(?P<zh>{NUMBER})\s*(?:{label}))|(?:(?:{label})\s*\(?\s*(?P<en>{NUMBER})(?![a-z0-9_.]))",
             text,
             re.I,
         )
@@ -40,7 +40,7 @@ def locator_pattern(query):
     kind, number = intent
     number = re.escape(number)
     label = LABELS[kind]
-    explicit = rf"(?:第\s*{number}\s*(?:{label})|(?:{label})\s*\(?\s*{number}(?![\w.]))"
+    explicit = rf"(?:第\s*{number}\s*(?:{label})|(?:{label})\s*\(?\s*{number}(?![a-z0-9_.]))"
     if kind == "equation":
         # Parenthesized numbering alone is insufficient; require a math relation on that line.
         explicit += rf"|(?m:^\s*\({number}\)[^\n]*(?:=|≤|≥|\\(?:frac|sum|int)))"
@@ -49,10 +49,11 @@ def locator_pattern(query):
 
 @lru_cache(maxsize=1024)
 def structural_labels(text):
+    """Definitions/captions at line starts; prose mentions do not become exact hits."""
     labels = set()
     for kind, label in LABELS.items():
         for match in re.finditer(
-            rf"(?:第\s*({NUMBER})\s*(?:{label}))|(?:(?:{label})\s*\(?\s*({NUMBER})(?![\w.]))",
+            rf"(?m)^\s*(?:[>#*]\s*)*(?:第\s*({NUMBER})\s*(?:{label})|(?:{label})\s*\(?\s*({NUMBER})(?![a-z0-9_.]))",
             text,
             re.I,
         ):

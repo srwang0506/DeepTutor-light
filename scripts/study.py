@@ -191,7 +191,17 @@ def main():
                 env={**os.environ, "HOSTNAME": "127.0.0.1", "PORT": str(args.port)},
             )
         )
-        print(f"Open http://127.0.0.1:{args.port}/today", flush=True)
+        from deeptutor.api.local_access import local_launch_url
+
+        launch_url = local_launch_url(
+            f"http://127.0.0.1:{args.port}/today", os.environ["DEEPTUTOR_LOCAL_CAPABILITY"]
+        )
+        launch_file = args.home / "local-launch-url"
+        fd = os.open(launch_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        os.chmod(launch_file, 0o600)
+        with os.fdopen(fd, "w") as handle:
+            handle.write(launch_url)
+        print(f"Open {launch_url}", flush=True)
         while all(p.poll() is None for p in processes):
             time.sleep(1)
     except KeyboardInterrupt:

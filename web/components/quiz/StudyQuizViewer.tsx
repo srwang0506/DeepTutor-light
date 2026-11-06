@@ -18,7 +18,9 @@ import { apiFetch } from '@/lib/api'
 import { scopedUrl, activeWorkspaceId } from '@/lib/workspace-scope'
 import { readWorkspaceDraft, saveWorkspaceDraft } from '@/lib/workspace-drafts'
 import { randomUuid } from '@/lib/random-uuid'
-import type { QuizQuestion } from '@/lib/quiz-types'
+import type { QuizQuestion as FullQuizQuestion } from '@/lib/quiz-types'
+type QuizQuestion = Omit<FullQuizQuestion, 'correct_answer' | 'explanation'> &
+  Partial<Pick<FullQuizQuestion, 'correct_answer' | 'explanation'>>
 
 type Receipt = import('@/contracts/generated/api').components['schemas']['QuizReceipt']
 type Draft = {
@@ -134,6 +136,7 @@ function QuestionCard({
   const [ready, setReady] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [reference, setReference] = useState<Partial<QuizQuestion>>({})
   const mounted = useRef(true)
   const pending = useRef<Promise<void>>(Promise.resolve())
   const location = `/quiz/${encodeURIComponent(sessionId)}/${encodeURIComponent(turnId)}/${encodeURIComponent(q.question_id)}/${q.question_version || 'legacy'}`
@@ -166,7 +169,7 @@ function QuestionCard({
   async function expose(level: 'hint' | 'revealed') {
     setBusy(true)
     try {
-      await request(endpoint('/exposures'), {
+      const disclosed = await request<Partial<QuizQuestion>>(endpoint('/exposures'), {
         session_id: sessionId,
         turn_id: turnId,
         question_id: q.question_id,
@@ -174,6 +177,7 @@ function QuestionCard({
         level,
         event_id: randomUuid(),
       })
+      if (level === 'revealed') setReference(disclosed)
       update({ assistance: level })
       if (level === 'hint')
         void sendMessage(
@@ -205,6 +209,21 @@ function QuestionCard({
           if (typeof value.answer === 'string' && typeof value.attemptId === 'string') {
             draftRef.current = value
             setDraft(value)
+            if (value.assistance === 'revealed')
+              void request<Partial<QuizQuestion>>(endpoint('/exposures'), {
+                session_id: sessionId,
+                turn_id: turnId,
+                question_id: q.question_id,
+                question_version: q.question_version || '',
+                level: 'revealed',
+                event_id: 'resume:' + value.attemptId,
+              })
+                .then(answer => {
+                  if (!cancelled) setReference(answer)
+                })
+                .catch(() => {
+                  if (!cancelled) setError('无法读取复盘内容，请重新点击看答案。')
+                })
             if (value.submitted)
               void request<Receipt>(statusUrl(value.attemptId))
                 .then(receipt => {
@@ -230,7 +249,18 @@ function QuestionCard({
       mounted.current = false
       window.removeEventListener('deeptutor:before-workspace-switch', flush)
     }
-  }, [location, statusUrl, t, update, workspace])
+  }, [
+    endpoint,
+    location,
+    q.question_id,
+    q.question_version,
+    sessionId,
+    statusUrl,
+    t,
+    turnId,
+    update,
+    workspace,
+  ])
 
   useEffect(() => {
     if (draft.receipt?.state !== 'grading') return
@@ -482,6 +512,19 @@ function QuestionCard({
                     ? t('Stopped')
                     : labels[receipt.result || 'ungraded']}
               </p>
+              {receipt.evidence_kind && (
+                <p className="text-xs text-[var(--muted-foreground)]">
+                  {
+                    {
+                      independent: '独立作答',
+                      assisted: '提示后作答',
+                      correction: '查看反馈后的订正',
+                      delayed_transfer: '延迟迁移练习',
+                      unknown: '历史记录：独立性未知',
+                    }[receipt.evidence_kind]
+                  }
+                </p>
+              )}
               {receipt.feedback && (
                 <div className="mt-2">
                   <MarkdownRenderer content={receipt.feedback} />
@@ -577,7 +620,9 @@ function QuestionCard({
           </div>
           {draft.assistance === 'revealed' && (
             <div className="rounded-xl bg-[var(--muted)] p-4 text-sm">
-              <MarkdownRenderer content={`${q.correct_answer}\n\n${q.explanation}`} />
+              <MarkdownRenderer
+                content={`${reference.correct_answer || q.correct_answer || ''}\n\n${reference.explanation || q.explanation || ''}`}
+              />
             </div>
           )}
         </>

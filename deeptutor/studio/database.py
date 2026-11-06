@@ -101,6 +101,26 @@ class Studio:
                     ON records(updated DESC,id) WHERE kind='work' AND scope='@library';
                   INSERT OR IGNORE INTO metadata VALUES ('library_indexes_v1','1');
                 """)
+            if not db.execute("SELECT 1 FROM metadata WHERE key='import_receipts_v1'").fetchone():
+                db.executescript("""
+                  CREATE UNIQUE INDEX IF NOT EXISTS import_receipts_event
+                    ON records(scope,json_extract(data,'$.connector'),json_extract(data,'$.key'))
+                    WHERE kind='import_receipt';
+                  INSERT OR IGNORE INTO metadata VALUES ('import_receipts_v1','1');
+                """)
+            if not db.execute("SELECT 1 FROM metadata WHERE key='scientific_tokens_v2'").fetchone():
+                db.execute("BEGIN IMMEDIATE")
+                if not db.execute(
+                    "SELECT 1 FROM metadata WHERE key='scientific_tokens_v2'"
+                ).fetchone():
+                    db.execute("DELETE FROM search")
+                    for row in db.execute("SELECT id,data FROM records").fetchall():
+                        db.execute(
+                            "INSERT INTO search VALUES (?,?)",
+                            (row["id"], " ".join(tokens(row["data"]))),
+                        )
+                    db.execute("INSERT INTO metadata VALUES ('scientific_tokens_v2','1')")
+                db.commit()
             db.execute("BEGIN IMMEDIATE" if write else "BEGIN")
             yield db
             db.commit()
@@ -124,6 +144,8 @@ class Studio:
     def present(row):
         # Preserve the immutable original; expose legacy checks as requiring review.
         data = dict(row["data"])
+        if row["kind"] == "run" and "execution_verified" not in data:
+            data.update(execution_verified=False, execution_witness="legacy_author_statement")
         if row["kind"] == "evidence" and data.get("review_schema") != 2:
             data.update(
                 legacy_verification=data.get("verification"),
@@ -168,6 +190,8 @@ class Studio:
         now = time.time()
         scope = LIBRARY if kind in GLOBAL_KINDS else self.project
         if identifier:
+            if kind == "import_receipt":
+                raise Conflict("Import receipts are immutable; create a new source event.")
             old = self.record(db, identifier, kind)
             if expected != old["revision"]:
                 raise Conflict("This record changed. Reload and review the newer revision.")
@@ -203,8 +227,15 @@ class Studio:
             params.append(min(limit, 500))
             return [self.record(db, row[0]) for row in db.execute(sql, params)]
 
-    def link(self, db, source, target, relation="uses"):
+    def link(self, db, source, target, relation="uses", *, source_revision=None):
         source_row = self.record(db, source)
+        if (
+            source_revision is not None
+            and not db.execute(
+                "SELECT 1 FROM revisions WHERE id=? AND revision=?", (source, source_revision)
+            ).fetchone()
+        ):
+            raise Missing("The consumed source revision is unavailable.")
         target_row = self.record(db, target)
         if target_row["scope"] == LIBRARY and source_row["scope"] != LIBRARY:
             raise ValueError("Project records cannot be dependencies of global library metadata.")
@@ -221,7 +252,12 @@ class Studio:
             raise ValueError("Dependency would create a cycle.")
         db.execute(
             "INSERT OR REPLACE INTO dependencies VALUES (?,?,?,?)",
-            (source, target, source_row["revision"], relation),
+            (
+                source,
+                target,
+                source_revision if source_revision is not None else source_row["revision"],
+                relation,
+            ),
         )
 
     def impact(self, identifier):

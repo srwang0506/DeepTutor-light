@@ -17,6 +17,25 @@ const question = {question_id:'q1', question_version:'v1', question:'Explain acc
 const receipt = {attempt_id:'saved-attempt-id', state:'committed', result:'correct', assessment_committed:true, feedback:'Well explained', projection_status:'complete'};
 beforeEach(()=>{mocks.drafts.clear();mocks.fetch.mockReset();mocks.send.mockReset();});
 
+it('loads a reference only through the disclosure endpoint after opening a redacted question', async()=>{
+  const {correct_answer: _answer, explanation: _explanation, ...redacted} = question;
+  let release: (value: unknown) => void = () => {};
+  mocks.fetch.mockImplementation(async(url:string, options?:RequestInit)=>{
+    expect(url).toBe('/api/quiz/exposures');
+    expect(JSON.parse(options?.body as string).level).toBe('revealed');
+    return await new Promise(resolve=>{release=resolve;});
+  });
+  render(<StudyQuizViewer questions={[redacted]} sessionId="s" turnId="t"/>);
+  await waitFor(()=>expect(screen.getByRole('textbox')).toBeEnabled());
+  expect(screen.queryByText(/Change of velocity/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button',{name:'Show reference'}));
+  await waitFor(()=>expect(mocks.fetch).toHaveBeenCalledOnce());
+  expect(screen.queryByText(/Change of velocity/)).not.toBeInTheDocument();
+  release({ok:true,json:async()=>({recorded:true,correct_answer:'Change of velocity',explanation:'Velocity per unit time'})});
+  expect(await screen.findByText(/Change of velocity/)).toBeVisible();
+  await waitFor(()=>expect(JSON.stringify([...mocks.drafts.values()])).toContain('revealed'));
+});
+
 it('restores a submitted draft and reads its committed receipt without resubmitting', async()=>{
   mocks.drafts.set('/quiz/s/t/q1/v1',{text:JSON.stringify({answer:'Change in velocity', attemptId:'saved-attempt-id', assistance:'independent',submitted:true}),attachments:[]});
   mocks.fetch.mockResolvedValue({ok:true,json:async()=>receipt});

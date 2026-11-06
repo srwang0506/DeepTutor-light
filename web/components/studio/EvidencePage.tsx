@@ -651,7 +651,23 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                     disabled={draft.protocol.not_applicable.includes(key)}
                     value={draft.protocol[key]}
                     onChange={e =>
-                      setDraft(d => ({ ...d, protocol: { ...d.protocol, [key]: e.target.value } }))
+                      setDraft(d => ({
+                        ...d,
+                        protocol: {
+                          ...d.protocol,
+                          [key]: e.target.value,
+                          field_states: {
+                            ...d.protocol.field_states,
+                            [key]:
+                              !e.target.value.trim() ||
+                              ['unknown', 'n/a', '?', '未知'].includes(
+                                e.target.value.trim().toLowerCase()
+                              )
+                                ? 'unknown'
+                                : 'known',
+                          },
+                        },
+                      }))
                     }
                     placeholder="尚未确认时留空"
                   />
@@ -666,6 +682,10 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
                         protocol: {
                           ...d.protocol,
                           [key]: e.target.checked ? '' : d.protocol[key],
+                          field_states: {
+                            ...d.protocol.field_states,
+                            [key]: e.target.checked ? 'not_applicable' : 'unknown',
+                          },
                           not_applicable: e.target.checked
                             ? [...d.protocol.not_applicable, key]
                             : d.protocol.not_applicable.filter(k => k !== key),
