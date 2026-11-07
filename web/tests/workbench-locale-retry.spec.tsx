@@ -12,7 +12,7 @@ vi.mock('@/i18n/init', async original => {
 
 function FeatureCopy() {
   const { t } = useTranslation()
-  return <h1>{t('学习与科研工作台')}</h1>
+  return <h1>{t('远程连接')}</h1>
 }
 
 it('offers a readable retry after a language load failure and then opens the requested interface', async () => {
@@ -21,7 +21,7 @@ it('offers a readable retry after a language load failure and then opens the req
   expect(await screen.findByRole('alert')).toHaveTextContent('暂时无法打开界面，请重试。')
   expect(screen.queryByRole('heading')).not.toBeInTheDocument()
   await userEvent.click(screen.getByRole('button', { name: '重试' }))
-  await screen.findByRole('heading', { name: '学习与科研工作台' })
+  await screen.findByRole('heading', { name: '远程连接' })
   expect(ensureLanguage).toHaveBeenCalledTimes(2)
   expect(document.documentElement.lang).toBe('zh')
 })

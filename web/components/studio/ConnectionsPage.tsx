@@ -273,8 +273,8 @@ function Connections({ workspace }: { workspace: string }) {
     <StudioShell
       workspace={workspace}
       active="connections"
-      title={t('把远方的工作，接到这里。')}
-      description={t("在项目里浏览服务器与仓库。代码、配置和日志有据可查，实验的来龙去脉也留得下来。")}
+      title={t('远程连接')}
+      description={t("连接 SSH 服务器或 GitHub 仓库，浏览文件并导入实验记录。")}
       action={
         <Action onClick={() => edit()}>
           <Plus size={15} />

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
-import { ArrowUpRight, BookOpen, FlaskConical, Network, Puzzle, FilePenLine, Layers3, CheckCheck, Telescope, CalendarDays, Sparkles } from "lucide-react";
+import { ArrowUpRight, BookOpen, Network, Puzzle, FilePenLine, Layers3, CheckCheck, Telescope, CalendarDays, Sparkles, FlaskConical, Server } from "lucide-react";
+import { PAGE_TITLE_CLASS } from "@/components/layout/FeaturePage";
 import { scopedUrl } from "@/lib/workspace-scope";
 import { setPendingPrompt } from "@/lib/pending-prompt";
 import { useCapabilityFilter } from "@/features/capabilities/useCapabilityCatalog";
@@ -14,6 +15,10 @@ const workflows = [
   { mode: "experiment_plan", icon: Telescope, title: "Develop a research question", description: "Turn a topic into a question, evidence gaps and a feasible next experiment.", prompt: "Help develop my research topic. First clarify the question and constraints. Then compare existing evidence, identify concrete gaps and propose a feasible experiment with baselines, metrics and failure criteria. Separate established results, hypotheses and suggestions; cite original sources." },
 ] as const;
 const ecosystem = [
+  { icon: Layers3, title: "证据与比较", description: "整理原文证据和实验结果，比较评估条件，生成表格与图表。", href: "/studio/evidence" },
+  { icon: FlaskConical, title: "实验记录", description: "记录运行配置、代码版本和结果，导入日志并查看指标。", href: "/studio/experiments" },
+  { icon: FilePenLine, title: "论文写作", description: "新建或导入 LaTeX 工程，编辑、编译并导出论文。", href: "/studio/writing" },
+  { icon: Server, title: "远程连接", description: "连接 SSH 服务器或 GitHub 仓库，浏览文件并导入实验记录。", href: "/studio/connections" },
   { icon: BookOpen, title: "Paper library", description: "Read sources and ask questions alongside the document.", href: "/learning/reading" },
   { icon: FilePenLine, title: "Co-Writer", description: "Develop a draft with your notes and research evidence.", href: "/co-writer" },
   { icon: Network, title: "Partners", description: "Keep your existing assistants and collaboration channels.", href: "/partners" },
@@ -29,8 +34,7 @@ export default function ResearchWorkbench() {
   const canResearch = available?.("deep_research") ?? false;
   return <main className="mx-auto max-w-6xl px-6 py-10 sm:px-10 sm:py-14">
     <header className="mb-10 max-w-2xl">
-      <span className="inline-flex items-center gap-2 text-xs font-semibold tracking-[.16em] text-[var(--primary)]"><FlaskConical size={16}/>{t("DEEPTUTOR · RESEARCH")}</span>
-      <h1 className="mt-5 text-3xl font-semibold leading-tight tracking-tight sm:text-4xl">{t("Good questions deserve good evidence.")}</h1>
+      <h1 className={PAGE_TITLE_CLASS}>{t("Research")}</h1>
       <p className="mt-4 max-w-xl text-sm leading-7 text-[var(--muted-foreground)]">{t("A focused place for papers, research and the tools you already trust.")}</p>
       <Link href={scopedUrl("/chat?capability=deep_research")} className="mt-6 inline-flex items-center gap-3 rounded-xl bg-[var(--primary)] px-5 py-3 text-sm font-medium text-[var(--primary-foreground)]">{t("Start research")}<ArrowUpRight size={16}/></Link>
     </header>
@@ -43,7 +47,7 @@ export default function ResearchWorkbench() {
     </section>
     <section aria-labelledby="ecosystem-heading">
       <h2 id="ecosystem-heading" className="mb-5 text-lg font-semibold">{t("Your research ecosystem")}</h2>
-      <div className="grid gap-x-8 sm:grid-cols-2 lg:grid-cols-3">{ecosystem.map(item => <Link key={item.href} href={scopedUrl(item.href)} className="group flex gap-4 border-t border-[var(--border)] py-5">
+      <div className="grid gap-x-8 sm:grid-cols-2">{ecosystem.map(item => <Link key={item.href} href={scopedUrl(item.href)} className="group flex gap-4 border-t border-[var(--border)] py-5">
         <item.icon size={20} strokeWidth={1.5} className="mt-1 shrink-0 text-[var(--muted-foreground)]"/>
         <div><h3 className="text-sm font-medium group-hover:text-[var(--primary)]">{t(item.title)}</h3><p className="mt-1.5 text-xs leading-6 text-[var(--muted-foreground)]">{t(item.description)}</p></div>
       </Link>)}</div>

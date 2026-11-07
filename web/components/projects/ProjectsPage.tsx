@@ -19,7 +19,7 @@ import {
   RotateCcw,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { FeaturePage } from '@/components/layout/FeaturePage'
+import { FeaturePage, PAGE_TITLE_CLASS } from '@/components/layout/FeaturePage'
 import { useActiveWorkspaceId } from '@/hooks/useActiveWorkspaceId'
 import { scopedUrl, selectWorkspace } from '@/lib/workspace-scope'
 import { getLocale } from '@/lib/datetime'
@@ -155,10 +155,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
         )}
         <header className="projects-header">
           <div>
-            <div className="projects-eyebrow">
-              {zh ? '你的学习与科研空间' : 'YOUR SPACE TO LEARN & DISCOVER'}
-            </div>
-            <h1>
+            <h1 className={PAGE_TITLE_CLASS}>
               {detail
                 ? selected
                   ? workspaceLabel(selected, zh)
@@ -166,15 +163,15 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                     ? '项目'
                     : 'Project'
                 : zh
-                  ? '让每个想法，有自己的空间。'
-                  : 'A place for every idea.'}
+                  ? '项目'
+                  : 'Projects'}
             </h1>
             <p>
               {detail
                 ? selected?.description ||
                   (zh
-                    ? '从上次停下的地方继续，把思考留在这个项目里。'
-                    : 'Pick up where you left off. Keep your thinking together.')
+                    ? '继续这个项目的对话、学习和科研任务。'
+                    : 'Continue conversations, learning and research in this project.')
                 : zh
                   ? '从一门课程到一个研究方向，把对话、资料与进展收在一起。'
                   : 'From a course to a research question, keep conversations, materials and progress together.'}

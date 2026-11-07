@@ -2,8 +2,6 @@
 import { useHydratedState } from "@/hooks/useHydratedState";
 import { useLayoutEffect } from "react";
 
-import Link from "next/link";
-
 import { StudyWorkspaceShell } from "@/components/study/StudyWorkspaceShell";
 
 import { COMMAND_CONFIRMATION_FAILED } from "@/features/chat/transport/command-delivery";
@@ -18,6 +16,7 @@ import { useChatWorkspaces } from "@/hooks/useChatWorkspaces";
 import { useComposerResources } from "@/hooks/useComposerResources";
 import { useActiveWorkspaceId } from "@/hooks/useActiveWorkspaceId";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChatRouteSession } from "@/features/chat/controllers/useChatRouteSession";
 import { waitForReplyLanguageSave } from "@/features/chat/controllers/reply-language-save";
@@ -705,6 +704,37 @@ export default function ChatWorkspace() {
       cancelled = true;
     };
   }, [state.isStreaming, hasMessages, state.sessionId, state.messages.length]);
+  // Read the local clock once after hydration; the server greeting stays stable.
+  const [welcomeGreeting] = useHydratedState<string>(() => {
+    const hour = new Date().getHours();
+    let bucket: string[];
+    if (hour >= 5 && hour < 12) {
+      bucket = [
+        "Good morning.",
+        "Morning — let's learn something.",
+        "What would you like to learn?",
+      ];
+    } else if (hour >= 12 && hour < 17) {
+      bucket = [
+        "Good afternoon.",
+        "Afternoon — what's on your mind?",
+        "What would you like to learn?",
+      ];
+    } else if (hour >= 17 && hour < 22) {
+      bucket = [
+        "Good evening.",
+        "Evening — what shall we explore?",
+        "What would you like to learn?",
+      ];
+    } else {
+      bucket = [
+        "It's late today.",
+        "Burning the midnight oil?",
+        "What would you like to learn?",
+      ];
+    }
+    return bucket[Math.floor(Math.random() * bucket.length)];
+  }, "What would you like to learn?");
   const firstUserTitle = useMemo(
     () =>
       state.messages
@@ -2561,7 +2591,7 @@ export default function ChatWorkspace() {
                 </PageBarSlot>
               </div>
               <div
-                className={`flex w-full flex-1 min-h-0 flex-col ${!hasMessages ? "overflow-y-auto" : ""}`}
+                className="flex w-full flex-1 min-h-0 flex-col"
               >
                 {sessionLoading || sessionLoadFailed ? (
                   <div className="flex w-full flex-1 min-h-0 justify-center px-6">
@@ -2574,31 +2604,22 @@ export default function ChatWorkspace() {
                     </div>
                   </div>
                 ) : !hasMessages ? (
-                  <div className="flex w-full flex-1 shrink-0 min-h-[340px] items-center justify-center py-8 sm:py-12 animate-fade-in px-6">
-                    <div className="study-welcome w-full max-w-[800px] text-center">
-                      <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--primary)]">
-                        {t("DeepTutor Light")}
-                      </p>
-                      <h1 className="font-serif text-3xl font-medium leading-tight tracking-tight sm:text-5xl">
-                        {t("A little more understanding, every day.")}
+                  // Clipped rather than pushed under the header when a short
+                  // window leaves the greeting no room.
+                  <div className="flex w-full flex-1 min-h-0 items-end justify-center overflow-hidden pb-14 animate-fade-in px-6">
+                    <div className="w-full max-w-[960px] flex items-center justify-center gap-4">
+                      <Image
+                        src="/brand/black-logo.png"
+                        alt={t("DeepTutor")}
+                        unoptimized
+                        width={40}
+                        height={40}
+                        className="h-10 w-10 select-none dark:invert"
+                        draggable={false}
+                      />
+                      <h1 className="font-serif text-[40px] font-medium leading-[1.1] tracking-[-0.015em] text-[var(--foreground)]">
+                        {t(welcomeGreeting)}
                       </h1>
-                      <p className="mx-auto mt-5 max-w-lg text-sm leading-7 text-[var(--muted-foreground)]">
-                        {t("Bring your materials. Ask a question. Make what you learn your own.")}
-                      </p>
-                      <div className="mt-6 flex justify-center gap-3 text-xs">
-                        <Link
-                          href={scopedUrl("/learning/reading")}
-                          className="rounded-full border border-[var(--border)] px-4 py-2.5 hover:bg-[var(--accent)]"
-                        >
-                          {t("Open materials")}
-                        </Link>
-                        <Link
-                          href={scopedUrl("/learning/practice")}
-                          className="rounded-full border border-[var(--border)] px-4 py-2.5 hover:bg-[var(--accent)]"
-                        >
-                          {t("Continue practice")}
-                        </Link>
-                      </div>
                     </div>
                   </div>
                 ) : (

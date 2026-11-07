@@ -8,9 +8,9 @@ vi.mock("@/lib/auth", () => ({ fetchAuthStatus: vi.fn() }));
 beforeEach(() => vi.mocked(fetchAuthStatus).mockReset());
 
 it.each([
-  [["reading"], ["/today", "/learning/reading"]],
-  [["books"], ["/today"]],
-  [["chat"], ["/today", "/learning/practice"]],
+  [["reading"], ["/learning", "/today"]],
+  [["books"], ["/learning", "/today"]],
+  [["chat"], ["/chat", "/learning", "/today", "/calendar", "/kanban"]],
   [[], []],
 ] as [string[], string[]][])("filters the actual nav entries for %j", (allowed, expected) => {
   expect(PRIMARY_NAV_HREFS.filter((href) => navVisibleUnderPolicy(href, allowed))).toEqual(expected);

@@ -126,10 +126,10 @@ async function assertRootRedirect(baseUrl) {
   if (
     ![307, 308].includes(response.status) ||
     destination?.origin !== baseUrl ||
-    destination.pathname !== "/today"
+    destination.pathname !== "/chat"
   ) {
     throw new Error(
-      `/ must redirect to /today, got HTTP ${response.status} to ${location || "(none)"}`,
+      `/ must redirect to /chat, got HTTP ${response.status} to ${location || "(none)"}`,
     );
   }
 }

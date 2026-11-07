@@ -128,8 +128,8 @@ function LibraryHome({ workspace }: { workspace: string }) {
     <StudioShell
       workspace={workspace}
       active="library"
-      title={t('资料，慢慢成为理解。')}
-      description={t("把论文、讲义与自己的问题放在一起。原文只收藏一次，版本与证据清楚地留在身边。")}
+      title={t('资料库')}
+      description={t("收藏论文和讲义，导入书目与原文，管理文献版本。")}
       action={
         <div className="studio-actions">
           <Action secondary onClick={() => open('discover')}>

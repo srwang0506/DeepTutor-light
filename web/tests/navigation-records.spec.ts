@@ -2,14 +2,14 @@ import { expect, it } from 'vitest'
 import { allLearningActivity, type LearningSources } from '@/lib/learning-dashboard'
 import { categoryForPath, partnerSessionHref, isNavigationTargetActive } from '@/lib/navigation'
 
-it('keeps old feature URLs in their new categories', () => {
-  for (const path of ['/chat/old-session', '/kanban'])
+it('keeps tutoring, learning, resources and research in their own shelves', () => {
+  for (const path of ['/chat/old-session', '/kanban', '/calendar', '/co-writer/old-document', '/project', '/projects'])
     expect(categoryForPath(path)).toBe('home')
-  for (const path of ['/co-writer/old-document', '/projects', '/studio/evidence'])
+  for (const path of ['/research', '/studio/evidence', '/studio/experiments', '/studio/writing/draft', '/studio/connections'])
     expect(categoryForPath(path)).toBe('research')
-  for (const path of ['/learning/books/old-book', '/notebooks/old-notebook'])
+  for (const path of ['/today', '/learning/books/old-book', '/learning/mastery/old-path', '/learning/reading/old-material', '/learning/reading/old-material/sessions/chat'])
     expect(categoryForPath(path)).toBe('learning')
-  for (const path of ['/space', '/space/chat-history', '/knowledge-bases/old-kb', '/learning/reading/old-material', '/library'])
+  for (const path of ['/space', '/space/chat-history', '/space/questions', '/knowledge-bases/old-kb', '/notebooks/old-notebook', '/library'])
     expect(categoryForPath(path)).toBe('resources')
   // The account's own places, the same in every workspace.
   for (const path of ['/personalization', '/agents', '/space/mcp', '/space/skills', '/space/personas', '/memory/l1'])

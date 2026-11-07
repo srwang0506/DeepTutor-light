@@ -1,5 +1,7 @@
 'use client'
 import { useTranslation } from 'react-i18next'
+import { BookOpen } from 'lucide-react'
+import { scopedUrl } from '@/lib/workspace-scope'
 import { NavigationRow, OverviewRow, Section } from './NavigationPrimitives'
 import { PersonalizationShelfIcon, ResourcesShelfIcon } from './ShelfIcons'
 import {
@@ -37,6 +39,7 @@ export function ResourcesNavigation() {
   return (
     <>
       <OverviewRow href="/space" label={t('navigation.allResources')} icon={ResourcesShelfIcon} />
+      <NavigationRow href={scopedUrl('/library')} label={t('Library')} icon={BookOpen} />
       <Shelf groups={DASHBOARD_GROUPS} titled />
     </>
   )

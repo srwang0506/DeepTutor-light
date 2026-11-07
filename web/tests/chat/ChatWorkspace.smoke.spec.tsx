@@ -352,7 +352,8 @@ describe('ChatWorkspace smoke', () => {
 
     // Empty home: greeting heading, starter suggestions, idle composer.
     const heading = screen.getByRole('heading', { level: 1 })
-    expect(heading).toHaveTextContent('A little more understanding, every day.')
+    expect(heading).toHaveTextContent(/Good morning\.|Morning — let's learn something\.|Good afternoon\.|Afternoon — what's on your mind\?|Good evening\.|Evening — what shall we explore\?|It's late today\.|Burning the midnight oil\?|What would you like to learn\?/ )
+    expect(screen.getByRole('img', { name: 'DeepTutor' })).toBeInTheDocument()
     expect(screen.getByTestId('starter-suggestions')).toBeInTheDocument()
     expect(screen.getByTestId('composer')).toHaveAttribute('data-streaming', 'false')
     expect(screen.queryByTestId('message-list')).toBeNull()

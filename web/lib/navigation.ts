@@ -14,11 +14,9 @@ export const PERSONALIZATION_ROOTS = [
 ] as const
 const under = (pathname: string, root: string) => pathname === root || pathname.startsWith(`${root}/`)
 export function categoryForPath(pathname: string): NavigationCategory {
-  if (['/studio','/project','/projects','/co-writer'].some(root=>under(pathname,root))) return 'research'
+  if (under(pathname, '/studio') || under(pathname, '/research')) return 'research'
+  if (under(pathname, '/today')) return 'learning'
   if (under(pathname, '/library')) return 'resources'
-  if (under(pathname, '/research')) return 'research'
-  if (under(pathname, '/learning/reading') || under(pathname, '/knowledge-bases')) return 'resources'
-  if (under(pathname, '/space/questions') || under(pathname, '/notebooks')) return 'learning'
   if (under(pathname, '/partners')) return 'partners'
   if (PERSONALIZATION_ROOTS.some(root => under(pathname, root))) return 'personalization'
   if (

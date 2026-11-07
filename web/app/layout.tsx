@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
 import "@/features/ui-layout/classic/classic.css";
 import "@/features/ui-layout/modern/modern.css";
@@ -9,6 +10,22 @@ import SettingsReturnTracker from "@/components/settings/SettingsReturnTracker";
 import { WorkspaceNavigation } from "@/components/workspaces/WorkspaceNavigation";
 import { AppShellProvider } from "@/context/AppShellContext";
 import { I18nClientBridge } from "@/i18n/I18nClientBridge";
+
+// Keep DeepTutor's original typefaces available in local and offline builds.
+const fontSans = localFont({
+  src: "./fonts/geist-latin.woff2",
+  weight: "100 900",
+  display: "swap",
+  variable: "--font-sans",
+  fallback: ["Arial", "PingFang SC", "Microsoft YaHei", "sans-serif"],
+});
+const fontSerif = localFont({
+  src: "./fonts/lora-latin.woff2",
+  weight: "400 700",
+  display: "swap",
+  variable: "--font-serif",
+  fallback: ["Georgia", "Songti SC", "serif"],
+});
 
 export const viewport: Viewport = { interactiveWidget: "resizes-content" };
 
@@ -34,6 +51,7 @@ export default function RootLayout({
       lang="en"
       suppressHydrationWarning
       data-scroll-behavior="smooth"
+      className={`${fontSans.variable} ${fontSerif.variable}`}
     >
       <head>
         <ThemeScript />

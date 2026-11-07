@@ -12,7 +12,7 @@ import {
 
 beforeEach(() => localStorage.clear());
 
-it("new profiles keep personal learning and research destinations discoverable", () => {
+it("new profiles keep DeepTutor capabilities visible and fold supplementary destinations", () => {
   expect(readNavLayout()).toBeNull();
   const resolved = resolveNavLayout(
     PRIMARY_NAV_HREFS,
@@ -20,14 +20,15 @@ it("new profiles keep personal learning and research destinations discoverable",
     DEFAULT_COLLAPSED_NAV
   );
   expect(resolved.visible).toEqual([
-    "/today",
-    "/learning/reading",
-    "/learning/practice",
-    "/library",
-    "/projects",
+    "/chat",
+    "/partners",
+    "/learning",
     "/research",
+    "/space",
+    "/calendar",
+    "/kanban",
   ]);
-  expect(resolved.collapsed).toEqual([]);
+  expect(resolved.collapsed).toEqual(["/today", "/library", "/projects", "/co-writer", "/agents"]);
   expect(resolved.customized).toBe(false);
   expect(SECONDARY_NAV.map(item => item.href)).toEqual(["/settings"]);
 });

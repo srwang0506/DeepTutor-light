@@ -1,0 +1,11 @@
+{
+  "远程连接": "Remote connections",
+  "收藏论文和讲义，导入书目与原文，管理文献版本。": "Collect papers and lecture notes, import bibliographies and full text, and manage reference versions.",
+  "整理原文证据和实验结果，比较评估条件，生成表格与图表。": "Organize source evidence and experiment results, compare evaluation conditions, and create tables and charts.",
+  "记录运行配置、代码版本和结果，导入日志并查看指标。": "Record run configurations, code versions and results. Import logs and view metrics.",
+  "连接 SSH 服务器或 GitHub 仓库，浏览文件并导入实验记录。": "Connect to an SSH server or GitHub repository, browse files, and import experiment records.",
+  "编辑 LaTeX 源文件，插入文献与证据，编译预览并导出论文。": "Edit LaTeX source files, insert references and evidence, compile a preview, and export your paper.",
+  "新建或导入 LaTeX 工程，编辑、编译并导出论文。": "Create or import a LaTeX project, then edit, compile and export your paper.",
+  "查看来源、版本和记录内容，继续阅读或核对相关证据。": "View the source, revision and record details. Continue reading or review related evidence.",
+  "继续上次的学习，查看今天的练习与复习安排。": "Continue your learning and view today’s practice and review plan."
+}

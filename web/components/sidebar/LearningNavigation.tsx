@@ -88,9 +88,7 @@ export function LearningNavigation({
     })
   return (
     <div className="dt-learning-navigation">
-      <OverviewRow href="/learning/practice" label={t('Practice & records')} icon={Plus} />
-      <OverviewRow href="/space/questions" label={t('Question Bank')} icon={LayoutGrid} />
-      <OverviewRow href="/notebooks" label={t('Notebooks')} icon={LayoutGrid} />
+      <OverviewRow href="/learning/new" label={t('navigation.createLearning')} icon={Plus} />
       <OverviewRow
         href="/learning"
         label={t('navigation.allLearning')}

@@ -148,7 +148,7 @@ const nextConfig = {
       // redirect() throws mid-render, and React 19.2's dev performance track
       // then measures that aborted render with a negative end time — the
       // "cannot have a negative time stamp" overlay (vercel/next.js#86060).
-      { source: "/", destination: "/today", permanent: false },
+      { source: "/", destination: "/chat", permanent: false },
       // Existing clips used the singular URL; preserve their record query.
       { source: "/notebook/:path*", destination: "/notebooks/:path*", permanent: true },
       { source: "/mastery/:pathId/study", destination: "/learning/mastery/:pathId/sessions", statusCode: 301 },

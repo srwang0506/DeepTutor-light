@@ -1,8 +1,17 @@
+import { CalendarDays } from 'lucide-react'
+import { LEARNING_HUB } from '@/lib/learning-routes'
 import {
+  Bot,
   GraduationCap,
   FlaskConical,
+  FolderOpen,
+  BookOpen,
+  Sunrise,
+  HeartHandshake,
+  House,
   LayoutGrid,
   ListTodo,
+  PenLine,
   Settings,
   type LucideIcon,
 } from 'lucide-react'
@@ -34,12 +43,58 @@ export interface NavEntry {
  * the neighbour it follows below rather than at the bottom of their list.
  */
 export const PRIMARY_NAV: NavEntry[] = [
-  { href: '/today', label: 'Study today', icon: GraduationCap, surfaces: ['chat', 'reading', 'books'] },
-  { href: '/learning/reading', label: 'Materials', icon: LayoutGrid, surfaces: ['reading'] },
-  { href: '/learning/practice', label: 'Practice & records', icon: ListTodo, surfaces: ['chat'] },
-  { href: '/library', label: 'Library', icon: LayoutGrid },
-  { href: '/projects', label: 'Projects', icon: LayoutGrid },
+  {
+    href: '/chat',
+    label: 'Home',
+    icon: House,
+    tooltipKey: 'Home tooltip',
+    requires: 'llm',
+    surfaces: ['chat'],
+  },
+  {
+    href: '/partners',
+    label: 'Partners',
+    icon: HeartHandshake,
+    tooltipKey: 'Partners tooltip',
+    requires: 'llm',
+  },
+  {
+    href: LEARNING_HUB,
+    label: 'Personalized Learning',
+    icon: GraduationCap,
+    tooltipKey: 'One tutor, your own way to learn.',
+    surfaces: ['reading', 'chat', 'books'],
+  },
+  { href: '/today', label: 'Study today', icon: Sunrise, surfaces: ['reading', 'chat', 'books'], defaultCollapsed: true },
+  { href: '/library', label: 'Library', icon: BookOpen, defaultCollapsed: true },
+  { href: '/projects', label: 'Projects', icon: FolderOpen, defaultCollapsed: true },
   { href: '/research', label: 'Research & ecosystem', icon: FlaskConical },
+  { href: '/space', label: 'Learning Space', icon: LayoutGrid, tooltipKey: 'Space tooltip' },
+  {
+    href: '/calendar', label: 'Calendar', icon: CalendarDays, surfaces: ['chat'],
+  },
+  {
+    href: '/kanban',
+    label: 'Task Board',
+    icon: ListTodo,
+    tooltipKey: 'kanban.intro',
+    surfaces: ['chat'],
+  },
+  {
+    href: '/co-writer',
+    label: 'Co-Writer',
+    icon: PenLine,
+    tooltipKey: 'Co-Writer tooltip',
+    requires: 'llm',
+    defaultCollapsed: true,
+  },
+  {
+    href: '/agents',
+    label: 'My Agents',
+    icon: Bot,
+    tooltipKey: 'Agents tooltip',
+    defaultCollapsed: true,
+  },
 ]
 
 export const SECONDARY_NAV: NavEntry[] = [{ href: '/settings', label: 'Settings', icon: Settings }]
@@ -69,7 +124,6 @@ export function navVisibleUnderPolicy(
 ): boolean {
   if (allowedSurfaces === null) return true
   if (href === '/settings') return true
-  if (href === '/chat') return allowedSurfaces.includes('chat')
   const surfaces = NAV_BY_HREF.get(href)?.surfaces
   if (!surfaces?.length) return false
   return surfaces.some(surface => allowedSurfaces.includes(surface))

@@ -165,8 +165,8 @@ function Experiments({ workspace }: { workspace: string }) {
     <StudioShell
       workspace={workspace}
       active="experiments"
-      title={t('把一次实验，留成可复查的记录。')}
-      description={t("代码版本、命令、环境和原始产物一起保存。成功、失败与静态检查，都有各自的位置。")}
+      title={t('实验记录')}
+      description={t("记录运行配置、代码版本和结果，导入日志并查看指标。")}
       action={
         <div className="studio-actions">
           <Action

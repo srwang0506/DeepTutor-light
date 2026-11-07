@@ -194,7 +194,7 @@ def main():
         from deeptutor.api.local_access import local_launch_url
 
         launch_url = local_launch_url(
-            f"http://127.0.0.1:{args.port}/today", os.environ["DEEPTUTOR_LOCAL_CAPABILITY"]
+            f"http://127.0.0.1:{args.port}/chat", os.environ["DEEPTUTOR_LOCAL_CAPABILITY"]
         )
         launch_file = args.home / "local-launch-url"
         fd = os.open(launch_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)

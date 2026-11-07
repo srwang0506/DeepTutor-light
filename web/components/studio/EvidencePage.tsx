@@ -186,8 +186,8 @@ function EvidenceWorkspace({ workspace }: { workspace: string }) {
     <StudioShell
       workspace={workspace}
       active="evidence"
-      title={t('让每个结论，都找得到来处。')}
-      description={t("把原文、评估条件和实验结果放在一起。先核对可比性，再讨论差异。")}
+      title={t('证据与比较')}
+      description={t("整理原文证据和实验结果，比较评估条件，生成表格与图表。")}
       action={
         <Action onClick={() => edit()}>
           <Plus size={15} />

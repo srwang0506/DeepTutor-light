@@ -14,19 +14,6 @@
   align-items: center;
   margin: 12px 0 34px;
 }
-.projects-eyebrow {
-  font-size: 10px;
-  letter-spacing: 0.16em;
-  color: var(--muted-foreground);
-  margin-bottom: 15px;
-}
-.projects-header h1 {
-  font-size: clamp(26px, 3vw, 36px);
-  font-weight: 550;
-  line-height: 1.35;
-  letter-spacing: -0.035em;
-  text-wrap: balance;
-}
 .projects-header p {
   color: var(--muted-foreground);
   line-height: 1.8;

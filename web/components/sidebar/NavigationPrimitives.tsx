@@ -68,7 +68,10 @@ export function OverviewRow({
 }) {
   const drawer = useSidebarDrawer()
   const pathname = usePathname()
-  const selected = pathname === href
+  const search = useSearchParams()
+  const selected =
+    pathname === new URL(href, 'http://localhost').pathname &&
+    isNavigationTargetActive(href, pathname, new URLSearchParams(search.toString()))
   return (
     <div className={`dt-overview-row ${selected ? 'is-active' : ''}`}>
       <Link

@@ -128,7 +128,7 @@ function ObjectView({
               : 'evidence'
       }
       title={d?.title || d?.label || t('来源与记录')}
-      description={t("保留当时的版本、来源和核对状态。来源更新时，由你决定何时采用新版本。")}
+      description={t("查看来源、版本和记录内容，继续阅读或核对相关证据。")}
     >
       <ErrorNotice message={error} />
       {!row && !error && (

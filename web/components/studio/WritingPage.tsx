@@ -631,11 +631,11 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     <StudioShell
       workspace={workspace}
       active="writing"
-      title={active ? active.data.title : t('让论点与证据，一起成稿。')}
+      title={active ? active.data.title : t('论文写作')}
       description={
         active
-          ? t('真实的多文件 LaTeX 工程。编辑自动保存，构建与投稿各自保留版本。')
-          : t('从现有模板开始，把原文证据、实验结果和自己的判断，写成可以交付的论文。')
+          ? t('编辑 LaTeX 源文件，插入文献与证据，编译预览并导出论文。')
+          : t('新建或导入 LaTeX 工程，编辑、编译并导出论文。')
       }
       action={
         active ? (

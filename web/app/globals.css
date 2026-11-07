@@ -1548,31 +1548,3 @@ a[href^="#dt-locator-"]:hover {
   font-size: 16px;
   line-height: 1.5;
 }
-
-/* DeepTutor Light: restrained paper surfaces and a single reading desk. */
-:root:not(.dark):not(.theme-glass) {
-  --primary: #276b59;
-  --primary-foreground: #ffffff;
-  --ring: #276b59;
-  --accent: #e9f1eb;
-}
-.study-workspace { isolation: isolate; }
-.study-welcome { padding: 2rem 0 0; }
-.study-workspace .chat-preview-shell { background-image: radial-gradient(ellipse at 50% 12%, color-mix(in srgb, var(--primary) 5%, transparent), transparent 60%); }
-.dt-product-sidebar { border-right: 1px solid var(--border); }
-.dt-category-bar:not(.is-collapsed) [role=tablist] { flex-direction: column; align-items: stretch; gap: 4px; }
-.dt-category-bar:not(.is-collapsed) [role=tab] { justify-content: flex-start; width: 100%; min-height: 42px; padding-inline: 14px; border-radius: 12px; }
-.dt-category-bar:not(.is-collapsed) [role=tab] > span:not(.dt-category-pill) { display: inline; opacity: 1; max-width: none; }
-.study-quiz { box-shadow: 0 8px 32px color-mix(in srgb, var(--foreground) 4%, transparent); }
-.study-workspace .dt-reading-navigator { position: absolute; inset: 0 auto 0 0; width: min(320px, 88vw); z-index: 40; border-right: 1px solid var(--border); box-shadow: 12px 0 36px #0001; }
-@media (min-width: 1280px) {
-  .study-workspace .dt-reading-companion { border-left: 1px solid var(--border); }
-  .study-workspace .dt-reading-canvas { padding: 12px; }
-}
-@media (prefers-reduced-motion: reduce) { .study-workspace * { scroll-behavior: auto !important; } }
-
-/* System fonts keep the local/offline build independent of font CDNs. */
-:root {
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  --font-serif: Georgia, "Songti SC", "Noto Serif CJK SC", serif;
-}

@@ -14,7 +14,6 @@ import {
   MessageCircle,
   RotateCcw,
   Route,
-  Sunrise,
   FlaskConical,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -104,7 +103,7 @@ export default function PersonalStudyHome() {
 }
 
 function StudyHome({ workspace }: { workspace: string }) {
-  const { i18n } = useTranslation()
+  const { t, i18n } = useTranslation()
   const zh = i18n.language.startsWith('zh')
   const { currentName } = useWorkspaceChoices()
   const auth = useAuthStatus()
@@ -200,16 +199,9 @@ function StudyHome({ workspace }: { workspace: string }) {
       <div className="personal-study-shell">
         <header className="personal-study-header">
           <div>
-            <div className="study-eyebrow">
-              <Sunrise size={16} />
-              {text('为自己，留一点学习时间', 'A LITTLE TIME FOR YOURSELF')}
-            </div>
-            <h1>{text('今天，从这里继续。', 'Pick up where you left off.')}</h1>
+            <h1>{t('Study today')}</h1>
             <p>
-              {text(
-                '把重要的事往前推进一点。按自己的节奏，理解、练习，再回来验证。',
-                'Make a little room to understand, practice, and return to what matters.',
-              )}
+              {t('继续上次的学习，查看今天的练习与复习安排。')}
             </p>
           </div>
           <Link href={scopedUrl('/project', workspace)} className="study-project-chip">
@@ -425,10 +417,7 @@ function StudyHome({ workspace }: { workspace: string }) {
             <aside className="study-side">
               {chatAllowed && (
                 <section className="study-evidence">
-                  <div className="study-eyebrow">
-                    {text('进展有据可查', 'PROGRESS WITH EVIDENCE')}
-                  </div>
-                  <h2>{text('今天留下了什么', 'What you practiced today')}</h2>
+                  <h2>{text('今天的练习', 'Today’s practice')}</h2>
                   <div className="study-evidence-number">
                     {reviewed === undefined ? '—' : reviewed}
                     <span>{text('道复习题', 'reviewed questions')}</span>

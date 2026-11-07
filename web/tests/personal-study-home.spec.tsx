@@ -18,7 +18,7 @@ vi.mock('@/hooks/useAuthStatus', () => ({
 }))
 vi.mock('@/lib/session-events', () => ({ subscribeSessionChanges: () => () => {} }))
 vi.mock('react-i18next', () => ({
-  useTranslation: () => ({ t: (text: string) => text, i18n: { language: 'zh' } }),
+  useTranslation: () => ({ t: (text: string) => text === 'Study today' ? '今日学习' : text, i18n: { language: 'zh' } }),
 }))
 
 const snapshot = (title = '原来的问题'): StudySnapshot => ({
@@ -57,6 +57,7 @@ afterEach(cleanup)
 it('saves a time budget in the original project with revision checking', async () => {
   mocks.save.mockResolvedValue({ ...snapshot().preferences, minutes: 15, revision: 5 })
   render(<PersonalStudyHome />)
+  expect(screen.getByRole('heading', { level: 1, name: '今日学习' })).toBeVisible()
   await screen.findByRole('link', { name: '接着学' })
   fireEvent.click(screen.getByRole('button', { name: '15 分钟' }))
   await waitFor(() =>
