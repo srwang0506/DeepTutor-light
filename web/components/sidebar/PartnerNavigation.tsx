@@ -9,6 +9,7 @@ import { Plus, ChevronRight, MessageCircle, Users } from 'lucide-react'
 import PartnerAvatar from '@/components/partners/PartnerAvatar'
 import { usePartnerNavigation } from '@/hooks/usePartnerNavigation'
 import { partnerSessionHref } from '@/lib/navigation'
+import { displaySessionTitle } from '@/lib/session-title'
 
 export function PartnerNavigation({ active = true }: { active?: boolean }) {
   const { t } = useTranslation()
@@ -19,7 +20,7 @@ export function PartnerNavigation({ active = true }: { active?: boolean }) {
   const { partners, groups, sessions } = data
   const partnersById = new Map(partners.map(partner => [partner.partner_id, partner]))
   const sessionRows = sessions.filter(row =>
-    matches(`${row.title} ${row.owner_name}`, view.query)
+    matches(`${displaySessionTitle(row.title, t('New conversation'))} ${row.owner_name}`, view.query)
   )
   return (
     <div className="dt-partner-navigation">
@@ -124,7 +125,7 @@ export function PartnerNavigation({ active = true }: { active?: boolean }) {
                 <NavigationRow
                   key={`${row.kind}:${row.owner_id}:${row.session_key}`}
                   href={href}
-                  label={row.title || t('New conversation')}
+                  label={displaySessionTitle(row.title, t('New conversation'))}
                   detail={row.owner_name}
                   icon={row.kind === 'group' ? Users : MessageCircle}
                   active={

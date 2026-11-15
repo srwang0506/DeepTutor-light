@@ -184,6 +184,28 @@ def test_resume_rejects_fabricated_locator(store, bad):
     assert store.list("resume") == []
 
 
+def test_resume_keeps_the_selected_original_when_latest_edition_removed_it(store):
+    edition, digest, _ = source(store)
+    with store.db(write=True) as db:
+        store.put(
+            db,
+            "edition",
+            {**edition["data"], "files": []},
+            identifier=edition["id"],
+            expected=edition["revision"],
+        )
+    ref = ObjectRef(
+        scope="@library",
+        kind="edition",
+        id=edition["id"],
+        revision=edition["revision"],
+        locator=Locator(blob_hash=digest, page=1, quote="Equal distances"),
+    )
+    saved = resume.save(store, ref)
+    item = next(item for item in resume.pending(store) if item["id"] == saved["id"])
+    assert item["source"] == ref.model_dump()
+
+
 def test_sparse_bibliography_enriches_without_losing_originals_aliases_or_user_title(store):
     sparse = json.dumps([{"id": "initial", "title": "A method", "DOI": "10.1234/hoi"}])
     identifier = catalog.import_bibliography(store, sparse, "csl")["entries"][0]["edition_id"]

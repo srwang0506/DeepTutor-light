@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import Link from 'next/link'
 import { ArrowUpRight, BookOpen, CircleAlert } from 'lucide-react'
 import { type ReactNode, useRef, useState } from 'react'
-import { PAGE_TITLE_CLASS } from '@/components/layout/FeaturePage'
+import { FeaturePage, PageHeader } from '@/components/layout/FeaturePage'
+import { Button } from '@/shared/ui/Button'
 import './studio.css'
 
 export function StudioShell({
@@ -20,18 +21,10 @@ export function StudioShell({
   action?: ReactNode
 }) {
   return (
-    <section className="studio-page">
-      <div className="studio-inner dt-page-container">
-        <header className="studio-header">
-          <div>
-            <h1 className={PAGE_TITLE_CLASS}>{title}</h1>
-            <p>{description}</p>
-          </div>
-          {action}
-        </header>
-        {children}
-      </div>
-    </section>
+    <FeaturePage className="studio-page">
+      <PageHeader title={title} description={description} action={action} />
+      {children}
+    </FeaturePage>
   )
 }
 export function StudioEmpty({ title, children }: { title: string; children: ReactNode }) {
@@ -81,14 +74,16 @@ export function Action({
   disabled?: boolean
 }) {
   return (
-    <button
+    <Button
       type="button"
+      data-studio-action
+      variant={secondary ? 'secondary' : 'primary'}
       className={secondary ? 'studio-button secondary' : 'studio-button'}
       onClick={onClick}
       disabled={disabled}
     >
       {children}
-    </button>
+    </Button>
   )
 }
 export function OutLink({ href, children }: { href: string; children: ReactNode }) {

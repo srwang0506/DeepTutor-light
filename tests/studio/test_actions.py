@@ -12,9 +12,11 @@ from deeptutor.studio.models import EditionInput, WorkInput
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("attach_during_generation", [False, True])
+@pytest.mark.parametrize(
+    "source_change", ["unchanged", "attach_during_generation", "removed_before"]
+)
 async def test_selection_creates_durable_versioned_quiz_and_replay_has_no_model_call(
-    tmp_path, attach_during_generation
+    tmp_path, source_change
 ):
     store = Studio(tmp_path / "studio", "project")
     sessions = SQLiteSessionStore(db_path=tmp_path / "session.db")
@@ -36,11 +38,20 @@ async def test_selection_creates_durable_versioned_quiz_and_replay_has_no_model_
     request = ActionRequest(
         action="practice_from_selection", target=ref, idempotency_key="practice-action-123456"
     )
+    if source_change == "removed_before":
+        with store.db(write=True) as db:
+            store.put(
+                db,
+                "edition",
+                {**edition["data"], "files": []},
+                identifier=edition["id"],
+                expected=2,
+            )
     calls = []
 
     async def complete(*args, **kwargs):
         calls.append(True)
-        if attach_during_generation:
+        if source_change == "attach_during_generation":
             with fitz.open() as added:
                 added.new_page().insert_text((72, 72), "Another source attachment")
                 catalog.attach_pdf(store, edition["id"], added.tobytes(), "new.pdf", 2)

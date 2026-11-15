@@ -4,10 +4,11 @@ import { FileInput } from '@/shared/ui/FileInput'
 import { studioLabel } from './display'
 import IntegrationSources from './IntegrationSources'
 import LiveRunTimeline from './LiveRunTimeline'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ArrowUpRight, Download, FlaskConical, Plus, Upload } from 'lucide-react'
 import { useActiveWorkspaceId } from '@/hooks/useActiveWorkspaceId'
+import { useRecoveryPrincipal } from '@/hooks/useRecoveryPrincipal'
 import { Dialog } from '@/shared/ui/Dialog'
 import { scopedUrl } from '@/lib/workspace-scope'
 import { post, records, studio, type StudioRecord } from '@/lib/studio-api'
@@ -65,7 +66,8 @@ const blank = (): Run => ({
 
 export default function ExperimentsPage() {
   const workspace = useActiveWorkspaceId()
-  return <Experiments key={workspace} workspace={workspace} />
+  const principal = useRecoveryPrincipal()
+  return <Experiments key={JSON.stringify([principal, workspace])} workspace={workspace} />
 }
 function Experiments({ workspace }: { workspace: string }) {
   const { t } = useTranslation()
@@ -94,6 +96,8 @@ function Experiments({ workspace }: { workspace: string }) {
 
   const op = useOperation(),
     [runs, setRuns] = useState<StudioRecord<Run>[]>([]),
+    [loading, setLoading] = useState(true),
+    [loadError, setLoadError] = useState(''),
     [selected, setSelected] = useState<StudioRecord<Run> | null>(null),
     [filter, setFilter] = useState('all'),
     [dialog, setDialog] = useState(false),
@@ -106,18 +110,45 @@ function Experiments({ workspace }: { workspace: string }) {
     [result, setResult] = useState<{
       entries: { index: number; status: string; detail?: string }[]
     } | null>(null)
-  async function reload(signal?: AbortSignal) {
-    setRuns(await records<Run>(workspace, 'run', signal))
+  const mounted = useRef(false)
+  const loadSequence = useRef(0)
+  const loadController = useRef<AbortController | null>(null)
+  const load = useCallback(() => {
+    if (!mounted.current) return Promise.resolve()
+    const request = ++loadSequence.current
+    loadController.current?.abort()
+    const controller = new AbortController()
+    loadController.current = controller
+    return records<Run>(workspace, 'run', controller.signal)
+      .then(next => {
+        if (controller.signal.aborted || request !== loadSequence.current) return
+        setRuns(next)
+        setLoadError('')
+        setSelected(current => current ? next.find(row => row.id === current.id) || current : null)
+      })
+      .catch(error => {
+        if (!controller.signal.aborted && request === loadSequence.current) {
+          setLoadError(error instanceof Error ? error.message : '暂时无法加载实验记录。')
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted && request === loadSequence.current) setLoading(false)
+      })
+  }, [workspace])
+  async function reload() {
+    if (!mounted.current) return
+    setLoading(true)
+    setLoadError('')
+    await load()
   }
   useEffect(() => {
-    const a = new AbortController()
-    records<Run>(workspace, 'run', a.signal)
-      .then(setRuns)
-      .catch((e) => {
-        if (!a.signal.aborted) op.setError(e.message)
-      })
-    return () => a.abort()
-  }, [workspace]) // eslint-disable-line react-hooks/exhaustive-deps
+    mounted.current = true
+    void load()
+    return () => {
+      mounted.current = false
+      loadController.current?.abort()
+    }
+  }, [load])
   function edit(row?: StudioRecord<Run>) {
     setEditing(row || null)
     const data = row
@@ -161,6 +192,7 @@ function Experiments({ workspace }: { workspace: string }) {
     a.click()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
   }
+  const visibleRuns = runs.filter(row => filter === 'all' || row.data.status === filter)
   return (
     <StudioShell
       workspace={workspace}
@@ -192,6 +224,12 @@ function Experiments({ workspace }: { workspace: string }) {
         onChange={() => void reload()}
       />
       <ErrorNotice message={op.error} />
+      {loadError && (
+        <div className="studio-actions">
+          <ErrorNotice message={loadError} />
+          <Action secondary disabled={loading} onClick={() => void reload()}>{t('Retry')}</Action>
+        </div>
+      )}
       <div className="studio-toolbar">
         <div className="studio-pills">
           {[
@@ -212,9 +250,8 @@ function Experiments({ workspace }: { workspace: string }) {
       </div>
       <div className="studio-grid studio-experiments-grid">
         <div className="studio-card-list">
-          {runs
-            .filter((r) => filter === 'all' || r.data.status === filter)
-            .map((row) => (
+          {loading && <p role="status" className="studio-note">{t('正在加载实验记录…')}</p>}
+          {visibleRuns.map((row) => (
               <article className="studio-card" key={row.id}>
                 <div className="studio-actions">
                   <FlaskConical size={15} />
@@ -255,12 +292,20 @@ function Experiments({ workspace }: { workspace: string }) {
                 </footer>
               </article>
             ))}
-          {!runs.length && (
+          {!loading && !loadError && !runs.length && (
             <StudioEmpty title={t('记录真实的实验过程')}>
               {t(
                 '可以手动填写，也可以导入 CSV / JSON，或从服务器抓取日志快照。导入行为本身不会被记作成功运行。',
               )}
             </StudioEmpty>
+          )}
+          {!loading && !loadError && runs.length > 0 && !visibleRuns.length && (
+            <div className="space-y-3">
+              <StudioEmpty title={t('没有符合筛选条件的实验记录')}>
+                {t('试试其他状态，或显示全部实验记录。')}
+              </StudioEmpty>
+              <Action secondary onClick={() => setFilter('all')}>{t('显示全部记录')}</Action>
+            </div>
           )}
         </div>
         <aside>

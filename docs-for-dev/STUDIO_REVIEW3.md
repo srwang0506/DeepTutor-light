@@ -11,9 +11,21 @@ It keeps the restored interface, workspace isolation and modular monolith.
 | Experiments → Sources / a run | Append-only JSONL tracking and paged metric history |
 | Evidence → Literature review | Frozen protocol, abstract/full-text screening, anchored extraction |
 | A completed or explicitly revealed question | Review its concept, method, conditions and family |
-| Connections → Project transfer | Encrypted export, conflict preview and explicit import decisions |
+| Project → Project tools → Project transfer | Encrypted export, conflict preview and explicit import decisions |
 | A PDF or existing question → Save offline | Original PDF / prompt-only question, local draft, explicit reconnect submission |
-| Connections → Quality evaluation | Freeze a task suite, run the configured model and export every receipt |
+| Project → Project tools → Quality evaluation | Freeze a task suite, run the configured model and export every receipt |
+
+Library collection creates the work, edition and project membership in one
+transaction. A request identity allows retries after a lost response without
+duplicating the entry. Uploading the PDF is a separate resumable step; retrying
+the same original is idempotent, while a different file still requires the
+current edition revision. A list refresh failure does not repeat the save.
+
+Reading continuations retain the original edition revision, file hash and
+physical page. Missing originals require an explicit selection rather than
+silently opening another file. Manuscript drafts are scoped to the authenticated
+account and project; older unowned browser drafts can only migrate into the
+local single-user account, preserving conflicting draft contents.
 
 ### Zotero
 

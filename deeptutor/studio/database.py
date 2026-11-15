@@ -54,13 +54,29 @@ class Studio:
         )
         try:
             db.execute("PRAGMA foreign_keys=ON")
-            db.execute("PRAGMA journal_mode=WAL")
+            # Two first requests can race while SQLite switches a new file to
+            # WAL. Its journal-mode pragma may report BUSY without consulting
+            # busy_timeout, so retry only this initialization step.
+            deadline = time.monotonic() + 15
+            while True:
+                try:
+                    if db.execute("PRAGMA journal_mode").fetchone()[0] != "wal":
+                        db.execute("PRAGMA journal_mode=WAL")
+                    break
+                except sqlite3.OperationalError as exc:
+                    if (
+                        getattr(exc, "sqlite_errorcode", None) != sqlite3.SQLITE_BUSY
+                        or time.monotonic() >= deadline
+                    ):
+                        raise
+                    time.sleep(0.02)
             # Schema installation is a write. Do it only for a new database;
             # normal reads must remain reads, including inside a writer's snapshot.
             if not db.execute(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name='metadata'"
             ).fetchone():
                 db.executescript("""
+                  BEGIN IMMEDIATE;
                   CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT NOT NULL);
                   INSERT OR IGNORE INTO metadata VALUES ('schema','1');
                   CREATE TABLE IF NOT EXISTS records (
@@ -88,6 +104,7 @@ class Studio:
                     PRIMARY KEY(project,edition)
                   );
                   CREATE VIRTUAL TABLE IF NOT EXISTS search USING fts5(id UNINDEXED, content);
+                  COMMIT;
                 """)
             if db.execute("SELECT value FROM metadata WHERE key='schema'").fetchone()[0] != "1":
                 raise Conflict("This library requires a newer application version.")

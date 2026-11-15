@@ -28,6 +28,18 @@ class EditionInput(Command):
     venue: str = Field(default="", max_length=500)
 
 
+class LibraryCollectionInput(Command):
+    request_id: str = Field(min_length=16, max_length=100)
+    work: WorkInput | None = None
+    edition: EditionInput
+
+    @model_validator(mode="after")
+    def one_work_source(self):
+        if bool(self.work) == bool(self.edition.work_id):
+            raise ValueError("Choose a new work or an existing work, not both.")
+        return self
+
+
 class EvidenceInput(Command):
     edition_id: str
     blob_hash: str = Field(pattern=r"^[0-9a-f]{64}$")

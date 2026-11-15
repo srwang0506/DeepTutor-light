@@ -30,6 +30,7 @@ from deeptutor.studio.models import (
     EditionInput,
     EvidenceInput,
     FileEdit,
+    LibraryCollectionInput,
     ManuscriptInput,
     ObservationInput,
     ProposalInput,
@@ -81,6 +82,11 @@ async def library(
 @router.post("/works")
 async def work(payload: WorkInput):
     return await operation(catalog.create_work, Studio(), payload)
+
+
+@router.post("/library/collect")
+async def collect(payload: LibraryCollectionInput):
+    return await operation(catalog.collect_library, Studio(), payload)
 
 
 @router.post("/editions")

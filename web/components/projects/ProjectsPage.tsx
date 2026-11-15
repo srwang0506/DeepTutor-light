@@ -23,6 +23,7 @@ import { FeaturePage, PAGE_TITLE_CLASS } from '@/components/layout/FeaturePage'
 import { useActiveWorkspaceId } from '@/hooks/useActiveWorkspaceId'
 import { scopedUrl, selectWorkspace } from '@/lib/workspace-scope'
 import { getLocale } from '@/lib/datetime'
+import { displaySessionTitle } from '@/lib/session-title'
 import {
   getProjectOverview,
   listWorkspaces,
@@ -406,7 +407,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                       >
                         <MessageCircle size={16} />
                         <div>
-                          <strong>{s.title || (zh ? '未命名对话' : 'Untitled')}</strong>
+                          <strong>{displaySessionTitle(s.title, t('New conversation'))}</strong>
                           <small>
                             {new Date(s.updated_at * 1000).toLocaleDateString(
                               getLocale(i18n.resolvedLanguage || i18n.language),
@@ -640,7 +641,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                         </small>
                         <ArrowRight size={14} />
                       </div>
-                      <strong>{hit.title}</strong>
+                      <strong>{hit.kind === 'chat' ? displaySessionTitle(hit.title, t('New conversation')) : hit.title}</strong>
                       <p>{hit.text}</p>
                     </Link>
                   ))}

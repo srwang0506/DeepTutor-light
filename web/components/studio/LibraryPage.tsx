@@ -3,36 +3,56 @@ import { useKeyedState } from '@/hooks/useKeyedState'
 import { useTranslation } from 'react-i18next'
 import { FileInput } from '@/shared/ui/FileInput'
 import IntegrationSources from './IntegrationSources'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import DiscoveryPanel from './DiscoveryPanel'
 import BibliographyExport from './BibliographyExport'
+import StudioLoading from './StudioLoading'
 import { BookOpen, Plus, Search, Upload, Compass, ArrowUpRight, Library } from 'lucide-react'
 import { Dialog } from '@/shared/ui/Dialog'
 import { useActiveWorkspaceId } from '@/hooks/useActiveWorkspaceId'
-import { scopedUrl } from '@/lib/workspace-scope'
+import { useRecoveryPrincipal } from '@/hooks/useRecoveryPrincipal'
+import { activeWorkspaceId, scopedUrl } from '@/lib/workspace-scope'
+import { recoveryPrincipal } from '@/lib/recovery-principal'
 import {
   post,
   studio,
+  StudioRequestError,
   type Work,
   type Edition,
-  type StudioRecord,
-  type WorkData,
 } from '@/lib/studio-api'
 import { StudioShell, StudioEmpty, Action, Field, ErrorNotice, useOperation } from './StudioShell'
 
 export default function LibraryPage() {
   const workspace = useActiveWorkspaceId()
-  return <LibraryHome key={workspace} workspace={workspace} />
+  const principal = useRecoveryPrincipal()
+  if (!principal) return <StudioLoading label="正在打开资料库…" />
+  return <LibraryHome key={JSON.stringify([principal, workspace])} workspace={workspace} principal={principal} />
 }
-function LibraryHome({ workspace }: { workspace: string }) {
+function LibraryHome({ workspace, principal }: { workspace: string; principal: string }) {
   const { t } = useTranslation()
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
+  const isCurrent = () => mounted.current && principal === recoveryPrincipal() && workspace === activeWorkspaceId()
 
-  const [works, setWorks] = useState<Work[]>([]),
-    [cursor, setCursor] = useState(''),
-    [query, setQuery] = useState(''),
+  const [query, setQuery] = useState(''),
     [filter, setFilter] = useState('all')
-  const [loading, setLoading] = useKeyedState(JSON.stringify([workspace, query, filter]), true)
+  const queryKey = JSON.stringify([workspace, query, filter])
+  const [works, setWorks] = useKeyedState<Work[]>(queryKey, [])
+  const [cursor, setCursor] = useKeyedState(queryKey, '')
+  const [loading, setLoading] = useKeyedState(queryKey, true)
+  const [listError, setListError] = useKeyedState(queryKey, '')
+  const querySequence = useRef(0)
+  const collection = useRef<{
+    request_id: string
+    work?: { title: string; authors: string[]; year: number | null }
+    edition: { work_id: string; label: string; doi: string; arxiv: string }
+  } | null>(null)
+  const [collectionPending, setCollectionPending] = useState(false)
+  const [collected, setCollected] = useState<Edition | null>(null)
   const [dialog, setDialog] = useState<'add' | 'import' | 'discover' | 'attach' | 'edition' | null>(
       null,
     ),
@@ -50,6 +70,8 @@ function LibraryHome({ workspace }: { workspace: string }) {
     [notice, setNotice] = useState('')
   const op = useOperation()
   async function reload(signal?: AbortSignal, after = '') {
+    if (!isCurrent()) return
+    const request = ++querySequence.current
     const params = new URLSearchParams({
       q: query,
       project_only: String(filter === 'project'),
@@ -62,9 +84,21 @@ function LibraryHome({ workspace }: { workspace: string }) {
       {},
       signal,
     )
+    if (!isCurrent() || signal?.aborted || request !== querySequence.current) return
     setWorks((previous) => (after ? [...previous, ...r.works] : r.works))
     setCursor(r.next_cursor)
     setLoading(false)
+    setListError('')
+  }
+  async function refresh() {
+    if (!isCurrent()) return
+    setLoading(true)
+    try {
+      await reload()
+    } catch (e) {
+      setListError(e instanceof Error ? e.message : String(e))
+      setLoading(false)
+    }
   }
   useEffect(() => {
     const abort = new AbortController()
@@ -72,7 +106,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
       () =>
         void reload(abort.signal).catch((e) => {
           if (!abort.signal.aborted) {
-            op.setError(e.message)
+            setListError(e.message)
             setLoading(false)
           }
         }),
@@ -92,35 +126,60 @@ function LibraryHome({ workspace }: { workspace: string }) {
     setArxiv('')
     setLabel(t('原始版本'))
     setFile(null)
+    collection.current = null
+    setCollectionPending(false)
+    setCollected(null)
     setNotice('')
     op.setError('')
+  }
+  function close() {
+    setDialog(null)
+    if (collectionPending) void refresh()
   }
   async function upload(e: Edition, f: File) {
     const data = new FormData()
     data.append('file', f)
     data.append('expected_revision', String(e.revision))
-    await studio(workspace, `/editions/${e.id}/pdf`, { method: 'POST', body: data })
+    return studio<Edition>(workspace, `/editions/${e.id}/pdf`, { method: 'POST', body: data })
   }
   async function add() {
-    let work = parent as StudioRecord<WorkData> | null
-    if (dialog !== 'edition')
-      work = await post<StudioRecord<WorkData>>(workspace, '/works', {
-        title: title.trim() || file?.name.replace(/\.pdf$/i, '') || '',
-        authors: authors
-          .split(/;|；/)
-          .map((v) => v.trim())
-          .filter(Boolean),
-        year: year ? Number(year) : null,
-      })
-    if (!work) return
-    const e = await post<Edition>(workspace, '/editions', { work_id: work.id, label, doi, arxiv })
-    await post(workspace, `/editions/${e.id}/project`, { role: 'reading' })
-    try {
-      if (file) await upload(e, file)
-    } finally {
-      await reload()
+    if (!isCurrent()) return
+    if (!collection.current) {
+      collection.current = {
+        request_id: crypto.randomUUID(),
+        ...(dialog === 'edition' ? {} : {
+          work: {
+            title: title.trim() || file?.name.replace(/\.pdf$/i, '') || '',
+            authors: authors.split(/;|；/).map(v => v.trim()).filter(Boolean),
+            year: year ? Number(year) : null,
+          },
+        }),
+        edition: { work_id: dialog === 'edition' ? parent?.id || '' : '', label, doi, arxiv },
+      }
+      setCollectionPending(true)
     }
+    let edition = collected
+    if (!edition) {
+      try {
+        edition = await post<Edition>(workspace, '/library/collect', collection.current)
+        if (!isCurrent()) return
+        setCollected(edition)
+      } catch (error) {
+        // A rejected command did not commit. Transport failures keep the same
+        // request identity so a retry recovers a possibly committed response.
+        if (error instanceof StudioRequestError && [409, 422].includes(error.status)) {
+          collection.current = null
+          setCollectionPending(false)
+        }
+        throw error
+      }
+    }
+    if (!isCurrent()) return
+    if (file) await upload(edition, file)
+    if (!isCurrent()) return
     setDialog(null)
+    setNotice(t('资料已保存。'))
+    await refresh()
   }
   const list = works
   const originals = works.flatMap((w) => w.editions).filter((e) => e.data.files.length).length
@@ -167,6 +226,12 @@ function LibraryHome({ workspace }: { workspace: string }) {
         </div>
       </div>
       <ErrorNotice message={dialog ? '' : op.error} />
+      {listError && (
+        <div className="studio-actions">
+          <ErrorNotice message={listError} />
+          <Action secondary disabled={loading} onClick={() => void refresh()}>{t('Retry')}</Action>
+        </div>
+      )}
       {notice && !dialog && (
         <p role="status" className="studio-note">
           {notice}
@@ -261,6 +326,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
                             disabled={op.busy}
                             onClick={() =>
                               void op.run(async () => {
+                                if (!isCurrent()) return
                                 await post(workspace, `/editions/${e.id}/project`, {
                                   role: 'reading',
                                 })
@@ -286,14 +352,14 @@ function LibraryHome({ workspace }: { workspace: string }) {
                 </article>
               ))}
             </div>
-          ) : (
-            <StudioEmpty title={query ? t('没有匹配的资料') : t('从一份想读懂的资料开始')}>
-              {t(
+          ) : !listError ? (
+            <StudioEmpty title={query || filter !== 'all' ? t('没有匹配的资料') : t('从一份想读懂的资料开始')}>
+              {query || filter !== 'all' ? t('可以换个关键词，或查看全部资料。') : t(
                 '收藏 PDF 或题录，留下疑问，再把原文里的线索整理成自己的理解。已有阅读资料仍可从右侧打开。',
               )}
             </StudioEmpty>
-          )}
-          {cursor && (
+          ) : null}
+          {!loading && cursor && (
             <Action
               secondary
               disabled={op.busy}
@@ -307,7 +373,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
           <section className="studio-panel">
             <Library size={19} />
             <div className="studio-stat">{works.length}</div>
-            <h2>{t('属于你的资料库')}</h2>
+            <h2>{t('当前列表中的资料')}</h2>
             <p>
               {originals}{' '}
               {t('个版本已保存原文。题录和原件在个人资料库中共享，项目里的筛选与证据独立保存。')}
@@ -346,20 +412,23 @@ function LibraryHome({ workspace }: { workspace: string }) {
                   ? t('添加可独立引用的版本')
                   : t('收藏一份资料')
         }
-        onClose={() => setDialog(null)}
+        onClose={close}
         size={dialog === 'discover' ? 'xl' : 'lg'}
         busy={op.busy}
         className="studio-dialog"
         footer={
           dialog === 'discover' ? undefined : (
             <div className="studio-actions">
-              <Action secondary onClick={() => setDialog(null)} disabled={op.busy}>
+              <Action secondary onClick={close} disabled={op.busy}>
                 {t('取消')}
               </Action>
               <Action
-                disabled={op.busy || (dialog === 'attach' && !file)}
+                disabled={op.busy || (dialog === 'attach' && !file) ||
+                  (dialog === 'add' && !collectionPending && !title.trim() && !file) ||
+                  (dialog === 'import' && !bibliography.trim())}
                 onClick={() =>
                   void op.run(async () => {
+                    if (!isCurrent()) return
                     if (dialog === 'import') {
                       const result = await post<{
                         entries: {
@@ -369,7 +438,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
                           conflicts?: number
                         }[]
                       }>(workspace, '/bibliography/import', { text: bibliography, format })
-                      await reload()
+                      await refresh()
                       const errors = result.entries.filter((e) => e.status === 'error')
                       setNotice(
                         t("已处理 {{value1}} 条；补全 {{value2}} 条；{{value3}} 项字段冲突已保留；{{value4}} 条需要检查。{{value5}}", { value1: result.entries.length, value2: result.entries.filter((e) => e.enriched).length, value3: result.entries.reduce((n, e) => n + (e.conflicts || 0), 0), value4: errors.length, value5: errors.map((e) => e.detail).join('；') }),
@@ -377,19 +446,26 @@ function LibraryHome({ workspace }: { workspace: string }) {
                       if (!errors.length) setDialog(null)
                     } else if (dialog === 'attach' && selected && file) {
                       await upload(selected, file)
-                      await reload()
                       setDialog(null)
+                      await refresh()
                     } else await add()
                   })
                 }
               >
-                {op.busy ? t('正在保存…') : t('保存到资料库')}
+                {op.busy ? t('正在保存…') : collectionPending ? t('继续保存') : t('保存到资料库')}
               </Action>
             </div>
           )
         }
       >
         <ErrorNotice message={op.error} />
+        {collectionPending && !op.busy && (
+          <p className="studio-note" role="status">
+            {collected
+              ? t('题录已保存，原文尚未完成。可重试上传，或关闭后从“添加原文”继续。')
+              : t('正在确认这次收藏的结果。重试会接续同一次保存。')}
+          </p>
+        )}
         {notice && (
           <p className="studio-note" role="status">
             {notice}
@@ -397,6 +473,7 @@ function LibraryHome({ workspace }: { workspace: string }) {
         )}
         {dialog === 'add' || dialog === 'edition' ? (
           <div className="studio-form">
+            <fieldset disabled={op.busy || collectionPending} className="studio-form min-w-0">
             {dialog === 'add' && (
               <>
                 <Field label={t("标题")}>
@@ -431,11 +508,14 @@ function LibraryHome({ workspace }: { workspace: string }) {
                 />
               </Field>
             </div>
+            </fieldset>
             <label className="studio-upload">
               <Upload size={23} />
               <span>{t('保存 PDF 原文，或稍后再补')}</span>
               <FileInput
-                    accept="application/pdf"
+                aria-label={t('PDF 原文')}
+                disabled={op.busy}
+                accept="application/pdf"
                 onChange={(e) => setFile(e.target.files?.[0] || null)}
               />
             </label>
@@ -446,6 +526,8 @@ function LibraryHome({ workspace }: { workspace: string }) {
             <Upload size={23} />
             <span>{t('原件按内容保存，同一文件更名不会重复入库。')}</span>
             <FileInput
+                aria-label={t('PDF 原文')}
+                disabled={op.busy}
                 accept="application/pdf"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
             />

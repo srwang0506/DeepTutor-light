@@ -9,7 +9,7 @@ from urllib.parse import unquote, urlsplit
 
 from . import bibliographic_merge, import_receipts
 from .database import Conflict, Studio, encoded, sha
-from .models import EditionInput, WorkInput
+from .models import EditionInput, LibraryCollectionInput, WorkInput
 
 
 def normalize_doi(value):
@@ -46,6 +46,35 @@ def create_edition(store: Studio, command: EditionInput):
         return _create_edition(store, db, data)
 
 
+def collect_library(store: Studio, command: LibraryCollectionInput):
+    """Collect a work, edition and project membership in one replayable transaction."""
+    payload = command.model_dump(exclude={"request_id"})
+    digest = sha(encoded(payload).encode())
+    data = command.edition.model_dump()
+    data["doi"] = normalize_doi(data["doi"])
+    data["arxiv"] = normalize_arxiv(data["arxiv"])
+    if data["url"] and urlsplit(data["url"]).scheme not in {"http", "https"}:
+        raise ValueError("Source URLs must use HTTP or HTTPS.")
+    with store.db(write=True) as db:
+        received = import_receipts.lookup(
+            store, db, "library_collection", command.request_id, digest
+        )
+        if received:
+            return received
+        if command.work is not None:
+            work = store.put(db, "work", command.work.model_dump())
+            data["work_id"] = work["id"]
+        row = _create_edition(store, db, data)
+        db.execute(
+            "INSERT INTO project_library VALUES (?,?,?,?)",
+            (store.project, row["id"], "reading", time.time()),
+        )
+        import_receipts.save(
+            store, db, "library_collection", command.request_id, payload, row["id"]
+        )
+        return row
+
+
 def _create_edition(store, db, data):
     store.record(db, data["work_id"], "work")
     for scheme in ("doi", "arxiv"):
@@ -76,13 +105,16 @@ def attach_pdf(store: Studio, edition_id, data: bytes, name, expected):
             raise ValueError("The PDF is encrypted, empty, or exceeds 10,000 pages.")
         pages = len(pdf)
         outline = [{"level": r[0], "title": r[1], "page": r[2]} for r in pdf.get_toc()[:1000]]
-    digest = store.save_blob(data)
+    digest = sha(data)
     with store.db(write=True) as db:
         edition = store.record(db, edition_id, "edition")
+        if any(f["hash"] == digest for f in edition["data"]["files"]):
+            # Replays also restore a missing original and detect disk corruption.
+            store.save_blob(data)
+            return edition
         if edition["revision"] != expected:
             raise Conflict("The edition changed while uploading. Reload before attaching.")
-        if any(f["hash"] == digest for f in edition["data"]["files"]):
-            return edition
+        store.save_blob(data)
         payload = {**edition["data"], "full_text": "available"}
         payload["files"] = [
             *payload["files"],
@@ -112,8 +144,8 @@ def edition_file(store, edition_id, digest, revision=None):
     return store.blob_path(digest), file
 
 
-def page_source(store, edition_id, digest, page, region=None):
-    path, metadata = edition_file(store, edition_id, digest)
+def page_source(store, edition_id, digest, page, region=None, *, revision=None):
+    path, metadata = edition_file(store, edition_id, digest, revision)
     return pdf_page_source(path, metadata, page, region)
 
 

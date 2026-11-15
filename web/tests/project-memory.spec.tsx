@@ -1,16 +1,21 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import ProjectEditor from '@/components/projects/ProjectEditor'
 import ProjectMemoryReferences from '@/components/projects/ProjectMemoryReferences'
+import ProjectsPage from '@/components/projects/ProjectsPage'
 import { projectErrorMessage } from '@/components/projects/project-feedback'
 import { ensureLanguage, initI18n } from '@/i18n/init'
 import type { ChatWorkspaceRegistration } from '@/lib/workspaces-api'
 import type { StreamEvent } from '@/features/chat/model/protocol'
 
-const mocks = vi.hoisted(() => ({ save: vi.fn(), saved: vi.fn(), close: vi.fn() }))
+const mocks = vi.hoisted(() => ({ save: vi.fn(), saved: vi.fn(), close: vi.fn(), list: vi.fn(), overview: vi.fn() }))
+vi.mock('@/hooks/useActiveWorkspaceId', () => ({ useActiveWorkspaceId: () => 'HOI' }))
+vi.mock('@/components/projects/ProjectTools', () => ({ default: () => null }))
 vi.mock('@/lib/workspaces-api', async original => ({
   ...(await original<object>()),
   saveWorkspace: mocks.save,
+  listWorkspaces: mocks.list,
+  getProjectOverview: mocks.overview,
 }))
 const i18n = initI18n()
 const row = (id: string, extra = {}): ChatWorkspaceRegistration => ({
@@ -143,4 +148,27 @@ it('gives an unknown server failure a retryable localized fallback', async () =>
   expect(translated()).toBe('此项目操作暂未完成，请重新加载后重试。')
   await i18n.changeLanguage('en')
   expect(translated()).toBe('Could not complete this project action. Reload and try again.')
+})
+
+it('localizes project conversation placeholders while preserving real English titles', async () => {
+  mocks.list.mockResolvedValue(projects)
+  mocks.overview.mockResolvedValue({
+    workspace: row('HOI'),
+    sessions: [
+      { id: 'new', title: 'New conversation', updated_at: 50 },
+      { id: 'custom', title: 'Learning from human interactions', updated_at: 50 },
+    ],
+    tasks: [],
+    counts: { sessions: 2, tasks: 0, open_tasks: 0, memory_documents: 0 },
+    sources: [],
+    unavailable_sources: [],
+  })
+  render(<ProjectsPage detail />)
+  const conversation = await screen.findByRole('link', { name: /^新对话/ })
+  expect(conversation).toBeVisible()
+  expect(screen.getByRole('link', { name: /^Learning from human interactions/ })).toBeVisible()
+
+  await act(async () => { await i18n.changeLanguage('en') })
+  expect(conversation).toHaveTextContent('New conversation')
+  expect(screen.getByRole('link', { name: /^Learning from human interactions/ })).toBeVisible()
 })

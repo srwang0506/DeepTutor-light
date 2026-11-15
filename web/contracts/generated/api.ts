@@ -11339,6 +11339,23 @@ export interface paths {
     readonly patch?: never;
     readonly trace?: never;
   };
+  readonly "/api/studio/library/collect": {
+    readonly parameters: {
+      readonly query?: never;
+      readonly header?: never;
+      readonly path?: never;
+      readonly cookie?: never;
+    };
+    readonly get?: never;
+    readonly put?: never;
+    /** Collect */
+    readonly post: operations["collect_api_studio_library_collect_post"];
+    readonly delete?: never;
+    readonly options?: never;
+    readonly head?: never;
+    readonly patch?: never;
+    readonly trace?: never;
+  };
   readonly "/api/studio/manuscripts": {
     readonly parameters: {
       readonly query?: never;
@@ -16928,6 +16945,13 @@ export interface components {
         "books" | "mastery" | "practice" | "reading"
       )[];
     };
+    /** LibraryCollectionInput */
+    readonly LibraryCollectionInput: {
+      readonly edition: components["schemas"]["EditionInput"];
+      /** Request Id */
+      readonly request_id: string;
+      readonly work?: components["schemas"]["WorkInput"] | null;
+    };
     /**
      * LightRagConfigUpdate
      * @description Partial update for LightRAG query + indexing knobs (omitted fields kept).
@@ -22406,6 +22430,8 @@ export type SchemaLearningCaptureUpdateRequest =
   components["schemas"]["LearningCaptureUpdateRequest"];
 export type SchemaLearningPageCustomization =
   components["schemas"]["LearningPageCustomization"];
+export type SchemaLibraryCollectionInput =
+  components["schemas"]["LibraryCollectionInput"];
 export type SchemaLightRagConfigUpdate =
   components["schemas"]["LightRagConfigUpdate"];
 export type SchemaLightRagIndexingSelection =
@@ -48127,6 +48153,43 @@ export interface operations {
       };
     };
     readonly requestBody?: never;
+    readonly responses: {
+      /** @description Successful Response */
+      readonly 200: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      readonly 422: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  readonly collect_api_studio_library_collect_post: {
+    readonly parameters: {
+      readonly query?: never;
+      readonly header?: {
+        readonly Authorization?: string | null;
+      };
+      readonly path?: never;
+      readonly cookie?: {
+        readonly dt_token?: string | null;
+      };
+    };
+    readonly requestBody: {
+      readonly content: {
+        readonly "application/json": components["schemas"]["LibraryCollectionInput"];
+      };
+    };
     readonly responses: {
       /** @description Successful Response */
       readonly 200: {

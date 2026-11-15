@@ -12,9 +12,11 @@ import WritingTools from './WritingTools'
 import WritingAssistant from './WritingAssistant'
 import { ArrowLeft, Download, FileCode2, Play, Plus, Save } from 'lucide-react'
 import { useActiveWorkspaceId } from '@/hooks/useActiveWorkspaceId'
+import { useRecoveryPrincipal } from '@/hooks/useRecoveryPrincipal'
+import { recoveryPrincipal } from '@/lib/recovery-principal'
 import { Dialog } from '@/shared/ui/Dialog'
 import { browserStorage } from '@/shared/storage'
-import { recoverDraft, assertDraftCanSave, type SavedDraft } from '@/lib/manuscript-draft'
+import { recoverDraft, assertDraftCanSave, manuscriptDraftKey, readManuscriptDraft, type SavedDraft } from '@/lib/manuscript-draft'
 import { apiFetch } from '@/lib/api'
 import {
   records,
@@ -68,17 +70,19 @@ interface Audit {
 const EMPTY_HASH = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
 export default function WritingPage() {
   const workspace = useActiveWorkspaceId()
-  return <WritingWorkspace key={workspace} workspace={workspace} />
+  const principal = useRecoveryPrincipal()
+  if (!principal) return <StudioLoading label="正在打开编辑器…" />
+  return <WritingWorkspace key={JSON.stringify([principal, workspace])} workspace={workspace} principal={principal} />
 }
-function WritingWorkspace({ workspace }: { workspace: string }) {
+function WritingWorkspace({ workspace, principal }: { workspace: string; principal: string }) {
   const { t, i18n } = useTranslation()
 
   const router = useRouter(),
     search = useSearchParams()
   const openedDeepLink = useRef(false)
   const draftKey = useCallback(
-    (document: string, path: string) => `studio-draft:${workspace}:${document}:${path}`,
-    [workspace],
+    (document: string, path: string) => manuscriptDraftKey(principal, workspace, document, path),
+    [principal, workspace],
   )
   const op = useOperation(),
     [documents, setDocuments] = useState<StudioRecord<ManuscriptData>[]>([]),
@@ -162,6 +166,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
       records<ProposalData>(workspace, 'proposal', signal),
       records<SubmissionData>(workspace, 'submission', signal),
     ]).then(async ([a, b, c, d]) => {
+      if (signal?.aborted || !mounted.current || recoveryPrincipal() !== principal) return
       setDocuments(a)
       setBuilds(b)
       setProposals(c)
@@ -181,6 +186,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     }
   }, [workspace]) // eslint-disable-line react-hooks/exhaustive-deps
   const save = useCallback(async () => {
+    if (!mounted.current || recoveryPrincipal() !== principal) return
     if (saving.current) {
       await saving.current
       return
@@ -205,7 +211,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
             }),
           },
         )
-        if (!mounted.current) return
+        if (!mounted.current || recoveryPrincipal() !== principal) return
         if (
           current.current.file?.path === snapshot.file!.path &&
           current.current.active?.id === snapshot.active!.id
@@ -233,7 +239,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     })()
     saving.current = task
     await task
-  }, [draftKey, workspace, t])
+  }, [draftKey, workspace, principal, t])
   useEffect(() => {
     if (!active || !file || text === savedText || saveStatus === 'error' || conflictState.current)
       return
@@ -255,6 +261,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
   }, [])
   async function flush() {
     await save()
+    if (!mounted.current || recoveryPrincipal() !== principal) throw new Error(t('当前账户已切换，请在新账户中重新打开稿件。'))
     if (current.current.text !== current.current.savedText) await save()
     if (current.current.text !== current.current.savedText)
       throw new Error(t('请等待当前修改保存后再继续。'))
@@ -324,12 +331,13 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
     )
     let recovered: SavedDraft | null = null
     try {
-      const raw = browserStorage.readRaw('session', draftKey(identifier, path))
+      const raw = readManuscriptDraft(principal, workspace, identifier, path)
       if (raw) {
         const data = JSON.parse(raw)
         if (typeof data.text === 'string' && typeof data.hash === 'string') recovered = data
       }
     } catch {}
+    if (!mounted.current || recoveryPrincipal() !== principal) return
     const restoredState = recoverDraft(source, recovered)
     const { base, text: restored } = restoredState
     const conflicting = !!restoredState.conflict
@@ -348,6 +356,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
   async function openDocument(row: StudioRecord<ManuscriptData>) {
     await flush()
     const listing = await studio<{ files: SourceFile[] }>(workspace, `/manuscripts/${row.id}/files`)
+    if (!mounted.current || recoveryPrincipal() !== principal) return
     setActive(row)
     current.current = { ...current.current, active: row, file: null, text: '', savedText: '' }
     setFile(null)
@@ -358,6 +367,7 @@ function WritingWorkspace({ workspace }: { workspace: string }) {
       workspace,
       `/manuscripts/${row.id}/recovery`,
     )
+    if (!mounted.current || recoveryPrincipal() !== principal) return
     setRecoveries(recovery.conflicts)
     setAudit(null)
     setLog('')

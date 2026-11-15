@@ -28,6 +28,7 @@ import { usePartnerNavigation } from '@/hooks/usePartnerNavigation'
 import { allLearningActivity } from '@/lib/learning-dashboard'
 import { navigateTask } from '@/lib/workspace-scope'
 import type { SessionSummary } from '@/lib/session-api'
+import { displaySessionTitle } from '@/lib/session-title'
 import { isNoteSession } from '@/lib/mastery-session'
 import { learningSurface } from '@/components/learning/surfaces'
 import { navVisibleUnderPolicy } from './nav-entries'
@@ -141,7 +142,7 @@ export function CommandPalette({
       )
       .map((session) => ({
         id: `session:${session.session_id}`,
-        label: session.title || t('New conversation'),
+        label: displaySessionTitle(session.title, t('New conversation')),
         icon: glyph(MessageCircle),
         run: () =>
           void (onSelectSession

@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
 import { useActiveWorkspaceId } from '@/hooks/useActiveWorkspaceId'
+import { useRecoveryPrincipal } from '@/hooks/useRecoveryPrincipal'
 import { scopedUrl } from '@/lib/workspace-scope'
 import { studio, type StudioRecord } from '@/lib/studio-api'
 import { StudioShell, ErrorNotice } from './StudioShell'
 import StudyQuizViewer from '@/components/quiz/StudyQuizViewer'
 import type { QuizQuestion } from '@/lib/quiz-types'
+import StudioLoading from './StudioLoading'
 
 
 
@@ -44,13 +46,15 @@ type Data = {
   }[]
 }
 export default function ObjectPage() {
+  const principal = useRecoveryPrincipal()
   const workspace = useActiveWorkspaceId(),
     { id } = useParams<{ id: string }>(),
     query = useSearchParams()
   const revision = query.get('revision')
+  if (!principal) return <StudioLoading label="正在读取冻结版本…" />
   return (
     <ObjectView
-      key={`${workspace}:${id}:${revision}`}
+      key={JSON.stringify([principal, workspace, id, revision])}
       workspace={workspace}
       id={id}
       revision={revision}
@@ -96,7 +100,8 @@ function ObjectView({
 }
 
   const [row, setRow] = useState<(StudioRecord<Data> & { latest_revision: number }) | null>(null),
-    [error, setError] = useState('')
+    [error, setError] = useState(''),
+    [attempt, setAttempt] = useState(0)
   useEffect(() => {
     const abort = new AbortController()
     void studio<StudioRecord<Data> & { latest_revision: number }>(
@@ -105,15 +110,20 @@ function ObjectView({
       {},
       abort.signal,
     )
-      .then(setRow)
+      .then(value => {
+        if (!abort.signal.aborted) {
+          setRow(value)
+          setError('')
+        }
+      })
       .catch((e) => {
         if (!abort.signal.aborted) setError(e.message)
       })
     return () => abort.abort()
-  }, [workspace, id, revision])
+  }, [workspace, id, revision, attempt])
   const d = row?.data
   const original = d?.edition_id
-    ? { id: d.edition_id, locator: { blob_hash: d.blob_hash, page: d.page } }
+    ? { id: d.edition_id, revision: undefined, locator: { blob_hash: d.blob_hash, page: d.page } }
     : d?.source
   return (
     <StudioShell
@@ -131,6 +141,7 @@ function ObjectView({
       description={t("查看来源、版本和记录内容，继续阅读或核对相关证据。")}
     >
       <ErrorNotice message={error} />
+      {error && <button type="button" className="studio-button secondary" onClick={() => setAttempt(value => value + 1)}>{t('Retry')}</button>}
       {!row && !error && (
         <p role="status" className="studio-note">
           {t('正在读取冻结版本…')}
@@ -161,7 +172,7 @@ function ObjectView({
               <Link
                 className="studio-outlink"
                 href={scopedUrl(
-                  `/library/${original.id}?file=${original.locator.blob_hash || ''}&page=${original.locator.page || 1}`,
+                  `/library/${encodeURIComponent(original.id)}?${original.revision ? `revision=${original.revision}&` : ''}file=${original.locator.blob_hash || ''}&page=${original.locator.page || 1}`,
                   workspace,
                 )}
               >

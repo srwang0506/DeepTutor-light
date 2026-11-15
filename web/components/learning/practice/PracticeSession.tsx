@@ -55,6 +55,7 @@ export function PracticeSession({
   const { t, i18n } = useTranslation()
   const [index, setIndex] = useState(0)
   const [saved, setSaved] = useState(0)
+  const [reviewCount, setReviewCount] = useState(0)
   const [saving, setSaving] = useState(false)
   const [nextDue, setNextDue] = useState<number | null>(null)
   const [recent, setRecent] = useState<SavedAttempt[]>([])
@@ -88,7 +89,7 @@ export function PracticeSession({
           <h2 className="font-serif text-2xl font-semibold">{t('Practice complete')}</h2>
           <p className="mt-3 text-sm text-muted-foreground">
             {t('{{count}} reviews saved. Your next review dates have been updated.', {
-              count: saved,
+              count: reviewCount,
             })}
           </p>
           {skipped > 0 && (
@@ -128,6 +129,7 @@ export function PracticeSession({
             workspaceId={queue[index].content_workspace_id}
             onBusy={setSaving}
             onSaved={(attempt) => {
+              setReviewCount((value) => value + 1)
               const { due_at: due, rating } = attempt.receipt
               if (rating === 'again') setQueue((current) => [...current, current[index]])
               else setSaved((value) => value + 1)
@@ -240,6 +242,7 @@ function PracticeTurn({
   const [reload, setReload] = useState(0)
   const pending = useRef(false)
   const [submittedRating, setSubmittedRating] = useState<PracticeRating | null>(null)
+  const reviewPending = submittedRating !== null
   const submission = useRef<{
     request_id: string
     version: number
@@ -262,7 +265,7 @@ function PracticeTurn({
     }
   }, [id, reload, workspaceId])
   async function reveal() {
-    if (pending.current || !question || conflict || !answer.trim()) return
+    if (pending.current || submission.current || !question || conflict || !answer.trim()) return
     pending.current = true
     setBusy(true)
     onBusy(true)
@@ -354,12 +357,38 @@ function PracticeTurn({
               {t('Reload question')}
             </button>
           )}
+          {entry && reviewPending && !conflict && (
+            <div className="mt-2 space-y-2">
+              <p>{t('Your submitted answer is kept unchanged while its save is retried.')}</p>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  const retry = submission.current
+                  if (retry) void rate(retry.rating, retry.self_report)
+                }}
+                className="underline disabled:opacity-50"
+              >
+                {t('Retry saving review')}
+              </button>
+            </div>
+          )}
         </div>
       )}
       {!entry || !question ? (
-        <p role="status" className="py-8 text-sm text-muted-foreground">
-          {t('Loading…')}
-        </p>
+        error ? (
+          <button
+            type="button"
+            onClick={onSkip}
+            className="text-sm text-muted-foreground hover:underline"
+          >
+            {t('Skip for now')}
+          </button>
+        ) : (
+          <p role="status" className="py-8 text-sm text-muted-foreground">
+            {t('Loading…')}
+          </p>
+        )
       ) : (
         <>
           <div className="mb-4 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -380,7 +409,7 @@ function PracticeTurn({
                 !!entry.knowledge_point_id
               }
               workspace={workspaceId}
-              disabled={busy || conflict}
+              disabled={busy || conflict || reviewPending}
               onSaved={(state) =>
                 setQuestion((current) => (current ? { ...current, state } : current))
               }
@@ -403,7 +432,7 @@ function PracticeTurn({
             <p className="mt-3 text-xs text-muted-foreground">{t('Select all correct answers')}</p>
           )}
           {choices.length > 0 ? (
-            <fieldset disabled={revealed || busy} className="mt-6 grid gap-2">
+            <fieldset disabled={revealed || busy || conflict || reviewPending} className="mt-6 grid gap-2">
               <legend className="sr-only">{t('Your answer')}</legend>
               {choices.map(([key, text]) => {
                 const selected = multi ? answer.split(',').includes(key) : answer === key
@@ -449,7 +478,7 @@ function PracticeTurn({
               <textarea
                 value={answer}
                 onChange={(event) => setAnswer(event.target.value)}
-                disabled={revealed || busy}
+                disabled={revealed || busy || conflict || reviewPending}
                 maxLength={20000}
                 rows={5}
                 placeholder={t('Try recalling the answer before revealing it.')}
@@ -461,15 +490,15 @@ function PracticeTurn({
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                disabled={busy || conflict || !answer.trim()}
+                disabled={busy || conflict || reviewPending || !answer.trim()}
                 onClick={() => void reveal()}
                 className="rounded-xl bg-primary px-4 py-2.5 text-sm text-primary-foreground disabled:opacity-50"
               >
-                {busy ? t('Checking…') : t('Check and reveal answer')}
+                {busy && !reviewPending ? t('Checking…') : t('Check and reveal answer')}
               </button>
               <button
                 type="button"
-                disabled={busy || conflict}
+                disabled={busy || conflict || reviewPending}
                 onClick={() => void rate('good', true)}
                 className="rounded-xl border border-border px-4 py-2.5 text-sm hover:bg-muted"
               >
@@ -478,7 +507,7 @@ function PracticeTurn({
               <button
                 type="button"
                 onClick={onSkip}
-                disabled={busy}
+                disabled={busy || reviewPending}
                 className="text-sm text-muted-foreground hover:underline"
               >
                 {t('Skip for now')}
@@ -522,7 +551,7 @@ function PracticeTurn({
                   </p>
                   <button
                     type="button"
-                    disabled={busy || conflict}
+                    disabled={busy || conflict || reviewPending}
                     onClick={() => void rate(correct ? 'good' : 'again')}
                     className="rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-40"
                   >
@@ -544,7 +573,7 @@ function PracticeTurn({
                         disabled={
                           busy ||
                           conflict ||
-                          (submittedRating !== null && submittedRating !== rating.value)
+                          reviewPending
                         }
                         onClick={() => void rate(rating.value)}
                         className="rounded-xl border border-border p-3 text-left transition hover:border-primary hover:bg-primary/5 disabled:cursor-not-allowed disabled:opacity-35"
@@ -558,13 +587,13 @@ function PracticeTurn({
                   </div>
                 </div>
               )}
-              {busy && (
-                <p role="status" className="flex items-center gap-2 text-sm">
-                  <Loader2 size={15} className="animate-spin" />
-                  {t('Saving review…')}
-                </p>
-              )}
             </div>
+          )}
+          {busy && reviewPending && (
+            <p role="status" className="mt-4 flex items-center gap-2 text-sm">
+              <Loader2 size={15} className="animate-spin" />
+              {t('Saving review…')}
+            </p>
           )}
         </>
       )}

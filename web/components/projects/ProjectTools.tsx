@@ -39,7 +39,7 @@ export default function ProjectTools({ workspace }: { workspace: string }) {
         <ChevronRight size={16} className="project-tools-chevron" aria-hidden />
       </summary>
       {loaded && (
-        <div className="studio-section-stack project-tools-content">
+        <div className="studio-surface studio-section-stack project-tools-content">
           <PortableWorkspace workspace={workspace} />
           <EvaluationPanel workspace={workspace} />
         </div>

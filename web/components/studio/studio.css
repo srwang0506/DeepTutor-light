@@ -1,6 +1,7 @@
 .studio-page,
 .studio-dialog,
-.studio-reader {
+.studio-reader,
+.studio-surface {
   --studio-ink: var(--primary);
   --studio-tint: color-mix(in srgb, var(--primary) 6%, var(--background));
   font-size: 13px;
@@ -12,50 +13,17 @@
   background: var(--background);
   color: var(--foreground);
 }
-.studio-inner {
-  max-width: 1380px;
-  padding: 36px 42px 70px;
-  margin: auto;
-}
-.studio-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-.studio-header > div {
-  min-width: 0;
-  max-width: 100%;
-}
-.studio-header > div:first-child {
-  flex: 1 1 480px;
-}
-.studio-header > .studio-actions {
-  flex-shrink: 0;
-}
 .studio-eyebrow {
   font-size: 10px;
   letter-spacing: 0.15em;
   color: var(--muted-foreground);
-}
-.studio-header h1 {
-  margin: 0;
-}
-.studio-header p {
-  margin: 6px 0 0;
-  font-size: 12.5px;
-  line-height: 1.625;
-  color: var(--muted-foreground);
-  max-width: 672px;
 }
 .studio-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  background: var(--studio-ink);
+  background: var(--studio-ink, var(--primary));
   color: var(--primary-foreground);
   border: 1px solid transparent;
   border-radius: 10px;
@@ -80,7 +48,8 @@
   flex-shrink: 0;
 }
 .studio-page .studio-button:disabled,
-.studio-dialog .studio-button:disabled {
+.studio-dialog .studio-button:disabled,
+.studio-surface .studio-button:disabled {
   opacity: 1;
   background: var(--muted);
   color: var(--muted-foreground);
@@ -96,15 +65,21 @@
   border-color: color-mix(in srgb, var(--foreground) 24%, var(--border));
 }
 .studio-page button:disabled,
-.studio-dialog button:disabled {
+.studio-dialog button:disabled,
+.studio-surface button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 .studio-page :is(button, a, input, select, textarea, summary):focus-visible,
 .studio-reader :is(button, a, input, select, textarea, summary):focus-visible,
-.studio-dialog :is(button, a, input, select, textarea, summary):focus-visible {
+.studio-dialog :is(button, a, input, select, textarea, summary):focus-visible,
+.studio-surface :is(button, a, input, select, textarea, summary):focus-visible {
   outline: 2px solid var(--ring);
   outline-offset: 3px;
+}
+/* Action uses the shared Button focus ring, including inside project tools. */
+:is(.studio-page, .studio-dialog, .studio-reader, .studio-surface) .studio-button[data-studio-action]:focus-visible {
+  outline: none;
 }
 .studio-actions {
   display: flex;
@@ -645,14 +620,6 @@
   }
 }
 @media (max-width: 760px) {
-  .studio-inner {
-    padding: 24px 20px 50px;
-  }
-  .studio-header {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 16px;
-  }
   .studio-grid {
     grid-template-columns: 1fr;
   }
@@ -1182,7 +1149,7 @@
 }
 .studio-continuation-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
   gap: 12px;
 }
 .studio-continuation {
@@ -1335,12 +1302,13 @@
   margin-bottom: 8px;
 }
 .studio-page input[type='checkbox'],
-.studio-dialog input[type='checkbox'] {
+.studio-dialog input[type='checkbox'],
+.studio-surface input[type='checkbox'] {
   width: 16px;
   height: 16px;
   accent-color: var(--studio-ink);
 }
-:is(.studio-page, .studio-dialog) input[type='file'] {
+:is(.studio-page, .studio-dialog, .studio-surface) input[type='file'] {
   display: block;
   width: 100%;
   min-width: 0;
@@ -1355,7 +1323,7 @@
   line-height: 30px;
   cursor: pointer;
 }
-:is(.studio-page, .studio-dialog) input[type='file']::file-selector-button {
+:is(.studio-page, .studio-dialog, .studio-surface) input[type='file']::file-selector-button {
   border: 0;
   border-radius: 6px;
   padding: 5px 12px;
@@ -1367,7 +1335,7 @@
   line-height: 20px;
   cursor: pointer;
 }
-:is(.studio-page, .studio-dialog) input[type='file']:disabled {
+:is(.studio-page, .studio-dialog, .studio-surface) input[type='file']:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
@@ -1470,7 +1438,8 @@
   margin-left: auto;
 }
 .studio-page details > summary,
-.studio-dialog details > summary {
+.studio-dialog details > summary,
+.studio-surface details > summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1484,10 +1453,10 @@
   font-weight: 500;
   border-radius: 6px;
 }
-:is(.studio-page, .studio-dialog) summary::-webkit-details-marker {
+:is(.studio-page, .studio-dialog, .studio-surface) summary::-webkit-details-marker {
   display: none;
 }
-:is(.studio-page, .studio-dialog) details > summary::after {
+:is(.studio-page, .studio-dialog, .studio-surface) details > summary::after {
   content: '';
   width: 7px;
   height: 7px;
@@ -1498,17 +1467,17 @@
   flex-shrink: 0;
   transition: transform 150ms;
 }
-:is(.studio-page, .studio-dialog) details[open] > summary::after {
+:is(.studio-page, .studio-dialog, .studio-surface) details[open] > summary::after {
   transform: rotate(225deg);
   margin-top: 4px;
 }
-.studio-page details.studio-card > summary,
-.studio-page details.studio-panel > summary {
+:is(.studio-page, .studio-surface) details.studio-card > summary,
+:is(.studio-page, .studio-surface) details.studio-panel > summary {
   font-size: 14px;
   font-weight: 600;
 }
-.studio-page details.studio-card[open] > summary,
-.studio-page details.studio-panel[open] > summary {
+:is(.studio-page, .studio-surface) details.studio-card[open] > summary,
+:is(.studio-page, .studio-surface) details.studio-panel[open] > summary {
   padding-bottom: 18px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 18px;
@@ -1523,7 +1492,7 @@
   color: var(--studio-ink);
   flex-shrink: 0;
 }
-.studio-page .studio-note > summary {
+:is(.studio-page, .studio-surface) .studio-note > summary {
   color: var(--muted-foreground);
   font-size: 12px;
   font-weight: 400;
@@ -1598,9 +1567,6 @@
   align-self: flex-end;
 }
 @media (max-width: 760px) {
-  .studio-header > .studio-actions {
-    width: 100%;
-  }
   .studio-toolbar > .studio-actions {
     margin-left: 0;
   }
@@ -1642,8 +1608,8 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  :is(.studio-page, .studio-dialog) *,
-  :is(.studio-page, .studio-dialog) *::after {
+  :is(.studio-page, .studio-dialog, .studio-surface) *,
+  :is(.studio-page, .studio-dialog, .studio-surface) *::after {
     transition: none;
   }
 }
@@ -1656,12 +1622,6 @@
 }
 /* Account for the persistent desktop sidebar on tablet-sized windows. */
 @media (max-width: 1100px) {
-  .studio-inner {
-    padding: 28px 24px 50px;
-  }
-  .studio-header {
-    gap: 16px;
-  }
   .studio-grid {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1678,14 +1638,6 @@
   }
   .studio-split .studio-editor {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .studio-header > div:first-child {
-    flex-basis: auto;
-    width: 100%;
-  }
-  .studio-header {
-    flex-direction: column;
-    align-items: flex-start;
   }
 }
 

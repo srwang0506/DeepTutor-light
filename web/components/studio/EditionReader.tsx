@@ -99,6 +99,7 @@ function Reader({ workspace, identifier, revision }: { workspace: string; identi
     locator: page,
     nonce: 0,
   })
+  const [loadAttempt, setLoadAttempt] = useState(0)
   useEffect(() => {
     const controller = new AbortController()
     void studio<Edition>(workspace, `/record/${identifier}${revision ? `?revision=${revision}` : ''}`, {}, controller.signal)
@@ -118,19 +119,22 @@ function Reader({ workspace, identifier, revision }: { workspace: string; identi
           work.editions.filter((other) => other.id !== identifier && other.data.files.length),
         )
         setEvidence(ev)
-        if (!hash || !e.data.files.some(file => file.hash === hash)) setHash(e.data.files[0]?.hash || '')
+        if (!hash) setHash(e.data.files[0]?.hash || '')
+        if (hash && !e.data.files.some(file => file.hash === hash)) {
+          op.setError(t('链接中的原件不属于此版本。请选择此版本的原件后继续。'))
+        } else op.setError('')
       })
       .catch((e) => {
         if (!controller.signal.aborted) op.setError(e.message)
       })
     return () => controller.abort()
-  }, [identifier, workspace, revision]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [identifier, workspace, revision, loadAttempt]) // eslint-disable-line react-hooks/exhaustive-deps
   const practiceKey = useRef('')
   useEffect(() => {
     practiceKey.current = randomUuid()
   }, [selection])
   useEffect(() => {
-    if (!edition || !hash || !page) return
+    if (!edition || !hash || !page || !edition.data.files.some(file => file.hash === hash && page <= file.pages)) return
     const timer = setTimeout(() => {
       void post(workspace, '/resume', {
         scope: edition.scope,
@@ -227,7 +231,17 @@ function Reader({ workspace, identifier, revision }: { workspace: string; identi
     if (target.hash !== hash) {
       setHash(target.hash)
       setSelection(null)
+      op.setError('')
+      // An explicit file change repairs the shareable link as well as the
+      // current view. Ordinary scrolling still only updates reading progress.
+      const url = new URL(window.location.href)
+      if (url.pathname === `/library/${encodeURIComponent(identifier)}`) {
+        url.searchParams.set('file', target.hash)
+        url.searchParams.set('page', String(page))
+        window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+      }
     }
+    setPage(page)
     setJump({ locator: page, nonce: Date.now() })
   }
   const reference: StudioSourceReference | null = edition && file ? {
@@ -310,6 +324,10 @@ function Reader({ workspace, identifier, revision }: { workspace: string; identi
         </button>
       </header>
       <ErrorNotice message={op.error} />
+      {op.error && !edition && <button type="button" className="studio-button secondary" onClick={() => setLoadAttempt(value => value + 1)}>{t('Retry')}</button>}
+      {edition && hash && !file && edition.data.files[0] && (
+        <button type="button" className="studio-button secondary" onClick={() => jumpToSource(1, edition.data.files[0].hash)}>{t('打开此版本的原件')}</button>
+      )}
       <div className="studio-reader-body" data-has-outline={outline.length > 0 || undefined}>
         {!!outline.length && (
           <nav className="studio-reader-outline" aria-label={t('论文目录')}>

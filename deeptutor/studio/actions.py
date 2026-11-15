@@ -60,7 +60,9 @@ async def practice(store, sessions, request: ActionRequest, complete):
         raise ValueError("Select source text on a physical page first.")
     if not any(f["hash"] == loc.blob_hash for f in source["data"]["files"]):
         raise ValueError("Original file does not belong to this frozen edition.")
-    page = catalog.page_source(store, source["id"], loc.blob_hash, loc.page, loc.region)
+    page = catalog.page_source(
+        store, source["id"], loc.blob_hash, loc.page, loc.region, revision=source["revision"]
+    )
     quote = " ".join(loc.quote.split())
     if quote not in " ".join(page["text"].split()):
         raise ValueError("The selected words cannot be matched to the original page.")

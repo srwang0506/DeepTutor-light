@@ -7811,6 +7811,36 @@
         "title": "LearningPageCustomization",
         "type": "object"
       },
+      "LibraryCollectionInput": {
+        "additionalProperties": false,
+        "properties": {
+          "edition": {
+            "$ref": "#/components/schemas/EditionInput"
+          },
+          "request_id": {
+            "maxLength": 100,
+            "minLength": 16,
+            "title": "Request Id",
+            "type": "string"
+          },
+          "work": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WorkInput"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "request_id",
+          "edition"
+        ],
+        "title": "LibraryCollectionInput",
+        "type": "object"
+      },
       "LightRagConfigUpdate": {
         "description": "Partial update for LightRAG query + indexing knobs (omitted fields kept).",
         "properties": {
@@ -71758,6 +71788,79 @@
           }
         },
         "summary": "Library",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/library/collect": {
+      "post": {
+        "operationId": "collect_api_studio_library_collect_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LibraryCollectionInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Collect",
         "tags": [
           "studio"
         ]

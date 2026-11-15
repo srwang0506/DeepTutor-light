@@ -1,7 +1,8 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, expect, it, vi } from 'vitest'
 import { useTranslation } from 'react-i18next'
-import { StudioShell, ErrorNotice } from '@/components/studio/StudioShell'
+import { Action, StudioShell, ErrorNotice } from '@/components/studio/StudioShell'
+import { PageChromeProvider, usePageSlotRef } from '@/components/layout/PageChrome'
 import { studioLabel } from '@/components/studio/display'
 import { ensureLanguage, initI18n } from '@/i18n/init'
 import { offlineHref } from '@/lib/offline-study'
@@ -83,4 +84,37 @@ it('carries the interface language into offline study while keeping workspace id
     expect(url.searchParams.get('workspace')).toBe('project / one')
     expect(url.searchParams.get('owner')).toBe('user+one')
   }
+})
+
+function ResearchBar({ visible }: { visible: boolean }) {
+  const actionsRef = usePageSlotRef('actions')
+  return visible ? <div ref={actionsRef} role="toolbar" aria-label="Page actions" /> : null
+}
+
+it('places research actions in the native page bar and restores them when the bar is unavailable', () => {
+  const create = vi.fn()
+  const page = (bar: boolean) => (
+    <PageChromeProvider>
+      <ResearchBar visible={bar} />
+      <StudioShell
+        workspace="research"
+        active="experiments"
+        title="Experiments"
+        description="Record a run and its sources."
+        action={<Action onClick={create}>Record experiment</Action>}
+      >
+        <p>Run list</p>
+      </StudioShell>
+    </PageChromeProvider>
+  )
+  const view = render(page(true))
+  expect(screen.getAllByRole('button', { name: 'Record experiment' })).toHaveLength(1)
+  fireEvent.click(within(screen.getByRole('toolbar')).getByRole('button', { name: 'Record experiment' }))
+  expect(create).toHaveBeenCalledTimes(1)
+
+  view.rerender(page(false))
+  expect(screen.queryByRole('toolbar')).not.toBeInTheDocument()
+  expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
+  fireEvent.click(screen.getByRole('button', { name: 'Record experiment' }))
+  expect(create).toHaveBeenCalledTimes(2)
 })

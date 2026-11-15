@@ -103,11 +103,76 @@ it("keeps a failed save retryable with the same submission ID", async () => {
   fireEvent.click(await screen.findByRole("button", { name: "Save recall · Next question" }));
   await screen.findByText("Network interrupted");
   expect(screen.queryByText("Practice complete")).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole("button", { name: "Save recall · Next question" }));
+  fireEvent.click(screen.getByRole("button", { name: "Retry saving review" }));
   await screen.findByText("Practice complete");
+  expect(screen.getByText("1 reviews saved. Your next review dates have been updated.")).toBeVisible();
   expect(vi.mocked(api.savePracticeReview).mock.calls[0]).toEqual(
     vi.mocked(api.savePracticeReview).mock.calls[1],
   );
+});
+
+it("keeps an uncertain reschedule submission frozen until the same receipt is retried", async () => {
+  vi.mocked(api.savePracticeReview).mockRejectedValueOnce(new Error("Response lost"));
+  render(<PracticeSession ids={[8]} onClose={vi.fn()} />);
+  fireEvent.click(await screen.findByRole("radio", { name: "A Pacific" }));
+  fireEvent.click(screen.getByRole("button", { name: "Skip recall and reschedule" }));
+  await screen.findByText("Response lost");
+
+  expect(screen.getByRole("radio", { name: "A Pacific" })).toBeChecked();
+  expect(screen.getByRole("radio", { name: "B Atlantic" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Check and reveal answer" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Skip recall and reschedule" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Skip for now" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Link a learning objective" })).toBeDisabled();
+  expect(api.checkPracticeAnswer).not.toHaveBeenCalled();
+
+  fireEvent.click(screen.getByRole("button", { name: "Retry saving review" }));
+  await screen.findByText("Practice complete");
+  const calls = vi.mocked(api.savePracticeReview).mock.calls;
+  expect(calls).toHaveLength(2);
+  expect(calls[1]).toEqual(calls[0]);
+  expect(calls[1][1]).toMatchObject({ answer: "A", self_report: true, rating: "good" });
+  expect(screen.getByText("1 reviews saved. Your next review dates have been updated.")).toBeVisible();
+});
+
+it("counts every committed recall while keeping repeated questions in the round", async () => {
+  vi.mocked(api.checkPracticeAnswer).mockResolvedValueOnce({ correct: false });
+  vi.mocked(api.savePracticeReview).mockResolvedValueOnce({
+    due_at: 200, is_mistake: true, correct: false, rating: "again",
+  });
+  render(<PracticeSession ids={[8]} onClose={vi.fn()} />);
+  fireEvent.click(await screen.findByRole("radio", { name: "A Pacific" }));
+  fireEvent.click(screen.getByRole("button", { name: "Check and reveal answer" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Practice again" }));
+  await waitFor(() => expect(api.getPracticeQuestion).toHaveBeenCalledTimes(2));
+  expect(screen.getByText("1 remaining")).toBeVisible();
+  expect(screen.getByRole("progressbar")).toHaveAttribute("value", "0");
+
+  fireEvent.click(await screen.findByRole("radio", { name: "B Atlantic" }));
+  fireEvent.click(screen.getByRole("button", { name: "Check and reveal answer" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Save recall · Next question" }));
+  await screen.findByText("Practice complete");
+  expect(screen.getByText("2 reviews saved. Your next review dates have been updated.")).toBeVisible();
+  expect(screen.getByRole("progressbar")).toHaveAttribute("value", "1");
+  expect(screen.getByRole("progressbar")).toHaveAttribute("max", "1");
+});
+
+it("lets an unavailable question be skipped without pretending it was reviewed", async () => {
+  vi.mocked(api.getPracticeQuestion).mockRejectedValueOnce(new Error("Question unavailable"));
+  render(<PracticeSession ids={[8, 9]} onClose={vi.fn()} />);
+  await screen.findByText("Question unavailable");
+  expect(screen.queryByText("Loading…")).not.toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Reload question" })).toBeVisible();
+  fireEvent.click(screen.getByRole("button", { name: "Skip for now" }));
+  await waitFor(() => expect(api.getPracticeQuestion).toHaveBeenLastCalledWith(9, undefined));
+  fireEvent.click(await screen.findByRole("button", { name: "Skip recall and reschedule" }));
+  await screen.findByText("Practice complete");
+  expect(api.savePracticeReview).toHaveBeenCalledTimes(1);
+  expect(api.savePracticeReview).toHaveBeenCalledWith(9, expect.any(Object), undefined);
+  expect(screen.getByText("1 skipped questions remain due.")).toBeVisible();
+  expect(screen.getByText("1 reviews saved. Your next review dates have been updated.")).toBeVisible();
+  expect(screen.getByRole("progressbar")).toHaveAttribute("value", "1");
+  expect(screen.getByRole("progressbar")).toHaveAttribute("max", "2");
 });
 
 it("does not allow a success rating when the server marked the answer wrong", async () => {

@@ -15,7 +15,9 @@ def save(store, ref: ObjectRef):
         f["hash"] == loc.blob_hash for f in row["data"].get("files", [])
     ):
         raise ValueError("Choose a file belonging to this source revision.")
-    original = page_source(store, ref.id, loc.blob_hash, loc.page, loc.region)
+    original = page_source(
+        store, ref.id, loc.blob_hash, loc.page, loc.region, revision=ref.revision
+    )
     if loc.quote and " ".join(loc.quote.split()) not in " ".join(original["text"].split()):
         raise ValueError("Selection does not match the original page.")
     with store.db(write=True) as db:

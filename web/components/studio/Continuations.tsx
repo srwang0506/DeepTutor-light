@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { ArrowUpRight, BookOpen, CheckCheck, PenLine } from 'lucide-react'
-import { browserStorage } from '@/shared/storage'
+import { useRecoveryPrincipal } from '@/hooks/useRecoveryPrincipal'
+import { manuscriptDraftEntries, migrateLocalManuscriptDrafts } from '@/lib/manuscript-draft'
 import { studio } from '@/lib/studio-api'
 import { scopedUrl } from '@/lib/workspace-scope'
 import './studio.css'
@@ -14,7 +15,7 @@ interface Item {
   revision: number
   manuscript_id?: string
   path?: string
-  source?: { id: string; locator: { page: number; blob_hash: string } }
+  source?: { id: string; revision: number; locator: { page: number; blob_hash: string } }
 }
 function subscribeDrafts(listener: () => void) {
   window.addEventListener('storage', listener)
@@ -25,38 +26,48 @@ function subscribeDrafts(listener: () => void) {
   }
 }
 export default function Continuations({ workspace }: { workspace: string }) {
+  const principal = useRecoveryPrincipal()
+  if (!principal) return null
+  return <ProjectContinuations key={JSON.stringify([principal, workspace])} workspace={workspace} principal={principal} />
+}
+function ProjectContinuations({ workspace, principal }: { workspace: string; principal: string }) {
   const { t } = useTranslation()
 
   const [items, setItems] = useState<Item[]>([]),
-    [error, setError] = useState('')
+    [error, setError] = useState(''),
+    [attempt, setAttempt] = useState(0)
   useEffect(() => {
     const abort = new AbortController()
+    migrateLocalManuscriptDrafts(principal, workspace)
     void studio<{ items: Item[] }>(workspace, '/continuations', {}, abort.signal)
-      .then(r => setItems(r.items))
+      .then(r => {
+        if (!abort.signal.aborted) {
+          setItems(r.items)
+          setError('')
+        }
+      })
       .catch(e => {
         if (!abort.signal.aborted) setError(e.message)
       })
     return () => abort.abort()
-  }, [workspace])
-  const prefix = `studio-draft:${workspace}:`
+  }, [principal, workspace, attempt])
   const drafts = useSyncExternalStore(
     subscribeDrafts,
-    () => JSON.stringify(browserStorage.listRaw('session', prefix)),
+    () => JSON.stringify(manuscriptDraftEntries(principal, workspace)),
     () => '[]'
   )
   const conflicts: Item[] = []
-  for (const [key, value] of JSON.parse(drafts) as [string, string][]) {
+  for (const { key, document, path, value } of JSON.parse(drafts) as ReturnType<typeof manuscriptDraftEntries>) {
     try {
       const draft = JSON.parse(value)
       if (draft.conflict) {
-        const [manuscript, ...path] = key.slice(prefix.length).split(':')
         conflicts.push({
           id: key,
           kind: 'draft_conflict',
-          title: path.join(':'),
+          title: path,
           revision: 0,
-          manuscript_id: manuscript,
-          path: path.join(':'),
+          manuscript_id: document,
+          path,
         })
       }
     } catch {}
@@ -68,10 +79,10 @@ export default function Continuations({ workspace }: { workspace: string }) {
         <h2>{t('继续阅读与研究')}</h2>
       </header>
       {error && (
-        <p className="studio-note">
-          {t('暂时无法读取科研续办：')}
-          {error}
-        </p>
+        <div className="studio-actions">
+          <p className="studio-note" role="alert">{t('暂时无法读取科研续办：')}{error}</p>
+          <button type="button" className="studio-button secondary" onClick={() => setAttempt(value => value + 1)}>{t('Retry')}</button>
+        </div>
       )}
       <div className="studio-continuation-grid">
         {[...conflicts, ...items].map(item => {
@@ -79,7 +90,7 @@ export default function Continuations({ workspace }: { workspace: string }) {
             item.kind === 'draft_conflict'
               ? `/studio/writing?manuscript=${item.manuscript_id}&path=${encodeURIComponent(item.path || '')}`
               : item.kind === 'resume' && item.source
-                ? `/library/${item.source.id}?file=${item.source.locator.blob_hash}&page=${item.source.locator.page}`
+                ? `/library/${encodeURIComponent(item.source.id)}?revision=${item.source.revision}&file=${item.source.locator.blob_hash}&page=${item.source.locator.page}`
                 : `/objects/${item.id}?revision=${item.revision}`
           const Icon =
             item.kind === 'resume' ? BookOpen : item.kind === 'proposal' ? PenLine : CheckCheck
