@@ -62,7 +62,7 @@ export default function BibliographyExport({
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
-        title={t('带走你的文献积累')}
+        title={t('导出书目')}
         size="lg"
         className="studio-dialog"
         busy={op.busy}

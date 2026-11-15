@@ -27,14 +27,17 @@ export default function IntegrationSources({
   workspace,
   provider,
   onChange,
+  compact = false,
 }: {
   workspace: string
   provider: Source['provider']
   onChange?: () => void
+  compact?: boolean
 }) {
   const { t, i18n } = useTranslation()
   const op = useOperation()
   const [loadError, setLoadError] = useState('')
+  const [loaded, setLoaded] = useState(false)
   const [sources, setSources] = useState<StudioRecord<Source>[]>([])
   const [dialog, setDialog] = useState(false)
   const [editing, setEditing] = useState<StudioRecord<Source> | null>(null)
@@ -51,9 +54,11 @@ export default function IntegrationSources({
   const [objectSource, setObjectSource] = useState('')
   const [objectCursor, setObjectCursor] = useState('')
   const load = () =>
-    studio<{ sources: StudioRecord<Source>[] }>(workspace, '/integrations').then((r) =>
-      setSources(r.sources.filter((s) => s.data.provider === provider)),
-    )
+    studio<{ sources: StudioRecord<Source>[] }>(workspace, '/integrations').then((r) => {
+      setSources(r.sources.filter((s) => s.data.provider === provider))
+      setLoadError('')
+      setLoaded(true)
+    })
   useEffect(() => {
     let active = true
     const refresh = () =>
@@ -62,10 +67,14 @@ export default function IntegrationSources({
           if (active) {
             setSources(r.sources.filter((s) => s.data.provider === provider))
             setLoadError('')
+            setLoaded(true)
           }
         })
         .catch((e) => {
-          if (active) setLoadError(String(e))
+          if (active) {
+            setLoadError(String(e))
+            setLoaded(true)
+          }
         })
     void refresh()
     const timer = setInterval(refresh, 15000)
@@ -81,13 +90,26 @@ export default function IntegrationSources({
     retrying: t('等待重试'),
     unauthorized: t('需要重新授权'),
   }
-  return (
+  const connected = sources.filter((source) => source.data.enabled).length
+  const warning = [
+    loadError && t('连接状态暂不可用'),
+    sources.some((source) => source.data.state === 'unauthorized') && t('需要重新授权'),
+    sources.some((source) => source.data.state === 'retrying') && t('等待重试'),
+    sources.some((source) => source.data.state === 'error' || (
+      source.data.error && !['unauthorized', 'retrying'].includes(source.data.state)
+    )) && t('同步失败'),
+  ].filter(Boolean).join(' · ')
+  const content = (
     <section
-      className="studio-card studio-feature"
+      className={compact ? 'studio-source-disclosure-content' : 'studio-card studio-feature'}
       aria-label={provider === 'zotero' ? t('Zotero 增量同步') : t('实时实验来源')}
     >
       <div className="studio-toolbar">
-        <div className="studio-panel-heading">
+        {compact ? (
+          <p className="studio-muted">
+            {provider === 'zotero' ? t('只读同步书目信息。') : t('从 JSONL 文件持续导入实验记录。')}
+          </p>
+        ) : <div className="studio-panel-heading">
           <span className="studio-panel-icon">
             {provider === 'zotero' ? (
               <LibraryBig size={19} aria-hidden />
@@ -103,7 +125,7 @@ export default function IntegrationSources({
                 : t('从选定 JSONL 文件断点续读。运行声明、指标与产物保留原始事件。')}
             </p>
           </div>
-        </div>
+        </div>}
         <Action
           secondary
           onClick={() => {
@@ -359,4 +381,18 @@ export default function IntegrationSources({
       )}
     </section>
   )
+  return compact ? (
+    <details className="studio-source-disclosure">
+      <summary className="studio-source-summary">
+        <span className="studio-source-summary-title">
+          {provider === 'zotero' ? 'Zotero' : t('实时实验来源')}
+        </span>
+        <span className="studio-source-summary-count">
+          {!loaded ? t('Loading…') : connected ? t('已连接 {{count}} 个来源', { count: connected }) : t('Not connected')}
+        </span>
+        {warning && <span className="studio-source-summary-alert" role="status">{warning}</span>}
+      </summary>
+      {content}
+    </details>
+  ) : content
 }

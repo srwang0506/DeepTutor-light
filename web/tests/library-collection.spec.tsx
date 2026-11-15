@@ -26,8 +26,8 @@ beforeEach(() => {
 
 async function openCollection(withFile = true) {
   render(<LibraryPage />)
-  await screen.findByText('从一份想读懂的资料开始')
-  fireEvent.click(screen.getByRole('button', { name: '收藏资料' }))
+  await screen.findByText('还没有资料')
+  fireEvent.click(screen.getByRole('button', { name: '添加资料' }))
   fireEvent.change(screen.getByLabelText('标题'), { target: { value: 'A paper' } })
   if (withFile) fireEvent.change(screen.getByLabelText('PDF 原文'), {
     target: { files: [new File(['%PDF-fixture'], 'paper.pdf', { type: 'application/pdf' })] },
@@ -76,9 +76,9 @@ it('does not show a failed list as an empty library and can recover in place', a
   api.studio.mockRejectedValueOnce(new Error('Offline'))
   render(<LibraryPage />)
   expect(await screen.findByText('Offline')).toBeVisible()
-  expect(screen.queryByText('从一份想读懂的资料开始')).not.toBeInTheDocument()
+  expect(screen.queryByText('还没有资料')).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Retry' }))
-  expect(await screen.findByText('从一份想读懂的资料开始')).toBeVisible()
+  expect(await screen.findByText('还没有资料')).toBeVisible()
   expect(screen.queryByText('Offline')).not.toBeInTheDocument()
 })
 

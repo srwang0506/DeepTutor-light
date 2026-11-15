@@ -12,6 +12,7 @@ export function StudioShell({
   description,
   children,
   action,
+  className = '',
 }: {
   workspace: string
   active: string
@@ -19,9 +20,10 @@ export function StudioShell({
   description: string
   children: ReactNode
   action?: ReactNode
+  className?: string
 }) {
   return (
-    <FeaturePage className="studio-page">
+    <FeaturePage className={`studio-page ${className}`}>
       <PageHeader title={title} description={description} action={action} />
       {children}
     </FeaturePage>

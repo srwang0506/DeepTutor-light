@@ -8,7 +8,9 @@ import Link from 'next/link'
 import DiscoveryPanel from './DiscoveryPanel'
 import BibliographyExport from './BibliographyExport'
 import StudioLoading from './StudioLoading'
-import { BookOpen, Plus, Search, Upload, Compass, ArrowUpRight, Library } from 'lucide-react'
+import LibraryWorkRow from './LibraryWorkRow'
+import { Plus, Search, Compass, BookOpen, Upload } from 'lucide-react'
+import { pageActionClass } from '@/components/layout/FeaturePage'
 import { Dialog } from '@/shared/ui/Dialog'
 import { useActiveWorkspaceId } from '@/hooks/useActiveWorkspaceId'
 import { useRecoveryPrincipal } from '@/hooks/useRecoveryPrincipal'
@@ -21,7 +23,8 @@ import {
   type Work,
   type Edition,
 } from '@/lib/studio-api'
-import { StudioShell, StudioEmpty, Action, Field, ErrorNotice, useOperation } from './StudioShell'
+import { StudioShell, Action, Field, ErrorNotice, useOperation } from './StudioShell'
+import './library.css'
 
 export default function LibraryPage() {
   const workspace = useActiveWorkspaceId()
@@ -67,7 +70,7 @@ function LibraryHome({ workspace, principal }: { workspace: string; principal: s
     [file, setFile] = useState<File | null>(null)
   const [bibliography, setBibliography] = useState(''),
     [format, setFormat] = useState('bibtex'),
-    [notice, setNotice] = useState('')
+    [notice, setNotice] = useKeyedState(queryKey, '')
   const op = useOperation()
   async function reload(signal?: AbortSignal, after = '') {
     if (!isCurrent()) return
@@ -134,6 +137,7 @@ function LibraryHome({ workspace, principal }: { workspace: string; principal: s
   }
   function close() {
     setDialog(null)
+    op.setError('')
     if (collectionPending) void refresh()
   }
   async function upload(e: Edition, f: File) {
@@ -182,38 +186,37 @@ function LibraryHome({ workspace, principal }: { workspace: string; principal: s
     await refresh()
   }
   const list = works
-  const originals = works.flatMap((w) => w.editions).filter((e) => e.data.files.length).length
   return (
     <StudioShell
       workspace={workspace}
       active="library"
+      className="library-page"
       title={t('资料库')}
-      description={t("收藏论文和讲义，导入书目与原文，管理文献版本。")}
+      description=""
       action={
         <div className="studio-actions">
-          <Action secondary onClick={() => open('discover')}>
+          <button type="button" className={pageActionClass('secondary')} onClick={() => open('discover')}>
             <Compass size={15} />
             {t('发现文献')}
-          </Action>
-          <Action onClick={() => open('add')}>
+          </button>
+          <button type="button" className={pageActionClass()} onClick={() => open('add')}>
             <Plus size={15} />
-            {t('收藏资料')}
-          </Action>
+            {t('添加资料')}
+          </button>
         </div>
       }
     >
-      <IntegrationSources workspace={workspace} provider="zotero" />
-      <div className="studio-toolbar">
-        <label className="studio-search">
+      <div className="library-toolbar">
+        <label className="studio-search library-search">
           <Search size={16} />
           <input
             aria-label={t('搜索资料')}
-            placeholder={t('标题、作者、DOI、引用键或科学符号')}
+            placeholder={t('搜索标题、作者或 DOI')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </label>
-        <div className="studio-pills">
+        <div className="library-filters">
           {[
             ['all', t('全部资料')],
             ['project', t('当前项目')],
@@ -237,180 +240,64 @@ function LibraryHome({ workspace, principal }: { workspace: string; principal: s
           {notice}
         </p>
       )}
-      <div className="studio-grid">
-        <main>
-          {loading ? (
-            <p role="status" className="studio-note">
-              {t('正在打开资料库…')}
-            </p>
-          ) : list.length ? (
-            <div className="studio-library-list">
-              {list.map((w) => (
-                <article className="studio-work" key={w.id}>
-                  <div className="studio-work-icon">
-                    <BookOpen size={18} />
-                  </div>
-                  <div>
-                    <h2>{w.data.title}</h2>
-                    <p>
-                      {w.data.authors.slice(0, 4).join(' · ') || t('作者待补充')}
-                      {w.data.year ? ` · ${w.data.year}` : ''}
-                    </p>
-                    <div className="studio-badges">
-                      {w.editions.map((e) => (
-                        <span
-                          className={`studio-badge ${e.data.files.length ? 'good' : ''}`}
-                          key={e.id}
-                        >
-                          {e.data.label} · {e.data.files.length ? t('已存原文') : t('待补全文')}
-                          {e.project_role ? t(' · 本项目') : ''}
-                        </span>
-                      ))}
-                      {w.data.tags.map((tag) => (
-                        <span className="studio-badge" key={tag}>
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="studio-work-tools">
-                    {w.editions.map((e) => (
-                      <div className="studio-actions" key={e.id}>
-                        {e.data.files.length ? (
-                          <Link
-                            className="studio-outlink"
-                            href={scopedUrl(`/library/${e.id}`, workspace)}
-                          >
-                            {t('阅读')}
-                            {w.editions.length > 1 ? ` · ${e.data.label}` : ''}
-                            <ArrowUpRight size={13} />
-                          </Link>
-                        ) : (
-                          <button
-                            className="studio-outlink"
-                            onClick={() => {
-                              open('attach')
-                              setSelected(e)
-                            }}
-                          >
-                            {t('添加原文')}
-                            <Upload size={13} />
-                          </button>
-                        )}
-                        {!!e.data.bibliographic_sources?.length && (
-                          <details className="studio-note">
-                            <summary>
-                              {t('导入来源')}
-                              {e.data.bibliographic_sources.length} {t('· 字段冲突')}{' '}
-                              {e.data.bibliographic_conflicts?.length || 0}
-                            </summary>
-                            <p>
-                              {t('引用键：')}
-                              {e.data.citekey_aliases?.join('、') || e.data.citekey}
-                            </p>
-                            {e.data.bibliographic_conflicts?.map((c, i) => (
-                              <p key={i}>
-                                {c.field}
-                                {t('：保留')}
-                                {String(c.retained)}
-                                {t('；新来件')}
-                                {String(c.incoming)}
-                              </p>
-                            ))}
-                            <p>{t('原始来件均已保留；冲突字段不会自动覆盖。')}</p>
-                          </details>
-                        )}
-                        {!e.project_role && (
-                          <button
-                            className="studio-outlink"
-                            disabled={op.busy}
-                            onClick={() =>
-                              void op.run(async () => {
-                                if (!isCurrent()) return
-                                await post(workspace, `/editions/${e.id}/project`, {
-                                  role: 'reading',
-                                })
-                                await reload()
-                              })
-                            }
-                          >
-                            {t('加入项目')}
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    <button
-                      className="studio-outlink"
-                      onClick={() => {
-                        open('edition')
-                        setParent(w)
-                      }}
-                    >
-                      {t('添加另一版本')}
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : !listError ? (
-            <StudioEmpty title={query || filter !== 'all' ? t('没有匹配的资料') : t('从一份想读懂的资料开始')}>
-              {query || filter !== 'all' ? t('可以换个关键词，或查看全部资料。') : t(
-                '收藏 PDF 或题录，留下疑问，再把原文里的线索整理成自己的理解。已有阅读资料仍可从右侧打开。',
-              )}
-            </StudioEmpty>
-          ) : null}
-          {!loading && cursor && (
-            <Action
-              secondary
-              disabled={op.busy}
-              onClick={() => op.run(() => reload(undefined, cursor))}
-            >
-              {t('加载更多资料')}
-            </Action>
-          )}
-        </main>
-        <aside className="studio-aside">
-          <section className="studio-panel">
-            <Library size={19} />
-            <div className="studio-stat">{works.length}</div>
-            <h2>{t('当前列表中的资料')}</h2>
-            <p>
-              {originals}{' '}
-              {t('个版本已保存原文。题录和原件在个人资料库中共享，项目里的筛选与证据独立保存。')}
-            </p>
-          </section>
-          <section className="studio-panel">
-            <h2>{t('把已有积累带进来')}</h2>
-            <p>
-              {t('支持 BibTeX、RIS、CSL-JSON。保留已有引用键，精确标识去重，相似标题留给你判断。')}
-            </p>
-            <div className="studio-actions" style={{ marginTop: 17 }}>
-              <Action secondary onClick={() => open('import')}>
-                {t('导入书目')}
-              </Action>
-              <BibliographyExport workspace={workspace} works={works} />
-            </div>
-            <p className="studio-note">
-              <Link className="studio-outlink" href={scopedUrl('/learning/reading', workspace)}>
-                {t('打开已有阅读资料')}
-                <ArrowUpRight size={13} />
-              </Link>
-            </p>
-          </section>
-        </aside>
+      <div className="library-list-tools">
+        <span className="library-count">{!loading && !listError ? t('已显示 {{count}} 项', { count: works.length }) : ''}</span>
+        <div className="library-utilities">
+          <button type="button" onClick={() => open('import')}>{t('导入书目')}</button>
+          <BibliographyExport workspace={workspace} works={works} />
+          <Link href={scopedUrl('/learning/reading', workspace)}>{t('阅读资料')}</Link>
+        </div>
       </div>
+      <main className="library-content">
+        {loading ? (
+          <p role="status" className="studio-note">{t('正在打开资料库…')}</p>
+        ) : list.length ? (
+          <div className="library-list">
+            {list.map(work => (
+              <LibraryWorkRow
+                key={work.id}
+                work={work}
+                workspace={workspace}
+                busy={op.busy}
+                onAttach={edition => { open('attach'); setSelected(edition) }}
+                onAddEdition={() => { open('edition'); setParent(work) }}
+                onJoin={edition => void op.run(async () => {
+                  if (!isCurrent()) return
+                  await post(workspace, `/editions/${edition.id}/project`, { role: 'reading' })
+                  await reload()
+                })}
+              />
+            ))}
+          </div>
+        ) : !listError ? (
+          <div className="library-empty">
+            <BookOpen size={24} strokeWidth={1.5} aria-hidden />
+            <h2>{query || filter !== 'all' ? t('没有匹配的资料') : t('还没有资料')}</h2>
+            <p>{query || filter !== 'all' ? t('试试其他关键词，或查看全部资料。') : t('添加 PDF 或导入书目。')}</p>
+            {query || filter !== 'all' ? (
+              <button type="button" className={pageActionClass('secondary')} onClick={() => { setQuery(''); setFilter('all') }}>{t('查看全部资料')}</button>
+            ) : (
+              <button type="button" className={pageActionClass('secondary')} onClick={() => open('add')}><Plus size={14} />{t('添加第一份资料')}</button>
+            )}
+          </div>
+        ) : null}
+        {!loading && cursor && (
+          <Action secondary disabled={op.busy} onClick={() => op.run(() => reload(undefined, cursor))}>{t('加载更多资料')}</Action>
+        )}
+      </main>
+      <IntegrationSources workspace={workspace} provider="zotero" compact />
       <Dialog
         open={dialog !== null}
         title={
           dialog === 'discover'
-            ? t('从一个问题，发现下一篇论文')
+            ? t('发现文献')
             : dialog === 'import'
-              ? t('导入已有书目')
+              ? t('导入书目')
               : dialog === 'attach'
-                ? t('保存这个版本的原文')
+                ? t('添加原文')
                 : dialog === 'edition'
-                  ? t('添加可独立引用的版本')
-                  : t('收藏一份资料')
+                  ? t('添加版本')
+                  : t('添加资料')
         }
         onClose={close}
         size={dialog === 'discover' ? 'xl' : 'lg'}
