@@ -155,16 +155,32 @@ class DeepTutorApp:
 
     async def stream_turn(self, turn_id: str, after_seq: int = 0) -> AsyncIterator[dict[str, Any]]:
         await self.container.start()
-        from deeptutor.services.workspace.context import current_workspace_id, workspace_context
+        from deeptutor.services.workspace.context import (
+            current_workspace_id,
+            resolve_workspace_scope,
+            workspace_context,
+        )
 
-        with workspace_context(
-            self._turn_workspaces.get(
-                turn_id,
-                self.workspace_id if self.workspace_id is not None else current_workspace_id(),
-            )
-        ):
-            async for item in self.turns.subscribe_turn(turn_id, after_seq=after_seq):
+        workspace_id = self._turn_workspaces.get(
+            turn_id,
+            self.workspace_id if self.workspace_id is not None else current_workspace_id(),
+        )
+        scope = resolve_workspace_scope(workspace_id)
+        events = self.turns.subscribe_turn(turn_id, after_seq=after_seq)
+        try:
+            while True:
+                # Restore the caller's scope before yielding. A consumer can
+                # inspect another project or close the stream in another task;
+                # no ContextVar token may survive across that handoff.
+                with workspace_context(scope):
+                    try:
+                        item = await anext(events)
+                    except StopAsyncIteration:
+                        return
                 yield item
+        finally:
+            with workspace_context(scope):
+                await events.aclose()
 
     async def cancel_turn(self, turn_id: str) -> bool:
         await self.container.start()

@@ -68,6 +68,7 @@ _REPLAY_SNAPSHOT_FIELDS: dict[str, str] = {
     "question_notebook_references": "questionNotebookReferences",
     "book_references": "bookReferences",
     "reading_references": "readingReferences",
+    "studio_references": "studioReferences",
     "memory_references": "memoryReferences",
     "skills": "skills",
     "mcp": "mcp",
@@ -1165,6 +1166,11 @@ class TurnRequestPreparer:
                 overrides.get("reading_references")
                 if "reading_references" in overrides
                 else snapshot.get("readingReferences")
+            ),
+            "studio_references": (
+                overrides.get("studio_references")
+                if "studio_references" in overrides
+                else snapshot.get("studioReferences") or []
             ),
             "mastery_path_id": mastery_path_id,
             # A regenerate must run as the same kind of conversation the turn

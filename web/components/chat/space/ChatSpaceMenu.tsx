@@ -21,6 +21,7 @@ type SelectableSpaceKey =
   | "my_agents"
   | "books"
   | "reading"
+  | "studio"
   | "notebooks"
   | "question_bank"
   | "persona"
@@ -33,6 +34,7 @@ export interface ChatSpaceSelectionCounts {
   myAgents: number;
   books: number;
   reading: number;
+  studio?: number;
   notebooks: number;
   questionBank: number;
   persona: number;
@@ -56,6 +58,7 @@ interface ChatSpaceMenuProps {
   agentsAvailable?: boolean;
   /** Show imported Reading materials on surfaces that wire its picker. */
   readingAvailable?: boolean;
+  studioAvailable?: boolean;
   onSelectItem: (key: SelectableSpaceKey) => void;
 }
 
@@ -66,6 +69,7 @@ const ITEM_ORDER: SelectableSpaceKey[] = [
   "my_agents",
   "books",
   "reading",
+  "studio",
   "notebooks",
   "question_bank",
   "persona",
@@ -89,6 +93,8 @@ function countFor(
       return counts.books;
     case "reading":
       return counts.reading;
+    case "studio":
+      return counts.studio ?? 0;
     case "notebooks":
       return counts.notebooks;
     case "question_bank":
@@ -110,6 +116,7 @@ export default memo(function ChatSpaceMenu({
   personaAvailable = true,
   agentsAvailable = true,
   readingAvailable = false,
+  studioAvailable = false,
   onSelectItem,
 }: ChatSpaceMenuProps) {
   const { t } = useTranslation();
@@ -123,6 +130,7 @@ export default memo(function ChatSpaceMenu({
     if (key === "persona") return personaAvailable;
     if (key === "my_agents") return agentsAvailable;
     if (key === "reading") return readingAvailable;
+    if (key === "studio") return studioAvailable;
     return true;
   })
     .map((key) => {
@@ -168,6 +176,7 @@ export default memo(function ChatSpaceMenu({
           icon: BookMarked,
         };
       }
+      if (key === "studio") return { key, label: "Research sources", description: "Reference papers, experiments and saved remote snapshots.", icon: BookMarked };
       if (key === "persona") {
         return {
           key,

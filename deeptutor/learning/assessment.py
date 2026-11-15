@@ -316,8 +316,6 @@ def _apply_linked_retention(
         return False
 
     from deeptutor.learning.models import LearningEvidence
-    from deeptutor.learning.policy import find_knowledge_point
-    from deeptutor.learning.review_strategy import scheduler_for_progress
 
     event_result = result if result in {"correct", "incorrect", "partial"} else "incorrect"
     evidence = LearningEvidence(
@@ -337,17 +335,27 @@ def _apply_linked_retention(
         turn_id=record.turn_id,
     )
 
+    return _apply_retention_evidence(record.mastery_path_id, evidence)
+
+
+def _apply_retention_evidence(path_id, evidence, *, require_active=False) -> bool:
+    from deeptutor.learning.policy import find_knowledge_point
+    from deeptutor.learning.review_strategy import scheduler_for_progress
+
     def apply(tx) -> bool:
         progress = tx.progress
+        if any(item.evidence_id == evidence.evidence_id for item in progress.learning_evidence):
+            return False
+        if require_active and tx.topic_status() != "active":
+            raise PracticeObjectiveUnavailable
         # Linked evidence schedules with the path's bound strategy, if any.
         scheduler = scheduler_for_progress(progress)
-        if any(item.evidence_id == attempt_id for item in progress.learning_evidence):
-            return False
-        kp, _, _ = find_knowledge_point(progress, record.knowledge_point_id)
+        kp, _, _ = find_knowledge_point(progress, evidence.knowledge_point_id)
         if kp is None:
+            if require_active:
+                raise PracticeObjectiveUnavailable
             raise ValueError(
-                f"Unknown linked objective {record.knowledge_point_id!r} "
-                f"on path {record.mastery_path_id!r}"
+                f"Unknown linked objective {evidence.knowledge_point_id!r} on path {path_id!r}"
             )
         prior_evidence = [
             item for item in progress.learning_evidence if item.knowledge_point_id == kp.id
@@ -376,18 +384,56 @@ def _apply_linked_retention(
         tx.emit(
             "evidence.recorded",
             {
-                "evidence_id": attempt_id,
+                "evidence_id": evidence.evidence_id,
                 "knowledge_point_id": kp.id,
-                "source": record.source,
-                "result": event_result,
+                "source": evidence.source,
+                "result": evidence.result,
             },
-            session_id=record.session_id,
-            turn_id=record.turn_id,
+            session_id=evidence.session_id,
+            turn_id=evidence.turn_id,
         )
         return True
 
-    _, applied = _get_learning_store().mutate(record.mastery_path_id, apply)
+    _, applied = _get_learning_store().mutate(path_id, apply)
     return applied
+
+
+class PracticeObjectiveUnavailable(ValueError):
+    """A previously bound learning objective can no longer accept evidence."""
+
+
+def practice_evidence_exists(attempt_id: str, path_id: str) -> bool:
+    progress = _get_learning_store().load(path_id)
+    return bool(
+        progress
+        and any(item.evidence_id == f"practice:{attempt_id}" for item in progress.learning_evidence)
+    )
+
+
+def apply_practice_retention(attempt_id: str, payload: dict) -> bool:
+    """Project one verified recall to its exact objective without unlocking mastery."""
+    from deeptutor.learning.models import LearningEvidence
+
+    path_id = payload["path_id"]
+    if not _get_learning_store().exists(path_id):
+        raise PracticeObjectiveUnavailable
+    result = "correct" if payload["correct"] else "incorrect"
+    return _apply_retention_evidence(
+        path_id,
+        LearningEvidence(
+            evidence_id=f"practice:{attempt_id}",
+            question_id=payload["question_id"],
+            knowledge_point_id=payload["knowledge_point_id"],
+            timestamp=payload["reviewed_at"],
+            source="practice",
+            assessment_type="review",
+            result=result,
+            learner_answer=payload["answer"],
+            session_id=payload["session_id"],
+            turn_id=payload["turn_id"],
+        ),
+        require_active=True,
+    )
 
 
 def to_notebook_item(record: AssessmentRecord, diagnostics: list[str]) -> dict[str, Any]:

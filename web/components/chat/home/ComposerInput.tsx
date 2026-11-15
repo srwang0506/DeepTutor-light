@@ -60,6 +60,7 @@ interface ComposerInputProps {
   onSelectNotebookPicker: () => void;
   onSelectBookPicker: () => void;
   onSelectReadingPicker?: () => void;
+  onSelectStudioPicker?: () => void;
   onSelectHistoryPicker: () => void;
   onSelectAgentsPicker?: () => void;
   /** Hide the My Agents entry (e.g. the quiz follow-up surface). */
@@ -177,6 +178,7 @@ export const ComposerInput = memo(
       onSelectNotebookPicker,
       onSelectBookPicker,
       onSelectReadingPicker,
+      onSelectStudioPicker,
       onSelectHistoryPicker,
       onSelectAgentsPicker,
       agentsAvailable = true,
@@ -490,6 +492,7 @@ export const ComposerInput = memo(
           | "my_agents"
           | "books"
           | "reading"
+          | "studio"
           | "notebooks"
           | "question_bank"
           | "persona"
@@ -503,6 +506,7 @@ export const ComposerInput = memo(
         else if (key === "my_agents") onSelectAgentsPicker?.();
         else if (key === "books") onSelectBookPicker();
         else if (key === "reading") onSelectReadingPicker?.();
+        else if (key === "studio") onSelectStudioPicker?.();
         else if (key === "notebooks") onSelectNotebookPicker();
         else if (key === "question_bank") onSelectQuestionBankPicker();
         else if (key === "persona") onSelectPersonaPicker();
@@ -516,6 +520,7 @@ export const ComposerInput = memo(
         onSelectAgentsPicker,
         onSelectBookPicker,
         onSelectReadingPicker,
+        onSelectStudioPicker,
         onSelectNotebookPicker,
         onSelectQuestionBankPicker,
         onSelectPersonaPicker,
@@ -644,6 +649,7 @@ export const ComposerInput = memo(
               personaAvailable={personaAvailable}
               agentsAvailable={agentsAvailable}
               readingAvailable={Boolean(onSelectReadingPicker)}
+              studioAvailable={Boolean(onSelectStudioPicker)}
               onSelectItem={handleSelectSpaceItem}
             />
           </div>

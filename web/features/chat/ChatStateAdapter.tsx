@@ -1,5 +1,7 @@
 "use client";
 
+import { normalizeStudioReferences, type StudioSourceReference } from "@/lib/studio-references";
+
 import { supportsSubmissionReplacement } from "@/lib/session-api";
 
 import { activeWorkspaceId } from "@/lib/workspace-scope";
@@ -142,6 +144,7 @@ export interface SendMessageOptions {
   replacedMessageId?: number;
   bookReferences?: BookReferencePayload[];
   readingReferences?: ReadingReferencePayload[];
+  studioReferences?: StudioSourceReference[];
   /** Edit-branching: when set, the new user message is inserted as a
    *  sibling under this parent rather than appended to the session tail.
    *  ``null`` means "explicitly attach to the session root". */
@@ -264,6 +267,8 @@ export interface ChatState {
 }
 
 export interface SessionConfiguration {
+  /** Surface-owned namespace for first-turn recovery, before a server ID exists. */
+  draftRecoveryScope?: string;
   capability?: string | null;
   workspaceMode?: WorkspaceMode | null;
   knowledgeBases?: string[];
@@ -333,6 +338,7 @@ export interface MessageRequestSnapshot {
   questionNotebookReferences?: QuestionNotebookReferencePayload;
   bookReferences?: BookReferencePayload[];
   readingReferences?: ReadingReferencePayload[];
+  studioReferences?: StudioSourceReference[];
   masteryPathId?: string;
   masterySessionMode?: string;
   masteryAnswer?: { question_id: string; text: string };
@@ -387,6 +393,7 @@ export interface MessageItem {
 }
 
 interface SessionEntry extends Omit<ChatState, "sessionKey"> {
+  draftRecoveryScope?: string;
   key: string;
   status: SessionRuntimeStatus;
   /** Runtime status underneath locally restored unsent messages. */
@@ -522,7 +529,7 @@ type Action =
       key?: string;
       configuration: SessionConfiguration;
     }
-  | { type: "ENSURE_DRAFT_SESSION"; key: string; failedRecords?: FailedSubmissionRecord[] }
+  | { type: "ENSURE_DRAFT_SESSION"; key: string; draftRecoveryScope?: string; failedRecords?: FailedSubmissionRecord[] }
   | {
       type: "SET_SELECTED_BRANCH";
       key: string;
@@ -597,8 +604,9 @@ function withCurrentGenerationSettings(
   };
 }
 
-function draftFailedSubmissionKey(): string {
-  return `draft:${activeWorkspaceId() || "general"}`;
+function draftFailedSubmissionKey(scope?: string): string {
+  const workspace = activeWorkspaceId() || "general";
+  return scope ? `draft:surface:${JSON.stringify([workspace, scope])}` : `draft:${workspace}`;
 }
 
 function restoredFailedMessage(
@@ -687,6 +695,7 @@ function applySessionConfiguration(
   if (!configuration) return session;
   return {
     ...session,
+    draftRecoveryScope: configuration.draftRecoveryScope ?? session.draftRecoveryScope,
     activeCapability:
       configuration.capability !== undefined
         ? configuration.capability
@@ -1653,7 +1662,7 @@ function reduce(state: ProviderState, action: Action): ProviderState {
       const selectedKey = fresh.selectedKey;
       if (!selectedKey || !action.failedRecords?.length) return fresh;
       const selected = fresh.sessions[selectedKey];
-      if (selected.sessionId || selected.messages.length) return fresh;
+      if (selected.sessionId || selected.messages.length || selected.draftRecoveryScope !== action.draftRecoveryScope) return fresh;
       const messages: MessageItem[] = [];
       for (const record of action.failedRecords) {
         messages.push(restoredFailedMessage(record, messages.at(-1)?.id ?? null));
@@ -1731,7 +1740,7 @@ interface ChatContextValue {
     questionNotebookReferences?: QuestionNotebookReferencePayload,
     persona?: string,
     memoryReferences?: MemoryReferencePayload,
-  ) => void;
+  ) => Promise<boolean>;
   /** Hold a message sent while a turn runs; ``send`` is the turn it becomes
    *  if the running turn never reads it (see ``QueuedMessage``). */
   queueMessage: (
@@ -1980,6 +1989,8 @@ function hydrateRequestSnapshot(
   if (readingReferences.length) {
     snapshot.readingReferences = readingReferences;
   }
+  const studioReferences = normalizeStudioReferences(stored.studioReferences ?? stored.studio_references);
+  if (studioReferences.length) snapshot.studioReferences = studioReferences;
   if (persona) snapshot.persona = persona;
   if (memoryReferences.length) snapshot.memoryReferences = memoryReferences;
   if (llmSelection) snapshot.llmSelection = llmSelection;
@@ -3094,6 +3105,7 @@ export function ChatStateAdapterProvider({
       const effectiveReadingReferences =
         exactReplay ? replaySnapshot?.readingReferences :
         replaySnapshot?.readingReferences ?? options?.readingReferences;
+      const effectiveStudioReferences = exactReplay ? replaySnapshot?.studioReferences : options?.studioReferences;
       const effectiveAttachments =
         replaySnapshot?.attachments?.map((a) => ({
           type: a.type,
@@ -3207,6 +3219,7 @@ export function ChatStateAdapterProvider({
         ...(effectiveReadingReferences?.length
           ? { readingReferences: effectiveReadingReferences }
           : {}),
+        ...(effectiveStudioReferences?.length ? { studioReferences: effectiveStudioReferences } : {}),
         ...(effectiveMasteryPathId
           ? { masteryPathId: effectiveMasteryPathId }
           : {}),
@@ -3312,7 +3325,7 @@ export function ChatStateAdapterProvider({
           ? false
           : undefined;
       // Capture the complete command before persisting or displaying its snapshot.
-      const submissionStorageKey = session.sessionId ?? draftFailedSubmissionKey();
+      const submissionStorageKey = session.sessionId ?? draftFailedSubmissionKey(session.draftRecoveryScope);
       if (submissionId) {
         pendingSubmissionIdsRef.current.set(key, {
           storageKey: submissionStorageKey,
@@ -3379,6 +3392,7 @@ export function ChatStateAdapterProvider({
         questionNotebookReferences: effectiveQuestionNotebookReferences,
         bookReferences: effectiveBookReferences,
         readingReferences: effectiveReadingReferences,
+        studioReferences: effectiveStudioReferences,
         masteryPathId: effectiveMasteryPathId || null,
         masterySessionMode: effectiveMasterySessionMode || null,
         // A note companion's conversation stays bound to its page for every
@@ -3923,7 +3937,8 @@ export function ChatStateAdapterProvider({
       dispatch({
         type: "ENSURE_DRAFT_SESSION",
         key,
-        failedRecords: readFailedSubmissions(draftFailedSubmissionKey()),
+        draftRecoveryScope: configuration?.draftRecoveryScope,
+        failedRecords: readFailedSubmissions(draftFailedSubmissionKey(configuration?.draftRecoveryScope)),
       });
       return key;
     },
@@ -3948,7 +3963,7 @@ export function ChatStateAdapterProvider({
     if (!key || !session || session.isStreaming) return false;
     const message = session.messages.find((item) => item.id === messageId);
     if (message?.role !== "user" || !message.failedSubmission || messageId >= 0 || !message.failedSubmissionId) return false;
-    const storageKey = session.sessionId ?? draftFailedSubmissionKey();
+    const storageKey = session.sessionId ?? draftFailedSubmissionKey(session.draftRecoveryScope);
     const rootId = message.requestSnapshot?.replacementRootSubmissionId ?? message.failedSubmissionId;
     const pendingEdits = readFailedSubmissions(storageKey, true).filter((record) => {
       const snapshot = record.requestSnapshot as MessageRequestSnapshot;
@@ -3981,7 +3996,7 @@ export function ChatStateAdapterProvider({
       if (local?.failedSubmission && local.failedSubmissionId && local.requestSnapshot && !local.failedSubmissionNeedsReview) {
         if (!(await supportsSubmissionReplacement()) || generation !== runtimeGeneration.current) return false;
         const rootId = local.requestSnapshot.replacementRootSubmissionId ?? local.failedSubmissionId;
-        const pending = readFailedSubmissions(session.sessionId ?? draftFailedSubmissionKey()).find((record) => {
+        const pending = readFailedSubmissions(session.sessionId ?? draftFailedSubmissionKey(session.draftRecoveryScope)).find((record) => {
           const snapshot = record.requestSnapshot as MessageRequestSnapshot;
           return (snapshot?.replacementRootSubmissionId ?? snapshot?.replacesSubmissionId) === rootId;
         });
@@ -4064,7 +4079,7 @@ export function ChatStateAdapterProvider({
       !message.failedSubmissionId || !message.requestSnapshot || message.failedSubmissionNeedsReview) return false;
     if (message.requestSnapshot.replacesSubmissionId && !(await supportsSubmissionReplacement())) return false;
     const rootId = message.requestSnapshot.replacementRootSubmissionId ?? message.failedSubmissionId;
-    const pending = readFailedSubmissions(session.sessionId ?? draftFailedSubmissionKey()).find((record) => {
+    const pending = readFailedSubmissions(session.sessionId ?? draftFailedSubmissionKey(session.draftRecoveryScope)).find((record) => {
       const snapshot = record.requestSnapshot as MessageRequestSnapshot;
       return (snapshot?.replacementRootSubmissionId ?? snapshot?.replacesSubmissionId) === rootId;
     });

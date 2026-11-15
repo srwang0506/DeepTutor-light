@@ -1,5 +1,6 @@
 import type { StartTurnCommand } from "@/contracts/generated/turn-protocol";
 import { buildStartTurn } from "@/contracts/parse/turn-command";
+import { normalizeStudioReferences, STUDIO_SOURCE_LIMIT } from "@/lib/studio-references";
 import { ApiError } from "@/shared/api/errors";
 
 import type {
@@ -19,6 +20,7 @@ const RUNTIME_ONLY_CONFIG_KEYS = new Set([
   "consult_partner_id",
   "partner_discussion_group_id",
   "answer_by",
+  "studio_references",
 ]);
 
 function invalid(message: string): never {
@@ -69,6 +71,14 @@ export function buildStartTurnInput(input: StartTurnInput): StartTurnCommand {
     invalid("Timed media position must be non-negative");
   }
 
+  if ((input.studioReferences?.length ?? 0) > STUDIO_SOURCE_LIMIT) {
+    invalid("Too many Studio sources");
+  }
+  const references = normalizeStudioReferences(input.studioReferences);
+  // The generated transport uses an exact union of tuples of length 0–12.
+  // Normalization checks the items and bounds the array before encoding it.
+  const studioReferences = references as StartTurnCommand["studio_references"];
+
   return buildStartTurn({
     ...(input.workspaceId !== undefined ? { workspace_id: input.workspaceId } : {}),
     content: input.content,
@@ -89,6 +99,7 @@ export function buildStartTurnInput(input: StartTurnInput): StartTurnCommand {
     question_notebook_references: input.questionNotebookReferences ?? [],
     book_references: input.bookReferences ?? [],
     reading_references: input.readingReferences ?? [],
+    ...(references.length ? { studio_references: studioReferences } : {}),
     memory_references: input.memoryReferences ?? [],
     skills: input.skills ?? [],
     mcp: input.mcp ?? [],

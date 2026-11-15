@@ -171,6 +171,23 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("PDF reading position during layout changes", () => {
+  it("opens a direct citation at its physical page without first publishing page one", async () => {
+    // A new tab or an embedded reader can decode its PDF before the shell
+    // has a positive viewport. Merely finding the target DOM node is not
+    // proof that its scroll position has been set.
+    viewportHeight = 0;
+    const { root, onVisibleLocatorChange } = await openReader({ jump: { locator: 5, nonce: 0 } });
+    expect(root.scrollTop).toBe(0);
+    expect(onVisibleLocatorChange).not.toHaveBeenCalled();
+
+    // No resize or scroll event arrives: the pending jump must retry against
+    // real geometry and report the citation page itself when it succeeds.
+    viewportHeight = 500;
+    await waitFor(() => expect(onVisibleLocatorChange).toHaveBeenLastCalledWith(5));
+    expect(pageAt(root, 5).getBoundingClientRect().top).toBe(ROOT_TOP + GAP);
+    expect(onVisibleLocatorChange).not.toHaveBeenCalledWith(1);
+  });
+
   it("keeps page 99 and its within-page position when the sidebar closes and reopens", async () => {
     const { root, onVisibleLocatorChange } = await openReader();
     await scrollTo(root, 99);

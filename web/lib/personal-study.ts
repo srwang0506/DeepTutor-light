@@ -85,10 +85,17 @@ export function buildStudyPlan(snapshot: StudySnapshot, workspaceId: string, now
     .sort((a, b) => b.updated_at - a.updated_at)
   const sessionFor = (match: (s: SessionSummary) => boolean) => sessions.find(match)
   const covered = new Set<string>()
+  const objectiveKey = (path: string, point: string) => JSON.stringify([path, point])
+  const practiceObjectives = new Map<string, string>()
+  const goalReviews = new Map<string, string>()
   for (const q of snapshot.queue.filter(scope)) {
+    const linked = q.state.objective
+    const practiceKey = key('practice', q.entry.id)
+    if (linked)
+      practiceObjectives.set(practiceKey, objectiveKey(linked.path_id, linked.knowledge_point_id))
     const href = scopedUrl(`/learning/practice?question=${q.entry.id}`, workspaceId)
     suggestions.push({
-      key: key('practice', q.entry.id),
+      key: practiceKey,
       kind: 'review',
       title: q.entry.question,
       context: '',
@@ -135,6 +142,9 @@ export function buildStudyPlan(snapshot: StudySnapshot, workspaceId: string, now
     if (session) covered.add(session.session_id)
     const pending = next.action === 'answer_pending'
     const review = next.action === 'review'
+    const goalKey = key('goal', topic.path_id)
+    if (review && next.knowledge_point_id)
+      goalReviews.set(goalKey, objectiveKey(topic.path_id, next.knowledge_point_id))
     const href =
       pending && next.session_id
         ? masterySessionRoute(topic.path_id, next.session_id, workspaceId)
@@ -142,7 +152,7 @@ export function buildStudyPlan(snapshot: StudySnapshot, workspaceId: string, now
           ? sessionRoute(session)
           : masteryTopicRoute(topic.path_id, workspaceId)
     suggestions.push({
-      key: key('goal', topic.path_id),
+      key: goalKey,
       kind: review ? 'review' : 'goal',
       title: next.knowledge_point_name || topic.name || topic.metadata.goal,
       context: topic.name || topic.metadata.goal,
@@ -234,8 +244,15 @@ export function buildStudyPlan(snapshot: StudySnapshot, workspaceId: string, now
   const selected: StudySuggestion[] = [],
     later: StudySuggestion[] = []
   const groups = new Map<string, number>()
+  // Suppress a duplicate only after its representative has fit today's
+  // plan. Deferring a goal or running out of time never hides a shorter review.
+  const selectedGoalReviews = new Set<string>()
+  const selectedPracticeObjectives = new Set<string>()
   let minutes = 0
   for (const item of available) {
+    const practice = practiceObjectives.get(item.key)
+    const goal = goalReviews.get(item.key)
+    if (practice && selectedGoalReviews.has(practice)) continue
     const maxInGroup = ['practice', 'cards'].includes(item.group) ? 3 : 1
     if (
       selected.length < 5 &&
@@ -243,9 +260,28 @@ export function buildStudyPlan(snapshot: StudySnapshot, workspaceId: string, now
       (groups.get(item.group) ?? 0) < maxInGroup
     ) {
       selected.push(item)
+      if (goal) selectedGoalReviews.add(goal)
+      if (practice) selectedPracticeObjectives.add(practice)
       minutes += item.minutes
       groups.set(item.group, (groups.get(item.group) ?? 0) + 1)
     } else later.push(item)
   }
-  return { selected, later, deferred, minutes, budget }
+  const otherGoalReviews = new Set(
+    later.flatMap(item => {
+      const objective = goalReviews.get(item.key)
+      return objective && !selectedPracticeObjectives.has(objective) ? [objective] : []
+    })
+  )
+  return {
+    selected,
+    later: later.filter(item => {
+      const practice = practiceObjectives.get(item.key)
+      const goal = goalReviews.get(item.key)
+      if (goal && selectedPracticeObjectives.has(goal)) return false
+      return !practice || !otherGoalReviews.has(practice)
+    }),
+    deferred,
+    minutes,
+    budget,
+  }
 }

@@ -147,3 +147,41 @@ it('adds note review and changed-card decisions without rescheduling their sourc
   expect(plan.selected[0].evidenceHref).toBe('/co-writer/p?dt_workspace=a#b')
   expect(JSON.stringify(snapshot)).toBe(before)
 })
+
+it('offers one review for an exact linked objective without modifying its queue', () => {
+  const repeated = question(1)
+  repeated.state.objective = { path_id: 'g', knowledge_point_id: 'k' }
+  const different = question(2)
+  different.state.objective = { path_id: 'g', knowledge_point_id: 'another' }
+  const snapshot = state({
+    sources: { ...EMPTY_STUDY_SOURCES, mastery: [goal({ next: { action: 'review', knowledge_point_id: 'k', knowledge_point_name: 'BFS' } })] },
+    queue: [repeated, different, question(3)],
+  })
+  const plan = buildStudyPlan(snapshot, 'a', 1000)
+  expect(plan.selected.map(({ key }) => key)).toEqual(['goal:g', 'practice:3', 'practice:2'])
+  expect(plan.later).toEqual([])
+  expect(snapshot.queue).toHaveLength(3)
+})
+
+it('keeps a linked question actionable when the longer goal review does not fit or is deferred', () => {
+  const linked = question(1)
+  linked.state.objective = { path_id: 'g', knowledge_point_id: 'k' }
+  const snapshot = state({
+    sources: {
+      ...EMPTY_STUDY_SOURCES,
+      mastery: [
+        goal({ next: { action: 'review', knowledge_point_id: 'k', knowledge_point_name: 'BFS' } }),
+        goal({ path_id: 'pending', next: { action: 'answer_pending', knowledge_point_id: 'other', session_id: 's' } }),
+      ],
+    },
+    queue: [linked],
+  })
+  snapshot.preferences!.minutes = 15
+  const plan = buildStudyPlan(snapshot, 'a', 1000)
+  expect(plan.selected.map(({ key }) => key)).toEqual(['goal:pending', 'practice:1'])
+  expect(plan.later).toEqual([])
+  snapshot.preferences!.deferred = { 'goal:g': 2000 }
+  const deferred = buildStudyPlan(snapshot, 'a', 1000)
+  expect(deferred.selected.map(({ key }) => key)).toEqual(['goal:pending', 'practice:1'])
+  expect(deferred.deferred.map(({ key }) => key)).toEqual(['goal:g'])
+})

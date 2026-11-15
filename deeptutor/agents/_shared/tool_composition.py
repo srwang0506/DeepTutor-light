@@ -53,6 +53,7 @@ _CONDITIONAL_MOUNT_FLAGS: dict[str, str] = {
     "kb_files": "has_kb",
     "knowledge_frontier": "has_kb",
     "read_source": "has_sources",
+    "read_studio_source": "has_studio_sources",
     "read_memory": "has_memory",
     "list_favorites": "has_notebooks",
     "save_favorite": "has_notebooks",
@@ -156,6 +157,7 @@ class ToolMountFlags:
 
     has_kb: bool = False
     has_sources: bool = False
+    has_studio_sources: bool = False
     has_memory: bool = False
     has_notebooks: bool = False
     has_question_bank: bool = False

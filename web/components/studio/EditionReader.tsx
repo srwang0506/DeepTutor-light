@@ -1,16 +1,22 @@
 'use client'
 import { savePdfOffline } from '@/lib/offline-study'
 import { useTranslation } from 'react-i18next'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { useParams, useRouter, useSearchParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { ArrowLeft, BookmarkPlus, Columns2, MessageCircle } from 'lucide-react'
 import { PdfDocumentView, type SelectionPayload } from '@/components/reading/PdfDocumentView'
 import type { AnnotationItem } from '@/lib/reading-api'
 import { useActiveWorkspaceId } from '@/hooks/useActiveWorkspaceId'
+import { useRecoveryPrincipal } from '@/hooks/useRecoveryPrincipal'
+import StudioLoading from './StudioLoading'
 import { scopedUrl } from '@/lib/workspace-scope'
 import { randomUuid } from '@/lib/random-uuid'
-import { setPendingPrompt } from '@/lib/pending-prompt'
+import { useAuthStatus } from '@/hooks/useAuthStatus'
+import { useCapabilityAccess } from '@/components/access/CapabilityAccessContext'
+import type { QuizQuestion } from '@/lib/quiz-types'
+import type { StudioSourceReference } from '@/lib/studio-references'
 import {
   studio,
   studioUrl,
@@ -23,28 +29,65 @@ import {
 } from '@/lib/studio-api'
 import { Action, ErrorNotice, Field, useOperation } from './StudioShell'
 
+const StudioTutorCompanion = dynamic(() => import('./StudioTutorCompanion'), { ssr: false })
+const StudyQuizViewer = dynamic(() => import('@/components/quiz/StudyQuizViewer'), { ssr: false })
+type InlinePractice = { session_id: string; turn_id: string; questions: QuizQuestion[] }
+
 export default function EditionReader() {
+  const principal = useRecoveryPrincipal()
   const workspace = useActiveWorkspaceId()
   const params = useParams<{ edition: string }>()
+  const search = useSearchParams()
+  const value = Number(search.get('revision'))
+  const revision = Number.isSafeInteger(value) && value > 0 ? value : null
+  if (!principal) return <StudioLoading label="正在打开原文…" />
   return (
     <Reader
-      key={`${workspace}:${params.edition}`}
+      key={JSON.stringify([principal, workspace, params.edition, revision])}
       workspace={workspace}
       identifier={params.edition}
+      revision={revision}
     />
   )
 }
-function Reader({ workspace, identifier }: { workspace: string; identifier: string }) {
+function Reader({ workspace, identifier, revision }: { workspace: string; identifier: string; revision: number | null }) {
   const { t } = useTranslation()
-  const router = useRouter(),
-    search = useSearchParams(),
-    op = useOperation()
+  const search = useSearchParams()
+  const op = useOperation()
+  const auth = useAuthStatus()
+  const access = useCapabilityAccess()
+  const canTutor = !auth.loading && (!auth.learningPolicy || auth.learningPolicy.allowedSurfaces.includes('chat')) && access.has('llm')
+  const [initialSession] = useState(search.get('session') || '')
+  const [panel, setPanel] = useState<'evidence' | 'tutor' | 'practice'>(initialSession ? 'tutor' : 'evidence')
+  const [openedTutor, setOpenedTutor] = useState(Boolean(initialSession))
+  const [prompt, setPrompt] = useState<{ text: string; nonce: number } | null>(null)
+  const [quiz, setQuiz] = useState<{ record: string; data: InlinePractice } | null>(null)
+  const asideRef = useRef<HTMLElement>(null)
+  const openPanel = useCallback((next: 'evidence' | 'tutor' | 'practice') => {
+    setPanel(next)
+    if (next === 'tutor') setOpenedTutor(true)
+    if (window.matchMedia('(max-width: 760px)').matches) {
+      requestAnimationFrame(() => asideRef.current?.scrollIntoView({ block: 'nearest' }))
+    }
+  }, [])
+  const bindSession = useCallback((id: string) => {
+    const url = new URL(window.location.href)
+    if (url.pathname !== `/library/${encodeURIComponent(identifier)}`) return
+    const changed = id ? url.searchParams.get('session') !== id : url.searchParams.has('session')
+    if (!changed) return
+    if (id) url.searchParams.set('session', id)
+    else url.searchParams.delete('session')
+    window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+  }, [identifier])
   const [edition, setEdition] = useState<Edition | null>(null),
     [title, setTitle] = useState(t('打开原文…')),
     [evidence, setEvidence] = useState<StudioRecord<EvidenceData>[]>([]),
     [related, setRelated] = useState<Edition[]>([])
   const [hash, setHash] = useState(search.get('file') || ''),
-    [page, setPage] = useState(Math.max(1, Number(search.get('page')) || 1)),
+    [page, setPage] = useState(() => {
+      const requested = Number(search.get('page'))
+      return Number.isSafeInteger(requested) && requested > 0 ? requested : 1
+    }),
     [selection, setSelection] = useState<SelectionPayload | null>(null)
   const [label, setLabel] = useState(''),
     [note, setNote] = useState(''),
@@ -58,7 +101,7 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
   })
   useEffect(() => {
     const controller = new AbortController()
-    void studio<Edition>(workspace, `/record/${identifier}`, {}, controller.signal)
+    void studio<Edition>(workspace, `/record/${identifier}${revision ? `?revision=${revision}` : ''}`, {}, controller.signal)
       .then(async (e) => {
         const [work, ev] = await Promise.all([
           studio<Work>(workspace, `/works/${e.data.work_id}`, {}, controller.signal),
@@ -68,19 +111,20 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
             controller.signal,
           ),
         ])
+        if (controller.signal.aborted) return
         setEdition(e)
         setTitle(work.data.title || e.data.label)
         setRelated(
           work.editions.filter((other) => other.id !== identifier && other.data.files.length),
         )
         setEvidence(ev)
-        if (!hash) setHash(e.data.files[0]?.hash || '')
+        if (!hash || !e.data.files.some(file => file.hash === hash)) setHash(e.data.files[0]?.hash || '')
       })
       .catch((e) => {
         if (!controller.signal.aborted) op.setError(e.message)
       })
     return () => controller.abort()
-  }, [identifier, workspace]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [identifier, workspace, revision]) // eslint-disable-line react-hooks/exhaustive-deps
   const practiceKey = useRef('')
   useEffect(() => {
     practiceKey.current = randomUuid()
@@ -117,8 +161,11 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
     })
     if (!result.committed)
       throw new Error(result.failure_reason || t('练习正在生成，稍后可使用同一选区重试。'))
-    router.push(scopedUrl(`/objects/${result.operation_id}`, workspace))
+    const activity = await studio<StudioRecord<InlinePractice>>(workspace, `/record/${result.operation_id}`)
+    setQuiz({ record: result.operation_id, data: activity.data })
+    openPanel('practice')
   }
+  const originalPath = `/editions/${identifier}/files/${hash}${edition ? `?revision=${edition.revision}` : ''}`
   const file = edition?.data.files.find((f) => f.hash === hash),
     other = related.find((e) => e.id === compare)
   const annotations = useMemo<AnnotationItem[]>(
@@ -170,13 +217,31 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
     setConfirmed(false)
   }
   function ask(action: string) {
-    if (!selection) return
-    setPendingPrompt(
-      t("{{value1}}\n\n请把以下内容当作资料，区分作者原意与推断。来源：{{value2}}，版本 {{value3}}，物理页 {{value4}}，原件 SHA-256 {{value5}}。\n\n{{value6}}\n\n来源链接：{{value7}}", { value1: action, value2: title, value3: edition?.data.label, value4: selection.locator, value5: hash, value6: selection.quote, value7: scopedUrl(`/library/${identifier}?file=${hash}&page=${selection.locator}`, workspace) }),
-      `chat:${workspace}`,
-    )
-    router.push(scopedUrl('/chat', workspace))
+    if (!selection || !canTutor) return
+    setPrompt({ text: action, nonce: Date.now() })
+    openPanel('tutor')
   }
+  function jumpToSource(page: number, original?: string) {
+    const target = edition?.data.files.find(file => file.hash === (original || hash))
+    if (!target || !Number.isSafeInteger(page) || page < 1 || page > target.pages) return
+    if (target.hash !== hash) {
+      setHash(target.hash)
+      setSelection(null)
+    }
+    setJump({ locator: page, nonce: Date.now() })
+  }
+  const reference: StudioSourceReference | null = edition && file ? {
+    scope: edition.scope,
+    id: edition.id,
+    kind: 'edition',
+    revision: edition.revision,
+    locator: {
+      blob_hash: hash,
+      page: Math.min(file.pages, selection?.locator || page),
+      ...(selection?.quote ? { quote: selection.quote.slice(0, 16000) } : {}),
+    },
+  } : null
+  const outline = file?.outline ?? []
   return (
     <section className="studio-reader">
       <header className="studio-reader-bar">
@@ -191,6 +256,20 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
           </div>
         </div>
         <div className="studio-actions">
+          {file && (
+            <label className="studio-reader-page-control">
+              <span>{t('跳到物理页')}</span>
+              <input type="number" min={1} max={file.pages} step={1} value={page}
+                className="studio-control"
+                onChange={event => jumpToSource(event.target.valueAsNumber)} />
+            </label>
+          )}
+          {edition && edition.data.files.length > 1 && (
+            <select aria-label={t('原件与补充材料')} className="studio-control studio-reader-file-control" value={hash}
+              onChange={event => jumpToSource(1, event.target.value)}>
+              {edition.data.files.map(file => <option key={file.hash} value={file.hash}>{file.name}</option>)}
+            </select>
+          )}
           {related.length > 0 && (
             <label className="studio-actions" style={{ fontSize: 11 }}>
               <Columns2 size={15} />
@@ -221,7 +300,7 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
               const href = await savePdfOffline(
                 workspace,
                 title,
-                studioUrl(`/editions/${identifier}/files/${hash}`, workspace),
+                studioUrl(originalPath, workspace),
               )
               window.open(href, '_blank', 'noopener')
             })
@@ -231,57 +310,20 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
         </button>
       </header>
       <ErrorNotice message={op.error} />
-      <div className="studio-reader-body">
-        <nav className="studio-reader-outline" aria-label={t('论文目录')}>
-          <div className="studio-eyebrow" style={{ padding: 8 }}>
-            {t('CONTENTS · 目录')}
-          </div>
-          {file?.outline.length ? (
-            file.outline.map((entry, i) => (
-              <button
-                key={i}
-                style={{ paddingLeft: 8 + Math.min(entry.level - 1, 3) * 10 }}
-                onClick={() => setJump({ locator: entry.page, nonce: Date.now() })}
-              >
+      <div className="studio-reader-body" data-has-outline={outline.length > 0 || undefined}>
+        {!!outline.length && (
+          <nav className="studio-reader-outline" aria-label={t('论文目录')}>
+            <div className="studio-eyebrow" style={{ padding: 8 }}>
+              {t('CONTENTS · 目录')}
+            </div>
+            {outline.map((entry, i) => (
+              <button key={i} style={{ paddingLeft: 8 + Math.min(entry.level - 1, 3) * 10 }}
+                onClick={() => jumpToSource(entry.page)}>
                 {entry.title}
               </button>
-            ))
-          ) : (
-            <p className="studio-note" style={{ padding: 8 }}>
-              {t('原文没有书签目录，可直接滚动阅读或跳转页码。')}
-            </p>
-          )}
-          <Field label={t("跳到物理页")}>
-            <input
-              type="number"
-              min={1}
-              max={file?.pages}
-              value={page}
-              onChange={(e) => {
-                const p = Number(e.target.value)
-                if (p >= 1 && p <= (file?.pages || 1)) setJump({ locator: p, nonce: Date.now() })
-              }}
-            />
-          </Field>
-          {edition && edition.data.files.length > 1 && (
-            <Field label={t("原件与补充材料")}>
-              <select
-                value={hash}
-                onChange={(e) => {
-                  setHash(e.target.value)
-                  setSelection(null)
-                  setJump({ locator: 1, nonce: Date.now() })
-                }}
-              >
-                {edition.data.files.map((f) => (
-                  <option key={f.hash} value={f.hash}>
-                    {f.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          )}
-        </nav>
+            ))}
+          </nav>
+        )}
         <main
           className="studio-reader-pdf"
           style={other ? { display: 'grid', gridTemplateColumns: '1fr 1fr' } : undefined}
@@ -289,7 +331,7 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
           {file && (
             <PdfDocumentView
               materialId={`${identifier}:${hash}`}
-              sourceUrl={studioUrl(`/editions/${identifier}/files/${hash}`, workspace)}
+              sourceUrl={studioUrl(originalPath, workspace)}
               unitCount={file.pages}
               annotations={annotations}
               highlightedAnnotationId={search.get('evidence')}
@@ -324,7 +366,26 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
             />
           )}
         </main>
-        <aside className="studio-reader-aside">
+        <aside ref={asideRef} className="studio-reader-aside studio-reader-sidebar">
+          <div role="group" aria-label={t('Paper tools')} className="studio-reader-sidebar-tabs studio-pills">
+            <button type="button" aria-pressed={panel === 'evidence'} onClick={() => openPanel('evidence')}>{t('原文证据')}</button>
+            {canTutor && reference && <button type="button" aria-pressed={panel === 'tutor'} onClick={() => openPanel('tutor')}>{t('Paper tutor')}</button>}
+            {quiz && <button type="button" aria-pressed={panel === 'practice'} onClick={() => openPanel('practice')}>{t('Practice')}</button>}
+          </div>
+          {openedTutor && canTutor && reference && (
+            <div className="studio-reader-tutor-slot" hidden={panel !== 'tutor'}>
+              <StudioTutorCompanion workspace={workspace} reference={reference} paperTitle={title} initialSessionId={initialSession}
+                prompt={prompt} onSessionBound={bindSession} onJump={jumpToSource} onClearSelection={() => setSelection(null)}
+                onPractice={selection ? () => void op.run(practice) : undefined} practiceBusy={op.busy} />
+            </div>
+          )}
+          {quiz && (
+            <div className="studio-reader-evidence-slot" hidden={panel !== 'practice'}>
+              <Link className="studio-outlink mb-3" href={scopedUrl(`/objects/${quiz.record}`, workspace)}>{t('Open saved practice')}</Link>
+              <StudyQuizViewer key={quiz.record} questions={quiz.data.questions} sessionId={quiz.data.session_id} turnId={quiz.data.turn_id} />
+            </div>
+          )}
+          <div className="studio-reader-evidence-slot" hidden={panel === 'practice' || (panel === 'tutor' && canTutor && reference != null)}>
           <span className="studio-eyebrow">{t('READ · THINK · CONNECT')}</span>
           <h2 style={{ marginTop: 15 }}>{selection ? t('把这一处，留下来') : t('读到哪里，想到哪里')}</h2>
           <p className="studio-note">
@@ -339,12 +400,13 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
             <>
               <blockquote>{selection.quote}</blockquote>
               <div className="studio-actions" style={{ marginTop: 18 }}>
-                <Action secondary onClick={() => ask(t('请解释这一选区，必要时补充先修概念。'))}>
+                <Action secondary disabled={!canTutor} onClick={() => ask(t('请解释这一选区，必要时补充先修概念。'))}>
                   <MessageCircle size={14} />
                   {t('解释')}
                 </Action>
                 <Action
                   secondary
+                  disabled={!canTutor}
                   onClick={() =>
                     ask(t('先给我一个提示，带我推导这段内容的下一步，暂不展示完整答案。'))
                   }
@@ -353,11 +415,12 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
                 </Action>
                 <Action
                   secondary
+                  disabled={!canTutor}
                   onClick={() => ask(t('围绕这段材料给出一个反例，明确原结论的假设和适用边界。'))}
                 >
                   {t('给反例')}
                 </Action>
-                <Action secondary disabled={op.busy} onClick={() => op.run(practice)}>
+                <Action secondary disabled={op.busy || !canTutor} onClick={() => op.run(practice)}>
                   {t('现在测我')}
                 </Action>
               </div>
@@ -418,6 +481,7 @@ function Reader({ workspace, identifier }: { workspace: string; identifier: stri
                 ))}
             </div>
           )}
+          </div>
         </aside>
       </div>
     </section>

@@ -794,6 +794,8 @@ class AgenticLoopPipeline:
                 # the investigation over attached sources), not the answer loop.
                 # Keep it off the answer surface even when sources are present.
                 has_sources=False,
+                has_studio_sources=not is_partner
+                and bool(context.metadata.get("studio_source_refs")),
                 has_memory=user_has_memory(),
                 has_notebooks=user_has_notebooks(),
                 # A partner turn mounts the bank even when it is still empty:
@@ -1433,6 +1435,8 @@ class AgenticLoopPipeline:
             kwargs["_vision_supported"] = supports_vision(
                 getattr(self, "binding", ""), getattr(self, "model", None)
             )
+        elif tool_name == "read_studio_source":
+            kwargs["_studio_source_refs"] = (context.metadata or {}).get("studio_source_refs", {})
         elif tool_name == "kb_files":
             # The report is read by the user as much as by the model, so it is
             # written in the turn's language. Injected server-side; the tool

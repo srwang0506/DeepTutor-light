@@ -846,6 +846,42 @@
     display: none;
   }
 }
+.project-tools > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  list-style: none;
+  border-radius: 6px;
+}
+.project-tools > summary::-webkit-details-marker {
+  display: none;
+}
+.project-tools > summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 6px;
+}
+.project-tools > summary > span {
+  flex: 1;
+  min-width: 0;
+}
+.project-tools > summary strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+.project-tools > summary small {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.project-tools[open] > summary .project-tools-chevron {
+  transform: rotate(90deg);
+}
+.project-tools-content {
+  margin-top: 24px;
+}
 @media (prefers-reduced-motion: reduce) {
   .project-card,
   .project-button {

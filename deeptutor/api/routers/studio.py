@@ -101,8 +101,8 @@ async def attach(identifier: str, file: UploadFile = File(...), expected_revisio
 
 
 @router.get("/editions/{identifier}/files/{digest}")
-async def original(identifier: str, digest: str):
-    path, metadata = await operation(catalog.edition_file, Studio(), identifier, digest)
+async def original(identifier: str, digest: str, revision: int | None = Query(None, ge=1)):
+    path, metadata = await operation(catalog.edition_file, Studio(), identifier, digest, revision)
     return FileResponse(
         path,
         media_type="application/pdf",

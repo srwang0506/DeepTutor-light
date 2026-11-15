@@ -92,6 +92,10 @@
       "class_path": "deeptutor.tools.builtin:ReadSourceTool",
       "order": 12
     },
+    "read_studio_source": {
+      "class_path": "deeptutor.tools.studio_source:ReadStudioSourceTool",
+      "order": 103
+    },
     "read_skill": {
       "class_path": "deeptutor.tools.builtin:ReadSkillTool",
       "order": 15

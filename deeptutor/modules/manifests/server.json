@@ -350,6 +350,12 @@
       },
       "auth": "learning",
       "order": 597
+    },
+    {
+      "reference": "deeptutor.api.routers.studio_tutor:router",
+      "options": { "prefix": "/api/studio", "tags": ["studio"] },
+      "auth": "learning",
+      "order": 598
     }
   ],
   "commands": [],

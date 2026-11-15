@@ -191,7 +191,7 @@ def main():
                 env={**os.environ, "HOSTNAME": "127.0.0.1", "PORT": str(args.port)},
             )
         )
-        from deeptutor.api.local_access import local_launch_url
+        from deeptutor.core.local_access import local_launch_url
 
         launch_url = local_launch_url(
             f"http://127.0.0.1:{args.port}/chat", os.environ["DEEPTUTOR_LOCAL_CAPABILITY"]

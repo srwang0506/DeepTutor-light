@@ -1,9 +1,13 @@
 'use client'
 
+import Link from 'next/link'
 import Markdown from '@/components/common/MarkdownRenderer'
+import { ObjectiveBinding } from './ObjectiveBinding'
 import { practiceMarkdown } from '@/lib/practice-content'
 import { getLocale } from '@/lib/datetime'
+import { setPendingPrompt } from '@/lib/pending-prompt'
 import { randomUuid } from '@/lib/random-uuid'
+import { activeWorkspaceId, scopedUrl } from '@/lib/workspace-scope'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ArrowLeft, CheckCircle2, Loader2 } from 'lucide-react'
@@ -15,14 +19,22 @@ import {
   type PracticeQuestion,
   type PracticeRef,
   type PracticeRating,
+  type PracticeReviewReceipt,
 } from '@/lib/practice-api'
 
 const RATINGS: { value: PracticeRating; label: string; description: string }[] = [
   { value: 'again', label: 'Again', description: 'Practice again this round' },
   { value: 'hard', label: 'Hard', description: 'I needed a hint' },
-  { value: 'good', label: 'Mastered', description: 'Review in a few days' },
+  { value: 'good', label: 'Recalled', description: 'Review in a few days' },
   { value: 'easy', label: 'Easy', description: 'I knew it confidently' },
 ]
+
+type SavedAttempt = {
+  receipt: PracticeReviewReceipt
+  answer: string
+  question: PracticeQuestion['entry']
+  workspace: string
+}
 
 export function PracticeSession({
   ids,
@@ -45,6 +57,7 @@ export function PracticeSession({
   const [saved, setSaved] = useState(0)
   const [saving, setSaving] = useState(false)
   const [nextDue, setNextDue] = useState<number | null>(null)
+  const [recent, setRecent] = useState<SavedAttempt[]>([])
   const dueDates = useRef(new Map<string, number>())
   const complete = index >= queue.length
   return (
@@ -92,6 +105,13 @@ export function PracticeSession({
               })}
             </p>
           )}
+          {recent.length > 0 && (
+            <div className="mx-auto mt-6 max-w-xl space-y-2 text-left">
+              {recent.map((attempt) => (
+                <AttemptFollowup key={attempt.receipt.attempt_id} attempt={attempt} />
+              ))}
+            </div>
+          )}
           <button
             type="button"
             onClick={onClose}
@@ -101,30 +121,97 @@ export function PracticeSession({
           </button>
         </div>
       ) : (
-        <PracticeTurn
-          key={`${index}:${queue[index].content_workspace_id}:${queue[index].id}`}
-          id={queue[index].id}
-          workspaceId={queue[index].content_workspace_id}
-          onBusy={setSaving}
-          onSaved={(due, rating) => {
-            if (rating === 'again') setQueue((current) => [...current, current[index]])
-            else setSaved((value) => value + 1)
-            if (due !== null) {
-              dueDates.current.set(
-                JSON.stringify([queue[index].content_workspace_id, queue[index].id]),
-                due,
-              )
-              setNextDue(Math.min(...dueDates.current.values()))
-            }
-            setIndex((value) => value + 1)
-          }}
-          onSkip={() => {
-            setSkipped((value) => value + 1)
-            setIndex((value) => value + 1)
-          }}
-        />
+        <>
+          <PracticeTurn
+            key={`${index}:${queue[index].content_workspace_id}:${queue[index].id}`}
+            id={queue[index].id}
+            workspaceId={queue[index].content_workspace_id}
+            onBusy={setSaving}
+            onSaved={(attempt) => {
+              const { due_at: due, rating } = attempt.receipt
+              if (rating === 'again') setQueue((current) => [...current, current[index]])
+              else setSaved((value) => value + 1)
+              if (attempt.receipt.attempt_id) {
+                setRecent((previous) => [attempt, ...previous].slice(0, 3))
+              }
+              if (due !== null) {
+                dueDates.current.set(
+                  JSON.stringify([queue[index].content_workspace_id, queue[index].id]),
+                  due,
+                )
+                setNextDue(Math.min(...dueDates.current.values()))
+              }
+              setIndex((value) => value + 1)
+            }}
+            onSkip={() => {
+              setSkipped((value) => value + 1)
+              setIndex((value) => value + 1)
+            }}
+          />
+          {recent[0] && (
+            <div className="mt-4">
+              <AttemptFollowup attempt={recent[0]} />
+            </div>
+          )}
+        </>
       )}
     </section>
+  )
+}
+
+function AttemptFollowup({ attempt }: { attempt: SavedAttempt }) {
+  const { t } = useTranslation()
+  const { receipt, question, answer, workspace } = attempt
+  const source = question.session_id.startsWith('studio-')
+    ? scopedUrl(`/objects/${encodeURIComponent(question.session_id.slice(7))}`, workspace)
+    : question.session_id
+      ? scopedUrl(`/chat/${encodeURIComponent(question.session_id)}`, workspace)
+      : scopedUrl(`/learning/practice?question=${question.id}`, workspace)
+  function prepare() {
+    const outcome =
+      receipt.correct === null
+        ? t('Self-assessed or ungraded')
+        : t(receipt.correct ? 'Correct' : 'Needs another try')
+    setPendingPrompt(
+      [
+        t(
+          'Help me understand this practice attempt. Identify the gap, then give me one similar question without revealing its solution.',
+        ),
+        `${t('Question')}: ${question.question}`,
+        ...Object.entries(question.options || {}).map(([id, text]) => `${id}. ${text}`),
+        `${t('My answer in this attempt')}: ${answer || t('No answer submitted')}`,
+        `${t('Result')}: ${outcome}`,
+        `${t('Original source')}: ${question.material_title || question.session_title || t('Question Bank')} · ${source}`,
+        `${t('Practice attempt ID')}: ${receipt.attempt_id}`,
+      ].join('\n\n'),
+      `chat:${workspace}`,
+    )
+  }
+  const evidence = receipt.objective_evidence
+  return (
+    <article className="rounded-xl border border-border bg-background px-4 py-3">
+      <p className="line-clamp-2 text-sm font-medium">{question.question}</p>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+        <span className="text-muted-foreground">
+          {evidence === 'applied'
+            ? t('Recall evidence added to your learning objective')
+            : evidence === 'pending'
+              ? t('Review saved; objective evidence is waiting to sync')
+              : evidence === 'unavailable'
+                ? t('Review saved; linked learning objective is unavailable')
+                : receipt.independent
+                  ? t('No recorded assistance for this recall')
+                  : t('Review saved')}
+        </span>
+        <Link
+          href={scopedUrl('/chat', workspace)}
+          onClick={prepare}
+          className="font-medium text-primary underline-offset-4 hover:underline"
+        >
+          {t('Ask your tutor about this attempt')}
+        </Link>
+      </div>
+    </article>
   )
 }
 
@@ -137,7 +224,7 @@ function PracticeTurn({
 }: {
   id: number
   workspaceId?: string
-  onSaved: (due: number | null, rating: PracticeRating) => void
+  onSaved: (attempt: SavedAttempt) => void
   onSkip: () => void
   onBusy: (busy: boolean) => void
 }) {
@@ -146,6 +233,7 @@ function PracticeTurn({
   const [answer, setAnswer] = useState('')
   const [revealed, setRevealed] = useState(false)
   const [correct, setCorrect] = useState<boolean | null>(null)
+  const [reference, setReference] = useState({ answer: '', explanation: '' })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [conflict, setConflict] = useState(false)
@@ -159,6 +247,7 @@ function PracticeTurn({
     answer: string
     self_report?: boolean
   } | null>(null)
+  const checked = useRef<{ request_id: string; version: number; answer: string } | null>(null)
   useEffect(() => {
     let active = true
     void getPracticeQuestion(id, workspaceId)
@@ -173,17 +262,30 @@ function PracticeTurn({
     }
   }, [id, reload, workspaceId])
   async function reveal() {
-    if (pending.current || !question) return
+    if (pending.current || !question || conflict || !answer.trim()) return
     pending.current = true
     setBusy(true)
     onBusy(true)
     setError('')
     try {
-      const verdict = await checkPracticeAnswer(id, answer, workspaceId)
+      if (
+        !checked.current ||
+        checked.current.answer !== answer ||
+        checked.current.version !== question.state.version
+      ) {
+        checked.current = { request_id: randomUuid(), version: question.state.version, answer }
+      }
+      const { request_id, version } = checked.current
+      const verdict = await checkPracticeAnswer(id, answer, workspaceId, { request_id, version })
       setCorrect(verdict.correct)
+      setReference({
+        answer: verdict.correct_answer ?? question.entry.correct_answer,
+        explanation: verdict.explanation ?? question.entry.explanation,
+      })
       setRevealed(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
+      if (err instanceof PracticeRequestError && err.status === 409) setConflict(true)
     } finally {
       pending.current = false
       setBusy(false)
@@ -198,7 +300,10 @@ function PracticeTurn({
     setError('')
     // Retrying a lost response must reuse its ID and exact payload.
     submission.current ??= {
-      request_id: randomUuid(),
+      request_id:
+        !selfReport && checked.current?.answer === answer
+          ? checked.current.request_id
+          : randomUuid(),
       version: question.state.version,
       rating,
       answer,
@@ -207,7 +312,12 @@ function PracticeTurn({
     setSubmittedRating(submission.current.rating)
     try {
       const result = await savePracticeReview(id, submission.current, workspaceId)
-      onSaved(result.due_at, result.rating)
+      onSaved({
+        receipt: result,
+        answer: submission.current.answer,
+        question: question.entry,
+        workspace: workspaceId ?? activeWorkspaceId(),
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
       if (err instanceof PracticeRequestError && err.status === 409) setConflict(true)
@@ -222,9 +332,11 @@ function PracticeTurn({
     setAnswer('')
     setRevealed(false)
     setCorrect(null)
+    setReference({ answer: '', explanation: '' })
     setError('')
     setConflict(false)
     submission.current = null
+    checked.current = null
     setSubmittedRating(null)
     setReload((value) => value + 1)
   }
@@ -244,7 +356,7 @@ function PracticeTurn({
           )}
         </div>
       )}
-      {!entry ? (
+      {!entry || !question ? (
         <p role="status" className="py-8 text-sm text-muted-foreground">
           {t('Loading…')}
         </p>
@@ -258,6 +370,27 @@ function PracticeTurn({
               </span>
             ))}
           </div>
+          {!revealed && (
+            <ObjectiveBinding
+              id={id}
+              state={question.state}
+              original={
+                entry.source === 'mastery_path' &&
+                !!entry.mastery_path_id &&
+                !!entry.knowledge_point_id
+              }
+              workspace={workspaceId}
+              disabled={busy || conflict}
+              onSaved={(state) =>
+                setQuestion((current) => (current ? { ...current, state } : current))
+              }
+              onBusy={(value) => {
+                setBusy(value)
+                onBusy(value)
+              }}
+              onConflict={() => setConflict(true)}
+            />
+          )}
           <div className="text-base leading-relaxed">
             <Markdown
               learningTextSize={16}
@@ -328,7 +461,7 @@ function PracticeTurn({
             <div className="mt-5 flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                disabled={busy}
+                disabled={busy || conflict || !answer.trim()}
                 onClick={() => void reveal()}
                 className="rounded-xl bg-primary px-4 py-2.5 text-sm text-primary-foreground disabled:opacity-50"
               >
@@ -340,7 +473,7 @@ function PracticeTurn({
                 onClick={() => void rate('good', true)}
                 className="rounded-xl border border-border px-4 py-2.5 text-sm hover:bg-muted"
               >
-                {t('I have mastered this')}
+                {t('Skip recall and reschedule')}
               </button>
               <button
                 type="button"
@@ -365,15 +498,15 @@ function PracticeTurn({
                   <Markdown
                     learningTextSize={16}
                     content={
-                      entry.correct_answer ||
+                      reference.answer ||
                       t(
                         'No reference answer was saved. Use the original source to check your work.',
                       )
                     }
                   />
-                  {entry.explanation && (
+                  {reference.explanation && (
                     <div className="mt-3 border-t border-border pt-3">
-                      <Markdown learningTextSize={16} content={entry.explanation} />
+                      <Markdown learningTextSize={16} content={reference.explanation} />
                     </div>
                   )}
                 </div>
@@ -383,7 +516,7 @@ function PracticeTurn({
                   <p className="text-xs text-muted-foreground">
                     {correct
                       ? t(
-                          'Mastered questions leave this round and return when your next review is due.',
+                          'This question leaves the current round and returns when its next review is due.',
                         )
                       : t('Practice again this round')}
                   </p>
@@ -393,16 +526,14 @@ function PracticeTurn({
                     onClick={() => void rate(correct ? 'good' : 'again')}
                     className="rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-40"
                   >
-                    {correct ? t('Mastered · Next question') : t('Practice again')}
+                    {correct ? t('Save recall · Next question') : t('Practice again')}
                   </button>
                 </div>
               ) : (
                 <div>
                   <h3 className="text-sm font-medium">{t('How well did you remember?')}</h3>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {t(
-                      'Mastered questions leave this round and return when your next review is due.',
-                    )}
+                    {t('A self-rating changes this question’s schedule without verifying mastery.')}
                   </p>
                   <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {RATINGS.map((rating) => (

@@ -1,3 +1,4 @@
+import type { StudioSourceReference } from '@/lib/studio-references';
 import type {
   BookReference,
   LLMSelection,
@@ -31,6 +32,7 @@ export interface StartTurnInput {
   questionNotebookReferences?: number[];
   bookReferences?: BookReference[];
   readingReferences?: ReadingReference[];
+  studioReferences?: StudioSourceReference[];
   memoryReferences?: MemoryReferences;
   skills?: string[];
   mcp?: string[];

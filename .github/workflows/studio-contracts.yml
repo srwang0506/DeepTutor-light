@@ -57,9 +57,17 @@ jobs:
         run: >-
           python -m pytest -q tests/studio tests/learning/test_study_quiz.py
           tests/learning/test_study_operations.py
+          tests/api/test_practice.py
+          tests/multi_user/test_studio_tutor_sources.py
+          tests/app/test_facade_stream_scope.py
+          tests/services/session/test_source_inventory.py
           tests/services/session/test_sqlite_store.py
           tests/runtime/test_launcher.py tests/runtime/test_launcher_lifecycle.py
           --junitxml=studio-domain-results.xml
+      - name: Verify backend wire contracts
+        run: |
+          python scripts/check_architecture.py
+          python scripts/export_frontend_contracts.py --check
       - name: Verify client contracts and editing state
         working-directory: web
         run: |

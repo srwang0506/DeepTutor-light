@@ -63,15 +63,7 @@ export default function ProjectEditor({
   return (
     <Dialog
       open
-      title={
-        project
-          ? zh
-            ? '项目设置'
-            : 'Project settings'
-          : zh
-            ? '为一件事，开一个项目'
-            : 'A space for what matters'
-      }
+      title={project ? (zh ? '项目设置' : 'Project settings') : zh ? '新建项目' : 'New project'}
       description={
         zh
           ? '会话、资料、任务和新记忆都留在这里。'

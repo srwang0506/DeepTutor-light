@@ -83,6 +83,7 @@ class SourceInventory:
     """
 
     entries: list[SourceEntry] = field(default_factory=list)
+    studio_references: list[dict[str, Any]] = field(default_factory=list)
     _index: dict[str, int] = field(default_factory=dict, repr=False)
 
     def add(self, entry: SourceEntry) -> None:
@@ -126,6 +127,7 @@ async def build_inventory(
     fresh_question_entry_ids: Sequence[Any],
     fresh_partner_group_references: Sequence[Any] = (),
     fresh_reading_references: Sequence[dict[str, Any]] = (),
+    include_studio_history: bool = False,
     language: str = "en",
 ) -> SourceInventory:
     """Compose the session-cumulative inventory for one chat turn.
@@ -173,6 +175,7 @@ async def build_inventory(
         store=store,
         session_id=session_id,
         leaf_message_id=leaf_message_id,
+        include_studio_history=include_studio_history,
         language=language,
     )
     return inv
@@ -448,12 +451,41 @@ async def _add_historical(
     store: SessionStoreProtocol,
     session_id: str,
     leaf_message_id: int | str | None,
+    include_studio_history: bool = False,
     language: str = "en",
 ) -> None:
     """Walk the active branch's ancestor user messages and pull in
     references they carried. Sources already in ``inv`` (i.e. fresh
     duplicates) are skipped — fresh entries always win."""
     lineage = await _load_lineage(store, session_id, leaf_message_id)
+    if include_studio_history:
+        # Legacy linear callers carry no parent. Match the store's latest
+        # message append location, but exclude sibling-branch Studio refs.
+        studio_lineage = (
+            (
+                lineage
+                if leaf_message_id is not None
+                else _select_lineage(lineage, lineage[-1]["id"])
+            )
+            if lineage
+            else []
+        )
+        for msg in reversed(studio_lineage):
+            if msg.get("role") != "user":
+                continue
+            snapshot = (msg.get("metadata") or {}).get("request_snapshot") or {}
+            if not isinstance(snapshot, dict):
+                continue
+            refs = snapshot.get("studioReferences")
+            if not isinstance(refs, list):
+                continue
+            for ref in refs:
+                if isinstance(ref, dict) and ref not in inv.studio_references:
+                    inv.studio_references.append(ref)
+                if len(inv.studio_references) >= 12:
+                    break
+            if len(inv.studio_references) >= 12:
+                break
     user_turn_ordinal = 0
     for msg in lineage:
         if msg.get("role") != "user":
@@ -675,6 +707,12 @@ async def _load_lineage(
     all_msgs = await store.get_messages(session_id)
     if leaf_message_id is None:
         return all_msgs
+    return _select_lineage(all_msgs, leaf_message_id)
+
+
+def _select_lineage(
+    all_msgs: Sequence[dict[str, Any]], leaf_message_id: int | str
+) -> list[dict[str, Any]]:
     by_id: dict[str, dict[str, Any]] = {}
     for m in all_msgs:
         mid = m.get("id")

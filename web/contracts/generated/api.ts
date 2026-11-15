@@ -6979,6 +6979,23 @@ export interface paths {
     readonly patch?: never;
     readonly trace?: never;
   };
+  readonly "/api/question-notebook/practice/objectives": {
+    readonly parameters: {
+      readonly query?: never;
+      readonly header?: never;
+      readonly path?: never;
+      readonly cookie?: never;
+    };
+    /** Objectives */
+    readonly get: operations["objectives_api_question_notebook_practice_objectives_get"];
+    readonly put?: never;
+    readonly post?: never;
+    readonly delete?: never;
+    readonly options?: never;
+    readonly head?: never;
+    readonly patch?: never;
+    readonly trace?: never;
+  };
   readonly "/api/question-notebook/practice/questions/{entry_id}": {
     readonly parameters: {
       readonly query?: never;
@@ -7007,6 +7024,23 @@ export interface paths {
     readonly put?: never;
     /** Check */
     readonly post: operations["check_api_question_notebook_practice_questions__entry_id__check_post"];
+    readonly delete?: never;
+    readonly options?: never;
+    readonly head?: never;
+    readonly patch?: never;
+    readonly trace?: never;
+  };
+  readonly "/api/question-notebook/practice/questions/{entry_id}/objective": {
+    readonly parameters: {
+      readonly query?: never;
+      readonly header?: never;
+      readonly path?: never;
+      readonly cookie?: never;
+    };
+    readonly get?: never;
+    /** Set Objective */
+    readonly put: operations["set_objective_api_question_notebook_practice_questions__entry_id__objective_put"];
+    readonly post?: never;
     readonly delete?: never;
     readonly options?: never;
     readonly head?: never;
@@ -12074,6 +12108,23 @@ export interface paths {
     readonly patch?: never;
     readonly trace?: never;
   };
+  readonly "/api/studio/tutor-sources": {
+    readonly parameters: {
+      readonly query?: never;
+      readonly header?: never;
+      readonly path?: never;
+      readonly cookie?: never;
+    };
+    /** Tutor Sources */
+    readonly get: operations["tutor_sources_api_studio_tutor_sources_get"];
+    readonly put?: never;
+    readonly post?: never;
+    readonly delete?: never;
+    readonly options?: never;
+    readonly head?: never;
+    readonly patch?: never;
+    readonly trace?: never;
+  };
   readonly "/api/studio/works": {
     readonly parameters: {
       readonly query?: never;
@@ -13806,14 +13857,6 @@ export interface components {
        */
       readonly url: string;
     };
-    /** AnswerRequest */
-    readonly AnswerRequest: {
-      /**
-       * Answer
-       * @default
-       */
-      readonly answer: string;
-    };
     /** ApplyOpsRequest */
     readonly ApplyOpsRequest: {
       /** Ops */
@@ -14749,6 +14792,18 @@ export interface components {
       readonly ask_hint_enabled?: boolean | null;
       /** Trace Count */
       readonly trace_count: number;
+    };
+    /** CheckRequest */
+    readonly CheckRequest: {
+      /**
+       * Answer
+       * @default
+       */
+      readonly answer: string;
+      /** Request Id */
+      readonly request_id?: string | null;
+      /** Version */
+      readonly version?: number | null;
     };
     /** CitationInput */
     readonly CitationInput: {
@@ -17162,10 +17217,16 @@ export interface components {
        * @default
        */
       readonly blob_hash: string;
-      /** Line */
-      readonly line?: number | null;
-      /** Page */
-      readonly page?: number | null;
+      /**
+       * Line
+       * @default null
+       */
+      readonly line: number | null;
+      /**
+       * Page
+       * @default null
+       */
+      readonly page: number | null;
       /**
        * Path
        * @default
@@ -17176,8 +17237,11 @@ export interface components {
        * @default
        */
       readonly quote: string;
-      /** Region */
-      readonly region?: readonly [number, number, number, number] | null;
+      /**
+       * Region
+       * @default null
+       */
+      readonly region: readonly [number, number, number, number] | null;
     };
     /**
      * LoginRequest
@@ -18085,6 +18149,12 @@ export interface components {
        */
       readonly kind: string;
     };
+    /** ObjectiveRequest */
+    readonly ObjectiveRequest: {
+      readonly objective: components["schemas"]["PracticeObjective"] | null;
+      /** Version */
+      readonly version: number;
+    };
     /** ObjectRef */
     readonly ObjectRef: {
       /** Id */
@@ -18458,6 +18528,13 @@ export interface components {
       readonly questions: number;
       /** Reviews */
       readonly reviews: number;
+    };
+    /** PracticeObjective */
+    readonly PracticeObjective: {
+      /** Knowledge Point Id */
+      readonly knowledge_point_id: string;
+      /** Path Id */
+      readonly path_id: string;
     };
     /** PracticeQuestion */
     readonly PracticeQuestion: {
@@ -20969,6 +21046,8 @@ export interface components {
       readonly session_id: string | null;
       /** Skills */
       readonly skills?: readonly string[];
+      /** Studio References */
+      readonly studio_references?: readonly components["schemas"]["ObjectRef"][];
       /**
        * Subagent Consult Budget
        * @default null
@@ -21060,6 +21139,29 @@ export interface components {
        * @default null
        */
       readonly updated_at: number | null;
+    };
+    /** TutorSourceItem */
+    readonly TutorSourceItem: {
+      /** Description */
+      readonly description: string;
+      /** External */
+      readonly external: boolean;
+      /** Href */
+      readonly href: string;
+      /** Pages */
+      readonly pages?: number | null;
+      readonly ref: components["schemas"]["ObjectRef"];
+      /** Title */
+      readonly title: string;
+      /** Workspace Name */
+      readonly workspace_name: string;
+    };
+    /** TutorSourcePage */
+    readonly TutorSourcePage: {
+      /** Items */
+      readonly items: readonly components["schemas"]["TutorSourceItem"][];
+      /** Next Cursor */
+      readonly next_cursor: string;
     };
     /**
      * UISettingsUpdate
@@ -21983,7 +22085,6 @@ export type SchemaAnnotationPayload =
 export type SchemaAnswerImageItem = components["schemas"]["AnswerImageItem"];
 export type SchemaAnswerImageUpload =
   components["schemas"]["AnswerImageUpload"];
-export type SchemaAnswerRequest = components["schemas"]["AnswerRequest"];
 export type SchemaApplyOpsRequest = components["schemas"]["ApplyOpsRequest"];
 export type SchemaApprovalRequest = components["schemas"]["ApprovalRequest"];
 export type SchemaApproveCreationRequest =
@@ -22094,6 +22195,7 @@ export type SchemaChatResponseTimeoutUpdate =
   components["schemas"]["ChatResponseTimeoutUpdate"];
 export type SchemaChatStarterSettingsUpdate =
   components["schemas"]["ChatStarterSettingsUpdate"];
+export type SchemaCheckRequest = components["schemas"]["CheckRequest"];
 export type SchemaCitationInput = components["schemas"]["CitationInput"];
 export type SchemaClaimEdit = components["schemas"]["ClaimEdit"];
 export type SchemaClaimEvidenceEdge =
@@ -22376,6 +22478,7 @@ export type SchemaNotebookRecordInput =
 export type SchemaNotebookReference =
   components["schemas"]["NotebookReference"];
 export type SchemaNoteGeneration = components["schemas"]["NoteGeneration"];
+export type SchemaObjectiveRequest = components["schemas"]["ObjectiveRequest"];
 export type SchemaObjectRef = components["schemas"]["ObjectRef"];
 export type SchemaObservationInput = components["schemas"]["ObservationInput"];
 export type SchemaObservationUpdate =
@@ -22413,6 +22516,8 @@ export type SchemaPracticeAnalytics =
 export type SchemaPracticeCounts = components["schemas"]["PracticeCounts"];
 export type SchemaPracticeDailyCounts =
   components["schemas"]["PracticeDailyCounts"];
+export type SchemaPracticeObjective =
+  components["schemas"]["PracticeObjective"];
 export type SchemaPracticeQuestion = components["schemas"]["PracticeQuestion"];
 export type SchemaPracticeSourceCounts =
   components["schemas"]["PracticeSourceCounts"];
@@ -22614,6 +22719,8 @@ export type SchemaTurnQueryState = components["schemas"]["TurnQueryState"];
 export type SchemaTurnRequest = components["schemas"]["TurnRequest"];
 export type SchemaTurnStatus = components["schemas"]["TurnStatus"];
 export type SchemaTurnSummary = components["schemas"]["TurnSummary"];
+export type SchemaTutorSourceItem = components["schemas"]["TutorSourceItem"];
+export type SchemaTutorSourcePage = components["schemas"]["TutorSourcePage"];
 export type SchemaUiSettingsUpdate = components["schemas"]["UISettingsUpdate"];
 export type SchemaUnitText = components["schemas"]["UnitText"];
 export type SchemaUpdateBlockRequest =
@@ -38185,6 +38292,39 @@ export interface operations {
       };
     };
   };
+  readonly objectives_api_question_notebook_practice_objectives_get: {
+    readonly parameters: {
+      readonly query?: never;
+      readonly header?: {
+        readonly Authorization?: string | null;
+      };
+      readonly path?: never;
+      readonly cookie?: {
+        readonly dt_token?: string | null;
+      };
+    };
+    readonly requestBody?: never;
+    readonly responses: {
+      /** @description Successful Response */
+      readonly 200: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      readonly 422: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   readonly practice_question_api_question_notebook_practice_questions__entry_id__get: {
     readonly parameters: {
       readonly query?: never;
@@ -38235,7 +38375,46 @@ export interface operations {
     };
     readonly requestBody: {
       readonly content: {
-        readonly "application/json": components["schemas"]["AnswerRequest"];
+        readonly "application/json": components["schemas"]["CheckRequest"];
+      };
+    };
+    readonly responses: {
+      /** @description Successful Response */
+      readonly 200: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      readonly 422: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  readonly set_objective_api_question_notebook_practice_questions__entry_id__objective_put: {
+    readonly parameters: {
+      readonly query?: never;
+      readonly header?: {
+        readonly Authorization?: string | null;
+      };
+      readonly path: {
+        readonly entry_id: number;
+      };
+      readonly cookie?: {
+        readonly dt_token?: string | null;
+      };
+    };
+    readonly requestBody: {
+      readonly content: {
+        readonly "application/json": components["schemas"]["ObjectiveRequest"];
       };
     };
     readonly responses: {
@@ -47308,7 +47487,9 @@ export interface operations {
   };
   readonly original_api_studio_editions__identifier__files__digest__get: {
     readonly parameters: {
-      readonly query?: never;
+      readonly query?: {
+        readonly revision?: number | null;
+      };
       readonly header?: {
         readonly Authorization?: string | null;
       };
@@ -49788,6 +49969,43 @@ export interface operations {
         };
         content: {
           readonly "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      readonly 422: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  readonly tutor_sources_api_studio_tutor_sources_get: {
+    readonly parameters: {
+      readonly query?: {
+        readonly cursor?: string;
+        readonly limit?: number;
+        readonly q?: string;
+      };
+      readonly header?: {
+        readonly Authorization?: string | null;
+      };
+      readonly path?: never;
+      readonly cookie?: {
+        readonly dt_token?: string | null;
+      };
+    };
+    readonly requestBody?: never;
+    readonly responses: {
+      /** @description Successful Response */
+      readonly 200: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": components["schemas"]["TutorSourcePage"];
         };
       };
       /** @description Validation Error */

@@ -396,6 +396,14 @@ class LearningTransaction:
             {"source_count": len(sources), "status": metadata.status},
         )
 
+    def topic_status(self) -> str:
+        """Read lifecycle state on the same connection as a path mutation."""
+        row = self._conn.execute(
+            "SELECT status FROM mastery_topic_meta WHERE path_id=?", (self.progress.book_id,)
+        ).fetchone()
+        # A legacy path without product metadata is an active topic.
+        return row[0] if row else "active"
+
     def topic_sources(self) -> list[TopicSource]:
         """Read this path's source set on the transaction connection."""
 

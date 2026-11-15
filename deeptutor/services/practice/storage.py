@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from hashlib import sha256
 import json
 from pathlib import Path
 import sqlite3
@@ -50,6 +51,27 @@ def initialize_practice(conn: sqlite3.Connection) -> None:
             outcome_json TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_practice_history ON practice_review_events(entry_id, reviewed_at);
+        CREATE TABLE IF NOT EXISTS practice_answer_checks (
+            request_id TEXT PRIMARY KEY,
+            entry_id INTEGER NOT NULL REFERENCES notebook_entries(id) ON DELETE CASCADE,
+            version INTEGER NOT NULL,
+            question_hash TEXT NOT NULL,
+            answer_hash TEXT NOT NULL,
+            checked_at REAL NOT NULL,
+            independent INTEGER NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_practice_checks ON practice_answer_checks(entry_id, checked_at);
+        CREATE TABLE IF NOT EXISTS practice_objective_bindings (
+            entry_id INTEGER PRIMARY KEY REFERENCES notebook_entries(id) ON DELETE CASCADE,
+            path_id TEXT NOT NULL,
+            knowledge_point_id TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS practice_evidence_outbox (
+            request_id TEXT PRIMARY KEY REFERENCES practice_review_events(request_id) ON DELETE CASCADE,
+            payload_json TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending'
+        );
+        CREATE INDEX IF NOT EXISTS idx_practice_evidence_pending ON practice_evidence_outbox(status);
         CREATE TABLE IF NOT EXISTS practice_imports (
             token TEXT PRIMARY KEY,
             filename TEXT NOT NULL,
@@ -66,10 +88,18 @@ def initialize_practice(conn: sqlite3.Connection) -> None:
             SELECT NEW.id, NEW.created_at, NEW.created_at + 86400
             WHERE NOT EXISTS(SELECT 1 FROM practice_review_state WHERE entry_id=NEW.id);
         END;
-        CREATE TRIGGER IF NOT EXISTS practice_invalidate_question
-        AFTER UPDATE OF question, options_json, correct_answer ON notebook_entries
-        WHEN OLD.question != NEW.question OR OLD.options_json != NEW.options_json OR OLD.correct_answer != NEW.correct_answer
+        DROP TRIGGER IF EXISTS practice_invalidate_question;
+        CREATE TRIGGER practice_invalidate_question
+        AFTER UPDATE OF question, options_json, correct_answer, question_type,
+            mastery_path_id, knowledge_point_id, source ON notebook_entries
+        WHEN OLD.question != NEW.question OR OLD.options_json != NEW.options_json
+            OR OLD.correct_answer != NEW.correct_answer OR OLD.question_type != NEW.question_type
+            OR OLD.mastery_path_id != NEW.mastery_path_id OR OLD.knowledge_point_id != NEW.knowledge_point_id
+            OR OLD.source != NEW.source
         BEGIN
+            INSERT INTO practice_review_state(entry_id,is_mistake,first_wrong_at,due_at)
+            SELECT NEW.id, 0, NEW.created_at, NEW.created_at
+            WHERE NOT EXISTS(SELECT 1 FROM practice_review_state WHERE entry_id=NEW.id);
             UPDATE practice_review_state SET version=version+1 WHERE entry_id=NEW.id;
         END;
         DROP TRIGGER IF EXISTS practice_capture_update;
@@ -111,6 +141,224 @@ class PracticeStore:
                 yield conn
         finally:
             conn.close()
+
+    @staticmethod
+    def _visible_entry(conn, entry_id):
+        return conn.execute(
+            """SELECT n.* FROM notebook_entries n LEFT JOIN sessions s ON s.id=n.session_id
+            WHERE n.id=? AND (n.session_id IS NULL OR s.deleted_at IS NULL)""",
+            (entry_id,),
+        ).fetchone()
+
+    @staticmethod
+    def _question_hash(entry):
+        fields = ("question_id", "question", "question_type", "options_json", "correct_answer")
+        return sha256(json.dumps([entry[field] for field in fields]).encode()).hexdigest()
+
+    @staticmethod
+    def _objective(conn, entry):
+        # Only the guided path producer and the deliberate binding endpoint
+        # establish review linkage. A notebook payload or similar label cannot.
+        if (
+            entry["source"] == "mastery_path"
+            and entry["mastery_path_id"]
+            and entry["knowledge_point_id"]
+        ):
+            return {
+                "path_id": entry["mastery_path_id"],
+                "knowledge_point_id": entry["knowledge_point_id"],
+            }
+        selected = conn.execute(
+            "SELECT path_id,knowledge_point_id FROM practice_objective_bindings WHERE entry_id=?",
+            (entry["id"],),
+        ).fetchone()
+        return dict(selected) if selected else None
+
+    def bind_objective(self, entry_id: int, version: int, objective: dict | None) -> dict | None:
+        with self.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            entry = self._visible_entry(conn, entry_id)
+            if entry is None:
+                raise LookupError("Question not found")
+            current = self._objective(conn, entry)
+            if current == objective:
+                return current
+            if entry["source"] == "mastery_path" and current:
+                raise ValueError(
+                    "This question already belongs to its original learning objective."
+                )
+            state = conn.execute(
+                "SELECT version FROM practice_review_state WHERE entry_id=?", (entry_id,)
+            ).fetchone()
+            if (state["version"] if state else 0) != version:
+                raise ReviewConflict(
+                    "This question changed in another tab. Reload it before reviewing again."
+                )
+            if objective:
+                conn.execute(
+                    "INSERT OR REPLACE INTO practice_objective_bindings VALUES (?,?,?)",
+                    (entry_id, objective["path_id"], objective["knowledge_point_id"]),
+                )
+            else:
+                conn.execute(
+                    "DELETE FROM practice_objective_bindings WHERE entry_id=?", (entry_id,)
+                )
+            # Do not reset the schedule. Materialize the previous implicit due
+            # time for rows that had never been reviewed.
+            conn.execute(
+                "INSERT OR IGNORE INTO practice_review_state(entry_id,is_mistake,first_wrong_at,due_at) VALUES (?,?,?,?)",
+                (entry_id, 0, entry["created_at"], entry["created_at"]),
+            )
+            conn.execute(
+                "UPDATE practice_review_state SET version=version+1 WHERE entry_id=?", (entry_id,)
+            )
+            return objective
+
+    def check(
+        self,
+        entry_id: int,
+        answer: str,
+        request_id: str | None,
+        version: int | None,
+        *,
+        now: float | None = None,
+    ) -> dict:
+        from .answers import check_answer
+
+        now = time.time() if now is None else now
+        with self.connect() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            entry = self._visible_entry(conn, entry_id)
+            if entry is None:
+                raise LookupError("Question not found")
+            self._validate_source(conn, entry)
+            state = conn.execute(
+                "SELECT version FROM practice_review_state WHERE entry_id=?", (entry_id,)
+            ).fetchone()
+            current_version = state["version"] if state else 0
+            if version is not None and version != current_version:
+                raise ReviewConflict(
+                    "This question changed in another tab. Reload it before reviewing again."
+                )
+            version = current_version
+            question_hash = self._question_hash(entry)
+            answer_hash = sha256(answer.encode()).hexdigest()
+            old = conn.execute(
+                "SELECT * FROM practice_answer_checks WHERE request_id=?", (request_id,)
+            ).fetchone()
+            if old:
+                if (old["entry_id"], old["version"], old["question_hash"], old["answer_hash"]) != (
+                    entry_id,
+                    version,
+                    question_hash,
+                    answer_hash,
+                ):
+                    raise ReviewConflict(
+                        "This submission ID was already used for a different answer"
+                    )
+            else:
+                # Retrying immediately after seeing feedback is correction, not
+                # independent recall. Exact formal-quiz and family exposure also
+                # retain their original policy (which can only disqualify here).
+                recent = conn.execute(
+                    "SELECT 1 FROM practice_answer_checks WHERE entry_id=? AND checked_at>? LIMIT 1",
+                    (entry_id, now - DAY),
+                ).fetchone()
+                independent = bool(
+                    request_id
+                    and answer.strip()
+                    and not recent
+                    and not self._has_quiz_exposure(conn, entry, now)
+                )
+                conn.execute(
+                    "INSERT INTO practice_answer_checks VALUES (?,?,?,?,?,?,?)",
+                    (
+                        request_id or "legacy:" + uuid.uuid4().hex,
+                        entry_id,
+                        version,
+                        question_hash,
+                        answer_hash,
+                        now,
+                        int(independent),
+                    ),
+                )
+            return {
+                "correct": check_answer(dict(entry), answer),
+                "correct_answer": entry["correct_answer"],
+                "explanation": entry["explanation"],
+            }
+
+    @staticmethod
+    def _validate_source(conn, entry) -> None:
+        if entry["source"] == "immersive_reading" and entry["material_id"]:
+            from deeptutor.multi_user.learning_access import assert_learning_material
+
+            assert_learning_material(entry["material_id"])
+        if not entry["session_id"] or not entry["turn_id"]:
+            return
+        row = conn.execute(
+            "SELECT contract_json FROM quiz_contracts WHERE session_id=? AND turn_id=? "
+            "AND question_id=? ORDER BY created_at DESC LIMIT 1",
+            (entry["session_id"], entry["turn_id"], entry["question_id"]),
+        ).fetchone()
+        if row:
+            from deeptutor.learning.quiz import validate_source_scope
+
+            validate_source_scope(json.loads(row[0]))
+
+    def validate_pending_source(self, payload: dict) -> None:
+        with self.connect() as conn:
+            entry = self._visible_entry(conn, payload["entry_id"])
+            if entry is None or self._question_hash(entry) != payload["question_hash"]:
+                raise ValueError("Practice question is no longer current")
+            self._validate_source(conn, entry)
+
+    @staticmethod
+    def _has_quiz_exposure(conn, entry, now):
+        if not entry["session_id"]:
+            return False
+        if not conn.execute("SELECT 1 FROM sqlite_master WHERE name='quiz_contracts'").fetchone():
+            return False
+        from deeptutor.services.session.quiz_contracts import QuizContractStore
+
+        # Multiple source revisions may have exposed the solution even though
+        # the notebook only stores the latest rendered question.
+        store = QuizContractStore()
+        contracts = conn.execute(
+            "SELECT contract_json FROM quiz_contracts WHERE session_id=? AND turn_id=? AND question_id=?",
+            (entry["session_id"], entry["turn_id"], entry["question_id"]),
+        ).fetchall()
+        return any(
+            store._quiz_exposure_in_conn(conn, entry["session_id"], json.loads(row[0]), now)
+            for row in contracts
+        )
+
+    def pending_evidence(
+        self, limit: int = 50, *, request_id: str | None = None
+    ) -> list[tuple[str, dict]]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                """SELECT o.request_id,o.payload_json FROM practice_evidence_outbox o
+                JOIN practice_review_events e ON e.request_id=o.request_id
+                WHERE o.status='pending' AND (? IS NULL OR o.request_id=?)
+                ORDER BY e.reviewed_at,o.request_id LIMIT ?""",
+                (request_id, request_id, limit),
+            ).fetchall()
+            return [(row["request_id"], json.loads(row["payload_json"])) for row in rows]
+
+    def finish_evidence(self, request_id: str, status: str) -> None:
+        with self.connect() as conn:
+            conn.execute(
+                "UPDATE practice_evidence_outbox SET status=? WHERE request_id=? AND status='pending'",
+                (status, request_id),
+            )
+
+    def evidence_status(self, request_id: str) -> str:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT status FROM practice_evidence_outbox WHERE request_id=?", (request_id,)
+            ).fetchone()
+            return row["status"] if row else "not_applicable"
 
     def overview(self, timezone: str, now: float | None = None) -> dict:
         now = time.time() if now is None else now
@@ -180,7 +428,9 @@ class PracticeStore:
             row = conn.execute(
                 "SELECT * FROM practice_review_state WHERE entry_id=?", (entry_id,)
             ).fetchone()
-        return (
+            entry = self._visible_entry(conn, entry_id)
+            objective = self._objective(conn, entry) if entry else None
+        state = (
             dict(row)
             if row
             else {
@@ -192,6 +442,7 @@ class PracticeStore:
                 "due_at": None,
             }
         )
+        return {**state, **({"objective": objective} if objective else {})}
 
     def is_visible(self, entry_id: int) -> bool:
         with self.connect() as conn:
@@ -222,23 +473,22 @@ class PracticeStore:
                 "SELECT * FROM practice_review_events WHERE request_id=?", (request_id,)
             ).fetchone()
             if previous:
+                outcome = json.loads(previous["outcome_json"])
                 if (
                     previous["entry_id"] != entry_id
                     or previous["rating"] != rating
                     or previous["answer"] != answer
-                    or bool(json.loads(previous["outcome_json"]).get("self_report")) != self_report
+                    or bool(outcome.get("self_report")) != self_report
+                    or outcome["version"] != version + 1
                 ):
                     raise ReviewConflict(
                         "This submission ID was already used for a different answer"
                     )
-                return json.loads(previous["outcome_json"])
-            entry = conn.execute(
-                """SELECT n.* FROM notebook_entries n LEFT JOIN sessions s ON s.id=n.session_id
-                WHERE n.id=? AND (n.session_id IS NULL OR s.deleted_at IS NULL)""",
-                (entry_id,),
-            ).fetchone()
+                return outcome
+            entry = self._visible_entry(conn, entry_id)
             if not entry:
                 raise LookupError("Question not found")
+            self._validate_source(conn, entry)
             row = conn.execute(
                 "SELECT * FROM practice_review_state WHERE entry_id=?", (entry_id,)
             ).fetchone()
@@ -253,6 +503,29 @@ class PracticeStore:
             correct = None if self_report else check_answer(dict(entry), answer)
             if correct is False and rating != "again":
                 raise ValueError("An incorrect answer must be reviewed again")
+            checked = conn.execute(
+                "SELECT * FROM practice_answer_checks WHERE request_id=?", (request_id,)
+            ).fetchone()
+            if checked and (
+                checked["entry_id"],
+                checked["version"],
+                checked["question_hash"],
+                checked["answer_hash"],
+            ) != (
+                entry_id,
+                version,
+                self._question_hash(entry),
+                sha256(answer.encode()).hexdigest(),
+            ):
+                raise ReviewConflict("This submission ID was already used for a different answer")
+            independent = bool(
+                correct is not None
+                and checked
+                and checked["independent"]
+                and rating != "hard"  # "I needed a hint" is explicitly assisted.
+                and 0 <= now - checked["checked_at"] <= DAY
+            )
+            objective = self._objective(conn, entry) if independent else None
             next_state = schedule(state, rating, now)
             mistake = bool(state.get("is_mistake")) or rating == "again"
             conn.execute(
@@ -295,12 +568,32 @@ class PracticeStore:
                 "correct": correct,
                 "rating": rating,
                 "self_report": self_report,
+                "independent": independent,
+                "attempt_id": request_id,
+                # Historical client field: this item leaves the practice round.
+                # Independent evidence is represented separately, never by rating.
                 "mastered": rating in {"good", "easy"},
             }
             conn.execute(
                 "INSERT INTO practice_review_events VALUES(?, ?, ?, ?, ?, ?)",
                 (request_id, entry_id, rating, answer, now, json.dumps(outcome)),
             )
+            if objective:
+                payload = {
+                    **objective,
+                    "entry_id": entry_id,
+                    "question_hash": checked["question_hash"],
+                    "question_id": entry["question_id"],
+                    "session_id": entry["session_id"] or "",
+                    "turn_id": entry["turn_id"],
+                    "correct": correct,
+                    "answer": answer,
+                    "reviewed_at": checked["checked_at"],
+                }
+                conn.execute(
+                    "INSERT INTO practice_evidence_outbox(request_id,payload_json) VALUES (?,?)",
+                    (request_id, json.dumps(payload)),
+                )
         return outcome
 
     def stage_import(self, filename: str, target: str, questions: list[dict]) -> str:

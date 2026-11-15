@@ -123,6 +123,24 @@ def test_blob_byte_identity_and_pdf_page_bounds(store):
         catalog.edition_file(store, e["id"], "0" * 64)
 
 
+def test_a_frozen_edition_link_can_open_its_original_after_revision_changes(store):
+    source = edition(store)
+    digest = source["data"]["files"][0]["hash"]
+    with store.db(write=True) as db:
+        newer = store.put(
+            db,
+            "edition",
+            {**source["data"], "files": []},
+            identifier=source["id"],
+            expected=source["revision"],
+        )
+    with pytest.raises(ValueError):
+        catalog.edition_file(store, source["id"], digest, newer["revision"])
+    original, metadata = catalog.edition_file(store, source["id"], digest, source["revision"])
+    assert metadata["hash"] == digest
+    assert original.read_bytes().startswith(b"%PDF-")
+
+
 def test_unresolved_and_ambiguous_quotes_cannot_be_confirmed(store):
     e = edition(store)
     command = dict(

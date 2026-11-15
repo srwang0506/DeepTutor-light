@@ -235,6 +235,85 @@
       "title": "LLMSelection",
       "type": "object"
     },
+    "Locator": {
+      "additionalProperties": false,
+      "properties": {
+        "blob_hash": {
+          "default": "",
+          "pattern": "^(?:[0-9a-f]{64})?$",
+          "title": "Blob Hash",
+          "type": "string"
+        },
+        "line": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Line"
+        },
+        "page": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page"
+        },
+        "path": {
+          "default": "",
+          "maxLength": 500,
+          "title": "Path",
+          "type": "string"
+        },
+        "quote": {
+          "default": "",
+          "maxLength": 16000,
+          "title": "Quote",
+          "type": "string"
+        },
+        "region": {
+          "anyOf": [
+            {
+              "maxItems": 4,
+              "minItems": 4,
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Region"
+        }
+      },
+      "title": "Locator",
+      "type": "object"
+    },
     "MasteryCardAnswer": {
       "additionalProperties": false,
       "description": "An answer submitted from a mastery question card.\n\nThe card outlives the turn that posed it — posing a question ends that\nturn — so the answer arrives as the next turn's message. This says which\nquestion the message is answering, letting the runtime commit it to the\nengine before the tutor's first token instead of asking the model to\nrecover the pairing from prose.",
@@ -333,6 +412,50 @@
         "notebook_id"
       ],
       "title": "NotebookReference",
+      "type": "object"
+    },
+    "ObjectRef": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "locator": {
+          "$ref": "#/$defs/Locator"
+        },
+        "owner": {
+          "const": "current_account",
+          "default": "current_account",
+          "title": "Owner",
+          "type": "string"
+        },
+        "revision": {
+          "minimum": 1,
+          "title": "Revision",
+          "type": "integer"
+        },
+        "scope": {
+          "maxLength": 200,
+          "title": "Scope",
+          "type": "string"
+        }
+      },
+      "required": [
+        "scope",
+        "kind",
+        "id",
+        "revision"
+      ],
+      "title": "ObjectRef",
       "type": "object"
     },
     "OutgoingAttachment": {
@@ -1307,6 +1430,14 @@
             "type": "string"
           },
           "title": "Skills",
+          "type": "array"
+        },
+        "studio_references": {
+          "items": {
+            "$ref": "#/$defs/ObjectRef"
+          },
+          "maxItems": 12,
+          "title": "Studio References",
           "type": "array"
         },
         "subagent_consult_budget": {

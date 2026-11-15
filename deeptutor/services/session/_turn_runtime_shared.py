@@ -917,7 +917,14 @@ def _format_question_bank_entry(entry: dict[str, Any]) -> str:
         badges.append(qtype)
     if difficulty:
         badges.append(difficulty)
-    badges.append("correct" if is_correct else "incorrect")
+    practice = entry.get("practice") or {}
+    latest = bool(practice.get("review_count"))
+    if latest:
+        badges.append("latest saved practice")
+    elif entry.get("result") in {"partial", "ungraded", "voided"}:
+        badges.append(entry["result"])
+    else:
+        badges.append("correct" if is_correct else "incorrect")
     badge_text = " · ".join(badges)
 
     lines.append(f"### Question (from {title}) [{badge_text}]")
@@ -930,11 +937,21 @@ def _format_question_bank_entry(entry: dict[str, Any]) -> str:
         for key in sorted(options.keys()):
             lines.append(f"- {key}. {options[key]}")
 
-    user_answer = str(entry.get("user_answer", "") or "").strip()
+    user_answer = str(
+        (practice.get("last_answer") if latest else entry.get("user_answer")) or ""
+    ).strip()
     correct_answer = str(entry.get("correct_answer", "") or "").strip()
     if user_answer:
         lines.append("")
-        lines.append(f"**User's Answer:** {_clip_text(user_answer, limit=1000)}")
+        label = "Latest saved practice answer" if latest else "User's Answer"
+        lines.append(f"**{label}:** {_clip_text(user_answer, limit=1000)}")
+    if latest:
+        rating = practice.get("last_rating")
+        lines.append(f"**Review scheduling rating:** {rating}" if rating else "**Review saved**")
+        lines.append("A scheduling rating does not establish independent mastery.")
+    source = str(entry.get("material_title") or entry.get("section_title") or "").strip()
+    if source:
+        lines.append(f"**Original source:** {_clip_text(source, limit=300)}")
     if correct_answer:
         lines.append(f"**Reference Answer:** {_clip_text(correct_answer, limit=1500)}")
 

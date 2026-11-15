@@ -151,6 +151,7 @@ class TurnExecutor:
         assistant_events: list[dict[str, Any]] = []
         assistant_content = ""
         provider_response_state: dict[str, Any] | None = None
+        studio_source_refs: dict[str, dict[str, Any]] = {}
         context: UnifiedContext | None = None
         # Keep every published answer segment, including commentary before tools.
         content_segments: list[tuple[str | None, str]] = []
@@ -644,6 +645,7 @@ class TurnExecutor:
 
             source_manifest_text = ""
             source_index: dict[str, str] = {}
+            studio_fresh = []
 
             if is_chat_capability:
                 from deeptutor.services.session.source_inventory import (
@@ -676,9 +678,44 @@ class TurnExecutor:
                     fresh_question_entry_ids=question_notebook_references,
                     fresh_partner_group_references=partner_group_references,
                     fresh_reading_references=reading_references,
+                    include_studio_history=not (
+                        side_chat_context
+                        or payload.get("consult_partner_id")
+                        or payload.get("partner_discussion_group_id")
+                        or payload.get("answer_by")
+                        or (branch_parent_explicit and branch_parent_id is None)
+                    ),
                     language=str(payload.get("language", "en") or "en"),
                 )
                 source_manifest_text, source_index = render_manifest(inventory)
+                if not (
+                    side_chat_context
+                    or payload.get("consult_partner_id")
+                    or payload.get("partner_discussion_group_id")
+                    or payload.get("answer_by")
+                ) and (payload.get("studio_references") or inventory.studio_references):
+                    from deeptutor.studio.tutor_sources import parse_references, prepare_turn
+
+                    fresh = parse_references(payload.get("studio_references"))
+                    historical = parse_references(inventory.studio_references)
+                    # A same-turn source always wins when the previous turn
+                    # already attached the exact same original and locator.
+                    merged = list(
+                        {ref.model_dump_json(): ref for ref in [*fresh, *historical]}.values()
+                    )
+                    manifest, studio_source_refs, unavailable = await asyncio.to_thread(
+                        prepare_turn, merged
+                    )
+                    if manifest:
+                        source_manifest_text = "\n\n".join(
+                            filter(None, [source_manifest_text, manifest])
+                        )
+                    if unavailable:
+                        source_manifest_text += (
+                            "\n\nSome selected Studio sources could not be opened under the current "
+                            "permissions or exact version. Say so if relevant; never infer their contents."
+                        )
+                    studio_fresh = [ref.model_dump(mode="json") for ref in fresh]
                 effective_user_message = with_quotes(raw_user_content, quotes)
             else:
                 if notebook_references:
@@ -911,6 +948,24 @@ class TurnExecutor:
                 parent_kwargs: dict[str, Any] = (
                     {"parent_message_id": branch_parent_id} if branch_parent_explicit else {}
                 )
+                user_metadata = _request_snapshot_metadata(
+                    payload=payload,
+                    content=raw_user_content,
+                    capability=capability_name,
+                    config=request_config,
+                    attachments=persisted_attachment_records,
+                    notebook_references=notebook_references,
+                    history_references=history_references,
+                    partner_group_references=partner_group_references,
+                    question_notebook_references=question_notebook_references,
+                    book_references=book_references,
+                    reading_references=reading_references,
+                    persona=active_persona,
+                    memory_references=memory_references,
+                    llm_selection=payload.get("llm_selection"),
+                )
+                if studio_fresh:
+                    user_metadata["request_snapshot"]["studioReferences"] = studio_fresh
                 new_user_message_id = await self.store.add_message(
                     session_id=session_id,
                     role="user",
@@ -918,22 +973,7 @@ class TurnExecutor:
                     capability=capability_name,
                     attachments=persisted_attachment_records,
                     metadata={
-                        **_request_snapshot_metadata(
-                            payload=payload,
-                            content=raw_user_content,
-                            capability=capability_name,
-                            config=request_config,
-                            attachments=persisted_attachment_records,
-                            notebook_references=notebook_references,
-                            history_references=history_references,
-                            partner_group_references=partner_group_references,
-                            question_notebook_references=question_notebook_references,
-                            book_references=book_references,
-                            reading_references=reading_references,
-                            persona=active_persona,
-                            memory_references=memory_references,
-                            llm_selection=payload.get("llm_selection"),
-                        ),
+                        **user_metadata,
                         # A recovered worker_lost turn may never have an
                         # assistant row. Keep its exact user-row association.
                         "turn_id": turn_id,
@@ -1058,6 +1098,7 @@ class TurnExecutor:
                     # pipeline's tool kwargs injector, and — a non-empty value
                     # here specifically — by the explore_context pre-pass.
                     "source_index": source_index,
+                    "studio_source_refs": studio_source_refs,
                     # A mastery topic's materials, read on demand by the
                     # tutor's own read_source calls (see
                     # ``MasteryLoopCapability.augment_kwargs``). Kept separate
@@ -1102,8 +1143,13 @@ class TurnExecutor:
                         seen_artifact_urls.add(attachment["url"])
                         generated_attachments.append(attachment)
 
-            provider_response_state = normalize_provider_response_state(
-                context.runtime.provider_response_state
+            # Native model archives include raw tool results. A following
+            # turn must reopen a Studio source with fresh authorization, so
+            # retain the displayed conversation and citation events only.
+            provider_response_state = (
+                normalize_provider_response_state(context.runtime.provider_response_state)
+                if not studio_source_refs
+                else None
             )
             assistant_provider_metadata = {
                 **(
@@ -1112,7 +1158,9 @@ class TurnExecutor:
                     else {}
                 ),
                 **(
-                    {"model_turn": context.runtime.model_turn} if context.runtime.model_turn else {}
+                    {"model_turn": context.runtime.model_turn}
+                    if context.runtime.model_turn and not studio_source_refs
+                    else {}
                 ),
             } or None
             if side_chat_context:
@@ -1396,7 +1444,9 @@ class TurnExecutor:
                                     ),
                                     **(
                                         {"model_turn": context.runtime.model_turn}
-                                        if context and context.runtime.model_turn
+                                        if context
+                                        and context.runtime.model_turn
+                                        and not studio_source_refs
                                         else {}
                                     ),
                                 }

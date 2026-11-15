@@ -23,7 +23,32 @@ export interface PracticeQuestion {
   content_workspace_id?: string
   content_workspace_name?: string
   entry: NotebookEntry
-  state: { version: number; review_count: number; is_mistake: boolean; due_at: number | null }
+  state: PracticeQuestionState
+}
+export interface PracticeObjective {
+  path_id: string
+  knowledge_point_id: string
+}
+export interface PracticeQuestionState {
+  version: number
+  review_count: number
+  is_mistake: boolean
+  due_at: number | null
+  objective?: PracticeObjective
+}
+export interface PracticeObjectivePath {
+  path_id: string
+  name: string
+  objectives: { id: string; name: string }[]
+}
+export interface PracticeReviewReceipt {
+  due_at: number
+  correct: boolean | null
+  rating: PracticeRating
+  is_mistake: boolean
+  attempt_id?: string
+  independent?: boolean
+  objective_evidence?: 'applied' | 'pending' | 'unavailable' | 'not_applicable'
 }
 export type PracticeMetric = 'questions' | 'mistakes' | 'reviews'
 export type PracticeCounts = Record<PracticeMetric, number>
@@ -84,8 +109,26 @@ export const getPracticeQueue = () =>
   request<PracticeQuestion[]>(`/queue?${params()}`)
 export const getPracticeQuestion = (id: number, workspaceId?: string) =>
   request<PracticeQuestion>(`/questions/${id}`, undefined, workspaceId)
-export const checkPracticeAnswer = (id: number, answer: string, workspaceId?: string) =>
-  request<{ correct: boolean | null }>(`/questions/${id}/check`, json({ answer }), workspaceId)
+export const checkPracticeAnswer = (
+  id: number,
+  answer: string,
+  workspaceId?: string,
+  check?: { request_id: string; version: number },
+) =>
+  request<{ correct: boolean | null; correct_answer?: string; explanation?: string }>(
+    `/questions/${id}/check`, json({ answer, ...check }), workspaceId
+  )
+export const getPracticeObjectives = (workspaceId?: string) =>
+  request<{ paths: PracticeObjectivePath[] }>('/objectives', undefined, workspaceId)
+export const setPracticeObjective = (
+  id: number,
+  version: number,
+  objective: PracticeObjective | null,
+  workspaceId?: string,
+) =>
+  request<{ state: PracticeQuestionState }>(
+    `/questions/${id}/objective`, { ...json({ version, objective }), method: 'PUT' }, workspaceId
+  )
 export const savePracticeReview = (
   id: number,
   body: {
@@ -97,7 +140,7 @@ export const savePracticeReview = (
   },
   workspaceId?: string
 ) =>
-  request<{ due_at: number; correct: boolean | null; rating: PracticeRating; is_mistake: boolean }>(
+  request<PracticeReviewReceipt>(
     `/questions/${id}/review`,
     json(body),
     workspaceId

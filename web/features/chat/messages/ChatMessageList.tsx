@@ -85,6 +85,8 @@ import MessageThreadMarker from "./MessageThreadMarker";
 import { buildVisiblePath, type SiblingInfo } from "@/lib/message-branches";
 import { turnAnchorKey } from "@/lib/chat-outline";
 import { readingPassageHref } from "@/lib/reading-citations";
+import { studioCitations, studioReferenceHref, studioReferenceKey } from "@/lib/studio-references";
+import { scopedUrl } from "@/lib/workspace-scope";
 import { shouldSubmitOnEnter } from "@/lib/composer-keyboard";
 import { useImeComposing } from "@/lib/use-ime-composing";
 import type { SpaceMemoryFile } from "@/lib/space-items";
@@ -2494,6 +2496,21 @@ export const ChatMessageList = memo(function ChatMessageList({
                   ? () => onOpenConsultation(consultationEvents)
                   : undefined}
               />
+              {!!msg.requestSnapshot?.studioReferences?.length && (
+                <ul className="ml-auto mt-1 flex max-w-[min(560px,90%)] flex-wrap justify-end gap-1.5" aria-label={t("Research sources")}>
+                  {msg.requestSnapshot.studioReferences.map(ref => (
+                    <li key={studioReferenceKey(ref)}>
+                      <a href={scopedUrl(studioReferenceHref(ref), ref.scope === "@library" ? undefined : ref.scope)}
+                        className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground">
+                        <BookMarked size={12} aria-hidden />
+                        {ref.kind === "edition" && ref.locator?.page
+                          ? t("Page {{number}}", { number: ref.locator.page })
+                          : t("Revision {{number}}", { number: ref.revision })}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              )}
               {orphanedFailure ? (
                 <div
                   role="alert"
@@ -2537,6 +2554,7 @@ export const ChatMessageList = memo(function ChatMessageList({
         const msgDone = !isActiveAssistant;
         const showActions = msgDone && hasVisibleMarkdownContent(msg.content);
         const events = msg.events ?? [];
+        const sourceCitations = studioCitations(events);
         const terminalError = [...events].reverse().find(
           (event) => event.type === "error" && Boolean(event.metadata?.turn_terminal),
         ) ?? (!hasVisibleMarkdownContent(msg.content)
@@ -2662,6 +2680,23 @@ export const ChatMessageList = memo(function ChatMessageList({
                 </div>
               );
             })()}
+            {!!sourceCitations.length && (
+              <ul className="mt-2 flex flex-wrap gap-1.5" aria-label={t("Research citations")}>
+                {sourceCitations.map(citation => (
+                  <li key={citation.href} className="min-w-0 max-w-full">
+                    <a href={citation.href} className="flex min-w-0 max-w-full items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground">
+                      <BookMarked size={12} aria-hidden className="shrink-0" />
+                      <span className="truncate">{citation.title}</span>
+                      <span className="shrink-0">{citation.page
+                        ? t("Page {{number}}", { number: citation.page })
+                        : citation.line
+                          ? t("Line {{number}}", { number: citation.line })
+                          : t("Revision {{number}}", { number: citation.revision })}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
             {(showActions || costSummary || showDelete) && (
               <div className="mt-3 flex items-center">
                 {(showActions || showDelete) && (

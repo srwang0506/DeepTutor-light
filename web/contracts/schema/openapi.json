@@ -667,18 +667,6 @@
         "title": "AnswerImageUpload",
         "type": "object"
       },
-      "AnswerRequest": {
-        "properties": {
-          "answer": {
-            "default": "",
-            "maxLength": 20000,
-            "title": "Answer",
-            "type": "string"
-          }
-        },
-        "title": "AnswerRequest",
-        "type": "object"
-      },
       "ApplyOpsRequest": {
         "properties": {
           "ops": {
@@ -2885,6 +2873,44 @@
           "trace_count"
         ],
         "title": "ChatStarterSettingsUpdate",
+        "type": "object"
+      },
+      "CheckRequest": {
+        "properties": {
+          "answer": {
+            "default": "",
+            "maxLength": 20000,
+            "title": "Answer",
+            "type": "string"
+          },
+          "request_id": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 16,
+                "pattern": "^[a-zA-Z0-9_-]+$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Request Id"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "title": "CheckRequest",
         "type": "object"
       },
       "CitationInput": {
@@ -8495,25 +8521,27 @@
           "line": {
             "anyOf": [
               {
-                "minimum": 1.0,
+                "minimum": 1,
                 "type": "integer"
               },
               {
                 "type": "null"
               }
             ],
+            "default": null,
             "title": "Line"
           },
           "page": {
             "anyOf": [
               {
-                "minimum": 1.0,
+                "minimum": 1,
                 "type": "integer"
               },
               {
                 "type": "null"
               }
             ],
+            "default": null,
             "title": "Page"
           },
           "path": {
@@ -8553,6 +8581,7 @@
                 "type": "null"
               }
             ],
+            "default": null,
             "title": "Region"
           }
         },
@@ -10109,7 +10138,7 @@
             "type": "string"
           },
           "revision": {
-            "minimum": 1.0,
+            "minimum": 1,
             "title": "Revision",
             "type": "integer"
           },
@@ -10126,6 +10155,31 @@
           "revision"
         ],
         "title": "ObjectRef",
+        "type": "object"
+      },
+      "ObjectiveRequest": {
+        "properties": {
+          "objective": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PracticeObjective"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "version": {
+            "minimum": 0.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "objective"
+        ],
+        "title": "ObjectiveRequest",
         "type": "object"
       },
       "ObservationInput": {
@@ -11015,6 +11069,28 @@
           "date"
         ],
         "title": "PracticeDailyCounts",
+        "type": "object"
+      },
+      "PracticeObjective": {
+        "properties": {
+          "knowledge_point_id": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Knowledge Point Id",
+            "type": "string"
+          },
+          "path_id": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Path Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path_id",
+          "knowledge_point_id"
+        ],
+        "title": "PracticeObjective",
         "type": "object"
       },
       "PracticeQuestion": {
@@ -16446,6 +16522,14 @@
             "title": "Skills",
             "type": "array"
           },
+          "studio_references": {
+            "items": {
+              "$ref": "#/components/schemas/ObjectRef"
+            },
+            "maxItems": 12,
+            "title": "Studio References",
+            "type": "array"
+          },
           "subagent_consult_budget": {
             "anyOf": [
               {
@@ -16645,6 +16729,75 @@
           "status"
         ],
         "title": "TurnSummary",
+        "type": "object"
+      },
+      "TutorSourceItem": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "external": {
+            "title": "External",
+            "type": "boolean"
+          },
+          "href": {
+            "title": "Href",
+            "type": "string"
+          },
+          "pages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pages"
+          },
+          "ref": {
+            "$ref": "#/components/schemas/ObjectRef"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "workspace_name": {
+            "title": "Workspace Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ref",
+          "title",
+          "description",
+          "href",
+          "workspace_name",
+          "external"
+        ],
+        "title": "TutorSourceItem",
+        "type": "object"
+      },
+      "TutorSourcePage": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TutorSourceItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_cursor": {
+            "title": "Next Cursor",
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "next_cursor"
+        ],
+        "title": "TutorSourcePage",
         "type": "object"
       },
       "UISettingsUpdate": {
@@ -51015,6 +51168,69 @@
         ]
       }
     },
+    "/api/question-notebook/practice/objectives": {
+      "get": {
+        "operationId": "objectives_api_question_notebook_practice_objectives_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Objectives",
+        "tags": [
+          "practice"
+        ]
+      }
+    },
     "/api/question-notebook/practice/questions/{entry_id}": {
       "get": {
         "operationId": "practice_question_api_question_notebook_practice_questions__entry_id__get",
@@ -51139,7 +51355,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/AnswerRequest"
+                "$ref": "#/components/schemas/CheckRequest"
               }
             }
           },
@@ -51166,6 +51382,88 @@
           }
         },
         "summary": "Check",
+        "tags": [
+          "practice"
+        ]
+      }
+    },
+    "/api/question-notebook/practice/questions/{entry_id}/objective": {
+      "put": {
+        "operationId": "set_objective_api_question_notebook_practice_questions__entry_id__objective_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "entry_id",
+            "required": true,
+            "schema": {
+              "title": "Entry Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObjectiveRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Objective",
         "tags": [
           "practice"
         ]
@@ -70071,6 +70369,23 @@
             }
           },
           {
+            "in": "query",
+            "name": "revision",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Revision"
+            }
+          },
+          {
             "in": "header",
             "name": "Authorization",
             "required": false,
@@ -75231,6 +75546,105 @@
           }
         },
         "summary": "Refresh Subscription",
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/studio/tutor-sources": {
+      "get": {
+        "operationId": "tutor_sources_api_studio_tutor_sources_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 500,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 60,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "default": "",
+              "maxLength": 600,
+              "title": "Cursor",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          },
+          {
+            "in": "cookie",
+            "name": "dt_token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Dt Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TutorSourcePage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Tutor Sources",
         "tags": [
           "studio"
         ]

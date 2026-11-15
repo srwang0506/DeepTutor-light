@@ -98,8 +98,14 @@ def attach_pdf(store: Studio, edition_id, data: bytes, name, expected):
         return store.put(db, "edition", payload, identifier=edition_id, expected=expected)
 
 
-def edition_file(store, edition_id, digest):
-    row = store.get(edition_id, "edition")
+def edition_file(store, edition_id, digest, revision=None):
+    row = (
+        store.get(edition_id, "edition")
+        if revision is None
+        else store.revision(edition_id, revision)
+    )
+    if row["kind"] != "edition":
+        raise ValueError("This original does not belong to the selected edition.")
     file = next((f for f in row["data"]["files"] if f["hash"] == digest), None)
     if not file:
         raise ValueError("This original does not belong to the selected edition.")
@@ -107,9 +113,14 @@ def edition_file(store, edition_id, digest):
 
 
 def page_source(store, edition_id, digest, page, region=None):
+    path, metadata = edition_file(store, edition_id, digest)
+    return pdf_page_source(path, metadata, page, region)
+
+
+def pdf_page_source(path, metadata, page, region=None):
+    """Extract a physical page of an already resolved original PDF."""
     import fitz
 
-    path, metadata = edition_file(store, edition_id, digest)
     if not 1 <= page <= metadata["pages"]:
         raise ValueError("Page is outside this original.")
     with fitz.open(path) as pdf:
@@ -132,7 +143,7 @@ def page_source(store, edition_id, digest, page, region=None):
             "width": p.rect.width,
             "height": p.rect.height,
             "parser_signature": f"pymupdf-{fitz.VersionBind}",
-            "blob_hash": digest,
+            "blob_hash": metadata["hash"],
         }
 
 

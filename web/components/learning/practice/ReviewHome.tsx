@@ -138,7 +138,7 @@ export function ReviewHome() {
                 </div>
                 <p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground">
                   {t(
-                    'Mastered questions leave this round and return when your next review is due.',
+                    'Recalled questions leave this round and return when their next review is due.',
                   )}
                 </p>
               </div>

@@ -102,7 +102,12 @@ export function PdfDocumentView({
     fraction: number
     viewportOffset: number
   } | null>(null)
-  const [visibleLocator, setVisibleLocator] = useState(1)
+  const [visiblePage, setVisiblePage] = useState<{
+    doc: PdfDocument
+    locator: number
+    jumpNonce: number | null
+  } | null>(null)
+  const appliedJump = useRef<{ doc: PdfDocument; nonce: number } | null>(null)
   // Tagged with the jump's nonce for the same reason: a stale flash cannot
   // outlive the request that produced it.
   const [flash, setFlash] = useState<{
@@ -113,6 +118,10 @@ export function PdfDocumentView({
 
   const doc = loaded?.materialId === materialId ? loaded.doc : null
   const effectiveUnitCount = doc?.numPages || unitCount
+  const jumpLocator = jump && effectiveUnitCount > 0
+    ? Math.min(Math.max(1, Math.trunc(jump.locator) || 1), effectiveUnitCount)
+    : 1
+  const visibleLocator = visiblePage?.doc === doc ? visiblePage.locator : jumpLocator
   const fallbackRatio = loaded?.materialId === materialId ? loaded.ratio : 1.414 // A4 until measured
   const error = loadError?.materialId === materialId ? loadError.message : null
 
@@ -255,7 +264,11 @@ export function PdfDocumentView({
     let frame = 0
     const measure = () => {
       frame = 0
+      // The initial viewport can still be at zero while an incoming
+      // citation is waiting on document layout. It is not a reading action.
+      if (jump && (appliedJump.current?.doc !== doc || appliedJump.current.nonce !== jump.nonce)) return
       const rootRect = root.getBoundingClientRect()
+      if (rootRect.height <= 0 || pageWidth <= 0) return
       const pages = root.querySelectorAll<HTMLElement>('[data-reader-unit]')
       let best: { locator: number; covered: number } | null = null
       for (const page of pages) {
@@ -266,7 +279,12 @@ export function PdfDocumentView({
         if (!locator) continue
         if (!best || covered > best.covered) best = { locator, covered }
       }
-      if (best) setVisibleLocator(current => (current === best.locator ? current : best.locator))
+      if (best) {
+        const { locator } = best
+        const jumpNonce = jump?.nonce ?? null
+        setVisiblePage(current => current?.doc === doc && current.locator === locator &&
+          current.jumpNonce === jumpNonce ? current : { doc, locator, jumpNonce })
+      }
     }
 
     const onScroll = () => {
@@ -281,11 +299,12 @@ export function PdfDocumentView({
       root.removeEventListener('scroll', onScroll)
       if (frame) window.cancelAnimationFrame(frame)
     }
-  }, [doc, effectiveUnitCount, pageWidth])
+  }, [doc, effectiveUnitCount, jump, pageWidth])
 
   useEffect(() => {
-    onVisibleLocatorChange?.(visibleLocator)
-  }, [visibleLocator, onVisibleLocatorChange])
+    if (!doc || visiblePage?.doc !== doc || visiblePage.jumpNonce !== (jump?.nonce ?? null)) return
+    onVisibleLocatorChange?.(visiblePage.locator)
+  }, [doc, jump?.nonce, visiblePage, onVisibleLocatorChange])
 
   /**
    * Which pages hold a canvas: those near the viewport, plus those near an
@@ -298,28 +317,33 @@ export function PdfDocumentView({
   const isActive = useCallback(
     (locator: number) => {
       const near = (anchor: number) => Math.abs(locator - anchor) <= RENDER_MARGIN
-      return near(visibleLocator) || (jump ? near(jump.locator) : false)
+      return near(visibleLocator) || (jump ? near(jumpLocator) : false)
     },
-    [visibleLocator, jump]
+    [visibleLocator, jump, jumpLocator]
   )
 
   // -- jumping -------------------------------------------------------------
 
   const scrollToLocator = useCallback((locator: number, y = 0) => {
     const root = scrollRef.current
-    if (!root) return false
+    if (!root || committedWidthRef.current <= 0) return false
     const target = root.querySelector<HTMLElement>(`[data-reader-unit="${locator}"]`)
     if (!target) return false
+    const rootRect = root.getBoundingClientRect()
+    const targetRect = target.getBoundingClientRect()
+    // A mounted placeholder does not have a scroll position until its
+    // layout is committed (or its containing reader panel is visible).
+    if (rootRect.height <= 0 || targetRect.height <= 0) return false
     // Measured, not `offsetTop`: the nearest positioned ancestor is the reader
     // shell (it is absolutely positioned), not this scroll container, so
     // `offsetTop` is off by the header's height. Rect maths is independent of
     // the offset-parent chain and cannot drift when the chrome above changes.
     const top =
-      target.getBoundingClientRect().top -
-      root.getBoundingClientRect().top +
+      targetRect.top -
+      rootRect.top +
       root.scrollTop -
       PAGE_GAP +
-      Math.max(0, Math.min(1, y)) * target.getBoundingClientRect().height
+      Math.max(0, Math.min(1, y)) * targetRect.height
     // Assigned, never animated. Programmatic smooth scrolling is silently a
     // no-op in some embedded browsers, and `scroll-behavior` in CSS would make
     // this assignment inherit that failure — a citation jump that does nothing
@@ -330,7 +354,7 @@ export function PdfDocumentView({
 
   useEffect(() => {
     if (!jump || !doc) return
-    const locator = Math.min(Math.max(1, jump.locator), effectiveUnitCount)
+    const locator = jumpLocator
     const nonce = jump.nonce
     const quote = jump.quote
     let cancelled = false
@@ -349,6 +373,10 @@ export function PdfDocumentView({
         if (scrollTries <= 20) timer = window.setTimeout(run, 120)
         return
       }
+      // Browsers need not dispatch a scroll event for every programmatic
+      // assignment. Commit the located page before measuring user scrolling.
+      appliedJump.current = { doc, nonce }
+      setVisiblePage({ doc, locator, jumpNonce: nonce })
       if (!quote) return
       let attempts = 0
       const findQuote = () => {
@@ -390,7 +418,7 @@ export function PdfDocumentView({
       cancelled = true
       if (timer) window.clearTimeout(timer)
     }
-  }, [jump, doc, effectiveUnitCount, scrollToLocator])
+  }, [jump, doc, jumpLocator, scrollToLocator])
 
   // Tagged with the nonce that produced it, so the previous jump's highlight is
   // superseded by derivation — no timer, and no way for a stale highlight to

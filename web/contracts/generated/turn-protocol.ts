@@ -89,6 +89,97 @@ export type SelectionTutorContext = {
 } | null;
 export type SessionId = string | null;
 export type Skills = string[];
+/**
+ * @maxItems 12
+ */
+export type StudioReferences =
+  | []
+  | [ObjectRef]
+  | [ObjectRef, ObjectRef]
+  | [ObjectRef, ObjectRef, ObjectRef]
+  | [ObjectRef, ObjectRef, ObjectRef, ObjectRef]
+  | [ObjectRef, ObjectRef, ObjectRef, ObjectRef, ObjectRef]
+  | [ObjectRef, ObjectRef, ObjectRef, ObjectRef, ObjectRef, ObjectRef]
+  | [
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+    ]
+  | [
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+    ]
+  | [
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+    ]
+  | [
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+    ]
+  | [
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+    ]
+  | [
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+      ObjectRef,
+    ];
+export type Id1 = string;
+export type Kind1 = string;
+export type BlobHash = string;
+export type Line = number | null;
+export type Page = number | null;
+export type Path = string;
+export type Quote = string;
+export type Region = [unknown, unknown, unknown, unknown] | null;
+export type Owner = "current_account";
+export type Revision1 = number;
+export type Scope = string;
 export type SubagentConsultBudget = number | null;
 export type SupersededTurnId = string | null;
 export type TimedMediaId = string | null;
@@ -244,7 +335,7 @@ export type TurnFailureCode =
   | "internal_error"
   | "rejected"
   | "server_shutdown";
-export type Id1 = string;
+export type Id2 = string;
 export type LastSeq = number;
 export type OwnerId1 = string;
 export type Retryable2 = boolean;
@@ -257,14 +348,14 @@ export type TurnStatus =
   "queued" | "running" | "waiting_input" | "completed" | "failed" | "cancelled";
 export type UpdatedAt = number | null;
 export type CreatedAt1 = number | null;
-export type Id2 = string;
+export type Id3 = string;
 export type Messages = {
   [k: string]: unknown;
 }[];
 export type Title = string;
 export type UpdatedAt1 = number | null;
 export type CreatedAt2 = number | null;
-export type Id3 = string;
+export type Id4 = string;
 export type Title1 = string;
 export type UpdatedAt2 = number | null;
 
@@ -328,6 +419,7 @@ export interface StartTurnCommand {
   selection_tutor_context?: SelectionTutorContext;
   session_id?: SessionId;
   skills?: Skills;
+  studio_references?: StudioReferences;
   subagent_consult_budget?: SubagentConsultBudget;
   superseded_turn_id?: SupersededTurnId;
   timed_media_id?: TimedMediaId;
@@ -438,6 +530,30 @@ export interface ReadingViewport {
   locator?: Locator;
   selection?: Selection;
   time_seconds?: TimeSeconds;
+}
+/**
+ * This interface was referenced by `TurnProtocolDocument`'s JSON-Schema
+ * via the `definition` "ObjectRef".
+ */
+export interface ObjectRef {
+  id: Id1;
+  kind: Kind1;
+  locator?: Locator1;
+  owner?: Owner;
+  revision: Revision1;
+  scope: Scope;
+}
+/**
+ * This interface was referenced by `TurnProtocolDocument`'s JSON-Schema
+ * via the `definition` "Locator".
+ */
+export interface Locator1 {
+  blob_hash?: BlobHash;
+  line?: Line;
+  page?: Page;
+  path?: Path;
+  quote?: Quote;
+  region?: Region;
 }
 /**
  * This interface was referenced by `TurnProtocolDocument`'s JSON-Schema
@@ -662,7 +778,7 @@ export interface ProtocolErrorEvent {
 export interface SessionDetail {
   active_turn?: TurnSummary | null;
   created_at?: CreatedAt1;
-  id: Id2;
+  id: Id3;
   messages?: Messages;
   preferences?: Preferences;
   title: Title;
@@ -677,7 +793,7 @@ export interface TurnSummary {
   created_at?: CreatedAt;
   error?: Error;
   error_code?: TurnFailureCode | null;
-  id: Id1;
+  id: Id2;
   last_seq?: LastSeq;
   owner_id?: OwnerId1;
   query_state?: TurnQueryState | null;
@@ -696,7 +812,7 @@ export interface Preferences {
 export interface SessionSummary {
   active_turn?: TurnSummary | null;
   created_at?: CreatedAt2;
-  id: Id3;
+  id: Id4;
   title: Title1;
   updated_at?: UpdatedAt2;
 }

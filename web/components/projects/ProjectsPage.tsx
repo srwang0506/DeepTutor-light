@@ -34,6 +34,7 @@ import {
   type ProjectRecallResult,
 } from '@/lib/workspaces-api'
 import ProjectEditor from './ProjectEditor'
+import ProjectTools from './ProjectTools'
 import { projectErrorMessage } from './project-feedback'
 import './projects.css'
 
@@ -75,10 +76,10 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
     ])
       .then(async ([rows, snapshot]) => {
         if (version !== sequence.current) return
-        setProjects(rows.filter((r) => r.kind !== 'system'))
+        setProjects(rows.filter(r => r.kind !== 'system'))
         setOverview(snapshot)
       })
-      .catch((e) => {
+      .catch(e => {
         if (version === sequence.current) setError(e instanceof Error ? e.message : String(e))
       })
       .finally(() => {
@@ -102,18 +103,18 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
   const selected = overview?.workspace
   const visible = projects
     .filter(
-      (p) =>
+      p =>
         p.archived === archived &&
         `${workspaceLabel(p, zh)} ${p.description ?? ''}`
           .toLowerCase()
-          .includes(filter.toLowerCase()),
+          .includes(filter.toLowerCase())
     )
     .sort((a, b) =>
       a.kind === 'general'
         ? 1
         : b.kind === 'general'
           ? -1
-          : b.created_at.localeCompare(a.created_at),
+          : b.created_at.localeCompare(a.created_at)
     )
   async function archive(row: ChatWorkspaceRegistration) {
     if (mutation) return
@@ -227,7 +228,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                   onClick={() => setArchived(false)}
                 >
                   {zh ? '我的项目' : 'My projects'}{' '}
-                  <span>{projects.filter((p) => !p.archived).length}</span>
+                  <span>{projects.filter(p => !p.archived).length}</span>
                 </button>
                 <button
                   aria-pressed={archived}
@@ -242,13 +243,13 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                 <input
                   aria-label={zh ? '搜索项目' : 'Search projects'}
                   value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
+                  onChange={e => setFilter(e.target.value)}
                   placeholder={zh ? '查找一个项目' : 'Find a project'}
                 />
               </label>
             </div>
             <div className="project-grid">
-              {visible.map((row) => (
+              {visible.map(row => (
                 <article
                   className={`project-card ${row.kind === 'general' ? 'general' : ''}`}
                   key={row.workspace_id}
@@ -397,7 +398,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                     <span>{overview.counts.sessions}</span>
                   </div>
                   {overview.sessions.length ? (
-                    overview.sessions.map((s) => (
+                    overview.sessions.map(s => (
                       <Link
                         className="project-activity"
                         key={s.id}
@@ -409,7 +410,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                           <small>
                             {new Date(s.updated_at * 1000).toLocaleDateString(
                               getLocale(i18n.resolvedLanguage || i18n.language),
-                              { month: 'short', day: 'numeric' },
+                              { month: 'short', day: 'numeric' }
                             )}
                           </small>
                         </div>
@@ -441,7 +442,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                     </Link>
                   </div>
                   {overview.tasks.length ? (
-                    overview.tasks.map((t) => (
+                    overview.tasks.map(t => (
                       <Link className="project-task" key={t.id} href={scopedUrl('/kanban', active)}>
                         {t.status === 'done' ? <CheckCircle2 size={16} /> : <Circle size={16} />}
                         <span>{t.title}</span>
@@ -493,8 +494,8 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                     <span className="project-tag">{zh ? '读写' : 'Read & write'}</span>
                   </div>
                   {overview.sources
-                    .filter((s) => s.id !== active)
-                    .map((source) => (
+                    .filter(s => s.id !== active)
+                    .map(source => (
                       <div className="project-connection" key={source.id}>
                         <Layers3 size={15} />
                         <div>
@@ -567,7 +568,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
               <div className="project-section-title">
                 <h2>
                   <Search size={17} />
-                  {zh ? '看看这个项目能想起什么' : 'Explore what this project can recall'}
+                  {zh ? '搜索项目记忆' : 'Search project memory'}
                 </h2>
               </div>
               <p className="project-help">
@@ -576,7 +577,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                   : 'Search memories, conversations and tasks from this project and selected sources.'}
               </p>
               <form
-                onSubmit={(e) => {
+                onSubmit={e => {
                   e.preventDefault()
                   void search()
                 }}
@@ -591,7 +592,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                   }
                   maxLength={2000}
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
+                  onChange={e => setQuery(e.target.value)}
                 />
                 <button className="project-button primary" disabled={searching || !query.trim()}>
                   {searching ? (zh ? '检索中…' : 'Searching…') : zh ? '查找记忆' : 'Recall'}
@@ -606,7 +607,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                         : 'No relevant memories. Try a more specific topic.'}
                     </p>
                   )}
-                  {recall.hits.map((hit) => (
+                  {recall.hits.map(hit => (
                     <Link
                       key={`${hit.workspace_id}:${hit.key}`}
                       href={hit.url}
@@ -653,6 +654,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                 </div>
               )}
             </section>
+            <ProjectTools key={active} workspace={active} />
             {selected.kind !== 'general' && (
               <div className="project-footer">
                 <span>
@@ -685,7 +687,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
             projects={projects}
             zh={zh}
             onClose={() => setEditor(null)}
-            onSaved={(row) => {
+            onSaved={row => {
               const created = editor === 'new'
               setEditor(null)
               setRecall(null)

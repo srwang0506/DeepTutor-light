@@ -1821,7 +1821,7 @@ def start(
             )
         launch_url = frontend_url
         if common_env.get("DEEPTUTOR_LOCAL_CAPABILITY"):
-            from deeptutor.api.local_access import local_launch_url
+            from deeptutor.core.local_access import local_launch_url
 
             launch_url = local_launch_url(frontend_url, common_env["DEEPTUTOR_LOCAL_CAPABILITY"])
         _log(_t("start.open_in_browser", url=launch_url))

@@ -13,8 +13,13 @@ from defusedxml.ElementTree import ParseError
 from fastapi import APIRouter, File, Form, HTTPException, Query, Response, UploadFile
 from pydantic import BaseModel, Field
 
-from deeptutor.services.practice.answers import check_answer
+from deeptutor.core.errors import AccessError
 from deeptutor.services.practice.importing import MAX_BYTES, preview
+from deeptutor.services.practice.projection import (
+    practice_objectives,
+    reconcile_practice_evidence,
+    validate_practice_objective,
+)
 from deeptutor.services.practice.scheduler import Rating, day_bounds
 from deeptutor.services.practice.storage import PracticeStore, ReviewConflict
 from deeptutor.services.session import get_sqlite_session_store
@@ -78,6 +83,23 @@ class ReviewRequest(AnswerRequest):
     rating: Rating
 
 
+class CheckRequest(AnswerRequest):
+    request_id: str | None = Field(
+        default=None, min_length=16, max_length=100, pattern=r"^[a-zA-Z0-9_-]+$"
+    )
+    version: int | None = Field(default=None, ge=0)
+
+
+class PracticeObjective(BaseModel):
+    path_id: str = Field(min_length=1, max_length=255)
+    knowledge_point_id: str = Field(min_length=1, max_length=255)
+
+
+class ObjectiveRequest(BaseModel):
+    version: int = Field(ge=0)
+    objective: PracticeObjective | None
+
+
 class CommitRequest(BaseModel):
     token: str = Field(min_length=32, max_length=32, pattern=r"^[a-f0-9]+$")
 
@@ -99,6 +121,12 @@ async def _entry(entry_id: int) -> dict:
     return entry
 
 
+def _question_stem(entry: dict) -> dict:
+    """The online recall screen does not receive the reference before checking."""
+    hidden = ("correct_answer", "explanation", "user_answer", "user_answer_images", "practice")
+    return {key: value for key, value in entry.items() if key not in hidden}
+
+
 @router.get("/summary", response_model=PracticeSummary)
 async def summary(timezone: str = "UTC"):
     store = get_sqlite_session_store()
@@ -116,6 +144,7 @@ async def queue(
 ):
     store = get_sqlite_session_store()
     practice = PracticeStore(store.db_path)
+    await asyncio.to_thread(reconcile_practice_evidence, practice)
     try:
         ids = await asyncio.to_thread(practice.queue, timezone, category_id, limit)
     except ValueError as exc:
@@ -128,7 +157,7 @@ async def queue(
         if entry:
             questions.append(
                 {
-                    "entry": entry,
+                    "entry": _question_stem(entry),
                     "state": await asyncio.to_thread(practice.state, entry_id),
                     "content_workspace_id": current_workspace_id(),
                 }
@@ -151,23 +180,77 @@ async def practice_analytics(timezone: str = "UTC", days: int = 30):
 @router.get("/questions/{entry_id}", response_model=PracticeQuestion)
 async def practice_question(entry_id: int):
     entry = await _entry(entry_id)
-    state = await asyncio.to_thread(
-        PracticeStore(get_sqlite_session_store().db_path).state, entry_id
-    )
-    return {"entry": entry, "state": state}
+    practice = PracticeStore(get_sqlite_session_store().db_path)
+    await asyncio.to_thread(reconcile_practice_evidence, practice)
+    state = await asyncio.to_thread(practice.state, entry_id)
+    return {"entry": _question_stem(entry), "state": state}
+
+
+@router.get("/objectives")
+async def objectives():
+    return {"paths": await asyncio.to_thread(practice_objectives)}
+
+
+@router.put("/questions/{entry_id}/objective")
+async def set_objective(entry_id: int, payload: ObjectiveRequest):
+    await _entry(entry_id)
+    practice = PracticeStore(get_sqlite_session_store().db_path)
+    try:
+        if payload.objective:
+            await asyncio.to_thread(
+                validate_practice_objective,
+                payload.objective.path_id,
+                payload.objective.knowledge_point_id,
+            )
+        await asyncio.to_thread(
+            practice.bind_objective,
+            entry_id,
+            payload.version,
+            payload.objective.model_dump() if payload.objective else None,
+        )
+        return {"state": await asyncio.to_thread(practice.state, entry_id)}
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ReviewConflict as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
 
 
 @router.post("/questions/{entry_id}/check")
-async def check(entry_id: int, payload: AnswerRequest):
-    entry = await _entry(entry_id)
-    return {"correct": check_answer(entry, payload.answer)}
+async def check(entry_id: int, payload: CheckRequest):
+    if (payload.request_id is None) != (payload.version is None):
+        raise HTTPException(
+            422, "An answer check requires both its submission ID and question version."
+        )
+    try:
+        return await asyncio.to_thread(
+            PracticeStore(get_sqlite_session_store().db_path).check,
+            entry_id,
+            payload.answer,
+            payload.request_id,
+            payload.version,
+        )
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(403, "This practice source is no longer available.") from exc
+    except AccessError as exc:
+        raise HTTPException(
+            exc.status_code, "This practice source is no longer available."
+        ) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(409, "This practice source is no longer available.") from exc
+    except (ReviewConflict, ValueError) as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 @router.post("/questions/{entry_id}/review")
 async def review(entry_id: int, payload: ReviewRequest):
+    practice = PracticeStore(get_sqlite_session_store().db_path)
     try:
-        return await asyncio.to_thread(
-            PracticeStore(get_sqlite_session_store().db_path).review,
+        outcome = await asyncio.to_thread(
+            practice.review,
             entry_id,
             payload.request_id,
             payload.version,
@@ -175,8 +258,23 @@ async def review(entry_id: int, payload: ReviewRequest):
             payload.answer,
             self_report=payload.self_report,
         )
+        await asyncio.to_thread(reconcile_practice_evidence, practice, payload.request_id)
+        return {
+            **outcome,
+            "objective_evidence": await asyncio.to_thread(
+                practice.evidence_status, payload.request_id
+            ),
+        }
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(403, "This practice source is no longer available.") from exc
+    except AccessError as exc:
+        raise HTTPException(
+            exc.status_code, "This practice source is no longer available."
+        ) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(409, "This practice source is no longer available.") from exc
     except ReviewConflict as exc:
         raise HTTPException(409, str(exc)) from exc
     except ValueError as exc:

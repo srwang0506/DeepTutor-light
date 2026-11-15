@@ -32,8 +32,8 @@ export default function Continuations({ workspace }: { workspace: string }) {
   useEffect(() => {
     const abort = new AbortController()
     void studio<{ items: Item[] }>(workspace, '/continuations', {}, abort.signal)
-      .then((r) => setItems(r.items))
-      .catch((e) => {
+      .then(r => setItems(r.items))
+      .catch(e => {
         if (!abort.signal.aborted) setError(e.message)
       })
     return () => abort.abort()
@@ -42,7 +42,7 @@ export default function Continuations({ workspace }: { workspace: string }) {
   const drafts = useSyncExternalStore(
     subscribeDrafts,
     () => JSON.stringify(browserStorage.listRaw('session', prefix)),
-    () => '[]',
+    () => '[]'
   )
   const conflicts: Item[] = []
   for (const [key, value] of JSON.parse(drafts) as [string, string][]) {
@@ -65,8 +65,7 @@ export default function Continuations({ workspace }: { workspace: string }) {
   return (
     <section className="studio-continuations">
       <header>
-        <span className="studio-eyebrow">{t('继续推进')}</span>
-        <h2>{t('留下的线索，接着往前。')}</h2>
+        <h2>{t('继续阅读与研究')}</h2>
       </header>
       {error && (
         <p className="studio-note">
@@ -75,7 +74,7 @@ export default function Continuations({ workspace }: { workspace: string }) {
         </p>
       )}
       <div className="studio-continuation-grid">
-        {[...conflicts, ...items].map((item) => {
+        {[...conflicts, ...items].map(item => {
           const href =
             item.kind === 'draft_conflict'
               ? `/studio/writing?manuscript=${item.manuscript_id}&path=${encodeURIComponent(item.path || '')}`
@@ -94,7 +93,7 @@ export default function Continuations({ workspace }: { workspace: string }) {
                       {
                         draft_conflict: t('处理稿件草稿冲突'),
                         remote_snapshot: t('核对待导入结果'),
-                        resume: t("继续第 {{value1}} 页", { value1: item.source?.locator.page }),
+                        resume: t('继续第 {{value1}} 页', { value1: item.source?.locator.page }),
                         evidence: t('核对原文证据'),
                         claim: t('核对研究主张'),
                         proposal: t('审阅稿件修改'),

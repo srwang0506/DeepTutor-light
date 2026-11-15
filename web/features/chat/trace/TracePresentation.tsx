@@ -237,6 +237,12 @@ function describeToolCall(
         chip: str(a.source_id) || null,
         mono: false,
       };
+    case "read_studio_source":
+      return {
+        verb: t("Reading source"),
+        chip: null,
+        mono: false,
+      };
     case "read_file":
       return {
         verb: t("Reading file"),

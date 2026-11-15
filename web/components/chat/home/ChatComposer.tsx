@@ -53,6 +53,7 @@ import type { LLMOption } from "@/lib/llm-options";
 import ChatSpaceMenu from "@/components/chat/space/ChatSpaceMenu";
 import type { SpaceMemoryFile } from "@/lib/space-items";
 import type { SelectedBookReference } from "@/lib/book-references";
+import { studioReferenceKey, type StudioSourceItem } from "@/lib/studio-references";
 import type { SelectedReadingReference } from "@/lib/reading-references";
 import { usePartnerRoster } from "@/hooks/usePartnerRoster";
 import { usePartnerGroups } from "@/hooks/usePartnerGroups";
@@ -82,6 +83,7 @@ type SpaceSelectionCounts = {
   myAgents: number;
   books: number;
   reading: number;
+  studio?: number;
   notebooks: number;
   questionBank: number;
   persona: number;
@@ -239,6 +241,7 @@ export default memo(function ChatComposer({
   selectedNotebookRecords,
   selectedBookReferences,
   selectedReadingReferences = [],
+  selectedStudioReferences = [],
   selectedHistorySessions,
   selectedAgentSessions,
   selectedQuestionEntries,
@@ -261,6 +264,7 @@ export default memo(function ChatComposer({
   onSelectNotebookPicker,
   onSelectBookPicker,
   onSelectReadingPicker,
+  onSelectStudioPicker,
   onSelectHistoryPicker,
   onSelectAgentsPicker,
   onSelectQuestionBankPicker,
@@ -290,6 +294,7 @@ export default memo(function ChatComposer({
   onRemoveAgent,
   onRemoveBookReference,
   onRemoveReadingReference,
+  onRemoveStudioReference,
   onRemoveNotebook,
   onRemoveQuestion,
   onDragEnter,
@@ -363,6 +368,7 @@ export default memo(function ChatComposer({
   selectedNotebookRecords: SelectedRecord[];
   selectedBookReferences: SelectedBookReference[];
   selectedReadingReferences?: SelectedReadingReference[];
+  selectedStudioReferences?: StudioSourceItem[];
   selectedHistorySessions: SelectedHistorySession[];
   selectedAgentSessions: SelectedHistorySession[];
   selectedQuestionEntries: SelectedQuestionEntry[];
@@ -400,6 +406,7 @@ export default memo(function ChatComposer({
   onSelectNotebookPicker: () => void;
   onSelectBookPicker: () => void;
   onSelectReadingPicker?: () => void;
+  onSelectStudioPicker?: () => void;
   onSelectHistoryPicker: () => void;
   onSelectAgentsPicker: () => void;
   onSelectQuestionBankPicker: () => void;
@@ -446,6 +453,7 @@ export default memo(function ChatComposer({
   onRemoveAgent: (sessionId: string) => void;
   onRemoveBookReference: (bookId: string) => void;
   onRemoveReadingReference?: (materialId: string) => void;
+  onRemoveStudioReference?: (key: string) => void;
   onRemoveNotebook: (notebookId: string) => void;
   onRemoveQuestion: (entryId: number) => void;
   onDragEnter: (event: React.DragEvent) => void;
@@ -920,6 +928,7 @@ export default memo(function ChatComposer({
     !!attachments.length ||
     !!selectedBookReferences.length ||
     !!selectedReadingReferences.length ||
+    !!selectedStudioReferences.length ||
     !!selectedNotebookRecords.length ||
     !!selectedHistorySessions.length ||
     !!selectedAgentSessions.length ||
@@ -968,6 +977,7 @@ export default memo(function ChatComposer({
       (total, reference) => total + reference.units.length,
       0,
     ),
+    studio: selectedStudioReferences.length,
     notebooks: selectedNotebookRecords.length,
     questionBank: selectedQuestionEntries.length,
     persona: selectedPersona ? 1 : 0,
@@ -993,6 +1003,15 @@ export default memo(function ChatComposer({
       onRemove: onRemoveReadingReference
         ? () => onRemoveReadingReference(material.materialId)
         : undefined,
+    })),
+    ...selectedStudioReferences.map((item): ContextTreeItem => ({
+      key: `studio-${studioReferenceKey(item.ref)}`,
+      icon: BookMarked,
+      kind: t("Research sources"),
+      label: item.ref.locator?.page
+        ? `${item.title} · ${t('Page {{number}}', { number: item.ref.locator.page })}`
+        : item.title,
+      onRemove: onRemoveStudioReference ? () => onRemoveStudioReference(studioReferenceKey(item.ref)) : undefined,
     })),
     ...notebookReferenceGroups.map((group): ContextTreeItem => ({
       key: `nb-${group.notebookId}`,
@@ -1347,6 +1366,7 @@ export default memo(function ChatComposer({
             onSelectNotebookPicker={onSelectNotebookPicker}
             onSelectBookPicker={onSelectBookPicker}
             onSelectReadingPicker={onSelectReadingPicker}
+            onSelectStudioPicker={onSelectStudioPicker}
             onSelectHistoryPicker={onSelectHistoryPicker}
             onSelectAgentsPicker={onSelectAgentsPicker}
             onSelectQuestionBankPicker={onSelectQuestionBankPicker}
@@ -1405,6 +1425,7 @@ export default memo(function ChatComposer({
                         personaAvailable={!onPersonaSelectionChange}
                         agentsAvailable={agentsAvailable}
                         readingAvailable={Boolean(onSelectReadingPicker)}
+                        studioAvailable={Boolean(onSelectStudioPicker)}
                         onSelectItem={(key) => {
                           onSetSpaceMenuOpen(false);
                           if (key === "attach") handlePickFiles();
@@ -1413,6 +1434,7 @@ export default memo(function ChatComposer({
                           else if (key === "my_agents") onSelectAgentsPicker();
                           else if (key === "books") onSelectBookPicker();
                           else if (key === "reading") onSelectReadingPicker?.();
+                          else if (key === "studio") onSelectStudioPicker?.();
                           else if (key === "notebooks") onSelectNotebookPicker();
                           else if (key === "question_bank")
                             onSelectQuestionBankPicker();

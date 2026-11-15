@@ -7,6 +7,7 @@ import warnings
 
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator, model_validator
 
+from deeptutor.core.object_reference import ObjectRef
 from deeptutor.core.response_languages import validate_reply_language_override
 
 _LEGACY_RUNTIME_CONFIG_KEYS: dict[str, str] = {
@@ -169,6 +170,7 @@ class TurnRequest(BaseModel):
     question_notebook_references: list[int] = Field(default_factory=list)
     book_references: list[BookReference] = Field(default_factory=list)
     reading_references: list[ReadingReference] = Field(default_factory=list)
+    studio_references: list[ObjectRef] = Field(default_factory=list, max_length=12)
     memory_references: list[MemoryReference] = Field(default_factory=list)
     attachments: list[OutgoingAttachment] = Field(default_factory=list)
     # Per-conversation narrowing of the workspace's skill and MCP selections.

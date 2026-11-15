@@ -9,7 +9,7 @@ import { COMMAND_CONFIRMATION_FAILED } from "@/features/chat/transport/command-d
 import { ResourceReuseContext, useResourceReusePolicy } from "@/components/chat/home/ResourceReuse";
 import { retainedKnowledgeBases } from "@/lib/resource-reuse";
 import { knowledgeBaseRef } from "@/lib/knowledge-helpers";
-import { navigateTask, scopedUrl } from "@/lib/workspace-scope";
+import { activeWorkspaceId, navigateTask, scopedUrl } from "@/lib/workspace-scope";
 import { watchingRoute } from "@/lib/learning-routes";
 
 import { useChatWorkspaces } from "@/hooks/useChatWorkspaces";
@@ -87,6 +87,10 @@ import { useMeasuredHeight } from "@/hooks/useMeasuredHeight";
 import { useSessionThreads } from "@/hooks/useSessionThreads";
 import { useSetupSync } from "@/hooks/useSetupSync";
 import { consumePendingPrompt } from "@/lib/pending-prompt";
+import { consumeStudioReferences, studioReferenceHref, studioReferenceKey, type StudioSourceItem } from "@/lib/studio-references";
+import { useKeyedState } from "@/hooks/useKeyedState";
+import { useRecoveryPrincipal } from "@/hooks/useRecoveryPrincipal";
+import { recoveryPrincipal } from "@/lib/recovery-principal";
 import {
   deleteSession,
   fetchSessionAskHint,
@@ -160,6 +164,7 @@ const BookReferencePicker = dynamic(() => import("@/components/chat/BookReferenc
 const ReadingReferencePicker = dynamic(() => import("@/components/chat/ReadingReferencePicker"), {
   ssr: false,
 });
+const StudioReferencePicker = dynamic(() => import("@/components/chat/StudioReferencePicker"), { ssr: false });
 const SaveToNotebookModal = dynamic(() => import("@/components/notebook/SaveToNotebookModal"), {
   ssr: false,
 });
@@ -249,6 +254,7 @@ export default function ChatWorkspace() {
   } = useChatStateAdapter();
 
   const entrySessionId = useRef(state.sessionId);
+  const entrySessionKey = useRef(state.sessionKey);
   const [replyLanguageSavingKey, setReplyLanguageSavingKey] = useState<string | null>(null);
   const replyLanguageSaveRef = useRef<{ key: string; pending: Promise<void> } | null>(null);
   const handleReplyLanguageChange = useCallback(
@@ -477,6 +483,24 @@ export default function ChatWorkspace() {
   const [selectedReadingReferences, setSelectedReadingReferences] = useState<
     SelectedReadingReference[]
   >([]);
+  const sourcePrincipal = useRecoveryPrincipal();
+  const studioDraftKey = JSON.stringify([sourcePrincipal, requestedWorkspaceId, sessionIdParam, state.sessionKey]);
+  // A queued async submit belongs to this exact composer generation, even
+  // if a learner switches away and back to the same saved session later.
+  const scopedSendRef = useRef<{ key: string } | null>(null);
+  useLayoutEffect(() => {
+    const binding = { key: studioDraftKey };
+    scopedSendRef.current = binding;
+    return () => { scopedSendRef.current = null; };
+  }, [studioDraftKey]);
+  const [selectedStudioReferences, setSelectedStudioReferences] = useKeyedState<StudioSourceItem[]>(studioDraftKey, []);
+  const [showStudioPicker, setShowStudioPicker] = useKeyedState(studioDraftKey, false);
+  useEffect(() => {
+    if (sessionIdParam || state.sessionId || !sourcePrincipal ||
+      state.sessionKey === entrySessionKey.current || state.workspaceId !== requestedWorkspaceId) return;
+    const references = consumeStudioReferences(requestedWorkspaceId || "");
+    if (references.length) setSelectedStudioReferences(references);
+  }, [requestedWorkspaceId, sessionIdParam, setSelectedStudioReferences, sourcePrincipal, state.sessionId, state.sessionKey, state.workspaceId]);
   const [selectedHistorySessions, setSelectedHistorySessions] = useState<SelectedHistorySession[]>(
     [],
   );
@@ -1843,6 +1867,12 @@ export default function ChatWorkspace() {
   // hand-over lasts until the learner takes it back, survives the draft
   // becoming a session, and never follows them to another chat.
   const answerBy = state.answerBy;
+  const canUseStudioSources = Boolean(sourcePrincipal) &&
+    ["", "chat"].includes(activeCap.value || "") && !selectedPartner && !selectedPartnerGroup && !answerBy;
+  const sendPolicyRef = useRef({ canUseStudioSources, isStreaming: state.isStreaming });
+  useLayoutEffect(() => {
+    sendPolicyRef.current = { canUseStudioSources, isStreaming: state.isStreaming };
+  }, [canUseStudioSources, state.isStreaming]);
 
   useEffect(() => {
     void getSubagentSettings()
@@ -1864,6 +1894,7 @@ export default function ChatWorkspace() {
       content: string;
       parentMessageId?: number | null;
       attachments?: { type?: string; base64?: string; extracted_text?: string }[];
+      requestSnapshot?: MessageRequestSnapshot;
     }) => {
       setRetryingTurn({
         sessionKey: state.sessionKey,
@@ -1875,14 +1906,35 @@ export default function ChatWorkspace() {
         .map((item) => quoteAttachment(quoteText(item)))
         .filter((item): item is QuotePendingAttachment => item !== null);
       setAttachments((prev) => [...prev.filter((item) => !isQuoteAttachment(item)), ...quotes]);
+      setSelectedStudioReferences((user.requestSnapshot?.studioReferences ?? []).map(ref => ({
+        ref,
+        title: `${t("Revision {{number}}", { number: ref.revision })} · ${ref.id.slice(0, 8)}`,
+        description: "",
+        href: studioReferenceHref(ref),
+      })));
       prefillInputRef.current?.(user.content);
       focusComposerRef.current?.();
     },
-    [state.sessionKey],
+    [setSelectedStudioReferences, state.sessionKey, t],
   );
 
   const handleSend = useCallback(
     async (content: string) => {
+      const binding = scopedSendRef.current;
+      const current = () => binding?.key === studioDraftKey && scopedSendRef.current === binding &&
+        recoveryPrincipal() === sourcePrincipal && activeWorkspaceId() === (requestedWorkspaceId || "");
+      const restoreDraft = (draft: string) => {
+        if (current()) prefillInputRef.current?.(draft);
+      };
+      const intendedSources = selectedStudioReferences.length > 0;
+      const sourceAllowed = () => {
+        if (!current()) return false;
+        if (!intendedSources || sendPolicyRef.current.canUseStudioSources) return true;
+        notify(t("Research sources are available when DeepTutor answers in Chat."), { tone: "error" });
+        restoreDraft(content);
+        return false;
+      };
+      if (!sourceAllowed()) return;
       // An existing session saves its selector before the next turn starts.
       // The composer may be used immediately after changing the dropdown.
       if (
@@ -1891,8 +1943,9 @@ export default function ChatWorkspace() {
             ? replyLanguageSaveRef.current.pending
             : null,
           content,
-          (draft) => prefillInputRef.current?.(draft),
-        ))
+          restoreDraft,
+          current,
+        )) || !sourceAllowed()
       )
         return;
       // A turn paused on a question: what the user typed is their answer, not
@@ -1902,12 +1955,13 @@ export default function ChatWorkspace() {
       if (awaitingUserReplyRef.current) {
         if (!content.trim()) return;
         try {
-          if (await submitUserReply({ text: content })) return;
+          if (!current() || await submitUserReply({ text: content })) return;
         } catch {
-          notify(t(COMMAND_CONFIRMATION_FAILED), { tone: "error" });
-          prefillInputRef.current?.(content);
+          if (current()) notify(t(COMMAND_CONFIRMATION_FAILED), { tone: "error" });
+          restoreDraft(content);
           return;
         }
+        if (!sourceAllowed()) return;
         // Refused: the turn that asked is gone. Do NOT stop here. The
         // composer has already cleared the box, so returning discarded what
         // they typed — while the error told them to "send a new message",
@@ -1920,6 +1974,7 @@ export default function ChatWorkspace() {
         !attachments.length &&
         !selectedBookReferences.length &&
         !selectedReadingReferences.length &&
+        !selectedStudioReferences.length &&
         !selectedNotebookRecords.length &&
         !selectedHistorySessions.length &&
         !selectedQuestionEntries.length &&
@@ -2005,6 +2060,7 @@ export default function ChatWorkspace() {
         (selectedNotebookRecords.length ||
         selectedBookReferences.length ||
         selectedReadingReferences.length ||
+        selectedStudioReferences.length ||
         selectedHistorySessions.length ||
         selectedAgentSessions.length ||
         selectedQuestionEntries.length ||
@@ -2017,6 +2073,8 @@ export default function ChatWorkspace() {
       // Persona is NOT passed per-call here: it is a session-level
       // preference (state.personaSelection) that sendMessage resolves and
       // sends with every turn.
+      if (!sourceAllowed()) return;
+      const isStreaming = sendPolicyRef.current.isStreaming;
       const send: Parameters<typeof sendMessage> = [
         messageContent,
         extraAttachments,
@@ -2026,16 +2084,17 @@ export default function ChatWorkspace() {
         {
           bookReferences: bookReferencesPayload,
           readingReferences: readingReferencesPayload,
+          studioReferences: selectedStudioReferences.map(entry => entry.ref),
           ...(["deep_solve", "deep_question"].includes(state.activeCapability || "")
             ? { capability: state.activeCapability || "chat" }
             : {}),
-          ...(retrying && !state.isStreaming ? { parentMessageId: retrying.parentMessageId } : {}),
+          ...(retrying && !isStreaming ? { parentMessageId: retrying.parentMessageId } : {}),
         },
         questionNotebookReferencesPayload,
         undefined,
         memoryPayload,
       ];
-      if (state.isStreaming) {
+      if (isStreaming) {
         // Sent while a turn runs: it waits its turn. Plain words can steer
         // the running turn at its next step; anything carrying attachments,
         // references or another mode is a turn of its own.
@@ -2044,6 +2103,7 @@ export default function ChatWorkspace() {
           extraAttachments.length === 0 &&
           !selectedBookReferences.length &&
           !selectedReadingReferences.length &&
+          !selectedStudioReferences.length &&
           !selectedNotebookRecords.length &&
           !selectedHistorySessions.length &&
           !selectedAgentSessions.length &&
@@ -2056,7 +2116,21 @@ export default function ChatWorkspace() {
           !selectedPartnerGroup;
         queueMessage(messageContent, send, plainWords);
       } else {
-        sendMessage(...send);
+        if (intendedSources) {
+          try {
+            if (!await sendMessage(...send)) {
+              restoreDraft(content);
+              return;
+            }
+          } catch {
+            if (current()) notify(t("Could not send this message. Please try again."), { tone: "error" });
+            restoreDraft(content);
+            return;
+          }
+          if (!current()) return;
+        } else {
+          void sendMessage(...send);
+        }
         setRetryingTurn(null);
       }
       if (["deep_solve", "deep_question"].includes(state.activeCapability || ""))
@@ -2076,6 +2150,10 @@ export default function ChatWorkspace() {
       );
       if (!resourceReuse.policy.books) setSelectedBookReferences([]);
       if (!resourceReuse.policy.reading) setSelectedReadingReferences([]);
+      if (intendedSources) {
+        const sentKeys = new Set(selectedStudioReferences.map(item => studioReferenceKey(item.ref)));
+        setSelectedStudioReferences(previous => previous.filter(item => !sentKeys.has(studioReferenceKey(item.ref))));
+      }
       if (!resourceReuse.policy.notebooks) setSelectedNotebookRecords([]);
       if (!resourceReuse.policy.chat_history) setSelectedHistorySessions([]);
       if (!resourceReuse.policy.my_agents) setSelectedAgentSessions([]);
@@ -2115,13 +2193,17 @@ export default function ChatWorkspace() {
       selectedMemoryFiles.length,
       selectedBookReferences.length,
       selectedReadingReferences.length,
+      selectedStudioReferences,
+      setSelectedStudioReferences,
+      requestedWorkspaceId,
+      sourcePrincipal,
+      studioDraftKey,
       selectedNotebookRecords.length,
       selectedQuestionEntries.length,
       sendMessage,
       queueMessage,
       retrying,
       shouldAutoScrollRef,
-      state.isStreaming,
       state.sessionKey,
       subagentBudget,
       selectedPartnerGroup,
@@ -2830,6 +2912,7 @@ export default function ChatWorkspace() {
                   contextBudget={contextBudget}
                   selectedBookReferences={selectedBookReferences}
                   selectedReadingReferences={selectedReadingReferences}
+                  selectedStudioReferences={selectedStudioReferences}
                   selectedNotebookRecords={selectedNotebookRecords}
                   selectedHistorySessions={selectedHistorySessions}
                   selectedAgentSessions={selectedAgentSessions}
@@ -2892,6 +2975,9 @@ export default function ChatWorkspace() {
                   onRemoveAgent={handleRemoveAgent}
                   onRemoveBookReference={handleRemoveBookReference}
                   onRemoveReadingReference={handleRemoveReadingReference}
+                  onSelectStudioPicker={canUseStudioSources ? () => setShowStudioPicker(true) : undefined}
+                  onRemoveStudioReference={key => setSelectedStudioReferences(rows =>
+                    rows.filter(item => studioReferenceKey(item.ref) !== key))}
                   onRemoveNotebook={handleRemoveNotebook}
                   onRemoveQuestion={handleRemoveQuestion}
                   onDragEnter={handleDragEnter}
@@ -2978,6 +3064,13 @@ export default function ChatWorkspace() {
                 onClose={handleCloseReadingPicker}
                 onApply={handleApplyReadingReferences}
               />
+              {showStudioPicker && canUseStudioSources && (
+                <StudioReferencePicker workspace={requestedWorkspaceId || ""} initial={selectedStudioReferences}
+                  onClose={() => setShowStudioPicker(false)} onApply={items => {
+                    setSelectedStudioReferences(items);
+                    setShowStudioPicker(false);
+                  }} />
+              )}
               <HistorySessionPicker
                 open={showHistoryPicker}
                 onClose={handleCloseHistoryPicker}

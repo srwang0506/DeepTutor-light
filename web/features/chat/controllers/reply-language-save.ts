@@ -3,13 +3,15 @@ export async function waitForReplyLanguageSave(
   pending: Promise<void> | null,
   content: string,
   restoreDraft: (content: string) => void,
+  isCurrent: () => boolean = () => true,
 ): Promise<boolean> {
+  if (!isCurrent()) return false;
   if (!pending) return true;
   try {
     await pending;
-    return true;
+    return isCurrent();
   } catch {
-    restoreDraft(content);
+    if (isCurrent()) restoreDraft(content);
     return false;
   }
 }
