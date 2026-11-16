@@ -31,6 +31,10 @@ data/
 *.out
 *.synctex.gz
 *.pdf
+# These upstream examples are part of the pinned skill's integrity manifest.
+!deeptutor/skills/builtin/best-paper-review/examples/demo/paper.pdf
+!deeptutor/skills/builtin/best-paper-review/examples/demo/paper_v2.pdf
+!deeptutor/skills/builtin/best-paper-review/examples/demo/prior/threshskip.pdf
 !tests/fixtures/lightrag_bridge/original.pdf
 !tests/fixtures/lightrag_bridge/mineru-v2-current/*_origin.pdf
 
