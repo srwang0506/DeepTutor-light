@@ -59,6 +59,9 @@ jobs:
           tests/learning/test_study_operations.py
           tests/api/test_practice.py
           tests/multi_user/test_studio_tutor_sources.py
+          tests/multi_user/test_paper_reviews.py
+          tests/services/skill/test_execution.py
+          tests/tools/builtin/test_read_skill_tool.py
           tests/app/test_facade_stream_scope.py
           tests/services/session/test_source_inventory.py
           tests/services/session/test_sqlite_store.py

@@ -145,6 +145,8 @@ export interface SendMessageOptions {
   bookReferences?: BookReferencePayload[];
   readingReferences?: ReadingReferencePayload[];
   studioReferences?: StudioSourceReference[];
+  /** Explicit resources for this turn, frozen with its durable retry snapshot. */
+  resourceSelection?: ResourceSelection;
   /** Edit-branching: when set, the new user message is inserted as a
    *  sibling under this parent rather than appended to the session tail.
    *  ``null`` means "explicitly attach to the session root". */
@@ -3089,7 +3091,7 @@ export function ChatStateAdapterProvider({
       // Replays retain the original resource selection, including one-turn choices.
       const effectiveResources =
         exactReplay ? (replaySnapshot?.resourceSelection ?? emptyResourceSelection()) :
-        replaySnapshot?.resourceSelection ?? session.resourceSelection ?? emptyResourceSelection();
+        options?.resourceSelection ?? session.resourceSelection ?? emptyResourceSelection();
       // Create mode: a replay restates the exact kind it ran with (the chip
       // may have been removed, or the session moved on, since); a live turn
       // sends the session's current choice.

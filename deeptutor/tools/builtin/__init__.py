@@ -2014,10 +2014,33 @@ class ReadSkillTool(_PromptHintsMixin, BaseTool):
                 continue
             except (InvalidSkillNameError, InvalidSkillPathError) as exc:
                 return ToolResult(content=f"(read_skill error: {exc})", success=False)
-            return ToolResult(
-                content=content,
-                metadata={"skill": name, "file": rel_path, "char_count": len(content)},
-            )
+            # The runtime owns this non-serializable set. A failed read or a
+            # reference-only read must not enable the package for execution.
+            read_skills = kwargs.get("_execution_skill_reads")
+            if rel_path == "SKILL.md" and isinstance(read_skills, set):
+                read_skills.add(name)
+            metadata = {"skill": name, "file": rel_path, "char_count": len(content)}
+            execution_path = kwargs.get("_execution_skill_path")
+            if isinstance(execution_path, str) and execution_path:
+                from pathlib import PurePosixPath
+
+                location = PurePosixPath(execution_path)
+                if location.is_absolute() and ".." not in location.parts and location.name == name:
+                    metadata.update(
+                        execution_skill_path=f"$DEEPTUTOR_SKILLS_DIR/{name}",
+                        execution_skills_dir="$DEEPTUTOR_SKILLS_DIR",
+                    )
+                    content += (
+                        "\n\n---\nStaged package (read-only): "
+                        f"$DEEPTUTOR_SKILLS_DIR/{name}\n"
+                        "When execution is enabled, obtain the physical directory from "
+                        f"os.environ['DEEPTUTOR_SKILLS_DIR'] and append {name!r}. "
+                        "Resolve this skill's scripts and references from that directory; "
+                        "staging alone does not enable execution. "
+                        "Write generated files into the writable task workspace, not this package."
+                    )
+                    metadata["char_count"] = len(content)
+            return ToolResult(content=content, metadata=metadata)
         available_names = set(visible)
         available_skills = ", ".join(sorted(available_names))
         available_hint = f". Available skills: {available_skills}" if available_skills else ""
@@ -2239,6 +2262,8 @@ CONFIGURABLE_BUILTIN_TOOL_NAMES: tuple[str, ...] = (
     "kb_files",
     "knowledge_frontier",
     "read_source",
+    "read_studio_source",
+    "paper_review_checkpoint",
     "read_memory",
     "write_memory",
     "learning_status",

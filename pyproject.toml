@@ -110,6 +110,7 @@ include = ["deeptutor*", "deeptutor_cli*"]
 # scripts. Without these, ``pip install deeptutor`` ships a wheel missing
 # every agent prompt and capability fails at first use.
 deeptutor = [
+    "skills/builtin/**/*",
     "**/*.yaml",
     "**/*.yml",
     "**/*.md",
@@ -158,6 +159,8 @@ extend-exclude = '''
 # Target Python version
 target-version = "py311"
 line-length = 100
+# Vendored upstream sources are integrity-pinned and must remain byte-identical.
+extend-exclude = ["deeptutor/skills/builtin/best-paper-review"]
 
 [tool.ruff.lint]
 # Enable only foundational lint rules (intentionally relaxed)

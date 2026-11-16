@@ -1,0 +1,24 @@
+{
+  "note": "Fingerprints of the guardrail files. Regenerate only when releasing; the official value is published in README.md.",
+  "skill_version": "1.5.1",
+  "date": "2026-11-02",
+  "rules_sha256": "a4465b789e4e8c9fe16abbffed2b93144422283d5dec31a8ea50748c7aaead5b",
+  "files": {
+    "SKILL.md": "25e556f4796da2c41b71b39945428d57af5e543d8da724ad270b473251f5742f",
+    "references/neutrality.md": "ea0604c0d196ff45309e9f136e0c3e07c8565a158b2233afa6b321f3cb4924c7",
+    "references/ethics.md": "3950fa91dcf664da4099007f36a8504b8e8af000c74b44d792332ad467895fdc",
+    "references/false-positives.md": "9f23ad2062f732c7ccc2b2cb1b21d73b5909da24d38e08a347b9ae16fa9fc157",
+    "references/calibration.md": "2c1d83347cf23839c93b9445f14127a335f6d9e649548297beee3dc46dd74f22",
+    "references/critique.md": "60fb35431c6663780109d0c90e5ae877e4dd5620fd2883abd9480d9fdf521525",
+    "references/submission.md": "2813c14af8b5aa757fa523c481f2718d1a20fefe943057310598a5b27f6502f9",
+    "scripts/neutrality.py": "58dddb5f66acb0a6507cdba2a10076141aba84fa961ffcebf0a9f8332b609b97",
+    "scripts/integrity.py": "056d772675ac69b8f1c1f9a541a6d13a459cd5643a3cf581bd89aa81f8253d66",
+    "scripts/evidence.py": "452500bb7a95dfb2812fe8d597eeb4ccc2b38feb60264323fb58fb7fb5437871",
+    "scripts/critique.py": "23721773fe8c1170e6cb76833735396f5754e879a9774aef770189e14076df7d",
+    "scripts/novelty.py": "69e8f4010a934e70bc0c6ac29e080f5fea5a4ebd8cfe850c964b8b68fe3806fc",
+    "scripts/render.py": "ec4d476188d7e40b1b127f7a9c09375a03d8df395603b5ee4a17da8718b493b1",
+    "scripts/stance_eval.py": "ec77f934343747267e7412fa0f9024fe605ea75b7e5a2fbfe13c0b900fc39b60",
+    "scripts/submission.py": "67e051f97e47caab2d5bf165677d70049f14819e8a334c5f494c073b01eaca15",
+    "scripts/finalize.py": "59fba22cf6dc94f2ae42b8a8a1e4753b094aa15272f83fd868eb3c2160901707"
+  }
+}

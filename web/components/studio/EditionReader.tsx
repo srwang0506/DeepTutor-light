@@ -30,6 +30,7 @@ import {
 import { Action, ErrorNotice, Field, useOperation } from './StudioShell'
 
 const StudioTutorCompanion = dynamic(() => import('./StudioTutorCompanion'), { ssr: false })
+const PaperReviewPanel = dynamic(() => import('./PaperReviewPanel'), { ssr: false })
 const StudyQuizViewer = dynamic(() => import('@/components/quiz/StudyQuizViewer'), { ssr: false })
 type InlinePractice = { session_id: string; turn_id: string; questions: QuizQuestion[] }
 
@@ -43,7 +44,7 @@ export default function EditionReader() {
   if (!principal) return <StudioLoading label="正在打开原文…" />
   return (
     <Reader
-      key={JSON.stringify([principal, workspace, params.edition, revision])}
+      key={JSON.stringify([principal, workspace, params.edition, revision, search.get('review') || ''])}
       workspace={workspace}
       identifier={params.edition}
       revision={revision}
@@ -58,12 +59,13 @@ function Reader({ workspace, identifier, revision }: { workspace: string; identi
   const access = useCapabilityAccess()
   const canTutor = !auth.loading && (!auth.learningPolicy || auth.learningPolicy.allowedSurfaces.includes('chat')) && access.has('llm')
   const [initialSession] = useState(search.get('session') || '')
-  const [panel, setPanel] = useState<'evidence' | 'tutor' | 'practice'>(initialSession ? 'tutor' : 'evidence')
+  const [initialReview] = useState(search.get('review') || '')
+  const [panel, setPanel] = useState<'evidence' | 'tutor' | 'practice' | 'review'>(initialReview ? 'review' : initialSession ? 'tutor' : 'evidence')
   const [openedTutor, setOpenedTutor] = useState(Boolean(initialSession))
   const [prompt, setPrompt] = useState<{ text: string; nonce: number } | null>(null)
   const [quiz, setQuiz] = useState<{ record: string; data: InlinePractice } | null>(null)
   const asideRef = useRef<HTMLElement>(null)
-  const openPanel = useCallback((next: 'evidence' | 'tutor' | 'practice') => {
+  const openPanel = useCallback((next: 'evidence' | 'tutor' | 'practice' | 'review') => {
     setPanel(next)
     if (next === 'tutor') setOpenedTutor(true)
     if (window.matchMedia('(max-width: 760px)').matches) {
@@ -225,7 +227,7 @@ function Reader({ workspace, identifier, revision }: { workspace: string; identi
     setPrompt({ text: action, nonce: Date.now() })
     openPanel('tutor')
   }
-  function jumpToSource(page: number, original?: string) {
+  function jumpToSource(page: number, original?: string, quote?: string) {
     const target = edition?.data.files.find(file => file.hash === (original || hash))
     if (!target || !Number.isSafeInteger(page) || page < 1 || page > target.pages) return
     if (target.hash !== hash) {
@@ -242,7 +244,7 @@ function Reader({ workspace, identifier, revision }: { workspace: string; identi
       }
     }
     setPage(page)
-    setJump({ locator: page, nonce: Date.now() })
+    setJump({ locator: page, ...(quote ? { quote } : {}), nonce: Date.now() })
   }
   const reference: StudioSourceReference | null = edition && file ? {
     scope: edition.scope,
@@ -388,12 +390,13 @@ function Reader({ workspace, identifier, revision }: { workspace: string; identi
           <div role="group" aria-label={t('Paper tools')} className="studio-reader-sidebar-tabs studio-pills">
             <button type="button" aria-pressed={panel === 'evidence'} onClick={() => openPanel('evidence')}>{t('原文证据')}</button>
             {canTutor && reference && <button type="button" aria-pressed={panel === 'tutor'} onClick={() => openPanel('tutor')}>{t('Paper tutor')}</button>}
+            {canTutor && reference && <button type="button" aria-pressed={panel === 'review'} onClick={() => openPanel('review')}>{t('审稿')}</button>}
             {quiz && <button type="button" aria-pressed={panel === 'practice'} onClick={() => openPanel('practice')}>{t('Practice')}</button>}
           </div>
           {openedTutor && canTutor && reference && (
             <div className="studio-reader-tutor-slot" hidden={panel !== 'tutor'}>
               <StudioTutorCompanion workspace={workspace} reference={reference} paperTitle={title} initialSessionId={initialSession}
-                prompt={prompt} onSessionBound={bindSession} onJump={jumpToSource} onClearSelection={() => setSelection(null)}
+                prompt={prompt} onSessionBound={bindSession} onJump={jumpToSource} onClearSelection={() => setSelection(null)} active={panel === 'tutor'}
                 onPractice={selection ? () => void op.run(practice) : undefined} practiceBusy={op.busy} />
             </div>
           )}
@@ -403,7 +406,12 @@ function Reader({ workspace, identifier, revision }: { workspace: string; identi
               <StudyQuizViewer key={quiz.record} questions={quiz.data.questions} sessionId={quiz.data.session_id} turnId={quiz.data.turn_id} />
             </div>
           )}
-          <div className="studio-reader-evidence-slot" hidden={panel === 'practice' || (panel === 'tutor' && canTutor && reference != null)}>
+          {panel === 'review' && canTutor && reference && <div className="studio-reader-tutor-slot">
+            <PaperReviewPanel workspace={workspace} target={{ kind: 'edition', reference }} initialReviewId={initialReview} onJump={(source, targetPage, quote) => {
+              if (source.id === edition?.id && source.revision === edition.revision && source.locator?.blob_hash === hash) jumpToSource(targetPage, hash, quote)
+            }} />
+          </div>}
+          <div className="studio-reader-evidence-slot" hidden={panel === 'practice' || panel === 'review' || (panel === 'tutor' && canTutor && reference != null)}>
           <span className="studio-eyebrow">{t('READ · THINK · CONNECT')}</span>
           <h2 style={{ marginTop: 15 }}>{selection ? t('把这一处，留下来') : t('读到哪里，想到哪里')}</h2>
           <p className="studio-note">

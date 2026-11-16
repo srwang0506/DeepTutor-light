@@ -101,3 +101,45 @@ async def test_a_large_skill_does_not_flood_the_turn_with_its_own_file_tree(
     assert result.success is False
     assert result.content.count(".md") <= _SKILL_FILE_LIST_LIMIT + 1
     assert f"({extra + 1} more)" in result.content
+
+
+@pytest.mark.asyncio
+async def test_execution_path_is_only_the_server_supplied_sandbox_location(tmp_path, monkeypatch):
+    root = tmp_path / "account/skills"
+    _write_skill(root, "demo")
+    _use_service(monkeypatch, SkillService(root=root, builtin_root=None))
+    tool = ReadSkillTool()
+    ordinary = await tool.execute(name="demo")
+    assert "execution_skill_path" not in ordinary.metadata
+    assert "DEEPTUTOR_SKILLS_DIR" not in ordinary.content
+    result = await tool.execute(
+        name="demo", _execution_skill_path="/workspace/.deeptutor/skills/demo"
+    )
+    assert result.success
+    assert result.metadata["execution_skill_path"] == "$DEEPTUTOR_SKILLS_DIR/demo"
+    assert "os.environ['DEEPTUTOR_SKILLS_DIR']" in result.content
+    assert "/workspace/.deeptutor/skills" not in str(result.metadata)
+    assert "/workspace/.deeptutor/skills" not in result.content
+    assert "staging alone does not enable execution" in result.content
+    assert str(root) not in result.content
+    invalid = await tool.execute(
+        name="demo", _execution_skill_path="/workspace/../account/skills/demo"
+    )
+    assert "execution_skill_path" not in invalid.metadata
+
+
+@pytest.mark.asyncio
+async def test_only_successful_playbook_reads_enable_a_skill_for_this_turn(tmp_path, monkeypatch):
+    root = tmp_path / "skills"
+    _write_skill(root, "demo")
+    (root / "demo/reference.md").write_text("reference only")
+    _use_service(monkeypatch, SkillService(root=root, builtin_root=None))
+    read_skills = set()
+    tool = ReadSkillTool()
+    for name, file in (("demo", "missing.md"), ("ghost", "SKILL.md"), ("demo", "reference.md")):
+        await tool.execute(name=name, file=file, _execution_skill_reads=read_skills)
+        assert read_skills == set()
+    result = await tool.execute(name=" Demo ", _execution_skill_reads=read_skills)
+    assert result.success
+    assert read_skills == {"demo"}
+    assert "execution_skill_path" not in result.metadata

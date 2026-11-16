@@ -96,6 +96,10 @@
       "class_path": "deeptutor.tools.studio_source:ReadStudioSourceTool",
       "order": 103
     },
+    "paper_review_checkpoint": {
+      "class_path": "deeptutor.tools.paper_review:PaperReviewCheckpointTool",
+      "order": 104
+    },
     "read_skill": {
       "class_path": "deeptutor.tools.builtin:ReadSkillTool",
       "order": 15

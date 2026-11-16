@@ -356,6 +356,12 @@
       "options": { "prefix": "/api/studio", "tags": ["studio"] },
       "auth": "learning",
       "order": 598
+    },
+    {
+      "reference": "deeptutor.api.routers.paper_reviews:router",
+      "options": { "prefix": "/api/studio", "tags": ["studio"] },
+      "auth": "learning",
+      "order": 599
     }
   ],
   "commands": [],

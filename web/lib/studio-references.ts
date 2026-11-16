@@ -6,7 +6,7 @@ export const STUDIO_SOURCE_LIMIT = 12
 export interface StudioSourceReference {
   owner?: 'current_account'
   scope: string
-  kind: 'edition' | 'evidence' | 'observation' | 'run' | 'remote_snapshot' | 'artifact' | 'claim'
+  kind: 'edition' | 'evidence' | 'observation' | 'run' | 'remote_snapshot' | 'artifact' | 'claim' | 'paper_review'
   id: string
   revision: number
   locator?: { blob_hash?: string; page?: number; quote?: string; region?: [number, number, number, number] }
@@ -28,7 +28,7 @@ export function studioReferenceKey(ref: StudioSourceReference) {
 
 export function normalizeStudioReferences(input: unknown): StudioSourceReference[] {
   if (!Array.isArray(input)) return []
-  const allowed = ['edition', 'evidence', 'observation', 'run', 'remote_snapshot', 'artifact', 'claim']
+  const allowed = ['edition', 'evidence', 'observation', 'run', 'remote_snapshot', 'artifact', 'claim', 'paper_review']
   const items = input.filter((value): value is StudioSourceReference =>
     !!value && typeof value === 'object' && allowed.includes(value.kind) &&
     typeof value.scope === 'string' && typeof value.id === 'string' && value.id.length > 0 &&

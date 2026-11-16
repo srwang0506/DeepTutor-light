@@ -25,6 +25,15 @@ const StudioReferencePicker = dynamic(() => import('@/components/chat/StudioRefe
 
 interface SavedDiscussion { id: string; title: string }
 type Binding = { status: 'loading' } | { status: 'error' } | { status: 'ready'; key: string; sessionId?: string }
+export interface PaperReviewConversation {
+  reference: StudioSourceReference
+  sessionId: string
+  mode: string
+  allowInlineJump?: boolean
+  onCheckpoint: () => void
+  start: { nonce: string; text: string } | null
+  onStartAttempted: () => void
+}
 const maxDiscussions = 20
 const newDraftSlot = ''
 
@@ -58,8 +67,27 @@ export function discussionUsesEdition(
   )
 }
 
+export function discussionUsesReview(
+  messages: { role: string; metadata?: Record<string, unknown> }[],
+  source: StudioSourceReference,
+  review: StudioSourceReference,
+) {
+  const opening = messages.find(message => message.role === 'user')
+  // An API-bound native session is created before its first user message.
+  if (!opening) return true
+  const snapshot = opening.metadata?.request_snapshot
+  if (!snapshot || typeof snapshot !== 'object') return false
+  const fields = snapshot as Record<string, unknown>
+  const refs = normalizeStudioReferences(fields.studioReferences ?? fields.studio_references)
+  return [source, review].every(expected => refs.some(ref =>
+    ref.kind === expected.kind && ref.scope === expected.scope && ref.id === expected.id && ref.revision === expected.revision &&
+    (expected.kind !== 'edition' || ref.locator?.blob_hash === expected.locator?.blob_hash),
+  ))
+}
+
 export default function StudioTutorCompanion({
   workspace, reference, paperTitle, initialSessionId, prompt, onSessionBound, onJump, onClearSelection, onPractice, practiceBusy,
+  active = true, review,
 }: {
   workspace: string
   reference: StudioSourceReference
@@ -71,6 +99,8 @@ export default function StudioTutorCompanion({
   onClearSelection: () => void
   onPractice?: () => void
   practiceBusy: boolean
+  active?: boolean
+  review?: PaperReviewConversation
 }) {
   const { t } = useTranslation()
   const {
@@ -78,11 +108,12 @@ export default function StudioTutorCompanion({
     cancelStreamingTurn, regenerateLastMessage, resendLastMessage,
     retryFailedSubmission, discardFailedSubmission, switchBranch, submitUserReply,
   } = useChatStateAdapter()
-  const historyKey = sessionHistoryKey(workspace, reference)
+  const historyKey = review ? null : sessionHistoryKey(workspace, reference)
   const [history, setHistory] = useState(() => readDiscussions(historyKey))
   const [target, setTarget] = useState(() => ({
-    id: initialSessionId || readDiscussions(historyKey)[0]?.id || '', request: 0,
+    id: review?.sessionId || initialSessionId || readDiscussions(historyKey)[0]?.id || '', request: 0,
   }))
+  const lastDiscussionId = useRef(target.id)
   const [binding, setBinding] = useState<Binding>({ status: 'loading' })
   // Scope unsent text to the discussion. Visiting another discussion does not
   // overwrite it, and presets only fill an empty composer.
@@ -101,6 +132,11 @@ export default function StudioTutorCompanion({
   const appliedPrompt = useRef<number | null>(null)
   const submissionBinding = useRef<{ binding: Binding; owns: boolean }>({ binding: { status: 'loading' }, owns: false })
   const { id: editionId, revision, scope } = reference
+  const originalHash = reference.locator?.blob_hash
+  const reviewId = review?.reference.id
+  const reviewRevision = review?.reference.revision
+  const reviewScope = review?.reference.scope
+  const reviewSession = review?.sessionId
 
   useEffect(() => {
     alive.current = true
@@ -108,10 +144,12 @@ export default function StudioTutorCompanion({
   }, [])
 
   useEffect(() => {
+    if (!active) return
     const controller = new AbortController()
     void Promise.resolve().then(async () => {
       if (controller.signal.aborted) return
-      if (!target.id) {
+      const discussionId = target.id || (!reviewId ? lastDiscussionId.current : '')
+      if (!discussionId) {
         const key = newSession({ workspaceId: workspace || null, capability: 'chat',
           draftRecoveryScope: JSON.stringify(['paper', scope, editionId, revision]),
         })
@@ -120,32 +158,40 @@ export default function StudioTutorCompanion({
       }
       try {
         // A pasted session link cannot attach an arbitrary conversation to a paper.
-        if (!/^[\w-]{1,100}$/.test(target.id)) throw new Error('Invalid discussion')
-        if (!knownIds.current.has(target.id) || !showCachedSession(target.id)) {
-          const saved = await getSession(target.id, controller.signal)
+        if (!/^[\w-]{1,100}$/.test(discussionId)) throw new Error('Invalid discussion')
+        if (reviewSession && discussionId !== reviewSession) throw new Error('Mismatched review session')
+        if (reviewId || !knownIds.current.has(discussionId) || !showCachedSession(discussionId)) {
+          const saved = await getSession(discussionId, controller.signal)
           if (controller.signal.aborted) return
-          if (!discussionUsesEdition(saved.messages, { kind: 'edition', id: editionId, revision, scope }))
+          if (reviewId) {
+            if ((saved.preferences?.workspace_id || '') !== workspace || !discussionUsesReview(saved.messages,
+              { kind: 'edition', id: editionId, revision, scope, locator: { blob_hash: originalHash } },
+              { kind: 'paper_review', id: reviewId, revision: reviewRevision!, scope: reviewScope! },
+            )) throw new Error('Mismatched review discussion')
+          } else if (!discussionUsesEdition(saved.messages, { kind: 'edition', id: editionId, revision, scope })) {
             throw new Error('Mismatched discussion')
-          knownIds.current.add(target.id)
-          if (!showCachedSession(target.id)) await loadSession(target.id, { signal: controller.signal })
+          }
+          knownIds.current.add(discussionId)
+          if (!showCachedSession(discussionId)) await loadSession(discussionId, { signal: controller.signal })
         }
-        if (!controller.signal.aborted) setBinding({ status: 'ready', key: target.id, sessionId: target.id })
+        if (!controller.signal.aborted) setBinding({ status: 'ready', key: discussionId, sessionId: discussionId })
       } catch {
         if (!controller.signal.aborted) setBinding({ status: 'error' })
       }
     })
     return () => controller.abort()
-  }, [editionId, revision, scope, loadSession, newSession, showCachedSession, target, workspace])
+  }, [active, editionId, revision, scope, originalHash, reviewId, reviewRevision, reviewScope, reviewSession, loadSession, newSession, showCachedSession, target, workspace])
 
   const ownsSession = binding.status === 'ready' && (
     state.sessionKey === binding.key || state.boundFromKey === binding.key ||
     (!!binding.sessionId && state.sessionId === binding.sessionId)
   ) && (state.workspaceId || '') === workspace
-  useLayoutEffect(() => { submissionBinding.current = { binding, owns: ownsSession } }, [binding, ownsSession])
+  useLayoutEffect(() => { submissionBinding.current = { binding, owns: active && ownsSession } }, [active, binding, ownsSession])
   const boundId = ownsSession ? state.sessionId : null
   const title = ownsSession ? state.sessionTitle : ''
   useEffect(() => {
     if (!boundId) return
+    lastDiscussionId.current = boundId
     knownIds.current.add(boundId)
     onSessionBound(boundId)
     if (!historyKey) return
@@ -182,6 +228,7 @@ export default function StudioTutorCompanion({
   })
 
   function selectDiscussion(id: string) {
+    lastDiscussionId.current = id
     submissionBinding.current = { binding: { status: 'loading' }, owns: false }
     setBinding({ status: 'loading' })
     setSubmitError(false)
@@ -194,10 +241,10 @@ export default function StudioTutorCompanion({
     if (!id) onSessionBound('')
   }
 
-  async function submit() {
-    const submittedDraft = draft
+  async function submit(textOverride?: string) {
+    const submittedDraft = textOverride ?? draft
     const content = submittedDraft.trim()
-    if (!ownsSession || !content || (streaming && !awaiting) || submitLock.current) return
+    if (!active || !ownsSession || !content || (streaming && !awaiting) || submitLock.current) return
     const startedIn = binding
     const stillBound = () => alive.current && submissionBinding.current.owns &&
       submissionBinding.current.binding === startedIn
@@ -210,8 +257,9 @@ export default function StudioTutorCompanion({
         ? await submitUserReply({ text: content })
         : await sendMessage(content, undefined, undefined, undefined, undefined, {
             studioReferences: normalizeStudioReferences([
-              ...(retrying?.snapshot?.studioReferences ?? [reference]), ...sources.map(item => item.ref),
+              ...(retrying?.snapshot?.studioReferences ?? [reference, ...(review ? [review.reference] : [])]), ...sources.map(item => item.ref),
             ]),
+            ...(review ? { resourceSelection: { skills: ['best-paper-review'], mcp: [] } } : {}),
             ...(retrying ? { parentMessageId: retrying.parentMessageId } : {}),
           })
       const submittedSlot = boundId || slot
@@ -229,9 +277,36 @@ export default function StudioTutorCompanion({
     }
   }
 
+  const submitLatest = useRef(submit)
+  useLayoutEffect(() => { submitLatest.current = submit })
+  const attemptedStart = useRef<string | null>(null)
+  const hasUserMessage = messages.some(message => message.role === 'user')
+  useEffect(() => {
+    if (!active || !ownsSession || streaming || !review?.start || attemptedStart.current === review.start.nonce) return
+    const start = review.start
+    const timer = window.setTimeout(() => {
+      attemptedStart.current = start.nonce
+      review.onStartAttempted()
+      // A restored or already-submitted session is never started a second time.
+      if (hasUserMessage) return
+      setDraft(start.text)
+      void submitLatest.current(start.text)
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [active, ownsSession, streaming, review, hasUserMessage])
+  const lastCheckpoint = useRef('')
+  useEffect(() => {
+    if (!review || !ownsSession || streaming || last?.role !== 'assistant') return
+    const checkpoint = `${boundId}:${last.id}:${last.content.length}:${last.events?.length ?? 0}`
+    if (checkpoint === lastCheckpoint.current) return
+    lastCheckpoint.current = checkpoint
+    review.onCheckpoint()
+  }, [review, ownsSession, streaming, last, boundId])
+
   // A source link for the open immutable revision moves the reader, not the
   // conversation. Links to other papers still follow their own normal routes.
   function jumpFromLink(event: MouseEvent<HTMLDivElement>) {
+    if (review && !review.allowInlineJump) return
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
     const target = event.target instanceof Element ? event.target.closest('a[href]') : null
     if (!(target instanceof HTMLAnchorElement)) return
@@ -248,11 +323,11 @@ export default function StudioTutorCompanion({
 
   const onCopy = useCallback(async (text: string) => { await copyText(text) }, [])
   return (
-    <section className="flex h-full min-h-0 min-w-0 flex-col" aria-label={t('Paper tutor')}>
+    <section className="flex h-full min-h-0 min-w-0 flex-col" aria-label={t(review ? '审稿对话' : 'Paper tutor')}>
       <div className="flex shrink-0 items-center justify-between gap-2 border-b border-border px-3 py-2">
-        <strong className="flex min-w-0 items-center gap-2 text-sm"><MessageCircle size={15} aria-hidden />{t('Paper tutor')}</strong>
+        <strong className="flex min-w-0 items-center gap-2 text-sm"><MessageCircle size={15} aria-hidden />{t(review ? '审稿对话' : 'Paper tutor')}</strong>
         <div className="flex min-w-0 items-center gap-1">
-          {!!history.length && (
+          {!review && !!history.length && (
             <select className="max-w-36 truncate rounded-md border border-border bg-background p-1 text-xs"
               value={boundId || target.id} disabled={awaiting} onChange={event => selectDiscussion(event.target.value)} aria-label={t('Saved paper discussions')}>
               {!boundId && !target.id && <option value="">{t('New discussion')}</option>}
@@ -260,7 +335,7 @@ export default function StudioTutorCompanion({
               {history.map(row => <option key={row.id} value={row.id}>{row.title || t('New discussion')}</option>)}
             </select>
           )}
-          {boundId && (
+          {!review && boundId && (
             <Button variant="ghost" size="sm" aria-label={t('Copy discussion link')} title={t('Copy discussion link')}
               onClick={async () => {
                 const url = new URL(scopedUrl(studioReferenceHref(reference), workspace), window.location.origin)
@@ -269,8 +344,8 @@ export default function StudioTutorCompanion({
                 catch { setCopied(false) }
               }}><Link2 size={15} /></Button>
           )}
-          <Button variant="ghost" size="sm" aria-label={t('New discussion')} title={t('New discussion')}
-            disabled={binding.status === 'loading' || streaming} onClick={() => selectDiscussion('')}><Plus size={16} /></Button>
+          {!review && <Button variant="ghost" size="sm" aria-label={t('New discussion')} title={t('New discussion')}
+            disabled={binding.status === 'loading' || streaming} onClick={() => selectDiscussion('')}><Plus size={16} /></Button>}
         </div>
       </div>
       {copied && <p role="status" className="px-3 pt-2 text-xs text-muted-foreground">{t('Link copied')}</p>}
@@ -278,12 +353,12 @@ export default function StudioTutorCompanion({
         {binding.status === 'loading' && <p role="status" className="text-sm text-muted-foreground">{t('Loading...')}</p>}
         {binding.status === 'error' && (
           <InlineAlert tone="danger">
-            {t('This paper discussion could not be opened.')}
+            {t(review ? '审稿对话无法打开，原稿版本或会话归属需要重新核对。' : 'This paper discussion could not be opened.')}
             <button type="button" className="ml-2 underline" onClick={() => selectDiscussion(target.id)}>{t('Retry')}</button>
           </InlineAlert>
         )}
         {binding.status === 'ready' && !messages.length && (
-          <p className="text-sm text-muted-foreground">{t('Ask about the current page or select a passage in the paper.')}</p>
+          <p className="text-sm text-muted-foreground">{t(review ? '这段对话使用本次审稿固定的原稿和审稿模式。' : 'Ask about the current page or select a passage in the paper.')}</p>
         )}
         {!!messages.length && (
           <ChatMessageList messages={messages} isStreaming={streaming} sessionId={boundId} language={state.language}
@@ -312,6 +387,7 @@ export default function StudioTutorCompanion({
         <div className="flex min-w-0 flex-wrap items-center gap-1.5 text-xs">
           <Link href={scopedUrl(studioReferenceHref(groundedRef), workspace)}
             onClick={event => {
+              if (review && !review.allowInlineJump) return
               if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
               event.preventDefault()
               onJump(groundedRef.locator?.page || 1, groundedRef.locator?.blob_hash)
@@ -321,7 +397,7 @@ export default function StudioTutorCompanion({
             <span className="max-w-44 truncate">{paperTitle}</span>
             {groundedRef.locator?.page && <span className="shrink-0"> · {t('Page {{number}}', { number: groundedRef.locator.page })}</span>}
           </Link>
-          {!retrying && reference.locator?.quote && <button type="button" aria-label={t('Clear selection')} onClick={onClearSelection} className="rounded-md p-1 hover:bg-muted"><X size={14} /></button>}
+          {!review && !retrying && reference.locator?.quote && <button type="button" aria-label={t('Clear selection')} onClick={onClearSelection} className="rounded-md p-1 hover:bg-muted"><X size={14} /></button>}
           {sources.map(source => (
             <button key={studioReferenceKey(source.ref)} type="button" className="flex min-w-0 items-center gap-1 rounded-md bg-muted px-2 py-1"
               aria-label={t('Remove source: {{title}}', { title: source.title })}
@@ -332,7 +408,7 @@ export default function StudioTutorCompanion({
         </div>
         {groundedRef.locator?.quote && <p className="line-clamp-2 border-l-2 border-border pl-2 text-xs text-muted-foreground" title={groundedRef.locator.quote}>{groundedRef.locator.quote}</p>}
         {submitError && <InlineAlert tone="danger">{t('Could not send this message. Please try again.')}</InlineAlert>}
-        <textarea ref={inputRef} aria-label={t('Ask about this paper')} placeholder={t('Ask about this paper')} rows={2}
+        <textarea ref={inputRef} aria-label={t(review ? '继续审稿或讨论修改' : 'Ask about this paper')} placeholder={t(review ? '继续审稿或讨论修改' : 'Ask about this paper')} rows={2}
           className="block w-full resize-y rounded-xl border border-border bg-background p-2 text-sm outline-none focus:ring-2 focus:ring-ring"
           value={draft} onChange={event => setDraft(event.target.value)} disabled={!ownsSession}
           onKeyDown={event => {
@@ -344,11 +420,11 @@ export default function StudioTutorCompanion({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex flex-wrap gap-1">
             <Button type="button" variant="ghost" size="sm" onClick={() => setPicker(true)} disabled={!ownsSession}>{t('Research sources')}</Button>
-            <Button type="button" variant="ghost" size="sm" disabled={!ownsSession || streaming}
+            {!review && <Button type="button" variant="ghost" size="sm" disabled={!ownsSession || streaming}
               onClick={() => {
                 setDraft(current => current.trim() ? current : t('Give me one hint about this passage without showing the full answer.'))
                 inputRef.current?.focus()
-              }}>{t('Hint')}</Button>
+              }}>{t('Hint')}</Button>}
             {onPractice && <Button type="button" variant="ghost" size="sm" loading={practiceBusy}
               disabled={streaming} onClick={onPractice}>{t('Practice')}</Button>}
           </div>
@@ -358,7 +434,7 @@ export default function StudioTutorCompanion({
         </div>
       </form>
       {picker && (
-        <StudioReferencePicker workspace={workspace} initial={sources} limit={STUDIO_SOURCE_LIMIT - 1}
+        <StudioReferencePicker workspace={workspace} initial={sources} limit={STUDIO_SOURCE_LIMIT - (review ? 2 : 1)}
           onClose={() => setPicker(false)} onApply={rows => { setSources(rows); setPicker(false) }} />
       )}
     </section>

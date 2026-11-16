@@ -1,0 +1,23 @@
+{
+  "manifest_version": 1,
+  "generated_by": "extract_pdf.py",
+  "tool": "pdftotext version 24.02.0",
+  "pdf_sha256": "b2c7333fecfb6443a1dd48502273801044d60d54a745463c87c8902badc432a2",
+  "pdf_name": "threshskip.pdf",
+  "pages": [
+    {
+      "page": 1,
+      "start": 0,
+      "end": 551
+    }
+  ],
+  "page_count": 1,
+  "text_sha256": "fa51052bf60c4568460f76f4eb5e21799896c63b89a6d3a8b50015d6dc730ff7",
+  "low_text_pages": [],
+  "injection_hits": [],
+  "created_at": "2026-10-31T07:57:41+00:00",
+  "version": "v1",
+  "public_date": "2024-05-10",
+  "title": "ThreshSkip (synthetic prior)",
+  "url": null
+}

@@ -2503,7 +2503,9 @@ export const ChatMessageList = memo(function ChatMessageList({
                       <a href={scopedUrl(studioReferenceHref(ref), ref.scope === "@library" ? undefined : ref.scope)}
                         className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground">
                         <BookMarked size={12} aria-hidden />
-                        {ref.kind === "edition" && ref.locator?.page
+                        {ref.kind === "paper_review"
+                          ? t("模拟审稿")
+                          : ref.kind === "edition" && ref.locator?.page
                           ? t("Page {{number}}", { number: ref.locator.page })
                           : t("Revision {{number}}", { number: ref.revision })}
                       </a>

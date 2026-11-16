@@ -37,7 +37,10 @@ def build(output: Path, selected: list[str]) -> list[Path]:
         for path in (ROOT / base).rglob("*")
         if path.is_file()
         and "__pycache__" not in path.parts
-        and "tests" not in path.parts
+        and (
+            "tests" not in path.parts
+            or path.is_relative_to(ROOT / "deeptutor" / "skills" / "builtin")
+        )
         and path.suffix not in {".pyc", ".pyo"}
     ]
     ownership = {path: owner(path.relative_to(ROOT).as_posix()) for path in files}
@@ -77,6 +80,7 @@ where = ["."]
 include = ["deeptutor*", "deeptutor_cli*", "deeptutor_web*"]
 namespaces = true
 [tool.setuptools.package-data]
+"deeptutor" = ["skills/builtin/**/*"]
 "deeptutor_web" = ["**/*", ".next/**/*"]
 "*" = ["*.json", "*.yaml", "*.yml", "*.md", "*.sh", "*.j2", "*.jinja", "*.ts", "*.tsx", "*.mjs", "*.js", "*.css", "*.html", "*.svg", "*.png", "*.woff2"]
 """
@@ -91,6 +95,7 @@ namespaces = true
                     config += f"{json.dumps(key)} = {json.dumps(value)}\n"
             (stage / "MANIFEST.in").write_text(
                 "recursive-include deeptutor_web *\nrecursive-include deeptutor_web/.next *\n"
+                "recursive-include deeptutor/skills/builtin *\n"
             )
             (stage / "pyproject.toml").write_text(config)
             result = subprocess.run(

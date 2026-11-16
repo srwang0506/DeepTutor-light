@@ -54,7 +54,17 @@ def start_local_embedding(processes):
     raise RuntimeError("Local Ollama readiness check timed out")
 
 
-def main():
+def port_number(value):
+    try:
+        port = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("Port must be an integer from 1 to 65535") from exc
+    if not 1 <= port <= 65535:
+        raise argparse.ArgumentTypeError("Port must be an integer from 1 to 65535")
+    return port
+
+
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["run", "doctor"])
     parser.add_argument("--home", type=Path, default=ROOT / "study-data")
@@ -67,23 +77,37 @@ def main():
     parser.add_argument(
         "--local-embedding", action="store_true", help="Start the bundled Ollama server when needed"
     )
-    parser.add_argument("--port", type=int, default=3782)
-    args = parser.parse_args()
+    parser.add_argument(
+        "--port", type=port_number, default=3782, help="Frontend port (default: 3782)"
+    )
+    parser.add_argument(
+        "--backend-port", type=port_number, default=8001, help="Backend API port (default: 8001)"
+    )
+    args = parser.parse_args(argv)
+    if args.port == args.backend_port:
+        parser.error("--port and --backend-port must be different")
+    return args
+
+
+def main(argv=None):
+    args = parse_args(argv)
+    backend_url = f"http://127.0.0.1:{args.backend_port}"
     os.environ["DEEPTUTOR_HOME"] = str(args.home.resolve())
     os.environ["DEEPTUTOR_STUDY_RUNTIME"] = "1"
-    os.environ["BACKEND_PORT"] = "8001"
+    os.environ["BACKEND_PORT"] = str(args.backend_port)
     os.environ["DEEPTUTOR_LOCAL_CAPABILITY"] = secrets.token_urlsafe(32)
     os.environ["DEEPTUTOR_LOCAL_ORIGINS"] = (
         f"http://127.0.0.1:{args.port},http://localhost:{args.port}"
     )
-    os.environ["NEXT_PUBLIC_API_BASE"] = "http://127.0.0.1:8001"
-    os.environ["DEEPTUTOR_API_BASE_URL"] = "http://127.0.0.1:8001"
+    os.environ["NEXT_PUBLIC_API_BASE"] = backend_url
+    os.environ["DEEPTUTOR_API_BASE_URL"] = backend_url
     for key in ("NO_PROXY", "no_proxy"):
         entries = [part for part in os.environ.get(key, "").split(",") if part]
         os.environ[key] = ",".join(dict.fromkeys([*entries, "localhost", "127.0.0.1"]))
     if args.codex_login:
         os.environ["DEEPTUTOR_USE_CODEX_LOGIN"] = "1"
     print("Runtime:", args.home.resolve(), flush=True)
+    print("Backend API:", backend_url, flush=True)
     for module in ["uvicorn", "fastapi", "llama_index", "bm25s", "pymupdf", "PIL"]:
         if importlib.util.find_spec(module) is None:
             raise SystemExit(f"Missing {module}; install requirements/study.lock.txt first.")
@@ -130,7 +154,9 @@ def main():
         os.environ["DEEPTUTOR_NEXT_DIST_DIR"] = ".next-study"
         if not (ROOT / "web/.next-study/BUILD_ID").exists():
             raise SystemExit(
-                "Build first: DEEPTUTOR_NEXT_DIST_DIR=.next-study NEXT_PUBLIC_API_BASE=http://127.0.0.1:8001 npm --prefix web run build"
+                "Build first: DEEPTUTOR_NEXT_DIST_DIR=.next-study "
+                f"BACKEND_PORT={args.backend_port} NEXT_PUBLIC_API_BASE={backend_url} "
+                "npm --prefix web run build"
             )
     processes = []
 
@@ -152,7 +178,7 @@ def main():
                     "--host",
                     "127.0.0.1",
                     "--port",
-                    "8001",
+                    str(args.backend_port),
                     "--timeout-graceful-shutdown",
                     "5",
                 ],
@@ -163,7 +189,7 @@ def main():
             if processes[backend_index].poll() is not None:
                 raise RuntimeError("Backend failed to start")
             try:
-                with urlopen("http://127.0.0.1:8001/health/ready", timeout=1) as response:
+                with urlopen(f"{backend_url}/health/ready", timeout=1) as response:
                     if response.status == 200:
                         break
             except Exception:

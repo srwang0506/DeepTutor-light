@@ -1,0 +1,6 @@
+interface:
+  display_name: "Best-Paper Review"
+  short_description: "Evidence-checked paper review: per-contribution novelty search, nine-dimension checklist, independent critique, PDF reader and English submission draft"
+  default_prompt: "Use $best-paper-review to run a full review of paper.pdf for the target venue."
+policy:
+  allow_implicit_invocation: true

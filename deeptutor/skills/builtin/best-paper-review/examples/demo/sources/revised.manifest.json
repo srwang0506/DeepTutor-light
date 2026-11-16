@@ -1,0 +1,35 @@
+{
+  "manifest_version": 1,
+  "generated_by": "extract_pdf.py",
+  "tool": "pdftotext version 24.02.0",
+  "pdf_sha256": "c34f220830420297813769d7aa5b94ace2051e7fef2e86cb38802c5f9fa9764d",
+  "source_kind": "pdf",
+  "pdf_name": "paper_v2.pdf",
+  "pages": [
+    {
+      "page": 1,
+      "start": 0,
+      "end": 830
+    },
+    {
+      "page": 2,
+      "start": 832,
+      "end": 1607
+    },
+    {
+      "page": 3,
+      "start": 1609,
+      "end": 2385
+    },
+    {
+      "page": 4,
+      "start": 2387,
+      "end": 2979
+    }
+  ],
+  "page_count": 4,
+  "text_sha256": "96ad05711436dfd75d6a069fd50a1b59179c1639be69affcffd21952deb734a5",
+  "low_text_pages": [],
+  "injection_hits": [],
+  "created_at": "2026-10-31T12:40:48+00:00"
+}

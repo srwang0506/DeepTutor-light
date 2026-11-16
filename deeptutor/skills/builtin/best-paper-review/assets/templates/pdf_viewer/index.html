@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>审稿批注查看器</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="viewer.css">
+</head>
+<body>
+<div id="app">
+  <header id="toolbar">
+    <div class="brand">
+      <div class="logo"><svg class="i" viewBox="0 0 24 24"><path d="M4 4h11l5 5v11H4z"/><path d="M15 4v5h5"/><path d="M8 13l2.5 2.5L16 10"/></svg></div>
+      <div class="titles"><div class="doc-title" id="docTitle">审稿批注查看器</div><div class="doc-meta" id="docMeta">打开 PDF 与审稿 JSON 开始</div></div>
+    </div>
+    <div class="group hide-sm">
+      <button id="btnOpenPdf" class="icon" title="打开 PDF"><svg class="i" viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v10H3z"/></svg></button>
+      <button id="btnOpenJson" class="icon" title="打开审稿 JSON"><svg class="i" viewBox="0 0 24 24"><path d="M8 4H6a2 2 0 0 0-2 2v4l-2 2 2 2v4a2 2 0 0 0 2 2h2M16 4h2a2 2 0 0 1 2 2v4l2 2-2 2v4a2 2 0 0 1-2 2h-2"/></svg></button>
+    </div>
+    <input type="file" id="filePdf" accept="application/pdf" hidden>
+    <input type="file" id="fileJson" accept="application/json,.json" hidden>
+    <div class="group">
+      <button id="btnZoomOut" class="icon" title="缩小 (-)"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M8 11h6M20 20l-4-4"/></svg></button>
+      <select id="zoomSel" title="缩放">
+        <option value="fit">适合宽度</option><option value="0.75">75%</option><option value="1">100%</option>
+        <option value="1.25">125%</option><option value="1.5">150%</option><option value="2">200%</option>
+      </select>
+      <button id="btnZoomIn" class="icon" title="放大 (+)"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M8 11h6M11 8v6M20 20l-4-4"/></svg></button>
+      <span class="pageNav">第<input type="number" id="pageInput" min="1" value="1" title="跳转页码"><span id="pageTotal">/ 0</span>页</span>
+    </div>
+    <div class="group">
+      <button id="btnAddGlobal" title="新建全文意见"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>全文</button>
+      <button id="btnAddPage" title="在当前页新建页级意见 (N)"><svg class="i" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M12 10v6M9 13h6"/></svg>页级</button>
+      <button id="btnRegion" title="框选区域新建意见 (R)"><svg class="i" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2" stroke-dasharray="3 2.5"/></svg>框选</button>
+      <button id="btnUndo" class="icon" title="撤销 (Ctrl+Z)" disabled><svg class="i" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+    </div>
+    <span class="spacer"></span>
+    <span id="saveState"></span>
+    <button id="btnSave" class="primary" title="保存到磁盘 (Ctrl+S)" hidden><svg class="i" viewBox="0 0 24 24"><path d="M5 4h11l3 3v13H5z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/></svg>保存</button>
+    <div class="menu" id="exportMenu">
+      <button id="btnExport"><svg class="i" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>导出</button>
+      <div class="items">
+        <button data-export="json">审稿 JSON<small>可再次导入</small></button>
+        <button data-export="md">Markdown 审稿意见<small>纯文本</small></button>
+        <button data-export="pdf">带批注的 PDF<small>原生注释</small></button>
+      </div>
+    </div>
+    <button id="btnTheme" class="icon ghost" title="切换深色/浅色"><svg class="i" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></button>
+    <button id="btnHelp" class="icon ghost" title="快捷键与说明"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.5V14M12 17.5v.01"/></svg></button>
+  </header>
+  <div id="banner"></div>
+  <div id="main">
+    <div id="viewer">
+      <div id="drop">
+        <div class="logo"><svg class="i" viewBox="0 0 24 24"><path d="M4 4h11l5 5v11H4z"/><path d="M15 4v5h5"/><path d="M8 13l2.5 2.5L16 10"/></svg></div>
+        <h2>打开论文与审稿意见</h2>
+        <p>把 PDF 和审稿 JSON 拖到这里，或点击下方按钮。</p>
+        <div class="actions"><button id="dropPdf">选择 PDF</button><button id="dropJson">选择审稿 JSON</button></div>
+        <p class="hint">文件只在本机浏览器中处理，不会上传。</p>
+      </div>
+      <div id="pages"></div>
+    </div>
+    <div id="gutter" title="拖动调整宽度"></div>
+    <aside id="side">
+      <div class="summary" id="summary"></div>
+      <div class="sidehead">
+        <div id="tabs">
+          <button data-tab="comments" class="active">意见</button>
+          <button data-tab="overall">总评</button>
+          <button data-tab="dims">维度</button>
+          <button data-tab="critique">复核</button>
+          <button data-tab="sources">来源</button>
+        </div>
+        <button id="btnWide" class="icon ghost" title="加宽审稿面板 (W)"><svg class="i" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M10 5v14"/><path d="M15 10l-2 2 2 2"/></svg></button>
+      </div>
+      <div class="tab active" id="tab-comments">
+        <div id="filters">
+          <div class="frow">
+            <label class="search"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+              <input type="search" id="q" placeholder="搜索标题、正文、引文…（/）"></label>
+            <button id="btnFilters" title="更多筛选"><svg class="i" viewBox="0 0 24 24"><path d="M4 6h16M7 12h10M10 18h4"/></svg>筛选<span class="n" id="fCount" hidden></span></button>
+          </div>
+          <div class="fmore" id="fMore" hidden>
+            <select id="fScope"><option value="">全部位置</option><option value="global">全文</option><option value="page">页级</option><option value="region">区域</option><option value="current">当前页</option></select>
+            <select id="fStatus"><option value="">全部状态</option></select>
+            <select id="fSev"><option value="">全部严重度</option><option value="major">主要</option><option value="minor">次要</option></select>
+            <select id="fDim"><option value="">全部维度</option></select>
+          </div>
+          <div id="counts"></div>
+        </div>
+        <div id="list"></div>
+        <div id="detail" hidden></div>
+      </div>
+      <div class="tab" id="tab-overall"><div class="panel" id="overallPanel"></div></div>
+      <div class="tab" id="tab-dims"><div class="panel" id="dimsPanel"></div></div>
+      <div class="tab" id="tab-critique"><div class="panel" id="critiquePanel"></div></div>
+      <div class="tab" id="tab-sources"><div class="panel" id="sourcesPanel"></div></div>
+    </aside>
+  </div>
+</div>
+<div id="selPop"><button id="popNew">以选中文字新建意见</button><button id="popAdd">添加为当前意见的证据</button></div>
+<dialog id="editor"><form method="dialog" id="editForm"></form></dialog>
+<dialog id="help"><form method="dialog">
+  <h3>快捷键与说明</h3>
+  <label>浏览</label><div>点击意见打开阅读视图，<span class="kbd">Esc</span> 返回列表；<span class="kbd">J</span> / <span class="kbd">K</span> 下一条 / 上一条意见；<span class="kbd">W</span> 加宽审稿面板；<span class="kbd">+</span> / <span class="kbd">-</span> 缩放；<span class="kbd">/</span> 搜索</div>
+  <label>新建</label><div><span class="kbd">N</span> 当前页页级意见；<span class="kbd">R</span> 框选区域（拖动鼠标）；在 PDF 上选中文字可直接引用为证据</div>
+  <label>编辑</label><div><span class="kbd">E</span> 编辑所选；<span class="kbd">Del</span> 删除所选；<span class="kbd">Ctrl</span>+<span class="kbd">Z</span> 撤销；拖动选中区域可移动，拖右下角可调整大小</div>
+  <label>保存</label><div><span class="kbd">Ctrl</span>+<span class="kbd">S</span> 保存（通过 serve.py 打开时写回磁盘；否则导出 JSON）。编辑会自动暂存在浏览器中。</div>
+  <label>证据</label><div>引文旁的 ✓ 表示在对应版本的快照中找到该引文且页码一致；✗ 表示找不到或页码不符。这只说明引文存在，不说明结论成立。</div>
+  <label>导出 PDF</label><div>导出的 PDF 含原生注释（区域框、页级便签、首页全文意见），原 PDF 不会被修改。</div>
+  <div class="foot"><button class="primary" value="close">关闭</button></div>
+</form></dialog>
+<div id="toast"></div>
+<script src="vendor/pdf.min.js"></script>
+<script src="vendor/pdf-lib.min.js"></script>
+<script src="viewer.js"></script>
+</body>
+</html>

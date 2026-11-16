@@ -1,0 +1,1525 @@
+{
+ "source": "CCF 推荐国际学术会议和期刊目录（第七版，2026-03-31 发布）",
+ "source_checked": "2026-10-31",
+ "forms": {
+  "generic_conference": {
+   "verified": false,
+   "sections": [
+    "论文概述",
+    "主要优点",
+    "主要问题",
+    "给作者的问题",
+    "局限性与社会影响",
+    "总体推荐",
+    "置信度"
+   ],
+   "overall_scale": [
+    [
+     1,
+     "强烈拒绝 Strong Reject"
+    ],
+    [
+     2,
+     "拒绝 Reject"
+    ],
+    [
+     3,
+     "弱拒绝 Weak Reject"
+    ],
+    [
+     4,
+     "弱接收 Weak Accept"
+    ],
+    [
+     5,
+     "接收 Accept"
+    ],
+    [
+     6,
+     "强烈接收 Strong Accept"
+    ]
+   ],
+   "confidence_scale": [
+    [
+     5,
+     "非常确定"
+    ],
+    [
+     4,
+     "有把握，但非绝对"
+    ],
+    [
+     3,
+     "较有把握"
+    ],
+    [
+     2,
+     "愿意辩护，但可能遗漏核心部分"
+    ],
+    [
+     1,
+     "有根据的猜测"
+    ]
+   ],
+   "subscores": {}
+  },
+  "generic_journal": {
+   "verified": false,
+   "sections": [
+    "论文概述",
+    "对编辑的总体意见",
+    "主要问题（逐条编号）",
+    "次要问题",
+    "给作者的修改要求",
+    "推荐意见",
+    "置信度"
+   ],
+   "overall_scale": [
+    [
+     1,
+     "拒稿 Reject"
+    ],
+    [
+     2,
+     "拒稿，鼓励重投 Reject & Resubmit"
+    ],
+    [
+     3,
+     "大修 Major Revision"
+    ],
+    [
+     4,
+     "小修 Minor Revision"
+    ],
+    [
+     5,
+     "接收 Accept"
+    ]
+   ],
+   "confidence_scale": [
+    [
+     5,
+     "非常确定"
+    ],
+    [
+     4,
+     "有把握，但非绝对"
+    ],
+    [
+     3,
+     "较有把握"
+    ],
+    [
+     2,
+     "愿意辩护，但可能遗漏核心部分"
+    ],
+    [
+     1,
+     "有根据的猜测"
+    ]
+   ],
+   "subscores": {}
+  },
+  "ICML": {
+   "verified": true,
+   "checked": "2026-10-31",
+   "year": 2026,
+   "sections": [
+    "Summary 论文概述",
+    "Strengths and Weaknesses 优点与不足（含 soundness/presentation/significance/originality）",
+    "Key Questions for Authors 关键问题（3–5 条编号）",
+    "Limitations 局限性",
+    "Overall Recommendation 总体推荐",
+    "Confidence 置信度",
+    "Ethical Concerns 伦理问题",
+    "Final Justification 答辩后最终理由"
+   ],
+   "overall_scale": [
+    [
+     1,
+     "强烈拒绝 Strong Reject"
+    ],
+    [
+     2,
+     "拒绝 Reject"
+    ],
+    [
+     3,
+     "弱拒绝 Weak Reject"
+    ],
+    [
+     4,
+     "弱接收 Weak Accept"
+    ],
+    [
+     5,
+     "接收 Accept"
+    ],
+    [
+     6,
+     "强烈接收 Strong Accept"
+    ]
+   ],
+   "confidence_scale": [
+    [
+     5,
+     "非常确定"
+    ],
+    [
+     4,
+     "有把握，但非绝对"
+    ],
+    [
+     3,
+     "较有把握"
+    ],
+    [
+     2,
+     "愿意辩护，但可能遗漏核心部分"
+    ],
+    [
+     1,
+     "有根据的猜测"
+    ]
+   ],
+   "subscores": {
+    "soundness": [
+     [
+      4,
+      "优秀 excellent"
+     ],
+     [
+      3,
+      "良好 good"
+     ],
+     [
+      2,
+      "一般 fair"
+     ],
+     [
+      1,
+      "较差 poor"
+     ]
+    ],
+    "presentation": [
+     [
+      4,
+      "优秀 excellent"
+     ],
+     [
+      3,
+      "良好 good"
+     ],
+     [
+      2,
+      "一般 fair"
+     ],
+     [
+      1,
+      "较差 poor"
+     ]
+    ],
+    "significance": [
+     [
+      4,
+      "优秀 excellent"
+     ],
+     [
+      3,
+      "良好 good"
+     ],
+     [
+      2,
+      "一般 fair"
+     ],
+     [
+      1,
+      "较差 poor"
+     ]
+    ],
+    "originality": [
+     [
+      4,
+      "优秀 excellent"
+     ],
+     [
+      3,
+      "良好 good"
+     ],
+     [
+      2,
+      "一般 fair"
+     ],
+     [
+      1,
+      "较差 poor"
+     ]
+    ]
+   },
+   "guide_url": "https://icml.cc/Conferences/2026/ReviewerInstructions",
+   "llm_policy": "审稿人被分配保守（禁止 LLM）或宽松（允许用于理解论文与润色）政策之一；Position 论文一律保守。"
+  },
+  "NeurIPS": {
+   "verified": false,
+   "note": "2026 指南确认评价维度为 Quality/Clarity/Significance/Originality；分数量表沿用近年常见形式，提交前请核对当年表单。",
+   "sections": [
+    "Summary 概述",
+    "Strengths and Weaknesses 优点与不足",
+    "Questions 问题",
+    "Limitations 局限性",
+    "Rating 总评",
+    "Confidence 置信度",
+    "Ethics 伦理"
+   ],
+   "overall_scale": [
+    [
+     1,
+     "强烈拒绝 Strong Reject"
+    ],
+    [
+     2,
+     "拒绝 Reject"
+    ],
+    [
+     3,
+     "弱拒绝 Weak Reject"
+    ],
+    [
+     4,
+     "弱接收 Weak Accept"
+    ],
+    [
+     5,
+     "接收 Accept"
+    ],
+    [
+     6,
+     "强烈接收 Strong Accept"
+    ]
+   ],
+   "confidence_scale": [
+    [
+     5,
+     "非常确定"
+    ],
+    [
+     4,
+     "有把握，但非绝对"
+    ],
+    [
+     3,
+     "较有把握"
+    ],
+    [
+     2,
+     "愿意辩护，但可能遗漏核心部分"
+    ],
+    [
+     1,
+     "有根据的猜测"
+    ]
+   ],
+   "subscores": {
+    "quality": [
+     [
+      4,
+      "优秀 excellent"
+     ],
+     [
+      3,
+      "良好 good"
+     ],
+     [
+      2,
+      "一般 fair"
+     ],
+     [
+      1,
+      "较差 poor"
+     ]
+    ],
+    "clarity": [
+     [
+      4,
+      "优秀 excellent"
+     ],
+     [
+      3,
+      "良好 good"
+     ],
+     [
+      2,
+      "一般 fair"
+     ],
+     [
+      1,
+      "较差 poor"
+     ]
+    ],
+    "significance": [
+     [
+      4,
+      "优秀 excellent"
+     ],
+     [
+      3,
+      "良好 good"
+     ],
+     [
+      2,
+      "一般 fair"
+     ],
+     [
+      1,
+      "较差 poor"
+     ]
+    ],
+    "originality": [
+     [
+      4,
+      "优秀 excellent"
+     ],
+     [
+      3,
+      "良好 good"
+     ],
+     [
+      2,
+      "一般 fair"
+     ],
+     [
+      1,
+      "较差 poor"
+     ]
+    ]
+   },
+   "guide_url": "https://neurips.cc/Conferences/2026/ReviewerGuidelines"
+  },
+  "ICLR": {
+   "verified": false,
+   "note": "量表为近年常见形式（1/2/4/6/8/10），请核对当年审稿指南。",
+   "sections": [
+    "Summary 概述",
+    "Strengths 优点",
+    "Weaknesses 不足",
+    "Questions 问题",
+    "Rating 总评",
+    "Confidence 置信度"
+   ],
+   "overall_scale": [
+    [
+     1,
+     "强烈拒绝 Strong Reject"
+    ],
+    [
+     2,
+     "拒绝 Reject"
+    ],
+    [
+     3,
+     "弱拒绝 Weak Reject"
+    ],
+    [
+     4,
+     "弱接收 Weak Accept"
+    ],
+    [
+     5,
+     "接收 Accept"
+    ],
+    [
+     6,
+     "强烈接收 Strong Accept"
+    ]
+   ],
+   "confidence_scale": [
+    [
+     5,
+     "非常确定"
+    ],
+    [
+     4,
+     "有把握，但非绝对"
+    ],
+    [
+     3,
+     "较有把握"
+    ],
+    [
+     2,
+     "愿意辩护，但可能遗漏核心部分"
+    ],
+    [
+     1,
+     "有根据的猜测"
+    ]
+   ],
+   "subscores": {
+    "soundness": [
+     [
+      4,
+      "优秀 excellent"
+     ],
+     [
+      3,
+      "良好 good"
+     ],
+     [
+      2,
+      "一般 fair"
+     ],
+     [
+      1,
+      "较差 poor"
+     ]
+    ],
+    "presentation": [
+     [
+      4,
+      "优秀 excellent"
+     ],
+     [
+      3,
+      "良好 good"
+     ],
+     [
+      2,
+      "一般 fair"
+     ],
+     [
+      1,
+      "较差 poor"
+     ]
+    ],
+    "contribution": [
+     [
+      4,
+      "优秀 excellent"
+     ],
+     [
+      3,
+      "良好 good"
+     ],
+     [
+      2,
+      "一般 fair"
+     ],
+     [
+      1,
+      "较差 poor"
+     ]
+    ]
+   },
+   "guide_url": "https://iclr.cc/"
+  },
+  "ACL": {
+   "verified": false,
+   "note": "ACL 经 ARR 评审，字段为近年常见形式，请核对当期 ARR 表单。",
+   "sections": [
+    "Paper Summary 概述",
+    "Summary of Strengths 优点",
+    "Summary of Weaknesses 不足",
+    "Comments/Suggestions 意见与建议",
+    "Soundness 可靠性",
+    "Excitement 兴奋度",
+    "Overall Assessment 总体评估",
+    "Confidence 置信度",
+    "Reproducibility 可复现性",
+    "Ethical Concerns 伦理"
+   ],
+   "overall_scale": [
+    [
+     1,
+     "强烈拒绝 Strong Reject"
+    ],
+    [
+     2,
+     "拒绝 Reject"
+    ],
+    [
+     3,
+     "弱拒绝 Weak Reject"
+    ],
+    [
+     4,
+     "弱接收 Weak Accept"
+    ],
+    [
+     5,
+     "接收 Accept"
+    ],
+    [
+     6,
+     "强烈接收 Strong Accept"
+    ]
+   ],
+   "confidence_scale": [
+    [
+     5,
+     "非常确定"
+    ],
+    [
+     4,
+     "有把握，但非绝对"
+    ],
+    [
+     3,
+     "较有把握"
+    ],
+    [
+     2,
+     "愿意辩护，但可能遗漏核心部分"
+    ],
+    [
+     1,
+     "有根据的猜测"
+    ]
+   ],
+   "subscores": {
+    "soundness": [
+     [
+      5,
+      "优秀"
+     ],
+     [
+      4,
+      "强"
+     ],
+     [
+      3,
+      "可接受"
+     ],
+     [
+      2,
+      "较弱"
+     ],
+     [
+      1,
+      "差"
+     ]
+    ],
+    "excitement": [
+     [
+      5,
+      "非常激动人心"
+     ],
+     [
+      4,
+      "有趣"
+     ],
+     [
+      3,
+      "一般"
+     ],
+     [
+      2,
+      "可能不感兴趣"
+     ],
+     [
+      1,
+      "不感兴趣"
+     ]
+    ]
+   },
+   "guide_url": "https://aclrollingreview.org/"
+  },
+  "CVPR": {
+   "verified": false,
+   "note": "CVF 会议量表逐年调整，请核对当年审稿指南。",
+   "sections": [
+    "Summary 概述",
+    "Strengths 优点",
+    "Weaknesses 不足",
+    "Preliminary Rating 初步评分",
+    "Justification 评分理由",
+    "Confidence 置信度",
+    "Final Rating 最终评分（答辩后）"
+   ],
+   "overall_scale": [
+    [
+     1,
+     "强烈拒绝 Strong Reject"
+    ],
+    [
+     2,
+     "拒绝 Reject"
+    ],
+    [
+     3,
+     "弱拒绝 Weak Reject"
+    ],
+    [
+     4,
+     "弱接收 Weak Accept"
+    ],
+    [
+     5,
+     "接收 Accept"
+    ],
+    [
+     6,
+     "强烈接收 Strong Accept"
+    ]
+   ],
+   "confidence_scale": [
+    [
+     5,
+     "非常确定"
+    ],
+    [
+     4,
+     "有把握，但非绝对"
+    ],
+    [
+     3,
+     "较有把握"
+    ],
+    [
+     2,
+     "愿意辩护，但可能遗漏核心部分"
+    ],
+    [
+     1,
+     "有根据的猜测"
+    ]
+   ],
+   "subscores": {},
+   "guide_url": "https://cvpr.thecvf.com/"
+  },
+  "ICCV": {
+   "verified": false,
+   "note": "CVF 会议量表逐年调整，请核对当年审稿指南。",
+   "sections": [
+    "Summary 概述",
+    "Strengths 优点",
+    "Weaknesses 不足",
+    "Preliminary Rating 初步评分",
+    "Justification 评分理由",
+    "Confidence 置信度",
+    "Final Rating 最终评分（答辩后）"
+   ],
+   "overall_scale": [
+    [
+     1,
+     "强烈拒绝 Strong Reject"
+    ],
+    [
+     2,
+     "拒绝 Reject"
+    ],
+    [
+     3,
+     "弱拒绝 Weak Reject"
+    ],
+    [
+     4,
+     "弱接收 Weak Accept"
+    ],
+    [
+     5,
+     "接收 Accept"
+    ],
+    [
+     6,
+     "强烈接收 Strong Accept"
+    ]
+   ],
+   "confidence_scale": [
+    [
+     5,
+     "非常确定"
+    ],
+    [
+     4,
+     "有把握，但非绝对"
+    ],
+    [
+     3,
+     "较有把握"
+    ],
+    [
+     2,
+     "愿意辩护，但可能遗漏核心部分"
+    ],
+    [
+     1,
+     "有根据的猜测"
+    ]
+   ],
+   "subscores": {},
+   "guide_url": "https://iccv.thecvf.com/"
+  }
+ },
+ "venues": {
+  "AAAI": {
+   "name": "AAAI Conference on Artificial Intelligence",
+   "ccf": "A",
+   "field": "人工智能",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "NeurIPS": {
+   "name": "Conference on Neural Information Processing Systems",
+   "ccf": "A",
+   "field": "人工智能",
+   "kind": "会议",
+   "form": "NeurIPS"
+  },
+  "ACL": {
+   "name": "Annual Meeting of the Association for Computational Linguistics",
+   "ccf": "A",
+   "field": "人工智能",
+   "kind": "会议",
+   "form": "ACL"
+  },
+  "CVPR": {
+   "name": "IEEE/CVF Computer Vision and Pattern Recognition Conference",
+   "ccf": "A",
+   "field": "人工智能",
+   "kind": "会议",
+   "form": "CVPR"
+  },
+  "ICCV": {
+   "name": "International Conference on Computer Vision",
+   "ccf": "A",
+   "field": "人工智能",
+   "kind": "会议",
+   "form": "ICCV"
+  },
+  "ICML": {
+   "name": "International Conference on Machine Learning",
+   "ccf": "A",
+   "field": "人工智能",
+   "kind": "会议",
+   "form": "ICML"
+  },
+  "ICLR": {
+   "name": "International Conference on Learning Representations",
+   "ccf": "A",
+   "field": "人工智能",
+   "kind": "会议",
+   "form": "ICLR"
+  },
+  "AI": {
+   "name": "Artificial Intelligence",
+   "ccf": "A",
+   "field": "人工智能",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "TPAMI": {
+   "name": "IEEE Transactions on Pattern Analysis and Machine Intelligence",
+   "ccf": "A",
+   "field": "人工智能",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "IJCV": {
+   "name": "International Journal of Computer Vision",
+   "ccf": "A",
+   "field": "人工智能",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "JMLR": {
+   "name": "Journal of Machine Learning Research",
+   "ccf": "A",
+   "field": "人工智能",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "ACM MM": {
+   "name": "ACM International Conference on Multimedia",
+   "ccf": "A",
+   "field": "计算机图形学与多媒体",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "SIGGRAPH": {
+   "name": "ACM Special Interest Group on Computer Graphics",
+   "ccf": "A",
+   "field": "计算机图形学与多媒体",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "VR": {
+   "name": "IEEE Conference on Virtual Reality and 3D User Interfaces",
+   "ccf": "A",
+   "field": "计算机图形学与多媒体",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "IEEE VIS": {
+   "name": "IEEE Visualization Conference",
+   "ccf": "A",
+   "field": "计算机图形学与多媒体",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "TOG": {
+   "name": "ACM Transactions on Graphics",
+   "ccf": "A",
+   "field": "计算机图形学与多媒体",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "TIP": {
+   "name": "IEEE Transactions on Image Processing",
+   "ccf": "A",
+   "field": "计算机图形学与多媒体",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "TVCG": {
+   "name": "IEEE Transactions on Visualization and Computer Graphics",
+   "ccf": "A",
+   "field": "计算机图形学与多媒体",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "TMM": {
+   "name": "IEEE Transactions on Multimedia",
+   "ccf": "A",
+   "field": "计算机图形学与多媒体",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "SIGMOD": {
+   "name": "ACM SIGMOD Conference",
+   "ccf": "A",
+   "field": "数据库/数据挖掘/内容检索",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "SIGKDD": {
+   "name": "ACM SIGKDD Conference on Knowledge Discovery and Data Mining",
+   "ccf": "A",
+   "field": "数据库/数据挖掘/内容检索",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "ICDE": {
+   "name": "IEEE International Conference on Data Engineering",
+   "ccf": "A",
+   "field": "数据库/数据挖掘/内容检索",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "SIGIR": {
+   "name": "International ACM SIGIR Conference on Research and Development in Information Retrieval",
+   "ccf": "A",
+   "field": "数据库/数据挖掘/内容检索",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "VLDB": {
+   "name": "International Conference on Very Large Data Bases",
+   "ccf": "A",
+   "field": "数据库/数据挖掘/内容检索",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "TODS": {
+   "name": "ACM Transactions on Database Systems",
+   "ccf": "A",
+   "field": "数据库/数据挖掘/内容检索",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "TOIS": {
+   "name": "ACM Transactions on Information Systems",
+   "ccf": "A",
+   "field": "数据库/数据挖掘/内容检索",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "TKDE": {
+   "name": "IEEE Transactions on Knowledge and Data Engineering",
+   "ccf": "A",
+   "field": "数据库/数据挖掘/内容检索",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "VLDBJ": {
+   "name": "The VLDB Journal",
+   "ccf": "A",
+   "field": "数据库/数据挖掘/内容检索",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "CSCW": {
+   "name": "ACM Conference on Computer-Supported Cooperative Work and Social Computing",
+   "ccf": "A",
+   "field": "人机交互与普适计算",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "CHI": {
+   "name": "ACM Conference on Human Factors in Computing Systems",
+   "ccf": "A",
+   "field": "人机交互与普适计算",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "UbiComp": {
+   "name": "ACM International Joint Conference on Pervasive and Ubiquitous Computing",
+   "ccf": "A",
+   "field": "人机交互与普适计算",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "UIST": {
+   "name": "ACM Symposium on User Interface Software and Technology",
+   "ccf": "A",
+   "field": "人机交互与普适计算",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "TOCHI": {
+   "name": "ACM Transactions on Computer-Human Interaction",
+   "ccf": "A",
+   "field": "人机交互与普适计算",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "IJHCS": {
+   "name": "International Journal of Human-Computer Studies",
+   "ccf": "A",
+   "field": "人机交互与普适计算",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "WWW": {
+   "name": "The Web Conference",
+   "ccf": "A",
+   "field": "交叉/综合/新兴",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "RTSS": {
+   "name": "IEEE Real-Time Systems Symposium",
+   "ccf": "A",
+   "field": "交叉/综合/新兴",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "JACM": {
+   "name": "Journal of the ACM",
+   "ccf": "A",
+   "field": "交叉/综合/新兴",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "Proc. IEEE": {
+   "name": "Proceedings of the IEEE",
+   "ccf": "A",
+   "field": "交叉/综合/新兴",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "SCIS": {
+   "name": "Science China Information Sciences",
+   "ccf": "A",
+   "field": "交叉/综合/新兴",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "Bioinformatics": {
+   "name": "Bioinformatics",
+   "ccf": "A",
+   "field": "交叉/综合/新兴",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "PPoPP": {
+   "name": "ACM SIGPLAN Symposium on Principles & Practice of Parallel Programming",
+   "ccf": "A",
+   "field": "计算机体系结构/并行与分布计算/存储系统",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "FAST": {
+   "name": "USENIX Conference on File and Storage Technologies",
+   "ccf": "A",
+   "field": "计算机体系结构/并行与分布计算/存储系统",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "DAC": {
+   "name": "Design Automation Conference",
+   "ccf": "A",
+   "field": "计算机体系结构/并行与分布计算/存储系统",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "HPCA": {
+   "name": "IEEE International Symposium on High Performance Computer Architecture",
+   "ccf": "A",
+   "field": "计算机体系结构/并行与分布计算/存储系统",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "MICRO": {
+   "name": "IEEE/ACM International Symposium on Microarchitecture",
+   "ccf": "A",
+   "field": "计算机体系结构/并行与分布计算/存储系统",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "SC": {
+   "name": "International Conference for High Performance Computing, Networking, Storage, and Analysis",
+   "ccf": "A",
+   "field": "计算机体系结构/并行与分布计算/存储系统",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "ASPLOS": {
+   "name": "International Conference on Architectural Support for Programming Languages and Operating Systems",
+   "ccf": "A",
+   "field": "计算机体系结构/并行与分布计算/存储系统",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "ISCA": {
+   "name": "International Symposium on Computer Architecture",
+   "ccf": "A",
+   "field": "计算机体系结构/并行与分布计算/存储系统",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "ACM SIGOPS ATC": {
+   "name": "ACM SIGOPS Annual Technical Conference（原 USENIX ATC）",
+   "ccf": "A",
+   "field": "计算机体系结构/并行与分布计算/存储系统",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "EuroSys": {
+   "name": "European Conference on Computer Systems",
+   "ccf": "A",
+   "field": "计算机体系结构/并行与分布计算/存储系统",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "HPDC": {
+   "name": "International ACM Symposium on High-Performance Parallel and Distributed Computing",
+   "ccf": "A",
+   "field": "计算机体系结构/并行与分布计算/存储系统",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "TOCS": {
+   "name": "ACM Transactions on Computer Systems",
+   "ccf": "A",
+   "field": "计算机体系结构/并行与分布计算/存储系统",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "TOS": {
+   "name": "ACM Transactions on Storage",
+   "ccf": "A",
+   "field": "计算机体系结构/并行与分布计算/存储系统",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "TCAD": {
+   "name": "IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems",
+   "ccf": "A",
+   "field": "计算机体系结构/并行与分布计算/存储系统",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "TC": {
+   "name": "IEEE Transactions on Computers",
+   "ccf": "A",
+   "field": "计算机体系结构/并行与分布计算/存储系统",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "TPDS": {
+   "name": "IEEE Transactions on Parallel and Distributed Systems",
+   "ccf": "A",
+   "field": "计算机体系结构/并行与分布计算/存储系统",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "TACO": {
+   "name": "ACM Transactions on Architecture and Code Optimization",
+   "ccf": "A",
+   "field": "计算机体系结构/并行与分布计算/存储系统",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "SIGCOMM": {
+   "name": "ACM SIGCOMM",
+   "ccf": "A",
+   "field": "计算机网络",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "MobiCom": {
+   "name": "ACM International Conference on Mobile Computing and Networking",
+   "ccf": "A",
+   "field": "计算机网络",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "INFOCOM": {
+   "name": "IEEE International Conference on Computer Communications",
+   "ccf": "A",
+   "field": "计算机网络",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "NSDI": {
+   "name": "Symposium on Network System Design and Implementation",
+   "ccf": "A",
+   "field": "计算机网络",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "JSAC": {
+   "name": "IEEE Journal on Selected Areas in Communications",
+   "ccf": "A",
+   "field": "计算机网络",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "TMC": {
+   "name": "IEEE Transactions on Mobile Computing",
+   "ccf": "A",
+   "field": "计算机网络",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "TON": {
+   "name": "IEEE Transactions on Networking",
+   "ccf": "A",
+   "field": "计算机网络",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "CCS": {
+   "name": "ACM Conference on Computer and Communications Security",
+   "ccf": "A",
+   "field": "网络与信息安全",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "EUROCRYPT": {
+   "name": "International Conference on the Theory and Applications of Cryptographic Techniques",
+   "ccf": "A",
+   "field": "网络与信息安全",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "S&P": {
+   "name": "IEEE Symposium on Security and Privacy",
+   "ccf": "A",
+   "field": "网络与信息安全",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "CRYPTO": {
+   "name": "International Cryptology Conference",
+   "ccf": "A",
+   "field": "网络与信息安全",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "USENIX Security": {
+   "name": "USENIX Security Symposium",
+   "ccf": "A",
+   "field": "网络与信息安全",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "NDSS": {
+   "name": "Network and Distributed System Security Symposium",
+   "ccf": "A",
+   "field": "网络与信息安全",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "TDSC": {
+   "name": "IEEE Transactions on Dependable and Secure Computing",
+   "ccf": "A",
+   "field": "网络与信息安全",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "TIFS": {
+   "name": "IEEE Transactions on Information Forensics and Security",
+   "ccf": "A",
+   "field": "网络与信息安全",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "JoC": {
+   "name": "Journal of Cryptology",
+   "ccf": "A",
+   "field": "网络与信息安全",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "PLDI": {
+   "name": "ACM SIGPLAN Conference on Programming Language Design and Implementation",
+   "ccf": "A",
+   "field": "软件工程/系统软件/程序设计语言",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "POPL": {
+   "name": "ACM SIGPLAN-SIGACT Symposium on Principles of Programming Languages",
+   "ccf": "A",
+   "field": "软件工程/系统软件/程序设计语言",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "FSE": {
+   "name": "ACM International Conference on the Foundations of Software Engineering",
+   "ccf": "A",
+   "field": "软件工程/系统软件/程序设计语言",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "SOSP": {
+   "name": "ACM Symposium on Operating Systems Principles",
+   "ccf": "A",
+   "field": "软件工程/系统软件/程序设计语言",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "OOPSLA": {
+   "name": "Conference on Object-Oriented Programming Systems, Languages, and Applications",
+   "ccf": "A",
+   "field": "软件工程/系统软件/程序设计语言",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "ASE": {
+   "name": "International Conference on Automated Software Engineering",
+   "ccf": "A",
+   "field": "软件工程/系统软件/程序设计语言",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "ICSE": {
+   "name": "International Conference on Software Engineering",
+   "ccf": "A",
+   "field": "软件工程/系统软件/程序设计语言",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "ISSTA": {
+   "name": "International Symposium on Software Testing and Analysis",
+   "ccf": "A",
+   "field": "软件工程/系统软件/程序设计语言",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "OSDI": {
+   "name": "USENIX Symposium on Operating Systems Design and Implementation",
+   "ccf": "A",
+   "field": "软件工程/系统软件/程序设计语言",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "FM": {
+   "name": "International Symposium on Formal Methods",
+   "ccf": "A",
+   "field": "软件工程/系统软件/程序设计语言",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "TOPLAS": {
+   "name": "ACM Transactions on Programming Languages and Systems",
+   "ccf": "A",
+   "field": "软件工程/系统软件/程序设计语言",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "TOSEM": {
+   "name": "ACM Transactions on Software Engineering and Methodology",
+   "ccf": "A",
+   "field": "软件工程/系统软件/程序设计语言",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "TSE": {
+   "name": "IEEE Transactions on Software Engineering",
+   "ccf": "A",
+   "field": "软件工程/系统软件/程序设计语言",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "TSC": {
+   "name": "IEEE Transactions on Services Computing",
+   "ccf": "A",
+   "field": "软件工程/系统软件/程序设计语言",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "STOC": {
+   "name": "ACM Symposium on the Theory of Computing",
+   "ccf": "A",
+   "field": "计算机科学理论",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "SODA": {
+   "name": "ACM-SIAM Symposium on Discrete Algorithms",
+   "ccf": "A",
+   "field": "计算机科学理论",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "CAV": {
+   "name": "International Conference on Computer Aided Verification",
+   "ccf": "A",
+   "field": "计算机科学理论",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "FOCS": {
+   "name": "IEEE Annual Symposium on Foundations of Computer Science",
+   "ccf": "A",
+   "field": "计算机科学理论",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "LICS": {
+   "name": "ACM/IEEE Symposium on Logic in Computer Science",
+   "ccf": "A",
+   "field": "计算机科学理论",
+   "kind": "会议",
+   "form": "generic_conference"
+  },
+  "TIT": {
+   "name": "IEEE Transactions on Information Theory",
+   "ccf": "A",
+   "field": "计算机科学理论",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "IANDC": {
+   "name": "Information and Computation",
+   "ccf": "A",
+   "field": "计算机科学理论",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "SICOMP": {
+   "name": "SIAM Journal on Computing",
+   "ccf": "A",
+   "field": "计算机科学理论",
+   "kind": "期刊",
+   "form": "generic_journal"
+  },
+  "ECCV": {
+   "name": "ECCV",
+   "ccf": "B",
+   "field": "人工智能",
+   "kind": "会议",
+   "form": "generic_conference",
+   "note": "非 CCF-A，供参考"
+  },
+  "IJCAI": {
+   "name": "IJCAI",
+   "ccf": "B",
+   "field": "人工智能",
+   "kind": "会议",
+   "form": "generic_conference",
+   "note": "非 CCF-A，供参考"
+  },
+  "ICRA": {
+   "name": "ICRA",
+   "ccf": "B",
+   "field": "人工智能",
+   "kind": "会议",
+   "form": "generic_conference",
+   "note": "非 CCF-A，供参考"
+  },
+  "EMNLP": {
+   "name": "EMNLP",
+   "ccf": "B",
+   "field": "人工智能",
+   "kind": "会议",
+   "form": "generic_conference",
+   "note": "非 CCF-A，供参考"
+  },
+  "NAACL": {
+   "name": "NAACL",
+   "ccf": "B",
+   "field": "人工智能",
+   "kind": "会议",
+   "form": "generic_conference",
+   "note": "非 CCF-A，供参考"
+  },
+  "COLT": {
+   "name": "COLT",
+   "ccf": "B",
+   "field": "人工智能",
+   "kind": "会议",
+   "form": "generic_conference",
+   "note": "非 CCF-A，供参考"
+  },
+  "UAI": {
+   "name": "UAI",
+   "ccf": "B",
+   "field": "人工智能",
+   "kind": "会议",
+   "form": "generic_conference",
+   "note": "非 CCF-A，供参考"
+  },
+  "AISTATS": {
+   "name": "AISTATS",
+   "ccf": "C",
+   "field": "人工智能",
+   "kind": "会议",
+   "form": "generic_conference",
+   "note": "非 CCF-A，供参考"
+  },
+  "IROS": {
+   "name": "IROS",
+   "ccf": "C",
+   "field": "人工智能",
+   "kind": "会议",
+   "form": "generic_conference",
+   "note": "非 CCF-A，供参考"
+  },
+  "T-RO": {
+   "name": "T-RO",
+   "ccf": "B",
+   "field": "交叉/综合/新兴",
+   "kind": "期刊",
+   "form": "generic_journal",
+   "note": "非 CCF-A，供参考"
+  },
+  "TNNLS": {
+   "name": "TNNLS",
+   "ccf": "B",
+   "field": "人工智能",
+   "kind": "期刊",
+   "form": "generic_journal",
+   "note": "非 CCF-A，供参考"
+  },
+  "CoRL": {
+   "name": "CoRL",
+   "ccf": null,
+   "field": "未收录",
+   "kind": "会议",
+   "form": "generic_conference",
+   "note": "CCF 第七版未收录"
+  },
+  "RSS": {
+   "name": "RSS",
+   "ccf": null,
+   "field": "未收录",
+   "kind": "会议",
+   "form": "generic_conference",
+   "note": "CCF 第七版未收录"
+  }
+ },
+ "score_policy": "v1.5：除期刊外，所有会议表单统一使用 1–6 分量表（各会议每年细则不同，不再逐会议照搬原量表）。"
+}

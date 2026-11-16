@@ -55,6 +55,23 @@ def bind_workspace_tool_runtime(
     workspace = context.runtime.workspace
     task_dir = Path(workspace.output_dir) if workspace is not None else fallback_task_dir
 
+    if tool_name == "read_skill":
+        # A text read and an executable skill snapshot share the same scope
+        # resolver. Model-supplied internal keys never select a filesystem path.
+        kwargs.pop("_execution_skill_path", None)
+        kwargs["_execution_skill_reads"] = context.runtime.loop_extensions.setdefault(
+            "read_execution_skills", set()
+        )
+        if task_dir is not None:
+            from deeptutor.services.skill.execution import stage_skill
+
+            kwargs["_execution_skill_path"] = str(
+                stage_skill(task_dir, str(args.get("name") or ""))
+            )
+
+    if tool_name == "paper_review_checkpoint":
+        kwargs["_paper_review_task_dir"] = str(task_dir) if task_dir is not None else None
+
     if tool_name.startswith("workspace_") and workspace is not None:
         kwargs["_workspace_id"] = workspace.workspace_id
         kwargs["_language"] = context.language or "en"
@@ -96,6 +113,33 @@ def bind_workspace_tool_runtime(
             )
             kwargs["_workspace_id"] = workspace.workspace_id
             kwargs["_workspace_root"] = workspace.root
+
+        # Only skills actually read in this turn are executable. Re-resolve on
+        # each call so a revoked grant or changed skill cannot ride an old mount.
+        skills_dir = task_dir / ".deeptutor" / "skills"
+        read_skills = context.runtime.loop_extensions.get("read_execution_skills", set())
+        if read_skills:
+            from deeptutor.services.skill.execution import stage_skill
+
+            for name in sorted(read_skills):
+                staged = stage_skill(task_dir, name)
+                mounts.append(
+                    Mount(host_path=str(staged), sandbox_path=str(staged), read_only=True)
+                )
+            kwargs["_sandbox_env"]["DEEPTUTOR_SKILLS_DIR"] = str(skills_dir)
+
+        refs = (context.metadata or {}).get("studio_source_refs", {})
+        if tool_name == "exec" and any(
+            isinstance(ref, dict) and ref.get("kind") == "paper_review" for ref in refs.values()
+        ):
+            from deeptutor.studio.paper_reviews import prepare_execution
+
+            if "best-paper-review" not in read_skills:
+                raise ValueError("Read best-paper-review/SKILL.md before executing its scripts.")
+            staged_review = prepare_execution(task_dir, refs)
+            kwargs["_sandbox_env"].update(staged_review["env"])
+            for path in staged_review["read_only_paths"]:
+                mounts.append(Mount(host_path=str(path), sandbox_path=str(path), read_only=True))
         kwargs["_sandbox_mounts"] = tuple(mounts)
         return kwargs
 

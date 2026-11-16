@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>审稿阅读器</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="viewer.css">
+</head>
+<body>
+<div id="app">
+  <header id="top">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 4h10l4 4v12H5z"/><path d="M15 4v4h4"/><path d="M8.5 13.5l2.3 2.3 4.7-4.8"/></svg></div>
+      <div class="titles">
+        <div class="doc-title" id="docTitle">审稿阅读器</div>
+        <div class="doc-meta" id="docMeta"></div>
+      </div>
+    </div>
+    <div class="mode" role="tablist" aria-label="视图">
+      <button data-mode="review" class="on" title="审稿意见 (M)">审稿意见</button>
+      <button data-mode="digest" title="论文速览 (M)">论文速览</button>
+    </div>
+    <div class="right">
+      <div class="score" id="scoreChip" title="总评"></div>
+      <span class="dot-state" id="state" title="只读预览：修改不会保存"></span>
+      <button class="ic" id="btnSearch" title="搜索 (/)"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg></button>
+      <button class="ic" id="btnTheme" title="深色 / 浅色"><svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg></button>
+      <div class="menu" id="menu">
+        <button class="ic" id="btnMenu" title="更多"><svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="19" cy="12" r="1.4"/></svg></button>
+        <div class="items">
+          <button data-act="md">导出 Markdown 审稿意见</button>
+          <button data-act="json">导出审稿 JSON</button>
+          <button data-act="digest">导出论文速览（Markdown）</button>
+          <hr>
+          <button data-act="help">快捷键</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div id="body">
+    <nav id="rail">
+      <div class="rail-head">
+        <span>页面</span>
+        <button class="ic sm" id="btnRail" title="收起 ([)"><svg viewBox="0 0 24 24"><path d="M14 6l-6 6 6 6"/></svg></button>
+      </div>
+      <div id="thumbs"></div>
+    </nav>
+    <button id="railOpen" class="ic sm" title="展开页面栏 ([)"><svg viewBox="0 0 24 24"><path d="M10 6l6 6-6 6"/></svg></button>
+
+    <main id="viewer">
+      <div id="pages"></div>
+      <div id="floatbar">
+        <button class="ic sm" id="zoomOut" title="缩小 (-)"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+        <button class="txt" id="zoomLbl" title="适合宽度 (0)">100%</button>
+        <button class="ic sm" id="zoomIn" title="放大 (+)"><svg viewBox="0 0 24 24"><path d="M6 12h12M12 6v12"/></svg></button>
+        <span class="sep"></span>
+        <input id="pageInput" type="text" inputmode="numeric" value="1" aria-label="页码"><span id="pageTotal">/ 0</span>
+        <span class="sep"></span>
+        <label class="hl-toggle" title="显示 / 隐藏正文高亮 (H)"><input type="checkbox" id="hlToggle" checked><span>高亮</span></label>
+      </div>
+      <div id="tip" role="tooltip"></div>
+    </main>
+
+    <div id="gutter" title="拖动调整宽度"></div>
+
+    <aside id="side">
+      <section id="pane-review" class="pane on">
+        <div class="tabs" id="reviewTabs">
+          <button data-tab="list" class="on">意见 <i id="nComments"></i></button>
+          <button data-tab="overall">总评</button>
+          <button data-tab="critique">复核 <i id="nCritique"></i></button>
+        </div>
+        <div class="tab on" id="tab-list">
+          <div class="filterbar">
+            <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg><input id="q" placeholder="搜索标题、正文、引文"></div>
+            <div class="chips" id="statusChips"></div>
+          </div>
+          <div id="list"></div>
+          <div id="detail" hidden></div>
+        </div>
+        <div class="tab" id="tab-overall"></div>
+        <div class="tab" id="tab-critique"></div>
+      </section>
+      <section id="pane-digest" class="pane">
+        <div class="digest-head">
+          <div class="legend" id="digestLegend"></div>
+          <p class="note">本页只整理审稿过程中已核对的信息：作者原话带页码，可点击跳到原文；“审稿核实”一栏是审稿判断，与作者说法分开列出。</p>
+        </div>
+        <div id="digest"></div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<div id="help" class="modal" hidden>
+  <div class="card">
+    <h3>快捷键</h3>
+    <dl>
+      <dt>M</dt><dd>切换“审稿意见 / 论文速览”</dd>
+      <dt>J / K</dt><dd>下一条 / 上一条意见</dd>
+      <dt>Esc</dt><dd>返回意见列表</dd>
+      <dt>/</dt><dd>搜索</dd>
+      <dt>H</dt><dd>显示 / 隐藏正文高亮</dd>
+      <dt>[ / ]</dt><dd>收起 / 展开页面栏、审稿面板</dd>
+      <dt>+ / − / 0</dt><dd>放大 / 缩小 / 适合宽度</dd>
+    </dl>
+    <button id="helpClose">关闭</button>
+  </div>
+</div>
+
+<script src="vendor/pdf.min.js"></script>
+<script src="viewer.js"></script>
+</body>
+</html>

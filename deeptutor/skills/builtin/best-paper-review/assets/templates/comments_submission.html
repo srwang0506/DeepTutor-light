@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Review draft · {{BPR_TITLE}}</title>
+<style>
+:root{--theme:#5b3fd0;--theme-dark:#47309f;--label:#5b3fd0;--badge:#e6defd;--btn:#6d4ee0;--btn-h:#5a3cc9;--link:#5a48b8;
+--page:#fffdf8;--note:#f6f6f4;--note-line:#e7e7e3;--sub:#e3e3e0;--ink:#2c3a4a;--text:#333;--muted:#555;--maj:#a8322d;--minor:#9a6a12;
+--sans:"Noto Sans","Noto Sans SC","Helvetica Neue",-apple-system,"PingFang SC","Microsoft YaHei",Arial,sans-serif;--mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}html{scroll-behavior:smooth}
+body{margin:0;background:var(--page);color:var(--text);font-family:var(--sans);font-size:16px;line-height:1.5}
+a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}
+.container{max-width:1170px;margin:0 auto;padding:0 15px}
+/* top navigation */
+.navbar{background:var(--theme);height:50px}
+.navbar .container{display:flex;align-items:center;height:50px;gap:28px}
+.brand{color:#fff;font-size:24px;font-weight:700;letter-spacing:-.2px;white-space:nowrap}.brand span{font-weight:400}
+.navsearch{flex:0 1 380px;height:30px;background:#fff;border-radius:1px;display:flex;align-items:center;padding:0 10px;color:#777;font-size:15px}
+.navsearch input{border:0;outline:0;flex:1;font:inherit;color:#333;background:transparent}
+.navlinks{margin-left:auto;display:flex;gap:26px;color:#fff;font-size:15px;white-space:nowrap}
+.navlinks span{opacity:.95}.navlinks .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:#fff;margin-left:6px;vertical-align:middle}
+/* sub bar */
+.toolbar{position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:22px 0 14px 38px;padding:8px 12px;background:var(--sub);border:1px solid #d4d4d0;font-size:15px}.toolbar .sp{flex:1}.toolbar .wc{color:#666;font-size:13px}.toolbar .ed{color:var(--label);font-size:13px}.toolbar .lbl{color:#555;font-size:13px}
+.subbar .container{display:flex;align-items:center;gap:10px;min-height:44px;flex-wrap:wrap;font-size:15px}
+.back{color:var(--ink)}.back b{color:var(--link);font-weight:700}.back:hover{text-decoration:none}.back:hover b{text-decoration:underline}
+.subbar .sp{flex:1}.subbar .wc{color:#666;font-size:13px}.subbar .ed{color:var(--label);font-size:13px}
+.subbar .lbl{color:#555;font-size:13px}
+button{font-family:var(--sans);cursor:pointer;line-height:1.4}
+.btn{background:var(--btn);color:#fff;border:1px solid var(--btn);border-radius:2px;font-weight:700;font-size:13px;padding:3px 10px}
+.btn:hover{background:var(--btn-h);border-color:var(--btn-h)}
+.btn-default{background:#fff;color:#333;border:1px solid #bbb;border-radius:2px;font-size:13px;padding:3px 10px}.btn-default:hover{border-color:var(--btn);color:var(--btn)}
+.btn.done,.btn-default.done{background:var(--badge);color:var(--theme-dark);border-color:var(--badge)}
+.seg{display:inline-flex}.seg button{background:#fff;color:#333;border:1px solid #bbb;font-size:13px;padding:3px 10px;margin-left:-1px}
+.seg button:first-child{border-radius:2px 0 0 2px;margin-left:0}.seg button:last-child{border-radius:0 2px 2px 0}
+.seg button.on{background:var(--btn);border-color:var(--btn);color:#fff;font-weight:700;position:relative}
+.menu{position:relative}.menu .pop{display:none;position:absolute;right:0;top:115%;background:#fff;border:1px solid #ccc;border-radius:2px;padding:4px 0;min-width:240px;box-shadow:0 6px 12px rgba(0,0,0,.175);z-index:40}
+.menu.open .pop{display:block}.pop button{display:block;width:100%;text-align:left;border:0;background:#fff;padding:5px 16px;font-size:14px;color:#333}.pop button:hover{background:#f2f2f2}
+/* forum header */
+main.container{padding:30px 15px 80px}
+.forum-head{display:grid;grid-template-columns:1fr 64px;gap:20px;align-items:start}
+h1{font-size:40px;line-height:1.2;color:var(--ink);margin:0 0 8px;font-weight:700}
+.pdf{display:block;width:52px;margin-top:4px;color:var(--link)}.pdf svg{width:52px;height:60px}
+.authors{font-style:italic;font-size:24px;color:var(--ink);margin:0 0 14px;line-height:1.3}
+.meta{color:#444;font-size:15px;display:flex;flex-wrap:wrap;gap:2px 20px;margin-bottom:12px}
+.mi{display:inline-flex;align-items:center;gap:7px}.mi code{font-family:var(--mono);font-size:12.5px;color:#444}
+.ic{width:15px;height:15px;display:inline-block;background:#555;-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;-webkit-mask-position:center;mask-position:center;flex-shrink:0}
+.ic-cal{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 3h14v12H1zM3 1h2v3H3zM11 1h2v3h-2z'/%3E%3Cpath fill='white' d='M2.5 6.5h11v7h-11z'/%3E%3Cpath d='M3 7h2v2H3zM6 7h2v2H6zM9 7h2v2H9zM12 7h1v2h-1zM3 10h2v2H3zM6 10h2v2H6zM9 10h2v2H9z'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 3h14v12H1zM3 1h2v3H3zM11 1h2v3h-2z'/%3E%3C/svg%3E")}
+.ic-folder{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M0 3h6l2 2h8v9H0z'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M0 3h6l2 2h8v9H0z'/%3E%3C/svg%3E")}
+.ic-eye{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 3C4 3 1 8 1 8s3 5 7 5 7-5 7-5-3-5-7-5zm0 8a3 3 0 110-6 3 3 0 010 6z'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M8 3C4 3 1 8 1 8s3 5 7 5 7-5 7-5-3-5-7-5zm0 8a3 3 0 110-6 3 3 0 010 6z'/%3E%3C/svg%3E")}
+.ic-rev{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 1h8v10H1zM6 4h9v11H6z'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 1h8v10H1zM6 4h9v11H6z'/%3E%3C/svg%3E")}
+.ic-shield{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='none' stroke='black' stroke-width='1.6'/%3E%3Cpath d='M5 8.2l2 2 4-4.4' fill='none' stroke='black' stroke-width='1.8'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='none' stroke='black' stroke-width='1.6'/%3E%3Cpath d='M5 8.2l2 2 4-4.4' fill='none' stroke='black' stroke-width='1.8'/%3E%3C/svg%3E")}
+.meta a{color:var(--link)}
+.hf{margin:0 0 1px;font-size:16px}.hf b{color:var(--label);margin-right:6px}
+.hint{margin:14px 0 26px;font-size:14px;color:#6b5a1e;background:#fbf4dd;border:1px solid #efe3b8;padding:6px 10px;border-radius:2px}
+/* note (review) */
+.thread{display:grid;grid-template-columns:34px 1fr;gap:4px;align-items:start}
+.col{display:flex;flex-direction:column;gap:2px;padding-top:2px;align-items:center}
+.col button{width:22px;height:18px;padding:0;border-radius:2px;background:#fff;border:1px solid #6d8494;display:grid;place-items:center}
+.col button i{display:block;width:12px;height:8px;background:#46596b;-webkit-mask-size:contain;mask-size:contain;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}
+.col button.on{background:#46596b;border-color:#46596b}.col button.on i{background:#fff}
+.l1{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M2 3.5h8v1H2z'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M2 3.5h8v1H2z'/%3E%3C/svg%3E")}
+.l2{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M2 2h8v1H2zM2 5h8v1H2z'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M2 2h8v1H2zM2 5h8v1H2z'/%3E%3C/svg%3E")}
+.l3{-webkit-mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M2 1h8v1H2zM2 3.5h8v1H2zM2 6h8v1H2z'/%3E%3C/svg%3E");mask-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M2 1h8v1H2zM2 3.5h8v1H2zM2 6h8v1H2z'/%3E%3C/svg%3E")}
+.note{background:var(--note);border:1px solid var(--note-line);padding:10px 12px 14px}
+.note h2{font-size:20px;color:var(--ink);margin:0 0 2px;font-weight:700;line-height:1.3}
+.nmeta{display:flex;flex-wrap:wrap;align-items:center;gap:2px 14px;color:#444;font-size:15px;margin:0 0 6px}
+.nmeta+.nmeta{padding-left:10px}
+.badge{background:var(--badge);color:#2e1f66;padding:0 6px;font-size:15px}
+.f{margin:0 0 10px;position:relative;font-size:15.5px}
+.lab{color:var(--label);font-weight:700;font-size:15.5px}
+.lab .cp{visibility:hidden;margin-left:8px;font-weight:400}.f:hover>.lab .cp{visibility:visible}
+.f.inline{margin:0 0 1px;padding-right:60px}.f.inline .lab{display:inline;margin-right:7px}.f.inline .cp{position:absolute;right:0;top:0}
+.f.inline+.f:not(.inline){margin-top:10px}
+.cp{background:#fff;color:#333;border:1px solid #bbb;border-radius:2px;font-size:11.5px;padding:0 6px;font-weight:400;vertical-align:1px}
+.cp:hover{border-color:var(--btn);color:var(--btn)}
+ol.items{margin:0;padding-left:32px}ol.items>li{margin:0 0 5px}ol.items>li.off{display:none}
+.it{position:relative}
+.it:hover>.md{background:rgba(109,78,224,.06);box-shadow:0 0 0 4px rgba(109,78,224,.06)}
+.tools{position:absolute;right:0;top:-24px;display:none;gap:2px;align-items:center;background:#fff;border:1px solid #bbb;border-radius:2px;padding:1px 3px;box-shadow:0 2px 6px rgba(0,0,0,.1);z-index:5;font-size:12px}
+.it:hover>.tools,.it.editing>.tools{display:flex}
+.tools button{background:#fff;border:0;padding:1px 6px;font-size:12px;color:#333;border-radius:2px}.tools button:hover{background:#f1eefb;color:var(--theme)}
+.tools .lv button.on{background:var(--btn);color:#fff;font-weight:700}.tools .sep{width:1px;height:14px;background:#ccc;margin:0 2px}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--label);margin-left:5px;vertical-align:1px}
+.md p{margin:0 0 6px}.md p:last-child{margin:0}.md ul,.md ol{margin:2px 0 6px;padding-left:22px}
+.md code{font-family:var(--mono);font-size:.88em;background:#e8e8e4;padding:0 3px}
+.sev{font-size:11px;font-weight:700;color:var(--maj);text-transform:uppercase;letter-spacing:.03em}.sev.minor{color:var(--minor)}
+.editor{display:none;border:1px solid #b8acdf;background:#fff;margin:2px 0 4px}
+.it.editing>.editor{display:block}.it.editing>.md{display:none}
+.etb{display:flex;gap:1px;align-items:center;padding:2px 4px;background:#f1eefb;border-bottom:1px solid #e2dcf5;font-size:12.5px}
+.etb button{border:0;background:transparent;padding:1px 8px;color:var(--theme-dark)}.etb button:hover{background:#fff}.etb .sp{flex:1}.etb .h{color:#777;font-size:11.5px;margin-right:6px}
+.editor textarea{display:block;width:100%;border:0;outline:0;resize:none;padding:8px 10px;font-family:var(--mono);font-size:13px;line-height:1.6;min-height:80px;color:#222}
+.prev{border-top:1px dashed #ddd;padding:6px 10px 8px;background:var(--note);font-size:15px}
+.prev::before{content:"Preview";display:block;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:#888}
+.cand{margin:4px 0 2px 32px;font-size:14px}
+.cand summary{cursor:pointer;color:var(--link);list-style:none}.cand summary::-webkit-details-marker{display:none}.cand summary:hover{text-decoration:underline}
+.cand[open] summary{margin-bottom:4px}
+.cand .c{display:grid;grid-template-columns:auto auto 1fr auto;gap:10px;align-items:baseline;padding:5px 8px;background:#fff;border:1px solid #e3e3df;margin-bottom:-1px;color:#555}
+.cand .c b{color:var(--ink);font-weight:600;white-space:nowrap}
+.addrow{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:12px;font-size:15px;color:#333}
+.collapsed .body,.collapsed .addrow{display:none}.mid .body .f.long{display:none}
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);opacity:0;background:#333;color:#fff;font-size:13px;padding:7px 14px;border-radius:2px;transition:.2s;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (max-width:800px){h1{font-size:28px}.authors{font-size:19px}.navsearch,.navlinks{display:none}.thread{grid-template-columns:1fr}.col{display:none}.forum-head{grid-template-columns:1fr}.pdf{display:none}}
+@media print{.navbar,.subbar,.tools,.cand,.cp,.col,.hint,.toast,.editor,.addrow{display:none!important}.it.editing>.md{display:block}body{background:#fff}.note{border:0;background:#fff}}
+</style>{{BPR_KATEX_CSS}}</head><body>
+<div class="navbar"><div class="container"><span class="brand">BestPaperReview<span>.draft</span></span>
+<label class="navsearch"><input id="find" placeholder="Search this review…"><span>&#9906;</span></label>
+</div></div>
+<main class="container">
+<div class="forum-head"><div><h1>{{BPR_TITLE}}</h1>
+<div class="authors">{{BPR_VENUE}} Conference Submission · Anonymous Authors</div>
+<div class="meta"><span class="mi"><i class="ic ic-cal"></i>{{BPR_DATE}} (review draft)</span><span class="mi"><i class="ic ic-folder"></i>{{BPR_VENUE}} Conference Submission</span><span class="mi"><i class="ic ic-eye"></i>Program Chairs, Area Chairs, Reviewers, Authors</span></div>
+<div class="meta"><span class="mi"><i class="ic ic-rev"></i><a href="source/review.md">Full review notes</a></span>{{BPR_RULES}}</div>
+<div class="hf"><b>Version:</b>{{BPR_VERSION}}</div>
+<div class="hf"><b>Review Date:</b>{{BPR_DATE}}</div></div>
+<a class="pdf" href="review-viewer.html" title="打开 PDF 批注查看器"><svg viewBox="0 0 52 60"><path d="M6 2h28l14 14v40a2 2 0 01-2 2H6a2 2 0 01-2-2V4a2 2 0 012-2z" fill="#fff" stroke="currentColor" stroke-width="3"/><path d="M34 2v14h14" fill="none" stroke="currentColor" stroke-width="3"/><rect x="1" y="26" width="42" height="18" rx="2" fill="currentColor"/><text x="22" y="40" text-anchor="middle" font-family="Arial" font-weight="700" font-size="14" fill="#fff">PDF</text></svg></a></div>
+<div class="toolbar" id="toolbar"><span class="lbl">详略</span><div class="seg" id="seg"><button data-mode="short">简略</button><button data-mode="medium" class="on">中等</button><button data-mode="long">详细</button><button data-mode="random">随机混合</button></div><button class="btn-default" id="reroll" hidden>↻ 重新随机</button><span class="sp"></span><span class="ed" id="edc"></span><span class="wc" id="wc"></span><div class="menu" id="menu"><button class="btn-default" id="mbtn">导出 ▾</button><div class="pop"><button id="dl-md">下载 Markdown（.md）</button><button id="dl-json">导出修改后的 submission_en.json</button><button id="reset">清除全部修改</button></div></div><button class="btn" id="copyall">复制全部（Markdown）</button></div>
+<div class="thread"><div class="col" id="col"><button data-v="collapsed" title="折叠"><i class="l1"></i></button><button data-v="mid" title="只看评分字段"><i class="l2"></i></button><button data-v="full" class="on" title="展开"><i class="l3"></i></button></div>
+<div class="note" id="note"><h2>Review for {{BPR_TITLE}}</h2>
+<div class="nmeta"><span class="badge">Official Review</span><span>by Reviewer (draft)</span><span class="mi"><i class="ic ic-cal"></i>{{BPR_DATE}}</span></div>
+<div class="nmeta"><span class="mi"><i class="ic ic-eye"></i>Program Chairs, Area Chairs, Reviewers, Authors</span><span class="mi"><i class="ic ic-rev"></i><a href="source/submission_en.json">Source</a></span></div>
+<div class="body" id="body"></div>
+<div class="addrow">Copy: <button class="btn" id="copyall2">Markdown</button></div></div></div>
+</main>
+<div class="toast" id="toast"></div>
+{{BPR_KATEX_JS}}
+<script id="data" type="application/json">{{BPR_PAYLOAD}}</script>
+<script>
+(function(){
+var D=JSON.parse(document.getElementById('data').textContent),LV=['short','medium','long'],LN={short:'简',medium:'中',long:'详'},S=D.scores||{},R=D.recommend||{};['strengths','weaknesses','questions'].forEach(function(k){D[k]=D[k]||[]});
+var st={lv:{},inc:{},ed:{}};try{var s0=JSON.parse(localStorage.getItem(D.key)||'null');if(s0&&s0.ed)st=s0}catch(e){}
+function save(){try{localStorage.setItem(D.key,JSON.stringify(st))}catch(e){}}
+function esc(t){return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function inl(t){return esc(t).replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>')
+.replace(/(^|[^*])\*([^*\s][^*]*)\*/g,'$1<em>$2</em>').replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,'<a href="$2" target="_blank" rel="noopener">$1</a>')}
+function tex(t,disp){if(window.katex){try{return katex.renderToString(t,{displayMode:disp,throwOnError:false,strict:'ignore'})}catch(e){}}return '<code>'+esc(disp?'$$'+t+'$$':'$'+t+'$')+'</code>'}
+function md(src){var M=[];src=src.replace(/\$\$([\s\S]+?)\$\$/g,function(_,t){M.push(tex(t,true));return '\u0000'+(M.length-1)+'\u0000'}).replace(/\$([^$\n]+?)\$/g,function(_,t){M.push(tex(t,false));return '\u0000'+(M.length-1)+'\u0000'});return mdRaw(src).replace(/\u0000(\d+)\u0000/g,function(_,n){return M[+n]})}
+function mdRaw(src){var out=[],L=src.replace(/\r/g,'').split('\n'),i=0,re=/^\s*([-*]|\d+\.)\s+/;while(i<L.length){if(!L[i].trim()){i++;continue}
+if(re.test(L[i])){var ol=/\d/.test(re.exec(L[i])[1]),it=[];while(i<L.length&&re.test(L[i])){it.push('<li>'+inl(L[i].replace(re,''))+'</li>');i++}out.push((ol?'<ol>':'<ul>')+it.join('')+(ol?'</ol>':'</ul>'));continue}
+var p=[];while(i<L.length&&L[i].trim()&&!re.test(L[i])){p.push(inl(L[i]));i++}out.push('<p>'+p.join('<br>')+'</p>')}return out.join('')}
+var ALL=D.strengths.concat(D.weaknesses,D.questions);
+function find(id){for(var i=0;i<ALL.length;i++)if(ALL[i].id===id)return ALL[i]}
+function lvOf(id){return id==='SUM'?'medium':(st.lv[id]||'medium')}
+function orig(id,l){return id==='SUM'?D.summary:id==='J'?D.justification[l]:find(id)[l]}
+function text(id){var k=id+'|'+lvOf(id);return st.ed[k]!=null?st.ed[k]:orig(id,lvOf(id))}
+function edited(id){return st.ed[id+'|'+lvOf(id)]!=null}
+function incl(id,def){return st.inc[id]!=null?st.inc[id]:def}
+function tools(id,lv,rm){return '<span class="tools">'+(lv?'<span class="lv">'+LV.map(function(l){return '<button data-l="'+l+'">'+LN[l]+'</button>'}).join('')+'</span><span class="sep"></span>':'')+
+'<button class="a-ed">✎ 编辑</button><button class="a-rv" hidden>↺ 还原</button>'+(rm?'<span class="sep"></span><button class="a-rm" title="不纳入本条">✕ 移除</button>':'')+'</span>'}
+function editor(){return '<div class="editor"><div class="etb"><button data-w="**" title="加粗 Ctrl+B"><b>B</b></button><button data-w="*" title="斜体 Ctrl+I"><i>I</i></button><button data-w="`">&lt;/&gt;</button><button data-w="$" title="行内公式（LaTeX）">$x$</button>'+
+'<button data-a="link">链接</button><button data-a="list">• 列表</button><span class="sp"></span><span class="h">Markdown · Esc 完成</span><button data-a="done">完成</button></div><textarea></textarea><div class="prev"></div></div>'}
+function block(id,lv,rm,sev){return '<div class="it" data-id="'+id+'">'+tools(id,lv,rm)+'<div class="md"></div>'+editor()+'</div>'}
+function list(k){var rec=R[k]==null?D[k].length:Math.min(R[k],D[k].length),h='<ol class="items" data-k="'+k+'">',cand=[];
+D[k].forEach(function(it,i){var on=incl(it.id,i<rec);h+='<li class="'+(on?'':'off')+'" data-li="'+it.id+'">'+block(it.id,true,true)+'</li>';if(!on)cand.push(it)});h+='</ol>';
+if(cand.length)h+='<details class="cand"'+(st.open&&st.open[k]?' open':'')+' data-k="'+k+'"><summary>+ 另有 '+cand.length+' 条候选（按重要性排在后面，未纳入）</summary>'+cand.map(function(it){
+return '<div class="c"><b>'+esc(it.title||it.id)+'</b>'+(it.severity?'<span class="sev '+it.severity+'">'+it.severity+'</span>':'')+'<span>'+esc(it.short)+'</span><button data-add="'+it.id+'">+ 加入</button></div>'}).join('')+'</details>';return h}
+function F(k,label,inner,cls,copyTitle){return '<div class="f '+(cls||'')+'" data-f="'+k+'"><div class="lab">'+label+':<button class="cp" data-copy="'+k+'">'+(copyTitle||'复制')+'</button></div>'+inner+'</div>'}
+function I(k,label,v){return '<div class="f inline" data-f="'+k+'"><span class="lab">'+label+':</span><span>'+esc(v)+'</span><button class="cp" data-copy="'+k+'" style="visibility:hidden">复制</button></div>'}
+var DEF=[['summary','Summary'],['soundness','Soundness'],['presentation','Presentation'],['contribution','Contribution'],['strengths','Strengths'],['weaknesses','Weaknesses'],
+['questions','Questions'],['ethics','Flag For Ethics Review'],['rating','Rating'],['justification','Justification'],['confidence','Confidence'],['code_of_conduct','Code Of Conduct']],
+LISTS={strengths:1,weaknesses:1,questions:1},TEXTS={summary:'SUM',justification:'J'},
+FORM=(D.form||DEF).filter(function(o){return LISTS[o[0]]||TEXTS[o[0]]||S[o[0]]!=null});
+function render(){var h=FORM.map(function(o){var k=o[0];if(TEXTS[k])return F(k,o[1],block(TEXTS[k],k!=='summary',false),'long');
+if(LISTS[k])return F(k,o[1],list(k),'long','复制为列表');return I(k,o[1],S[k])}).join('');
+var b=document.getElementById('body');b.innerHTML=h;b.querySelectorAll('.it').forEach(refresh);wire();update()}
+function refresh(el){var id=el.dataset.id;el.querySelector('.md').innerHTML=md(text(id))+(edited(id)?'':'');
+el.querySelectorAll('.lv button').forEach(function(x){x.classList.toggle('on',x.dataset.l===lvOf(id))});var rv=el.querySelector('.a-rv');rv.hidden=!edited(id);
+var d=el.querySelector('.md p:last-child')||el.querySelector('.md');if(edited(id))d.insertAdjacentHTML('beforeend','<span class="dot" title="已修改"></span>')}
+function openEd(el){document.querySelectorAll('.it.editing').forEach(function(x){if(x!==el)closeEd(x)});var ta=el.querySelector('textarea');ta.value=text(el.dataset.id);el.classList.add('editing');grow(ta);el.querySelector('.prev').innerHTML=md(ta.value);ta.focus()}
+function closeEd(el){el.classList.remove('editing');refresh(el)}
+function grow(ta){ta.style.height='auto';ta.style.height=(ta.scrollHeight+2)+'px'}
+function commit(el,v){var id=el.dataset.id,k=id+'|'+lvOf(id);if(v.trim()===orig(id,lvOf(id)).trim())delete st.ed[k];else st.ed[k]=v;save();update()}
+function wrapSel(ta,w){var a=ta.selectionStart,b=ta.selectionEnd,v=ta.value,s=v.slice(a,b)||'text';ta.value=v.slice(0,a)+w+s+w+v.slice(b);ta.selectionStart=a+w.length;ta.selectionEnd=a+w.length+s.length;ta.dispatchEvent(new Event('input'))}
+function wire(){document.querySelectorAll('#body .it').forEach(function(el){var ta=el.querySelector('textarea'),id=el.dataset.id;
+el.querySelector('.md').ondblclick=function(){openEd(el)};el.querySelector('.a-ed').onclick=function(){el.classList.contains('editing')?closeEd(el):openEd(el)};
+el.querySelector('.a-rv').onclick=function(){delete st.ed[id+'|'+lvOf(id)];save();if(el.classList.contains('editing'))ta.value=text(id);refresh(el);update();toast('已还原为原稿')};
+var rm=el.querySelector('.a-rm');if(rm)rm.onclick=function(){st.inc[id]=false;save();render();toast('已移除，可在候选中重新加入')};
+ta.oninput=function(){grow(ta);el.querySelector('.prev').innerHTML=md(ta.value);commit(el,ta.value);el.querySelector('.a-rv').hidden=!edited(id)};
+ta.onkeydown=function(e){if(e.key==='Escape'){e.preventDefault();closeEd(el)}else if((e.metaKey||e.ctrlKey)&&(e.key==='b'||e.key==='i')){e.preventDefault();wrapSel(ta,e.key==='b'?'**':'*')}};
+el.querySelectorAll('.etb button').forEach(function(b){b.onmousedown=function(e){e.preventDefault()};b.onclick=function(){
+if(b.dataset.w)wrapSel(ta,b.dataset.w);else if(b.dataset.a==='done')closeEd(el);
+else if(b.dataset.a==='link'){var a=ta.selectionStart,z=ta.selectionEnd,s=ta.value.slice(a,z)||'link text';ta.value=ta.value.slice(0,a)+'['+s+'](https://)'+ta.value.slice(z);ta.dispatchEvent(new Event('input'))}
+else if(b.dataset.a==='list'){var p=ta.value.lastIndexOf('\n',ta.selectionStart-1)+1;ta.value=ta.value.slice(0,p)+'- '+ta.value.slice(p);ta.dispatchEvent(new Event('input'))}}});
+el.querySelectorAll('.lv button').forEach(function(b){b.onclick=function(){if(el.classList.contains('editing'))closeEd(el);st.lv[id]=b.dataset.l;save();setSeg(null);refresh(el);update()}})});
+document.querySelectorAll('[data-add]').forEach(function(b){b.onclick=function(){st.inc[b.dataset.add]=true;save();render();toast('已加入')}});
+document.querySelectorAll('details.cand').forEach(function(d){d.ontoggle=function(){st.open=st.open||{};st.open[d.dataset.k]=d.open;save()}});
+document.querySelectorAll('.f.inline').forEach(function(f){var b=f.querySelector('.cp');f.onmouseenter=function(){b.style.visibility='visible'};f.onmouseleave=function(){b.style.visibility='hidden'}});
+document.querySelectorAll('[data-copy]').forEach(function(b){b.onclick=function(){copy(field(b.dataset.copy),b)}})}
+function setSeg(m){document.querySelectorAll('#seg button').forEach(function(b){b.classList.toggle('on',b.dataset.mode===m)});document.getElementById('reroll').hidden=m!=='random'}
+function setMode(m){setSeg(m);ALL.concat([{id:'J'}]).forEach(function(it){st.lv[it.id]=m==='random'?LV[Math.floor(Math.random()*3)]:m});save();render()}
+function chosen(k){return D[k].filter(function(it,i){return incl(it.id,i<(R[k]==null?D[k].length:R[k]))})}
+function li(t,n){var pre=n+'. ',pad='   ';return pre+t.trim().split('\n').map(function(x,i){return i?(x.trim()?pad+x:''):x}).join('\n')}
+function field(k){if(k==='summary')return text('SUM').trim();if(k==='justification')return text('J').trim();
+if(k==='strengths'||k==='weaknesses'||k==='questions')return chosen(k).map(function(it,i){return li(text(it.id),i+1)}).join('\n');return S[k]}
+var ORDER=FORM.map(function(o){return [o[0],o[1],LISTS[o[0]]||TEXTS[o[0]]?1:0]});
+function all(){return ORDER.map(function(o){return '**'+o[1]+':**'+(o[2]?'\n\n':' ')+field(o[0])}).join('\n\n')+'\n'}
+function update(){document.getElementById('wc').textContent='约 '+all().replace(/[*#`]/g,' ').split(/\s+/).filter(Boolean).length+' 词';
+var n=Object.keys(st.ed).length;document.getElementById('edc').textContent=n?('● 已修改 '+n+' 处'):''}
+function toast(m){var s=document.getElementById('toast');s.textContent=m;s.classList.add('show');clearTimeout(s._t);s._t=setTimeout(function(){s.classList.remove('show')},1500)}
+function fb(t){var a=document.createElement('textarea');a.value=t;a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);a.select();try{document.execCommand('copy')}finally{a.remove()}}
+function copy(t,b){var done=function(){if(b){var o=b.textContent;b.textContent='已复制';b.classList.add('done');setTimeout(function(){b.textContent=o;b.classList.remove('done')},1200)}toast('已复制为 Markdown')};
+if(navigator.clipboard&&window.isSecureContext)navigator.clipboard.writeText(t).then(done,function(){fb(t);done()});else{fb(t);done()}}
+function download(n,c,t){var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([c],{type:t}));a.download=n;a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},1000)}
+function merged(){var o=JSON.parse(JSON.stringify(D));delete o.key;delete o.file_title;Object.keys(st.ed).forEach(function(k){var p=k.split('|');
+if(p[0]==='SUM')o.summary=st.ed[k];else if(p[0]==='J')o.justification[p[1]]=st.ed[k];else ['strengths','weaknesses','questions'].forEach(function(g){o[g].forEach(function(it){if(it.id===p[0])it[p[1]]=st.ed[k]})})});return o}
+document.querySelectorAll('#seg button').forEach(function(b){b.onclick=function(){setMode(b.dataset.mode)}});
+document.getElementById('reroll').onclick=function(){setMode('random')};document.getElementById('copyall').onclick=function(){copy(all(),this)};document.getElementById('copyall2').onclick=function(){copy(all(),this)};document.getElementById('find').oninput=function(){var q=this.value.trim().toLowerCase();document.querySelectorAll('#body .it').forEach(function(el){var li=el.closest('li');var hit=!q||el.textContent.toLowerCase().indexOf(q)>=0;el.style.opacity=hit?'':'.3'})};
+var menu=document.getElementById('menu');document.getElementById('mbtn').onclick=function(e){e.stopPropagation();menu.classList.toggle('open')};document.addEventListener('click',function(){menu.classList.remove('open')});
+document.getElementById('dl-md').onclick=function(){download(D.file_title.replace(/[^A-Za-z0-9]+/g,'_').slice(0,60)+'_review.md',all(),'text/markdown')};
+document.getElementById('dl-json').onclick=function(){download('submission_en.json',JSON.stringify(merged(),null,2)+'\n','application/json');toast('已导出；替换 source/submission_en.json 即可永久保留')};
+document.getElementById('reset').onclick=function(){if(!Object.keys(st.ed).length&&!Object.keys(st.inc).length){toast('没有修改');return}st={lv:{},inc:{},ed:{}};save();setSeg('medium');render();toast('已清除全部修改')};
+document.querySelectorAll('#col button').forEach(function(b){b.onclick=function(){document.querySelectorAll('#col button').forEach(function(x){x.classList.toggle('on',x===b)});
+var n=document.getElementById('note');n.classList.remove('collapsed','mid');if(b.dataset.v!=='full')n.classList.add(b.dataset.v)}});
+render();var lvs=ALL.map(function(it){return st.lv[it.id]||'medium'});setSeg(lvs.every(function(x){return x===lvs[0]})?lvs[0]:null);
+})();
+</script></body></html>

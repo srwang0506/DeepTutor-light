@@ -23,7 +23,16 @@ from deeptutor.services.workspace.project_policy import resolve_sources
 
 from .database import LIBRARY, Missing, Studio, encoded, sha
 
-KINDS = ("edition", "evidence", "observation", "claim", "run", "remote_snapshot", "artifact")
+KINDS = (
+    "edition",
+    "evidence",
+    "observation",
+    "claim",
+    "run",
+    "remote_snapshot",
+    "artifact",
+    "paper_review",
+)
 MAX_REFERENCES = 12
 MAX_CHUNK = 8000
 MAX_LOG_BYTES = 8_000_000
@@ -69,6 +78,8 @@ def source_id(ref: ObjectRef) -> str:
 def _resolve(ref: ObjectRef, allowed: SourcesAccess):
     if ref.kind not in KINDS or (ref.kind == "remote_snapshot" and not allowed.allow_remote):
         raise Missing("Studio source is unavailable.")
+    if ref.kind == "paper_review" and (ref.scope != allowed.project or ref.revision != 1):
+        raise Missing("A paper review is only available in its own project.")
     if ref.kind == "edition":
         if ref.scope != LIBRARY:
             raise Missing("Studio source is unavailable.")
@@ -180,6 +191,9 @@ def _source_item(
         item["pages"] = next(
             file["pages"] for file in data["files"] if file["hash"] == ref.locator.blob_hash
         )
+    if row["kind"] == "paper_review":
+        target = ObjectRef.model_validate(data["target_ref"])
+        item["href"] = _href(target, nav_project) + "&" + urlencode({"review": row["id"]})
     return item
 
 
@@ -347,6 +361,11 @@ def read(ref: ObjectRef, *, page=None, part="source", offset=0, limit=MAX_CHUNK)
         if ref.kind == "remote_snapshot":
             details.update({key: data.get(key) for key in ("finished", "provider")})
             details["repository_observed_commit"] = data.get("result", {}).get("commit")
+    elif ref.kind == "paper_review":
+        from . import paper_reviews
+
+        body = json.dumps(paper_reviews.source_context(store, ref.id), ensure_ascii=False, indent=2)
+        details["checkpoint_revision"] = store.get(ref.id, "paper_review")["revision"]
     else:
         if part != "source" or page is not None:
             raise ValueError("Choose the source summary for this record.")
@@ -413,7 +432,7 @@ def read(ref: ObjectRef, *, page=None, part="source", offset=0, limit=MAX_CHUNK)
             line=first_line, end_line=last_line, href=_href(ref, nav_project, line=first_line)
         )
     if "href" not in details:
-        details["href"] = _href(ref, nav_project)
+        details["href"] = item["href"]
     # Recheck revocation after opening a slow PDF or verifying a captured log.
     _resolve(ref, access())
     return {**details, "text": chunk, "offset": offset, "next_offset": next_offset}

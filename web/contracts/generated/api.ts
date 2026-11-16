@@ -11632,6 +11632,109 @@ export interface paths {
     readonly patch: operations["update_observation_api_studio_observations__identifier__patch"];
     readonly trace?: never;
   };
+  readonly "/api/studio/paper-reviews": {
+    readonly parameters: {
+      readonly query?: never;
+      readonly header?: never;
+      readonly path?: never;
+      readonly cookie?: never;
+    };
+    /** List Reviews */
+    readonly get: operations["list_reviews_api_studio_paper_reviews_get"];
+    readonly put?: never;
+    /** Create Review */
+    readonly post: operations["create_review_api_studio_paper_reviews_post"];
+    readonly delete?: never;
+    readonly options?: never;
+    readonly head?: never;
+    readonly patch?: never;
+    readonly trace?: never;
+  };
+  readonly "/api/studio/paper-reviews/{identifier}": {
+    readonly parameters: {
+      readonly query?: never;
+      readonly header?: never;
+      readonly path?: never;
+      readonly cookie?: never;
+    };
+    /** Get Review */
+    readonly get: operations["get_review_api_studio_paper_reviews__identifier__get"];
+    readonly put?: never;
+    readonly post?: never;
+    readonly delete?: never;
+    readonly options?: never;
+    readonly head?: never;
+    readonly patch?: never;
+    readonly trace?: never;
+  };
+  readonly "/api/studio/paper-reviews/{identifier}/export": {
+    readonly parameters: {
+      readonly query?: never;
+      readonly header?: never;
+      readonly path?: never;
+      readonly cookie?: never;
+    };
+    /** Export Review */
+    readonly get: operations["export_review_api_studio_paper_reviews__identifier__export_get"];
+    readonly put?: never;
+    readonly post?: never;
+    readonly delete?: never;
+    readonly options?: never;
+    readonly head?: never;
+    readonly patch?: never;
+    readonly trace?: never;
+  };
+  readonly "/api/studio/paper-reviews/{identifier}/issues/{issue_id}": {
+    readonly parameters: {
+      readonly query?: never;
+      readonly header?: never;
+      readonly path?: never;
+      readonly cookie?: never;
+    };
+    readonly get?: never;
+    readonly put?: never;
+    /** Update Issue */
+    readonly post: operations["update_issue_api_studio_paper_reviews__identifier__issues__issue_id__post"];
+    readonly delete?: never;
+    readonly options?: never;
+    readonly head?: never;
+    readonly patch?: never;
+    readonly trace?: never;
+  };
+  readonly "/api/studio/paper-reviews/{identifier}/session": {
+    readonly parameters: {
+      readonly query?: never;
+      readonly header?: never;
+      readonly path?: never;
+      readonly cookie?: never;
+    };
+    readonly get?: never;
+    readonly put?: never;
+    /** Bind Session */
+    readonly post: operations["bind_session_api_studio_paper_reviews__identifier__session_post"];
+    readonly delete?: never;
+    readonly options?: never;
+    readonly head?: never;
+    readonly patch?: never;
+    readonly trace?: never;
+  };
+  readonly "/api/studio/paper-reviews/options": {
+    readonly parameters: {
+      readonly query?: never;
+      readonly header?: never;
+      readonly path?: never;
+      readonly cookie?: never;
+    };
+    /** Review Options */
+    readonly get: operations["review_options_api_studio_paper_reviews_options_get"];
+    readonly put?: never;
+    readonly post?: never;
+    readonly delete?: never;
+    readonly options?: never;
+    readonly head?: never;
+    readonly patch?: never;
+    readonly trace?: never;
+  };
   readonly "/api/studio/portable/apply": {
     readonly parameters: {
       readonly query?: never;
@@ -18393,6 +18496,79 @@ export interface components {
       /** Token */
       readonly token: string;
     };
+    /** PaperReviewCreate */
+    readonly PaperReviewCreate: {
+      /**
+       * Blob Hash
+       * @default
+       */
+      readonly blob_hash: string;
+      /**
+       * Build Id
+       * @default
+       */
+      readonly build_id: string;
+      /**
+       * Edition Id
+       * @default
+       */
+      readonly edition_id: string;
+      /**
+       * Instructions
+       * @default
+       */
+      readonly instructions: string;
+      /**
+       * Language
+       * @default zh
+       * @enum {string}
+       */
+      readonly language: "zh" | "en";
+      /**
+       * Manuscript Id
+       * @default
+       */
+      readonly manuscript_id: string;
+      /**
+       * Mode
+       * @default self
+       * @enum {string}
+       */
+      readonly mode: "quick" | "full" | "self" | "rebuttal" | "revise";
+      /** Request Id */
+      readonly request_id: string;
+      /** Revision */
+      readonly revision?: number | null;
+      /**
+       * Venue
+       * @default general
+       */
+      readonly venue: string;
+    };
+    /** PaperReviewIssueUpdate */
+    readonly PaperReviewIssueUpdate: {
+      /** Expected Revision */
+      readonly expected_revision: number;
+      /**
+       * Response
+       * @default
+       */
+      readonly response: string;
+      /**
+       * Status
+       * @default open
+       * @enum {string}
+       */
+      readonly status: "open" | "working" | "addressed";
+    };
+    /** PaperReviewSessionBinding */
+    readonly PaperReviewSessionBinding: {
+      /**
+       * Session Id
+       * @default
+       */
+      readonly session_id: string;
+    };
     /** PartnerGroupMessageRequest */
     readonly PartnerGroupMessageRequest: {
       /** Content */
@@ -22521,6 +22697,12 @@ export type SchemaPageIndexConfigUpdate =
   components["schemas"]["PageIndexConfigUpdate"];
 export type SchemaPairRequest = components["schemas"]["PairRequest"];
 export type SchemaPairResponse = components["schemas"]["PairResponse"];
+export type SchemaPaperReviewCreate =
+  components["schemas"]["PaperReviewCreate"];
+export type SchemaPaperReviewIssueUpdate =
+  components["schemas"]["PaperReviewIssueUpdate"];
+export type SchemaPaperReviewSessionBinding =
+  components["schemas"]["PaperReviewSessionBinding"];
 export type SchemaPartnerGroupMessageRequest =
   components["schemas"]["PartnerGroupMessageRequest"];
 export type SchemaPartnerInvocationActionRequest =
@@ -48934,6 +49116,263 @@ export interface operations {
         readonly "application/json": components["schemas"]["ObservationUpdate"];
       };
     };
+    readonly responses: {
+      /** @description Successful Response */
+      readonly 200: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      readonly 422: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  readonly list_reviews_api_studio_paper_reviews_get: {
+    readonly parameters: {
+      readonly query?: {
+        readonly edition_id?: string;
+        readonly manuscript_id?: string;
+      };
+      readonly header?: {
+        readonly Authorization?: string | null;
+      };
+      readonly path?: never;
+      readonly cookie?: {
+        readonly dt_token?: string | null;
+      };
+    };
+    readonly requestBody?: never;
+    readonly responses: {
+      /** @description Successful Response */
+      readonly 200: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      readonly 422: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  readonly create_review_api_studio_paper_reviews_post: {
+    readonly parameters: {
+      readonly query?: never;
+      readonly header?: {
+        readonly Authorization?: string | null;
+      };
+      readonly path?: never;
+      readonly cookie?: {
+        readonly dt_token?: string | null;
+      };
+    };
+    readonly requestBody: {
+      readonly content: {
+        readonly "application/json": components["schemas"]["PaperReviewCreate"];
+      };
+    };
+    readonly responses: {
+      /** @description Successful Response */
+      readonly 200: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      readonly 422: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  readonly get_review_api_studio_paper_reviews__identifier__get: {
+    readonly parameters: {
+      readonly query?: never;
+      readonly header?: {
+        readonly Authorization?: string | null;
+      };
+      readonly path: {
+        readonly identifier: string;
+      };
+      readonly cookie?: {
+        readonly dt_token?: string | null;
+      };
+    };
+    readonly requestBody?: never;
+    readonly responses: {
+      /** @description Successful Response */
+      readonly 200: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      readonly 422: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  readonly export_review_api_studio_paper_reviews__identifier__export_get: {
+    readonly parameters: {
+      readonly query?: {
+        readonly format?: "json" | "markdown";
+      };
+      readonly header?: {
+        readonly Authorization?: string | null;
+      };
+      readonly path: {
+        readonly identifier: string;
+      };
+      readonly cookie?: {
+        readonly dt_token?: string | null;
+      };
+    };
+    readonly requestBody?: never;
+    readonly responses: {
+      /** @description Successful Response */
+      readonly 200: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      readonly 422: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  readonly update_issue_api_studio_paper_reviews__identifier__issues__issue_id__post: {
+    readonly parameters: {
+      readonly query?: never;
+      readonly header?: {
+        readonly Authorization?: string | null;
+      };
+      readonly path: {
+        readonly identifier: string;
+        readonly issue_id: string;
+      };
+      readonly cookie?: {
+        readonly dt_token?: string | null;
+      };
+    };
+    readonly requestBody: {
+      readonly content: {
+        readonly "application/json": components["schemas"]["PaperReviewIssueUpdate"];
+      };
+    };
+    readonly responses: {
+      /** @description Successful Response */
+      readonly 200: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      readonly 422: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  readonly bind_session_api_studio_paper_reviews__identifier__session_post: {
+    readonly parameters: {
+      readonly query?: never;
+      readonly header?: {
+        readonly Authorization?: string | null;
+      };
+      readonly path: {
+        readonly identifier: string;
+      };
+      readonly cookie?: {
+        readonly dt_token?: string | null;
+      };
+    };
+    readonly requestBody: {
+      readonly content: {
+        readonly "application/json": components["schemas"]["PaperReviewSessionBinding"];
+      };
+    };
+    readonly responses: {
+      /** @description Successful Response */
+      readonly 200: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": unknown;
+        };
+      };
+      /** @description Validation Error */
+      readonly 422: {
+        headers: {
+          readonly [name: string]: unknown;
+        };
+        content: {
+          readonly "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  readonly review_options_api_studio_paper_reviews_options_get: {
+    readonly parameters: {
+      readonly query?: never;
+      readonly header?: {
+        readonly Authorization?: string | null;
+      };
+      readonly path?: never;
+      readonly cookie?: {
+        readonly dt_token?: string | null;
+      };
+    };
+    readonly requestBody?: never;
     readonly responses: {
       /** @description Successful Response */
       readonly 200: {

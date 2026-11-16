@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { studioLabel } from './display'
 import { getLocale } from '@/lib/datetime'
 import { useState } from 'react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { BookMarked, Link2, ListTree, MessageSquareText, Plus } from 'lucide-react'
 import { Dialog } from '@/shared/ui/Dialog'
@@ -10,6 +11,7 @@ import { scopedUrl } from '@/lib/workspace-scope'
 import { post, records, studio, type StudioRecord, type Work } from '@/lib/studio-api'
 import { Action, ErrorNotice, Field, useOperation } from './StudioShell'
 import type { TextSelection } from './TexEditor'
+const PaperReviewPanel = dynamic(() => import('./PaperReviewPanel'), { ssr: false })
 
 type Citation = { citekey: string; title: string; authors: string[]; path: string }
 type Source = StudioRecord<{
@@ -47,6 +49,8 @@ export default function WritingTools({
   insert,
   openFile,
   refreshFiles,
+  reviewBuildId,
+  onReviewJump,
 }: {
   workspace: string
   manuscript: string
@@ -56,6 +60,8 @@ export default function WritingTools({
   insert: (text: string) => void
   openFile: (path: string, line?: number) => Promise<void>
   refreshFiles: () => Promise<void>
+  reviewBuildId: string | null
+  onReviewJump: (page: number, quote: string) => void
 }) {
   const { t, i18n } = useTranslation()
 
@@ -515,6 +521,13 @@ export default function WritingTools({
         )}
         {panel === 'reviews' && (
           <>
+            <p className="studio-note">{t('模拟审稿使用最近一次成功构建的 PDF；修改源文件后请重新编译。')}</p>
+            <div className="studio-writing-reviews">
+              <PaperReviewPanel workspace={workspace} target={{ kind: 'manuscript', manuscriptId: manuscript, buildId: reviewBuildId }}
+                onJump={(_reference, page, quote) => { setPanel(null); onReviewJump(page, quote) }} />
+            </div>
+            <details>
+              <summary>{t('手动记录审稿意见与回复')}</summary>
             {!submissions.length ? (
               <p className="studio-note">{t('先保存一次投稿快照，再记录针对该版本的审稿意见。')}</p>
             ) : (
@@ -606,6 +619,7 @@ export default function WritingTools({
                 </Action>
               </>
             )}
+            </details>
           </>
         )}
       </Dialog>

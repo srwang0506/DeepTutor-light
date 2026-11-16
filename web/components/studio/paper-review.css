@@ -1,0 +1,36 @@
+.paper-review-panel { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; font-size: 12px; }
+.paper-review-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.paper-review-toolbar > strong { font-size: 13px; font-weight: 500; }
+.paper-review-note { margin: 0; padding: 10px 12px; color: var(--muted-foreground); font-size: 12px; line-height: 1.6; }
+.paper-review-controls { padding: 8px 12px 0; border-bottom: 1px solid var(--border); }
+.paper-review-history select { width: 100%; min-width: 0; height: 30px; border: 1px solid var(--border); border-radius: 6px; background: var(--background); padding: 3px 6px; font-size: 12px; }
+.paper-review-tabs { display: flex; gap: 14px; align-items: center; margin-top: 6px; }
+.paper-review-tabs button { padding: 6px 0; border-bottom: 2px solid transparent; color: var(--muted-foreground); }
+.paper-review-tabs button[aria-pressed='true'] { color: var(--foreground); border-color: var(--foreground); }
+.paper-review-tabs button:last-child { margin-left: auto; }
+.paper-review-issues { overflow-y: auto; min-height: 0; padding: 0 12px 12px; }
+.paper-review-issues .paper-review-note { padding-left: 0; padding-right: 0; }
+.paper-review-summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 0; color: var(--muted-foreground); }
+.paper-review-export { position: relative; }
+.paper-review-export summary, .paper-review-checks summary { cursor: pointer; }
+.paper-review-export[open] { display: flex; flex-wrap: wrap; gap: 8px; }
+.paper-review-export button { display: block; text-align: left; padding: 5px 0; color: var(--foreground); }
+.paper-review-checks { padding: 8px 0; border-top: 1px solid var(--border); color: var(--muted-foreground); overflow-wrap: anywhere; }
+.paper-review-checks ul { margin: 6px 0 0; padding-left: 16px; list-style: disc; }
+.paper-review-checks dl > div { display: flex; justify-content: space-between; gap: 10px; margin-top: 5px; }
+.paper-review-issue { padding: 12px 0; border-top: 1px solid var(--border); overflow-wrap: anywhere; }
+.paper-review-issue > summary { cursor: pointer; line-height: 1.6; }
+.paper-review-issue > summary strong { font-size: 13px; font-weight: 500; }
+.paper-review-issue > summary span { margin-left: 8px; font-size: 11px; color: var(--muted-foreground); white-space: nowrap; }
+.paper-review-issue p { margin: 8px 0; white-space: pre-wrap; line-height: 1.7; }
+.paper-review-issue blockquote { margin: 8px 0; border-left: 2px solid var(--border); padding-left: 10px; color: var(--muted-foreground); white-space: pre-wrap; }
+.paper-review-source { text-decoration: underline; text-underline-offset: 3px; }
+.paper-review-request { margin-top: 12px; }
+.paper-review-request > strong { font-weight: 500; }
+.paper-review-response { display: grid; gap: 10px; margin-top: 10px; }
+.paper-review-conversation { flex: 1; min-height: 280px; }
+.paper-review-panel [hidden] { display: none !important; }
+.paper-review-panel :is(button, a, input, select, textarea, summary):focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.paper-review-panel button:disabled { opacity: .5; cursor: not-allowed; }
+.studio-writing-reviews { min-height: 320px; height: min(68vh, 700px); margin: 0 -4px 16px; }
+@media (max-width: 600px) { .paper-review-issue > summary span { white-space: normal; } }

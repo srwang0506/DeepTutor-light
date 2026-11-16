@@ -1,0 +1,65 @@
+{
+  "language": "en",
+  "venue_note": "TODO: one line on where the score labels come from (e.g. checked against this year's reviewer form, or 'labels follow recent forms; check before submitting').",
+  "summary": "TODO: one paragraph, 80-200 words. What problem the paper addresses, what it proposes, how it is evaluated and what it claims, in neutral terms. No judgement here.",
+  "scores": {
+    "soundness": "3: good",
+    "presentation": "3: good",
+    "contribution": "3: good",
+    "rating": "TODO: '<overall.score>: <venue label>'",
+    "confidence": "TODO: '<overall.confidence>: <venue label>'",
+    "ethics": "No ethics review needed.",
+    "code_of_conduct": "Yes"
+  },
+  "form": [
+    ["summary", "Summary"],
+    ["soundness", "Soundness"],
+    ["presentation", "Presentation"],
+    ["contribution", "Contribution"],
+    ["strengths", "Strengths"],
+    ["weaknesses", "Weaknesses"],
+    ["questions", "Questions"],
+    ["ethics", "Flag For Ethics Review"],
+    ["rating", "Rating"],
+    ["justification", "Justification"],
+    ["confidence", "Confidence"],
+    ["code_of_conduct", "Code Of Conduct"]
+  ],
+  "recommend": {"strengths": 3, "weaknesses": 6},
+  "strengths": [
+    {
+      "id": "S01",
+      "from": ["S01"],
+      "title": "TODO: 3-8 word label shown in the candidate list",
+      "short": "TODO: 1-2 sentences (about 15-55 words): the strength and its key evidence.",
+      "medium": "TODO: 3-5 sentences (about 40-120 words): strength, evidence with location (Table/Figure/Section), why it matters.",
+      "long": "TODO: 6-10 sentences (about 75-260 words): as medium, plus context, comparison with prior work and scope."
+    }
+  ],
+  "weaknesses": [
+    {
+      "id": "W01",
+      "from": ["W01"],
+      "severity": "major",
+      "title": "TODO",
+      "short": "TODO: the problem and what would resolve it.",
+      "medium": "TODO: problem, evidence with location, why it affects the claim, concrete request.",
+      "long": "TODO: as medium, plus the authors' strongest defence and why it does not fully resolve the issue."
+    }
+  ],
+  "questions": [
+    {
+      "id": "Q01",
+      "from": ["Q01"],
+      "title": "TODO",
+      "short": "TODO: one direct question ending with '?'.",
+      "medium": "TODO: context, then the question.",
+      "long": "TODO: context, the question, and how the answer would change the assessment."
+    }
+  ],
+  "justification": {
+    "short": "TODO: 1-2 sentences: the decisive reasons for the rating.",
+    "medium": "TODO: 3-5 sentences: decisive strengths, decisive weaknesses, why the rating is where it is.",
+    "long": "TODO: 6-10 sentences: as medium, plus what evidence would move the rating up or down."
+  }
+}

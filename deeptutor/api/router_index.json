@@ -1,5 +1,5 @@
 {
-  "fingerprint": "e998dd27b8a174a841306955c0aff81a01844c41cd23e2265f49669c61ebeed5",
+  "fingerprint": "a76ce0d6d37a3d93643aed6fba44217d74672087d19e70c8b89cf567784ca03c",
   "routers": {
     "deeptutor.api.routers.auth:router": [
       {
@@ -1242,6 +1242,14 @@
         ]
       },
       {
+        "path": "/library/collect",
+        "name": "collect",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
         "path": "/editions",
         "name": "edition",
         "kind": "http",
@@ -1972,6 +1980,74 @@
       {
         "path": "/evaluations/runs/{identifier}",
         "name": "evaluation_report",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      }
+    ],
+    "deeptutor.api.routers.studio_tutor:router": [
+      {
+        "path": "/tutor-sources",
+        "name": "tutor_sources",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      }
+    ],
+    "deeptutor.api.routers.paper_reviews:router": [
+      {
+        "path": "/paper-reviews",
+        "name": "create_review",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/paper-reviews",
+        "name": "list_reviews",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/paper-reviews/options",
+        "name": "review_options",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/paper-reviews/{identifier}",
+        "name": "get_review",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/paper-reviews/{identifier}/session",
+        "name": "bind_session",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/paper-reviews/{identifier}/issues/{issue_id}",
+        "name": "update_issue",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/paper-reviews/{identifier}/export",
+        "name": "export_review",
         "kind": "http",
         "methods": [
           "GET"
@@ -4189,6 +4265,22 @@
         "kind": "http",
         "methods": [
           "GET"
+        ]
+      },
+      {
+        "path": "/objectives",
+        "name": "objectives",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/questions/{entry_id}/objective",
+        "name": "set_objective",
+        "kind": "http",
+        "methods": [
+          "PUT"
         ]
       },
       {

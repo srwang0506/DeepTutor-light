@@ -2,10 +2,11 @@
 import { useTranslation } from 'react-i18next'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useParams, useSearchParams } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useActiveWorkspaceId } from '@/hooks/useActiveWorkspaceId'
 import { useRecoveryPrincipal } from '@/hooks/useRecoveryPrincipal'
 import { scopedUrl } from '@/lib/workspace-scope'
+import { normalizeStudioReferences, studioReferenceHref } from '@/lib/studio-references'
 import { studio, type StudioRecord } from '@/lib/studio-api'
 import { StudioShell, ErrorNotice } from './StudioShell'
 import StudyQuizViewer from '@/components/quiz/StudyQuizViewer'
@@ -16,6 +17,7 @@ import StudioLoading from './StudioLoading'
 
 
 type Data = {
+  target_ref?: unknown
   source_ref?: { id: string; revision: number }
   value?: number
   protocol?: Record<string, unknown>
@@ -71,6 +73,7 @@ function ObjectView({
   revision: string | null
 }) {
   const { t } = useTranslation()
+  const router = useRouter()
 
   const kinds: Record<string, string> = {
   activity: t('原文练习'),
@@ -112,6 +115,17 @@ function ObjectView({
     )
       .then(value => {
         if (!abort.signal.aborted) {
+          if (value.kind === 'paper_review') {
+            const target = normalizeStudioReferences([value.data.target_ref])[0]
+            if (value.id !== id || value.scope !== workspace || target?.kind !== 'edition' ||
+              target.scope !== '@library' || !/^[a-f0-9]{64}$/.test(target.locator?.blob_hash || '')) {
+              throw new Error(t('审稿对话无法打开，原稿版本或会话归属需要重新核对。'))
+            }
+            setRow(value)
+            setError('')
+            router.replace(scopedUrl(`${studioReferenceHref(target)}&review=${encodeURIComponent(value.id)}`, workspace))
+            return
+          }
           setRow(value)
           setError('')
         }
@@ -120,7 +134,8 @@ function ObjectView({
         if (!abort.signal.aborted) setError(e.message)
       })
     return () => abort.abort()
-  }, [workspace, id, revision, attempt])
+  }, [workspace, id, revision, attempt, router, t])
+  if (row?.kind === 'paper_review' && !error) return <StudioLoading label="正在读取冻结版本…" />
   const d = row?.data
   const original = d?.edition_id
     ? { id: d.edition_id, revision: undefined, locator: { blob_hash: d.blob_hash, page: d.page } }

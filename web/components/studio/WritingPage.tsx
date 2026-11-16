@@ -96,7 +96,7 @@ function WritingWorkspace({ workspace, principal }: { workspace: string; princip
     [builds, setBuilds] = useState<StudioRecord<BuildData>[]>([]),
     [proposals, setProposals] = useState<StudioRecord<ProposalData>[]>([]),
     [submissions, setSubmissions] = useState<StudioRecord<SubmissionData>[]>([]),
-    [pdfJump, setPdfJump] = useState<{ locator: number; nonce: number; y?: number } | null>(null),
+    [pdfJump, setPdfJump] = useState<{ locator: number; nonce: number; y?: number; quote?: string } | null>(null),
     [jump, setJump] = useState<{ line: number; nonce: number } | undefined>(),
     [audit, setAudit] = useState<Audit | null>(null),
     [recoveries, setRecoveries] = useState<Recovery[]>([]),
@@ -806,6 +806,8 @@ function WritingWorkspace({ workspace, principal }: { workspace: string; princip
             key={active.id}
             workspace={workspace}
             manuscript={active.id}
+            reviewBuildId={successful?.id || null}
+            onReviewJump={(page, quote) => setPdfJump({ locator: page, quote, nonce: Date.now() })}
             file={file ? { ...file, text } : null}
             selection={selection}
             flush={flush}

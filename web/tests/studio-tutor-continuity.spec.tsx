@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, expect, it, vi } from 'vitest'
 import StudioReferencePicker from '@/components/chat/StudioReferencePicker'
-import StudioTutorCompanion, { discussionUsesEdition } from '@/components/studio/StudioTutorCompanion'
+import StudioTutorCompanion, { discussionUsesEdition, discussionUsesReview } from '@/components/studio/StudioTutorCompanion'
 import { buildStartTurnInput } from '@/features/chat/controllers/buildStartTurnInput'
 import {
   consumeStudioReferences, handoffStudioReferences, studioCitations, studioReferenceHref,
@@ -55,6 +55,7 @@ const paper: StudioSourceReference = {
 }
 const experiment: StudioSourceReference = { scope: 'a', kind: 'run', id: 'run-1', revision: 2 }
 const snapshot: StudioSourceReference = { scope: 'a', kind: 'remote_snapshot', id: 'snap-1', revision: 1 }
+const reviewRef: StudioSourceReference = { scope: 'a', kind: 'paper_review', id: 'review-1', revision: 1 }
 const item = (ref: StudioSourceReference, title = ref.id): StudioSourceItem => ({
   ref, title, description: '', href: studioReferenceHref(ref),
 })
@@ -74,6 +75,54 @@ beforeEach(() => {
   mocks.state.sessionId = 'unrelated-chat'
   mocks.state.boundFromKey = null
   mocks.state.messages = []
+})
+
+it('resumes an API-bound review and starts once with the frozen review skill and original', async () => {
+  mocks.state.sessionKey = 'review-session'
+  mocks.state.sessionId = 'review-session'
+  mocks.showCachedSession.mockReturnValue(true)
+  let load!: (value: unknown) => void
+  mocks.getSession.mockImplementationOnce(() => new Promise(resolve => { load = resolve }))
+  const review = { reference: reviewRef, sessionId: 'review-session', mode: 'self', onCheckpoint: vi.fn(),
+    start: { nonce: 'request-1', text: 'Review this frozen manuscript' }, onStartAttempted: vi.fn() }
+  const props = { workspace: 'a', reference: paper, paperTitle: 'Original paper', initialSessionId: 'review-session',
+    prompt: null, onSessionBound: vi.fn(), onJump: vi.fn(), onClearSelection: vi.fn(), practiceBusy: false, review }
+  const view = render(<StudioTutorCompanion {...props} />)
+  expect(screen.getByRole('textbox', { name: '继续审稿或讨论修改' })).toBeDisabled()
+  expect(mocks.sendMessage).not.toHaveBeenCalled()
+  await waitFor(() => expect(mocks.getSession).toHaveBeenCalledTimes(1))
+  await act(async () => { load({ preferences: { workspace_id: 'a' }, messages: [] }) })
+  await waitFor(() => expect(mocks.sendMessage).toHaveBeenCalledTimes(1))
+  expect(mocks.sendMessage).toHaveBeenCalledWith('Review this frozen manuscript', undefined, undefined, undefined, undefined, {
+    studioReferences: [paper, reviewRef], resourceSelection: { skills: ['best-paper-review'], mcp: [] },
+  })
+  expect(mocks.newSession).not.toHaveBeenCalled()
+  expect(review.onStartAttempted).toHaveBeenCalledTimes(1)
+  const opening = { role: 'user', metadata: { request_snapshot: { studioReferences: [paper, reviewRef] } } }
+  mocks.getSession.mockResolvedValue({ preferences: { workspace_id: 'a' }, messages: [opening] })
+  view.rerender(<StudioTutorCompanion {...props} active={false} />)
+  const calls = mocks.getSession.mock.calls.length
+  await act(async () => {})
+  expect(mocks.getSession).toHaveBeenCalledTimes(calls)
+  view.rerender(<StudioTutorCompanion {...props} active />)
+  await waitFor(() => expect(mocks.getSession).toHaveBeenCalledTimes(calls + 1))
+  expect(mocks.sendMessage).toHaveBeenCalledTimes(1)
+})
+
+it('refuses to resume a review session bound to another original or workspace', async () => {
+  const opening = { role: 'user', metadata: { request_snapshot: { studioReferences: [paper, reviewRef] } } }
+  expect(discussionUsesReview([opening], paper, reviewRef)).toBe(true)
+  expect(discussionUsesReview([opening], { ...paper, locator: { blob_hash: 'different' } }, reviewRef)).toBe(false)
+  expect(discussionUsesReview([opening], paper, { ...reviewRef, scope: 'other' })).toBe(false)
+  mocks.state.sessionKey = 'review-session'
+  mocks.state.sessionId = 'review-session'
+  mocks.getSession.mockResolvedValue({ preferences: { workspace_id: 'other' }, messages: [opening] })
+  render(<StudioTutorCompanion workspace="a" reference={paper} paperTitle="Original paper" initialSessionId="review-session"
+    prompt={null} onSessionBound={vi.fn()} onJump={vi.fn()} onClearSelection={vi.fn()} practiceBusy={false}
+    review={{ reference: reviewRef, sessionId: 'review-session', mode: 'full', onCheckpoint: vi.fn(), start: null, onStartAttempted: vi.fn() }} />)
+  expect(await screen.findByRole('alert')).toHaveTextContent('原稿版本或会话归属需要重新核对')
+  expect(screen.getByRole('textbox', { name: '继续审稿或讨论修改' })).toBeDisabled()
+  expect(mocks.sendMessage).not.toHaveBeenCalled()
 })
 
 it('preserves typed frozen identities through the composer handoff and wire request', () => {
@@ -168,6 +217,16 @@ it('sends selected page and follow-up through a dedicated native chat session, n
   await waitFor(() => expect(mocks.sendMessage).toHaveBeenLastCalledWith('Explain the next page', undefined, undefined, undefined, undefined, {
     studioReferences: [nextPage],
   }))
+  // Visiting another tool and returning must select the saved discussion,
+  // not create a new draft just because this component began without an ID.
+  mocks.showCachedSession.mockReturnValue(true)
+  view.rerender(<StudioTutorCompanion {...props} reference={nextPage} active={false} />)
+  mocks.state.sessionKey = 'another-tool-session'
+  mocks.state.sessionId = 'another-tool-session'
+  mocks.state.boundFromKey = null
+  view.rerender(<StudioTutorCompanion {...props} reference={nextPage} active />)
+  await waitFor(() => expect(mocks.showCachedSession).toHaveBeenCalledWith('saved-paper-chat'))
+  expect(mocks.newSession).toHaveBeenCalledTimes(1)
 })
 
 it('preserves a draft rejected by the sender and does not erase edits made while a request resolves', async () => {

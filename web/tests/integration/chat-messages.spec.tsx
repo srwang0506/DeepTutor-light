@@ -1,14 +1,35 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { ChatMessageList } from '@/features/chat/messages'
 import type { StreamEvent } from '@/features/chat/model/protocol'
 import type { SessionSummary } from '@/lib/session-api'
-import { initI18n } from '@/i18n/init'
+import { ensureLanguage, initI18n } from '@/i18n/init'
 
 initI18n('en')
+beforeAll(() => ensureLanguage('en'))
 
 describe('chat message feature', () => {
+  it('names an attached paper review and keeps its owning project in the resume link', () => {
+    render(
+      <ChatMessageList
+        messages={[{
+          id: 1, role: 'user', content: 'Review this manuscript', parentMessageId: null,
+          requestSnapshot: {
+            content: 'Review this manuscript', enabledTools: [], knowledgeBases: [], language: 'en',
+            studioReferences: [{ kind: 'paper_review', scope: 'project', id: 'review-one', revision: 1 }],
+          },
+        }]}
+        isStreaming={false}
+        onCopyAssistantMessage={vi.fn()}
+        onRegenerateMessage={vi.fn()}
+      />,
+    )
+    const link = screen.getByRole('link', { name: 'Simulated review' })
+    expect(link).toHaveAttribute('href', '/objects/review-one?revision=1&dt_workspace=project')
+    expect(screen.queryByText('Revision 1')).toBeNull()
+  })
+
   it('shows a persisted worker loss beside the saved mastery answer with Retry', async () => {
     const retry = vi.fn()
     render(

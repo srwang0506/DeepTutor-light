@@ -243,6 +243,12 @@ function describeToolCall(
         chip: null,
         mono: false,
       };
+    case "paper_review_checkpoint":
+      return {
+        verb: a.action === "read" ? t("Reading paper review") : t("Saving paper review"),
+        chip: null,
+        mono: false,
+      };
     case "read_file":
       return {
         verb: t("Reading file"),

@@ -796,6 +796,11 @@ class AgenticLoopPipeline:
                 has_sources=False,
                 has_studio_sources=not is_partner
                 and bool(context.metadata.get("studio_source_refs")),
+                has_paper_review=not is_partner
+                and any(
+                    isinstance(ref, dict) and ref.get("kind") == "paper_review"
+                    for ref in context.metadata.get("studio_source_refs", {}).values()
+                ),
                 has_memory=user_has_memory(),
                 has_notebooks=user_has_notebooks(),
                 # A partner turn mounts the bank even when it is still empty:
@@ -1435,7 +1440,7 @@ class AgenticLoopPipeline:
             kwargs["_vision_supported"] = supports_vision(
                 getattr(self, "binding", ""), getattr(self, "model", None)
             )
-        elif tool_name == "read_studio_source":
+        elif tool_name in {"read_studio_source", "paper_review_checkpoint"}:
             kwargs["_studio_source_refs"] = (context.metadata or {}).get("studio_source_refs", {})
         elif tool_name == "kb_files":
             # The report is read by the user as much as by the model, so it is

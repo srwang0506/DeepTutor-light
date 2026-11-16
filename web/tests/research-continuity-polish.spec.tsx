@@ -11,18 +11,20 @@ const state = vi.hoisted(() => ({
   workspace: 'project',
   search: new URLSearchParams(),
   studio: vi.fn(), records: vi.fn(), post: vi.fn(),
+  router: { push: vi.fn(), replace: vi.fn() },
+  t: (key: string, values?: Record<string, unknown>) => key.replace(/{{(\w+)}}/g, (_, key) => String(values?.[key] ?? '')),
 }))
 vi.mock('@/lib/recovery-principal', () => ({
   recoveryPrincipal: () => state.principal, RECOVERY_PRINCIPAL_CHANGED: 'test-principal-change',
 }))
 vi.mock('@/hooks/useActiveWorkspaceId', () => ({ useActiveWorkspaceId: () => state.workspace }))
 vi.mock('react-i18next', () => ({ useTranslation: () => ({
-  t: (key: string, values?: Record<string, unknown>) => key.replace(/{{(\w+)}}/g, (_, key) => String(values?.[key] ?? '')),
+  t: state.t,
   i18n: { language: 'en' },
 }) }))
 vi.mock('next/navigation', () => ({
   useSearchParams: () => state.search, useParams: () => ({ id: 'activity' }),
-  useRouter: () => ({ push: vi.fn() }), usePathname: () => '/studio/writing',
+  useRouter: () => state.router, usePathname: () => '/studio/writing',
 }))
 vi.mock('next/link', () => ({ default: ({ href, children, ...props }: { href: string; children: React.ReactNode }) => <a href={href} {...props}>{children}</a> }))
 vi.mock('@/lib/studio-api', async importOriginal => ({
@@ -44,6 +46,7 @@ beforeEach(() => {
   state.studio.mockReset()
   state.records.mockReset().mockResolvedValue([])
   state.post.mockReset()
+  state.router.replace.mockReset()
   window.sessionStorage.clear()
   URL.revokeObjectURL = vi.fn()
 })
@@ -93,6 +96,35 @@ it('opens a practice source at its consumed revision and retries failed object l
   fireEvent.click(await screen.findByRole('button', { name: 'Retry' }))
   const link = await screen.findByRole('link', { name: /回到原件/ })
   expect(link.getAttribute('href')).toContain('revision=2&file=frozen-file&page=7')
+})
+
+it('returns a saved review source to its frozen original and review tab in the same project', async () => {
+  state.search = new URLSearchParams('revision=1')
+  state.studio.mockResolvedValue({
+    id: 'activity', kind: 'paper_review', scope: 'project', revision: 1, latest_revision: 5,
+    data: { target_ref: { kind: 'edition', scope: '@library', id: 'paper', revision: 4, locator: { blob_hash: 'a'.repeat(64) } } },
+  })
+  render(<ObjectPage />)
+  await waitFor(() => expect(state.router.replace).toHaveBeenCalledOnce())
+  const url = new URL(state.router.replace.mock.calls[0][0], 'http://localhost')
+  expect(url.pathname).toBe('/library/paper')
+  expect(Object.fromEntries(url.searchParams)).toEqual({ revision: '4', file: 'a'.repeat(64), review: 'activity', dt_workspace: 'project' })
+  expect(screen.getByRole('status')).toHaveTextContent('正在读取冻结版本…')
+  expect(screen.queryByText('这是被引用的旧版本。')).toBeNull()
+})
+
+it.each([
+  { scope: 'other-project', revision: 4, hash: 'a'.repeat(64) },
+  { scope: 'project', revision: 0, hash: 'a'.repeat(64) },
+  { scope: 'project', revision: 4, hash: 'missing-hash' },
+])('keeps invalid review targets from silently opening another manuscript: %j', async ({ scope, revision, hash }) => {
+  state.studio.mockResolvedValue({
+    id: 'activity', kind: 'paper_review', scope, revision: 1, latest_revision: 1,
+    data: { target_ref: { kind: 'edition', scope: '@library', id: 'paper', revision, locator: { blob_hash: hash } } },
+  })
+  render(<ObjectPage />)
+  expect(await screen.findByRole('alert')).toHaveTextContent('审稿对话无法打开，原稿版本或会话归属需要重新核对。')
+  expect(state.router.replace).not.toHaveBeenCalled()
 })
 
 it('keeps draft conflicts scoped to the current account and decodes file paths safely', async () => {
