@@ -5,6 +5,8 @@ events { worker_connections 1024; }
 http {
     access_log off;
     server_tokens off;
+    map_hash_bucket_size 512;
+    server_names_hash_bucket_size 512;
     client_body_temp_path /tmp/deeptutor-client;
     proxy_temp_path /tmp/deeptutor-proxy;
     fastcgi_temp_path /tmp/deeptutor-fastcgi;

@@ -1,7 +1,7 @@
 """Exercise the production ingress and recover a saved note on a fresh container."""
 
 import base64
-from http.client import HTTPConnection
+from http.client import HTTPConnection, HTTPSConnection
 from http.cookies import SimpleCookie
 import json
 import os
@@ -12,13 +12,19 @@ import sys
 import time
 from urllib.parse import urlencode
 
-HOST = "workspace.example.test"
+REMOTE_HOST = os.environ.get("DEEPTUTOR_SMOKE_HOST")
+HOST = REMOTE_HOST or "personal-research-workspace-production.hosting.example.test"
+ORIGIN = "https://" + HOST if REMOTE_HOST else "http://127.0.0.1:18080"
 ENTRY = "https://srwang0506.github.io/tools/deeptutor/"
 STATE_FILE = Path(os.environ["RUNNER_TEMP"]) / "deeptutor-hosted-test-session.json"
 
 
 def request(path, headers=None, data=None):
-    connection = HTTPConnection("127.0.0.1", 18080, timeout=12)
+    connection = (
+        HTTPSConnection(HOST, timeout=40)
+        if REMOTE_HOST
+        else HTTPConnection("127.0.0.1", 18080, timeout=12)
+    )
     try:
         connection.request(
             "POST" if data is not None else "GET",
@@ -100,8 +106,7 @@ def review_fixture(cookie):
     upload = subprocess.run(
         [
             "curl",
-            "--noproxy",
-            "*",
+            *([] if REMOTE_HOST else ["--noproxy", "*"]),
             "--fail",
             "--silent",
             "--show-error",
@@ -119,7 +124,7 @@ def review_fixture(cookie):
             "expected_revision=" + str(edition["revision"]),
             "--form",
             f"file=@{fixture};type=application/pdf",
-            "http://127.0.0.1:18080" + original + "/pdf",
+            ORIGIN + original + "/pdf",
         ],
         stdout=subprocess.PIPE,
     )

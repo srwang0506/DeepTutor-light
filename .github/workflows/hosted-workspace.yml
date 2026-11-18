@@ -37,7 +37,7 @@ jobs:
           hash="$(printf '%s' "$TEST_WORKSPACE_PASSWORD" | docker run --rm -i deeptutor-hosted-check python -c 'import bcrypt,sys; print(bcrypt.hashpw(sys.stdin.buffer.read(), bcrypt.gensalt()).decode())')"
           start_workspace() {
             docker run -d --name hosted-check "$@" --memory=512m --memory-swap=512m --cpus=1 -e AUTH_PASSWORD_HASH="$hash" \
-              -e DEEPTUTOR_PUBLIC_ORIGIN=https://workspace.example.test \
+              -e DEEPTUTOR_PUBLIC_ORIGIN=https://personal-research-workspace-production.hosting.example.test \
               --mount type=volume,src=hosted-check-data,dst=/runtime,volume-nocopy \
               -p 127.0.0.1:18080:8080 deeptutor-hosted-check
           }
