@@ -71,6 +71,8 @@ def verify(cookie):
     )
     status, _, body = request("/api/auth/status", headers)
     assert status == 200 and json.loads(body)["authenticated"], ("identity", status)
+    status, _, body = request("/api/settings/ui", headers)
+    assert status == 200 and json.loads(body)["language"] == "zh", ("settings language", status)
     status, _, body = request("/api/studio/paper-reviews/options", headers)
     assert status == 200 and json.loads(body)["skill"]["name"] == "best-paper-review", (
         "review",

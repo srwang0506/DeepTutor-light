@@ -1,5 +1,6 @@
 """Exchange a top-level Pages form submission for DeepTutor's native session."""
 
+import logging
 from urllib.parse import parse_qs, urlsplit
 
 from fastapi import HTTPException, Request
@@ -8,8 +9,11 @@ from starlette.concurrency import run_in_threadpool
 from starlette.responses import PlainTextResponse, RedirectResponse
 
 from deeptutor.api.routers.auth import AUTH_COOKIE_NAME
+from deeptutor.multi_user.context import user_from_token_payload
+from deeptutor.multi_user.paths import user_context
 from deeptutor.services import auth
 from deeptutor.services.config import load_auth_settings
+from deeptutor.services.settings.interface_settings import update_ui_settings
 from deployment.hosted.start import PAGES_URL
 
 ENTRY_ORIGIN = "https://" + urlsplit(PAGES_URL).netloc
@@ -54,6 +58,14 @@ async def workspace_login(request: Request):
         identity = await run_in_threadpool(auth.authenticate, auth.AUTH_USERNAME, password)
     if identity is None:
         return RedirectResponse(PAGES_URL + "?lang=" + language + "#denied", 303, headers=headers)
+    if "lang" in fields:
+        with user_context(user_from_token_payload(identity)):
+            try:
+                await run_in_threadpool(update_ui_settings, {"language": language})
+            except OSError:
+                logging.getLogger(__name__).warning(
+                    "Could not save the sign-in language preference."
+                )
     token = auth.create_token(identity.username, identity.role, identity.user_id)
     response = RedirectResponse("/chat?ui_lang=" + language, 303, headers=headers)
     response.set_cookie(
