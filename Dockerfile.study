@@ -38,6 +38,8 @@ RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.l
 COPY --from=web /usr/local/bin/node /usr/local/bin/node
 COPY --from=backup-client /usr/bin/restic /usr/local/bin/restic
 COPY --from=web /app/web/.next-study/standalone/ /opt/deeptutor-web/
+RUN install -d -o tutor -g tutor -m 0700 /opt/deeptutor-web/.next-study/cache/images \
+    && chown tutor:tutor /opt/deeptutor-web/.next-study/cache
 ENV PORT=8080 PYTHONDONTWRITEBYTECODE=1 NODE_ENV=production
 USER tutor
 EXPOSE 8080

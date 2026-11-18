@@ -55,7 +55,7 @@ async def workspace_login(request: Request):
     if identity is None:
         return RedirectResponse(PAGES_URL + "?lang=" + language + "#denied", 303, headers=headers)
     token = auth.create_token(identity.username, identity.role, identity.user_id)
-    response = RedirectResponse("/chat", 303, headers=headers)
+    response = RedirectResponse("/chat?ui_lang=" + language, 303, headers=headers)
     response.set_cookie(
         AUTH_COOKIE_NAME,
         token,

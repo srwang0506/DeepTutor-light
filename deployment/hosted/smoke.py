@@ -61,6 +61,14 @@ def verify(cookie):
     headers = {"Cookie": cookie}
     status, _, body = request("/chat", {**headers, "Accept": "text/html"})
     assert status == 200 and b"DeepTutor" in body, ("chat", status)
+    status, image_headers, image_body = request(
+        "/_next/image?url=%2Fbrand%2Fcolor-logo.png&w=64&q=75",
+        {**headers, "Accept": "image/webp"},
+    )
+    assert status == 200 and image_headers["Content-Type"].startswith("image/") and image_body, (
+        "workspace logo",
+        status,
+    )
     status, _, body = request("/api/auth/status", headers)
     assert status == 200 and json.loads(body)["authenticated"], ("identity", status)
     status, _, body = request("/api/studio/paper-reviews/options", headers)
@@ -189,7 +197,7 @@ def main():
     assert status == 303 and headers["Location"] == ENTRY + "?lang=zh#denied"
     assert not headers["Set-Cookie"]
     status, headers, _ = login(os.environ["TEST_WORKSPACE_PASSWORD"])
-    assert status == 303 and headers["Location"] == "/chat", ("sign-in", status)
+    assert status == 303 and headers["Location"] == "/chat?ui_lang=zh", ("sign-in", status)
     token = SimpleCookie(headers["Set-Cookie"])["dt_token"]
     assert token["httponly"] and token["secure"] and token["samesite"].lower() == "lax"
     assert not token["domain"]

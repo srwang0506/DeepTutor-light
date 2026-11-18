@@ -190,6 +190,15 @@ export function AppShellProvider({ children }: { children: React.ReactNode }) {
     let cancelled = false;
     let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
     void (async () => {
+      const entryUrl = new URL(window.location.href);
+      const entryLanguage = entryUrl.searchParams.get("ui_lang");
+      if (entryLanguage === "zh" || entryLanguage === "en") {
+        writeStoredLanguage(entryLanguage);
+        setLanguageState(entryLanguage);
+        setLanguageReady(true);
+        entryUrl.searchParams.delete("ui_lang");
+        window.history.replaceState(window.history.state, "", entryUrl);
+      }
       // Both keys are checked, not just the interface one. They were split
       // after the interface language shipped, so a browser from before the
       // split has `deeptutor-language` and no `deeptutor-response-language` —

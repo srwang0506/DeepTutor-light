@@ -55,6 +55,7 @@ jobs:
           }
           start_workspace hosted-check-data --user 0
           python deployment/hosted/smoke.py
+          docker exec --user 1000 hosted-check test -w /opt/deeptutor-web/.next-study/cache/images
           docker exec hosted-check awk '/^Uid:/ {exit ($2 != 1000 || $3 != 1000)}' /proc/1/status
           test "$(docker exec hosted-check stat -c '%u:%g:%a' /runtime)" = 1000:1000:700
           docker exec hosted-check cat /sys/fs/cgroup/memory.peak /sys/fs/cgroup/memory.events
