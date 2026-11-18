@@ -27,6 +27,23 @@ def public_host(origin: str) -> str:
 
 
 def main():
+    # Some container hosts mount a new volume as root:root. Only the mount
+    # itself needs initialization; every application process runs as tutor.
+    if os.geteuid() == 0:
+        import pwd
+
+        tutor = pwd.getpwnam("tutor")
+        volume = os.open("/runtime", os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+        try:
+            os.fchown(volume, tutor.pw_uid, tutor.pw_gid)
+            os.fchmod(volume, 0o700)
+        finally:
+            os.close(volume)
+        os.setgroups([])
+        os.setgid(tutor.pw_gid)
+        os.setuid(tutor.pw_uid)
+        os.environ.update(HOME=tutor.pw_dir, USER=tutor.pw_name, LOGNAME=tutor.pw_name)
+
     host = public_host(os.environ.get("DEEPTUTOR_PUBLIC_ORIGIN", ""))
     port = int(os.environ.get("PORT", "8080"))
     if port in {3782, 8001} or not 1024 <= port <= 65535:

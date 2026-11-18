@@ -28,6 +28,10 @@ mount a persistent POSIX disk at `/runtime` writable by UID 1000, terminate
 HTTPS at its public ingress, set `DEEPTUTOR_PUBLIC_ORIGIN` to its canonical
 HTTPS origin and provide `AUTH_PASSWORD_HASH` as a secret.
 
+For platforms that supply a root-owned volume, selecting UID 0 for container
+startup lets the entry point set ownership on `/runtime`. It immediately
+switches to UID 1000 before reading the password hash or starting services.
+
 On a small x86-64 server, use the Linux image published by the **Hosted
 workspace** workflow after its recovery test passes. Its run summary gives a
 content-addressed GHCR reference. Set `DEEPTUTOR_HOSTED_IMAGE` to that
