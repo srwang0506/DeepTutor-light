@@ -39,6 +39,7 @@ COPY --from=web /app/web/.next-study/standalone/ /opt/deeptutor-web/
 ENV PORT=8080 PYTHONDONTWRITEBYTECODE=1 NODE_ENV=production
 USER tutor
 EXPOSE 8080
+VOLUME ["/runtime"]
 HEALTHCHECK --interval=20s --timeout=5s --start-period=120s CMD python -c "import os,urllib.request; assert urllib.request.urlopen('http://127.0.0.1:'+os.environ['PORT']+'/health/ready',timeout=3).status==200"
 CMD ["python", "-m", "deployment.hosted.start"]
 

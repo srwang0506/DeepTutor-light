@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import secrets
+import subprocess
 import sys
 import time
 from urllib.parse import urlencode
@@ -63,15 +64,83 @@ def verify(cookie):
     )
 
 
-def notebook_api(cookie, path, payload=None):
+def json_api(cookie, path, payload=None, workspace=None):
     headers = {"Cookie": cookie, "Origin": "https://" + HOST}
+    if workspace:
+        headers["X-DeepTutor-Workspace"] = workspace
     data = None
     if payload is not None:
         headers["Content-Type"] = "application/json"
         data = json.dumps(payload)
-    status, _, body = request("/api/notebooks" + path, headers, data)
-    assert status == 200, ("notebook", path, status)
+    status, _, body = request(path, headers, data)
+    assert status in {200, 201}, (path, status)
     return json.loads(body)
+
+
+def review_fixture(cookie):
+    workspace = json_api(cookie, "/api/settings/workspace/registrations", {"name": "Paper study"})[
+        "workspace"
+    ]["workspace_id"]
+    base = "/api/studio"
+    edition = json_api(
+        cookie,
+        base + "/library/collect",
+        {
+            "request_id": secrets.token_hex(12),
+            "work": {"title": "Review fixture"},
+            "edition": {"work_id": ""},
+        },
+        workspace,
+    )
+    original = base + "/editions/" + edition["id"]
+    fixture = (
+        Path(__file__).resolve().parents[2]
+        / "deeptutor/skills/builtin/best-paper-review/examples/demo/paper.pdf"
+    )
+    upload = subprocess.run(
+        [
+            "curl",
+            "--noproxy",
+            "*",
+            "--fail",
+            "--silent",
+            "--show-error",
+            "--max-time",
+            "30",
+            "--header",
+            "Host: " + HOST,
+            "--header",
+            "Origin: https://" + HOST,
+            "--header",
+            "Cookie: " + cookie,
+            "--header",
+            "X-DeepTutor-Workspace: " + workspace,
+            "--form-string",
+            "expected_revision=" + str(edition["revision"]),
+            "--form",
+            f"file=@{fixture};type=application/pdf",
+            "http://127.0.0.1:18080" + original + "/pdf",
+        ],
+        stdout=subprocess.PIPE,
+    )
+    assert upload.returncode == 0, "Could not attach the sample manuscript."
+    attached = json.loads(upload.stdout)
+    digest = attached["data"]["files"][0]["hash"]
+    page = json_api(cookie, original + "/files/" + digest + "/pages/1", workspace=workspace)
+    assert page["text"].strip() and page["blob_hash"] == digest
+    review = json_api(
+        cookie,
+        base + "/paper-reviews",
+        {
+            "request_id": secrets.token_hex(12),
+            "edition_id": edition["id"],
+            "revision": attached["revision"],
+            "blob_hash": digest,
+            "language": "zh",
+        },
+        workspace,
+    )
+    return {"id": review["id"], "workspace": workspace, "original": original + "/files/" + digest}
 
 
 def main():
@@ -79,12 +148,24 @@ def main():
     if "--resume" in sys.argv:
         state = json.loads(STATE_FILE.read_text())
         verify(state["cookie"])
-        notebook = notebook_api(state["cookie"], "/" + state["notebook_id"])
+        notebook = json_api(state["cookie"], "/api/notebooks/" + state["notebook_id"])
         assert any(
             record["id"] == state["record_id"] and record["output"] == state["text"]
             for record in notebook["records"]
         ), "Saved note missing after replacing the application container."
-        print("The session and saved study note reopened on a fresh container using the same disk.")
+        paper = state["review"]
+        review = json_api(
+            state["cookie"],
+            "/api/studio/paper-reviews/" + paper["id"],
+            workspace=paper["workspace"],
+        )
+        page = json_api(
+            state["cookie"], paper["original"] + "/pages/1", workspace=paper["workspace"]
+        )
+        assert review["id"] == paper["id"] and page["text"].strip()
+        print(
+            "The session, saved study note, original PDF and review reopened on a fresh container."
+        )
         return
     status, headers, _ = request("/chat", {"Accept": "text/html"})
     assert status == 303 and headers["Location"] == ENTRY
@@ -110,11 +191,11 @@ def main():
     cookie = "dt_token=" + token.value
     verify(cookie)
     assert request("/ws", {**ws, "Cookie": cookie})[0] == 101
-    notebook = notebook_api(cookie, "", {"name": "Hosted study check"})["notebook"]
+    notebook = json_api(cookie, "/api/notebooks", {"name": "Hosted study check"})["notebook"]
     note = "Depth-first search reading note " + secrets.token_hex(8)
-    record = notebook_api(
+    record = json_api(
         cookie,
-        "/actions/add-record",
+        "/api/notebooks/actions/add-record",
         {
             "notebook_ids": [notebook["id"]],
             "record_type": "reading",
@@ -129,6 +210,7 @@ def main():
         "notebook_id": notebook["id"],
         "record_id": record["id"],
         "text": note,
+        "review": review_fixture(cookie),
     }
     with open(STATE_FILE, "x", opener=lambda path, flags: os.open(path, flags, 0o600)) as handle:
         json.dump(state, handle)

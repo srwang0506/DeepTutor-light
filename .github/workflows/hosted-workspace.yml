@@ -16,6 +16,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - name: Build the hosted workspace
         run: docker build -f Dockerfile.study --target hosted -t deeptutor-hosted-check .
       - name: Verify sign-in, protected application routes and persistence
@@ -27,12 +29,13 @@ jobs:
           TEST_WORKSPACE_PASSWORD="$(openssl rand -hex 20)"
           hash="$(printf '%s' "$TEST_WORKSPACE_PASSWORD" | docker run --rm -i deeptutor-hosted-check python -c 'import bcrypt,sys; print(bcrypt.hashpw(sys.stdin.buffer.read(), bcrypt.gensalt()).decode())')"
           start_workspace() {
-            docker run -d --name hosted-check -e AUTH_PASSWORD_HASH="$hash" \
+            docker run -d --name hosted-check --memory=512m --memory-swap=512m --cpus=1 -e AUTH_PASSWORD_HASH="$hash" \
               -e DEEPTUTOR_PUBLIC_ORIGIN=https://workspace.example.test \
               -v hosted-check-data:/runtime -p 127.0.0.1:18080:8080 deeptutor-hosted-check
           }
           start_workspace
           python deployment/hosted/smoke.py
+          docker exec hosted-check cat /sys/fs/cgroup/memory.peak /sys/fs/cgroup/memory.events
           docker stop hosted-check
           docker rm hosted-check
           start_workspace
