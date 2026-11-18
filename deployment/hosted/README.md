@@ -28,6 +28,20 @@ mount a persistent POSIX disk at `/runtime` writable by UID 1000, terminate
 HTTPS at its public ingress, set `DEEPTUTOR_PUBLIC_ORIGIN` to its canonical
 HTTPS origin and provide `AUTH_PASSWORD_HASH` as a secret.
 
+On a small x86-64 server, use the Linux image published by the **Hosted
+workspace** workflow after its recovery test passes. Its run summary gives a
+content-addressed GHCR reference. Set `DEEPTUTOR_HOSTED_IMAGE` to that
+reference and use the same Compose file and password hash:
+
+```sh
+docker compose -f compose.hosted.yml pull workspace
+docker compose -f compose.hosted.yml up -d --no-build
+```
+
+Pulling a private package requires registry read access. The image contains
+the application; each deployment initializes its own data volume, password
+and model account.
+
 In the homepage repository set `workspaceOrigin` in `data/deeptutor.js` to
 the verified HTTPS origin, build and publish `docs/`. Test sign-in with a
 fresh browser session. The application opens on the workspace origin and its

@@ -1,6 +1,7 @@
 # Production on a Linux server whose public hostname points to it.
 services:
   workspace:
+    image: ${DEEPTUTOR_HOSTED_IMAGE:-deeptutor-hosted:local}
     build:
       context: .
       dockerfile: Dockerfile.study
