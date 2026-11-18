@@ -85,7 +85,14 @@ def main():
         DEEPTUTOR_NEXT_DIST_DIR=".next-study",
         TZ=os.environ.get("TZ", "UTC"),
     )
+    from deeptutor.runtime.home import get_runtime_home
     from deeptutor.services.setup import init_user_directories
+    from deployment.hosted import recovery
+
+    home = get_runtime_home()
+    archive = recovery.take_backup_settings()
+    if archive:
+        recovery.restore_if_missing(home, archive)
 
     init_user_directories()
     # Substitute only the deployment values. Nginx request variables are
@@ -95,7 +102,10 @@ def main():
         config.replace("@PORT@", str(port)).replace("@HOST@", host).replace("@PAGES@", PAGES_URL)
     )
     Path("/tmp/deeptutor-nginx.conf").write_text(config)
-    os.execvp("supervisord", ["supervisord", "-n", "-c", str(HERE / "supervisord.conf")])
+    command = ["supervisord", "-n", "-c", str(HERE / "supervisord.conf")]
+    if archive:
+        recovery.supervise(command, home, archive)
+    os.execvp(command[0], command)
 
 
 if __name__ == "__main__":

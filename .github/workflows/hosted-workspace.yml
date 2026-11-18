@@ -35,20 +35,34 @@ jobs:
           export TEST_WORKSPACE_PASSWORD
           TEST_WORKSPACE_PASSWORD="$(openssl rand -hex 20)"
           hash="$(printf '%s' "$TEST_WORKSPACE_PASSWORD" | docker run --rm -i deeptutor-hosted-check python -c 'import bcrypt,sys; print(bcrypt.hashpw(sys.stdin.buffer.read(), bcrypt.gensalt()).decode())')"
+          docker run --rm --user 0 -v hosted-check-backups:/vault deeptutor-hosted-check chown 1000:1000 /vault
+          docker run --rm -v hosted-check-backups:/vault -e RESTIC_PASSWORD="$TEST_WORKSPACE_PASSWORD" \
+            deeptutor-hosted-check restic --no-cache -r /vault/repository init
           start_workspace() {
+            disk="$1"
+            shift
             docker run -d --name hosted-check "$@" --memory=512m --memory-swap=512m --cpus=1 -e AUTH_PASSWORD_HASH="$hash" \
               -e DEEPTUTOR_PUBLIC_ORIGIN=https://personal-research-workspace-production.hosting.example.test \
-              --mount type=volume,src=hosted-check-data,dst=/runtime,volume-nocopy \
+              -e DEEPTUTOR_HOME=/runtime/workspace -e DEEPTUTOR_BACKUP_REPOSITORY=/vault/repository \
+              -e DEEPTUTOR_BACKUP_PASSWORD="$TEST_WORKSPACE_PASSWORD" -v hosted-check-backups:/vault \
+              --mount "type=volume,src=$disk,dst=/runtime,volume-nocopy" \
               -p 127.0.0.1:18080:8080 deeptutor-hosted-check
           }
-          start_workspace --user 0
+          stop_workspace() {
+            docker stop -t 100 hosted-check
+            test "$(docker inspect --format '{{.State.ExitCode}}' hosted-check)" = 0
+            docker rm hosted-check
+          }
+          start_workspace hosted-check-data --user 0
           python deployment/hosted/smoke.py
           docker exec hosted-check awk '/^Uid:/ {exit ($2 != 1000 || $3 != 1000)}' /proc/1/status
           test "$(docker exec hosted-check stat -c '%u:%g:%a' /runtime)" = 1000:1000:700
           docker exec hosted-check cat /sys/fs/cgroup/memory.peak /sys/fs/cgroup/memory.events
-          docker stop hosted-check
-          docker rm hosted-check
-          start_workspace
+          stop_workspace
+          start_workspace hosted-check-data
+          python deployment/hosted/smoke.py --resume
+          stop_workspace
+          start_workspace hosted-replacement-data --user 0
           python deployment/hosted/smoke.py --resume
       - name: Report startup diagnostics on failure
         if: failure()

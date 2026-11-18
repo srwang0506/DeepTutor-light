@@ -46,6 +46,22 @@ Pulling a private package requires registry read access. The image contains
 the application; each deployment initializes its own data volume, password
 and model account.
 
+### Recovery after losing the cloud disk
+
+The active workspace uses a POSIX volume. For an additional encrypted copy,
+initialize a private restic repository, then set `DEEPTUTOR_BACKUP_REPOSITORY`
+and the secret `DEEPTUTOR_BACKUP_PASSWORD`. For S3 set
+`DEEPTUTOR_BACKUP_ACCESS_KEY_ID`, `DEEPTUTOR_BACKUP_SECRET_ACCESS_KEY`
+and `DEEPTUTOR_BACKUP_REGION`. This configuration uses virtual-hosted S3
+addressing. Give each workspace instance its own repository prefix and keep a
+copy of the recovery password outside the cloud account.
+
+On graceful termination the supervisor stops all writers before taking a
+verified SQLite and file snapshot. The next start on a fresh disk restores
+the latest completed snapshot before opening the application. A forced stop
+can leave the backup at its previous checkpoint. Allow enough termination
+grace for your data size. The active disk remains the source for newer writes.
+
 In the homepage repository set `workspaceOrigin` in `data/deeptutor.js` to
 the verified HTTPS origin, build and publish `docs/`. Test sign-in with a
 fresh browser session. The application opens on the workspace origin and its

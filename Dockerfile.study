@@ -2,6 +2,7 @@
 # Override these with registry digest-pinned references in your deployment.
 ARG NODE_IMAGE=node:24.19.0-bookworm-slim
 ARG PYTHON_IMAGE=python:3.12.9-slim-bookworm
+FROM restic/restic:0.19.1 AS backup-client
 FROM ${NODE_IMAGE} AS web
 WORKDIR /app/web
 COPY web/package.json web/package-lock.json ./
@@ -35,6 +36,7 @@ RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.l
     && useradd --create-home --uid 1000 --shell /usr/sbin/nologin tutor \
     && install -d -o tutor -g tutor -m 0700 /runtime
 COPY --from=web /usr/local/bin/node /usr/local/bin/node
+COPY --from=backup-client /usr/bin/restic /usr/local/bin/restic
 COPY --from=web /app/web/.next-study/standalone/ /opt/deeptutor-web/
 ENV PORT=8080 PYTHONDONTWRITEBYTECODE=1 NODE_ENV=production
 USER tutor
