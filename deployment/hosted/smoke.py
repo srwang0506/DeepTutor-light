@@ -1,4 +1,4 @@
-"""Exercise the production ingress in CI, including a persisted login after restart."""
+"""Exercise the production ingress and recover a saved note on a fresh container."""
 
 import base64
 from http.client import HTTPConnection
@@ -13,7 +13,7 @@ from urllib.parse import urlencode
 
 HOST = "workspace.example.test"
 ENTRY = "https://srwang0506.github.io/tools/deeptutor/"
-COOKIE_FILE = Path(os.environ["RUNNER_TEMP"]) / "deeptutor-hosted-test-cookie"
+STATE_FILE = Path(os.environ["RUNNER_TEMP"]) / "deeptutor-hosted-test-session.json"
 
 
 def request(path, headers=None, data=None):
@@ -63,11 +63,28 @@ def verify(cookie):
     )
 
 
+def notebook_api(cookie, path, payload=None):
+    headers = {"Cookie": cookie, "Origin": "https://" + HOST}
+    data = None
+    if payload is not None:
+        headers["Content-Type"] = "application/json"
+        data = json.dumps(payload)
+    status, _, body = request("/api/notebooks" + path, headers, data)
+    assert status == 200, ("notebook", path, status)
+    return json.loads(body)
+
+
 def main():
     wait_ready()
     if "--resume" in sys.argv:
-        verify(COOKIE_FILE.read_text())
-        print("The native session reopened after a container restart.")
+        state = json.loads(STATE_FILE.read_text())
+        verify(state["cookie"])
+        notebook = notebook_api(state["cookie"], "/" + state["notebook_id"])
+        assert any(
+            record["id"] == state["record_id"] and record["output"] == state["text"]
+            for record in notebook["records"]
+        ), "Saved note missing after replacing the application container."
+        print("The session and saved study note reopened on a fresh container using the same disk.")
         return
     status, headers, _ = request("/chat", {"Accept": "text/html"})
     assert status == 303 and headers["Location"] == ENTRY
@@ -93,8 +110,28 @@ def main():
     cookie = "dt_token=" + token.value
     verify(cookie)
     assert request("/ws", {**ws, "Cookie": cookie})[0] == 101
-    COOKIE_FILE.write_text(cookie)
-    COOKIE_FILE.chmod(0o600)
+    notebook = notebook_api(cookie, "", {"name": "Hosted study check"})["notebook"]
+    note = "Depth-first search reading note " + secrets.token_hex(8)
+    record = notebook_api(
+        cookie,
+        "/actions/add-record",
+        {
+            "notebook_ids": [notebook["id"]],
+            "record_type": "reading",
+            "title": "Depth-first search",
+            "summary": "The traversal keeps a stack of unfinished vertices.",
+            "user_query": "How does depth-first search work?",
+            "output": note,
+        },
+    )["record"]
+    state = {
+        "cookie": cookie,
+        "notebook_id": notebook["id"],
+        "record_id": record["id"],
+        "text": note,
+    }
+    with open(STATE_FILE, "x", opener=lambda path, flags: os.open(path, flags, 0o600)) as handle:
+        json.dump(state, handle)
     print("Password, redirect, signed session, chat page and review service verified.")
 
 

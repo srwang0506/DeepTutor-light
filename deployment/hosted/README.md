@@ -11,12 +11,12 @@ API, downloads and WebSocket upgrades require a valid server session.
 Point a DNS hostname to the server. Set `DEEPTUTOR_DOMAIN` to that hostname
 and `DEEPTUTOR_PASSWORD_HASH_PATH` to a local file holding a bcrypt hash. The
 workspace process runs as UID 1000 and must be able to read the mounted secret.
-Keep the password in your password manager. To create a hash without putting
-the password in command history, use the project's Python environment:
+Use the project's Python environment to set your password. Enter it twice
+at the hidden terminal prompt. The command saves only a bcrypt hash in a new
+owner-readable file.
 
 ```sh
-umask 077
-python -c 'from getpass import getpass; import bcrypt; print(bcrypt.hashpw(getpass("Workspace password: ").encode(), bcrypt.gensalt()).decode())' > /path/to/workspace-password.hash
+python -m deployment.hosted.password /path/to/workspace-password.hash
 docker compose -f compose.hosted.yml up --build -d
 ```
 
