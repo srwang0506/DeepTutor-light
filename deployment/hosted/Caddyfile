@@ -1,0 +1,3 @@
+{$DEEPTUTOR_DOMAIN} {
+    reverse_proxy workspace:8080
+}

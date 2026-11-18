@@ -1,0 +1,37 @@
+name: Hosted workspace
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/study-workbench]
+    paths:
+      - 'Dockerfile.study*'
+      - 'deployment/hosted/**'
+      - 'compose.hosted.yml'
+      - '.github/workflows/hosted-workspace.yml'
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build the hosted workspace
+        run: docker build -f Dockerfile.study --target hosted -t deeptutor-hosted-check .
+      - name: Verify sign-in, protected application routes and persistence
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          export TEST_WORKSPACE_PASSWORD
+          TEST_WORKSPACE_PASSWORD="$(openssl rand -hex 20)"
+          hash="$(printf '%s' "$TEST_WORKSPACE_PASSWORD" | docker run --rm -i deeptutor-hosted-check python -c 'import bcrypt,sys; print(bcrypt.hashpw(sys.stdin.buffer.read(), bcrypt.gensalt()).decode())')"
+          docker run -d --name hosted-check -e AUTH_PASSWORD_HASH="$hash" \
+            -e DEEPTUTOR_PUBLIC_ORIGIN=https://workspace.example.test \
+            -v hosted-check-data:/runtime -p 127.0.0.1:18080:8080 deeptutor-hosted-check
+          python deployment/hosted/smoke.py
+          docker restart hosted-check
+          python deployment/hosted/smoke.py --resume
+      - name: Report startup diagnostics on failure
+        if: failure()
+        run: docker logs --tail 100 hosted-check 2>&1 || true

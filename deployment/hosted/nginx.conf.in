@@ -1,0 +1,81 @@
+worker_processes 1;
+pid /tmp/deeptutor-nginx.pid;
+error_log stderr warn;
+events { worker_connections 1024; }
+http {
+    access_log off;
+    server_tokens off;
+    client_body_temp_path /tmp/deeptutor-client;
+    proxy_temp_path /tmp/deeptutor-proxy;
+    fastcgi_temp_path /tmp/deeptutor-fastcgi;
+    uwsgi_temp_path /tmp/deeptutor-uwsgi;
+    scgi_temp_path /tmp/deeptutor-scgi;
+    client_max_body_size 128m;
+    limit_req_zone $binary_remote_addr zone=workspace_logins:1m rate=12r/m;
+    map $http_upgrade $upgrade_connection { default upgrade; '' ''; }
+    map $uri $workspace_upstream {
+        default 127.0.0.1:3782;
+        ~^/ws(?:/|$) 127.0.0.1:8001;
+    }
+    map "$request_method:$http_accept" $wants_login { default 0; ~^GET:.*text/html 1; }
+    map $http_origin $origin_ok { default 0; '' 1; 'https://@HOST@' 1; }
+    map "$request_method:$http_upgrade:$origin_ok" $reject_origin {
+        default 0;
+        ~^(POST|PUT|PATCH|DELETE):.*:0$ 1;
+        ~*^GET:websocket:0$ 1;
+    }
+    server {
+        listen @PORT@ default_server;
+        server_name _;
+        location = /health/ready { proxy_pass http://127.0.0.1:8001/_hosted/ready; }
+        location / { return 404; }
+    }
+    server {
+        listen @PORT@;
+        server_name @HOST@;
+        absolute_redirect off;
+        add_header Referrer-Policy strict-origin-when-cross-origin always;
+        add_header X-Content-Type-Options nosniff always;
+        add_header X-Frame-Options DENY always;
+        location = /health/ready { proxy_pass http://127.0.0.1:8001/_hosted/ready; }
+        location = /access/workspace {
+            limit_except POST { deny all; }
+            client_max_body_size 2k;
+            limit_req zone=workspace_logins burst=8 nodelay;
+            limit_req_status 429;
+            error_page 429 =303 "@PAGES@#busy";
+            proxy_pass http://127.0.0.1:8001/access/workspace;
+        }
+        location = /_workspace_session {
+            internal;
+            proxy_method GET;
+            proxy_pass_request_body off;
+            proxy_set_header Content-Length "";
+            proxy_set_header Authorization "";
+            proxy_pass http://127.0.0.1:8001/api/auth/profile;
+        }
+        location = /login { return 303 @PAGES@; }
+        location @signin {
+            add_header Cache-Control no-store always;
+            if ($wants_login) { return 303 @PAGES@; }
+            return 401;
+        }
+        location / {
+            if ($reject_origin) { return 403; }
+            auth_request /_workspace_session;
+            error_page 401 = @signin;
+            proxy_http_version 1.1;
+            proxy_set_header Host @HOST@;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $upgrade_connection;
+            proxy_set_header X-Forwarded-Proto https;
+            proxy_set_header X-Forwarded-Host @HOST@;
+            proxy_set_header X-Forwarded-For $remote_addr;
+            proxy_set_header Authorization "";
+            proxy_buffering off;
+            proxy_request_buffering off;
+            proxy_read_timeout 1800s;
+            proxy_pass http://$workspace_upstream;
+        }
+    }
+}

@@ -1,0 +1,39 @@
+# Production on a Linux server whose public hostname points to it.
+services:
+  workspace:
+    build:
+      context: .
+      dockerfile: Dockerfile.study
+      target: hosted
+    environment:
+      PORT: "8080"
+      DEEPTUTOR_PUBLIC_ORIGIN: https://${DEEPTUTOR_DOMAIN:?Set the workspace hostname}
+      DEEPTUTOR_PASSWORD_HASH_FILE: /run/secrets/workspace_password_hash
+      DEEPTUTOR_HOME: /runtime
+    secrets:
+      - workspace_password_hash
+    volumes:
+      - workspace_data:/runtime
+    restart: unless-stopped
+  https:
+    image: caddy:2-alpine
+    environment:
+      DEEPTUTOR_DOMAIN: ${DEEPTUTOR_DOMAIN:?Set the workspace hostname}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deployment/hosted/Caddyfile:/etc/caddy/Caddyfile:ro
+      - certificates:/data
+      - caddy_config:/config
+    depends_on:
+      workspace:
+        condition: service_healthy
+    restart: unless-stopped
+secrets:
+  workspace_password_hash:
+    file: ${DEEPTUTOR_PASSWORD_HASH_PATH:?Set the path to a bcrypt hash file}
+volumes:
+  workspace_data:
+  certificates:
+  caddy_config:
