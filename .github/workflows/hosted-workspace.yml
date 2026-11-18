@@ -30,7 +30,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python -m pip install 'psycopg[binary]==3.3.9' cryptography filelock certifi pytest
+      - run: python -m pip install 'psycopg[binary]==3.3.9' cryptography filelock certifi pytest pytest-asyncio
       - name: Verify durability and replacement with PostgreSQL
         env:
           DEEPTUTOR_TEST_POSTGRES: postgresql://postgres:integration-only@127.0.0.1:5432/postgres
