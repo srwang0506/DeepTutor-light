@@ -68,3 +68,34 @@ fresh browser session. The application opens on the workspace origin and its
 native logout closes the session. Configure the hosted model account in
 DeepTutor Settings. Codex OAuth supports pasting the callback address into
 the corresponding pending sign-in on the hosted instance.
+
+### Render Free with Neon
+
+Use a single Render Web Service with the verified hosted image, the Free
+instance type and health check path `/health/ready`. Render supplies its
+canonical hostname. Provide the workspace bcrypt hash as above.
+
+Set `DEEPTUTOR_NEON_CONFIG_FILE` to the path of a Render secret file containing
+a JSON object. Its fields are `database_url`, `namespace`, `bucket`,
+`s3_endpoint`, `s3_region`, `s3_access_key`, `s3_secret_key` and
+`encryption_key`. Use a private Neon bucket, a database role with its own
+schema, and a base64-encoded random 32-byte encryption key. Keep a private
+copy of the key. Give test and production workspaces distinct namespaces and
+keys. The runtime can also read the JSON from the secret `DEEPTUTOR_NEON_CONFIG`.
+
+PostgreSQL holds the encrypted workspace manifest and database blocks. The
+private bucket holds encrypted file blocks. A successful edit and a completed
+chat turn wait for a committed revision. In-progress background work also
+checkpoints. After an instance disappears, its replacement verifies and
+hydrates the current revision before accepting traffic. Each replacement
+fences the previous writer. A storage outage returns an error for an
+unconfirmed edit.
+
+For migration, stop writes on the source and take a verified native backup.
+Import it into an empty namespace. An independent restore can run while the
+new workspace is online.
+
+```sh
+python -m deployment.hosted.transfer import /private/cloud.json /private/native-backup
+python -m deployment.hosted.transfer restore /private/cloud.json /private/new-restore
+```

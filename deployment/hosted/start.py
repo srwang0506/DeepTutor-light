@@ -56,7 +56,10 @@ def main():
             os.close(reader)
             os.close(writer)
 
-    host = public_host(os.environ.get("DEEPTUTOR_PUBLIC_ORIGIN", ""))
+    origin = os.environ.get("DEEPTUTOR_PUBLIC_ORIGIN") or (
+        "https://" + os.environ.get("RENDER_EXTERNAL_HOSTNAME", "")
+    )
+    host = public_host(origin)
     port = int(os.environ.get("PORT", "8080"))
     if port in {3782, 8001} or not 1024 <= port <= 65535:
         raise ValueError("Use an unprivileged PORT other than the two internal service ports.")
@@ -91,10 +94,6 @@ def main():
 
     home = get_runtime_home()
     archive = recovery.take_backup_settings()
-    if archive:
-        recovery.restore_if_missing(home, archive)
-
-    init_user_directories()
     # Substitute only the deployment values. Nginx request variables are
     # deliberately left untouched.
     config = (HERE / "nginx.conf.in").read_text()
@@ -103,6 +102,15 @@ def main():
     )
     Path("/tmp/deeptutor-nginx.conf").write_text(config)
     command = ["supervisord", "-n", "-c", str(HERE / "supervisord.conf")]
+    if os.environ.get("DEEPTUTOR_NEON_CONFIG") or os.environ.get("DEEPTUTOR_NEON_CONFIG_FILE"):
+        from deployment.hosted import writeback
+
+        if archive:
+            raise ValueError("Configure a single authoritative workspace storage provider")
+        writeback.run(command, home, writeback.read_settings(), init_user_directories)
+    if archive:
+        recovery.restore_if_missing(home, archive)
+    init_user_directories()
     if archive:
         recovery.supervise(command, home, archive)
     os.execvp(command[0], command)

@@ -29,6 +29,7 @@ CMD ["python", "-m", "uvicorn", "deeptutor.api.main:app", "--host", "0.0.0.0", "
 # check before reaching either Next.js or the API. The local api target below
 # remains the default for existing builds.
 FROM study-runtime AS hosted
+RUN pip install --no-cache-dir 'psycopg[binary]==3.3.9'
 RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
     && apt-get update -qq \
     && apt-get install -y --no-install-recommends nginx-light supervisor ca-certificates git openssh-client poppler-utils libgomp1 latexmk texlive-xetex bubblewrap \

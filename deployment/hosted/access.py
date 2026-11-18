@@ -1,6 +1,7 @@
 """Exchange a top-level Pages form submission for DeepTutor's native session."""
 
 import logging
+import os
 from urllib.parse import parse_qs, urlsplit
 
 from fastapi import HTTPException, Request
@@ -93,6 +94,10 @@ def create_app():
         "/access/workspace", workspace_login, methods=["POST"], include_in_schema=False
     )
     app.add_api_route("/_hosted/ready", hosted_ready, methods=["GET"], include_in_schema=False)
+    if socket_path := os.environ.get("DEEPTUTOR_CLOUD_COMMIT_SOCKET"):
+        from deployment.hosted.writeback import CommitMiddleware
+
+        app.add_middleware(CommitMiddleware, socket_path=socket_path)
     return app
 
 
