@@ -160,6 +160,11 @@ def review_fixture(cookie):
 
 def main():
     wait_ready()
+    status, ready_headers, body = request(
+        "/health/ready", {"Origin": "https://srwang0506.github.io"}
+    )
+    assert status == 200 and body == b"ready"
+    assert ready_headers["Access-Control-Allow-Origin"] == "https://srwang0506.github.io"
     if "--resume" in sys.argv:
         state = json.loads(STATE_FILE.read_text())
         verify(state["cookie"])

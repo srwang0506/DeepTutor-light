@@ -102,12 +102,13 @@ def create_app():
 
 
 async def hosted_ready(request: Request):
+    headers = {"Access-Control-Allow-Origin": ENTRY_ORIGIN, "Cache-Control": "no-store"}
     if getattr(request.app.state, "ready", False):
         try:
             async with httpx.AsyncClient(timeout=2, trust_env=False) as client:
                 web = await client.head("http://127.0.0.1:3782/login")
             if web.status_code == 200:
-                return PlainTextResponse("ready")
+                return PlainTextResponse("ready", headers=headers)
         except httpx.HTTPError:
             pass
-    return PlainTextResponse("starting", status_code=503)
+    return PlainTextResponse("starting", status_code=503, headers=headers)
