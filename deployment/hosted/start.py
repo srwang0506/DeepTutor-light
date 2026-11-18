@@ -43,6 +43,18 @@ def main():
         os.setgid(tutor.pw_gid)
         os.setuid(tutor.pw_uid)
         os.environ.update(HOME=tutor.pw_dir, USER=tutor.pw_name, LOGNAME=tutor.pw_name)
+        # Supervisor opens /dev/stdout separately for each child. A pipe
+        # supplied for root can only be written via its inherited descriptor.
+        # Relay the logs through a pipe owned by the application user.
+        import subprocess
+
+        reader, writer = os.pipe()
+        try:
+            subprocess.Popen(["/bin/cat"], stdin=reader)
+            os.dup2(writer, 1)
+        finally:
+            os.close(reader)
+            os.close(writer)
 
     host = public_host(os.environ.get("DEEPTUTOR_PUBLIC_ORIGIN", ""))
     port = int(os.environ.get("PORT", "8080"))
