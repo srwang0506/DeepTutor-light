@@ -713,7 +713,8 @@ def _execute_build(store, build, cancelled=None):
                 "shell_escape": "f",
                 "TEXMFVAR": str(root / ".tex-cache"),
                 "TEXMFCONFIG": str(root / ".tex-config"),
-                "SOURCE_DATE_EPOCH": "1700000000",
+                "SOURCE_DATE_EPOCH": str(int(build["created"])),
+                "FORCE_SOURCE_DATE": "1",
                 "LC_ALL": "C",
                 "LANG": "C",
             }

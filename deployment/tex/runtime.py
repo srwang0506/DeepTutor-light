@@ -2,12 +2,14 @@
 """Execute the pinned Tectonic WASI reactor on a private, read-only paper snapshot."""
 
 import hashlib
+import os
 from pathlib import Path, PurePosixPath
 import platform
 import shutil
 import sys
 import tempfile
 import threading
+import time
 
 import wasmtime
 
@@ -51,7 +53,7 @@ def compile_paper(bundle, main):
         wasi.env = [
             ("TECTONIC_FONT_DIR", "/fonts"),
             ("TECTONIC_CACHE_DIR", "/cache"),
-            ("SOURCE_DATE_EPOCH", "1700000000"),
+            ("SOURCE_DATE_EPOCH", str(int(os.environ.get("SOURCE_DATE_EPOCH", time.time())))),
         ]
         wasi.inherit_stderr()
         with wasmtime.Store(runtime) as store:

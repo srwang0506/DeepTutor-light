@@ -51,8 +51,9 @@ ENV PORT=8080 PYTHONDONTWRITEBYTECODE=1 NODE_ENV=production
 USER tutor
 RUN directory="$(mktemp -d)" && cd "$directory" \
     && printf '%s\n' '\documentclass{article}' '\usepackage{graphicx,amsmath}' '\title{Writing fixture}' '\author{Author}' '\begin{document}\maketitle\begin{abstract}Summary.\end{abstract}\section{Method}Paper $x=y$.\end{document}' > paper.tex \
-    && /usr/local/bin/deeptutor-tectonic /opt/deeptutor-tectonic/bundle paper.tex \
-    && test -s paper.pdf && cd / && rm -r "$directory"
+    && SOURCE_DATE_EPOCH=1802822400 /usr/local/bin/deeptutor-tectonic /opt/deeptutor-tectonic/bundle paper.tex \
+    && pdftotext paper.pdf - | grep -Fq 'February 17, 2027' \
+    && cd / && rm -r "$directory"
 EXPOSE 8080
 VOLUME ["/runtime"]
 HEALTHCHECK --interval=20s --timeout=5s --start-period=120s CMD python -c "import os,urllib.request; assert urllib.request.urlopen('http://127.0.0.1:'+os.environ['PORT']+'/health/ready',timeout=3).status==200"
