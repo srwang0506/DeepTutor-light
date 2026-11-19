@@ -9,7 +9,14 @@ import sys
 import tarfile
 
 
-def assemble(archive, distribution, destination):
+def distribution_files(roots):
+    # Debian keeps some font packages in /usr/share/texmf, outside texmf-dist.
+    for root in roots:
+        for part in ("tex/latex/base", "tex/latex", "tex/generic", "fonts", "bibtex", "tex/xelatex", "tex/luatex"):
+            yield from sorted((root / part).rglob("*"))
+
+
+def assemble(archive, distribution, destination, *extra_roots):
     if (
         hashlib.sha256(archive.read_bytes()).hexdigest()
         != "6109880d8a31bbf1f692060ee388d70aac2e64b19031b50cbfce6c2949a4ae76"
@@ -23,25 +30,16 @@ def assemble(archive, distribution, destination):
             (destination / item.name).write_bytes(package.extractfile(item).read())
     # The guest resolves bundle entries by filename. Use ordinary, read-only
     # distribution files and retain the format's matching base class and fonts.
-    for part in (
-        "tex/latex/base",
-        "tex/latex",
-        "tex/generic",
-        "fonts",
-        "bibtex",
-        "tex/xelatex",
-        "tex/luatex",
-    ):
-        for item in sorted((distribution / part).rglob("*")):
-            target = destination / item.name
-            if item.is_symlink() or not item.is_file() or target.exists():
-                continue
-            try:
-                os.link(item, target)
-            except OSError as exc:
-                if exc.errno not in {errno.EXDEV, errno.EPERM}:
-                    raise
-                shutil.copyfile(item, target)
+    for item in distribution_files((distribution, *extra_roots)):
+        target = destination / item.name
+        if item.is_symlink() or not item.is_file() or target.exists():
+            continue
+        try:
+            os.link(item, target)
+        except OSError as exc:
+            if exc.errno not in {errno.EXDEV, errno.EPERM}:
+                raise
+            shutil.copyfile(item, target)
 
 
 if __name__ == "__main__":

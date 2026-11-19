@@ -37,8 +37,8 @@ RUN pip install --no-cache-dir 'psycopg[binary]==3.3.9' 'wasmtime==50.0.1' \
     && deeptutor-tectonic --prepare /opt/deeptutor-tectonic
 RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
     && apt-get update -qq \
-    && apt-get install -y --no-install-recommends nginx-light supervisor ca-certificates git openssh-client poppler-utils libgomp1 latexmk texlive-xetex texlive-luatex texlive-lang-chinese bubblewrap \
-    && python deployment/tex/bundle.py /opt/deeptutor-tectonic/format.tar.gz /usr/share/texlive/texmf-dist /opt/deeptutor-tectonic/bundle \
+    && apt-get install -y --no-install-recommends nginx-light supervisor ca-certificates git openssh-client poppler-utils libgomp1 latexmk texlive-xetex texlive-luatex texlive-lang-chinese fonts-lmodern lmodern bubblewrap \
+    && python deployment/tex/bundle.py /opt/deeptutor-tectonic/format.tar.gz /usr/share/texlive/texmf-dist /opt/deeptutor-tectonic/bundle /usr/share/texmf \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 1000 --shell /usr/sbin/nologin tutor \
     && install -d -o tutor -g tutor -m 0700 /runtime
@@ -50,7 +50,7 @@ RUN install -d -o tutor -g tutor -m 0700 /opt/deeptutor-web/.next-study/cache/im
 ENV PORT=8080 PYTHONDONTWRITEBYTECODE=1 NODE_ENV=production
 USER tutor
 RUN directory="$(mktemp -d)" && cd "$directory" \
-    && printf '%s\n' '\documentclass{article}' '\usepackage{graphicx,amsmath}' '\begin{document}Paper $x=y$.\end{document}' > paper.tex \
+    && printf '%s\n' '\documentclass{article}' '\usepackage{graphicx,amsmath}' '\title{Writing fixture}' '\author{Author}' '\begin{document}\maketitle\begin{abstract}Summary.\end{abstract}\section{Method}Paper $x=y$.\end{document}' > paper.tex \
     && /usr/local/bin/deeptutor-tectonic /opt/deeptutor-tectonic/bundle paper.tex \
     && test -s paper.pdf && cd / && rm -r "$directory"
 EXPOSE 8080

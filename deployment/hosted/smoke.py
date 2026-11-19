@@ -1,6 +1,7 @@
 """Exercise the production ingress and recover a saved note on a fresh container."""
 
 import base64
+import hashlib
 from http.client import HTTPConnection, HTTPSConnection
 from http.cookies import SimpleCookie
 import json
@@ -93,6 +94,15 @@ def json_api(cookie, path, payload=None, workspace=None):
     return json.loads(body)
 
 
+def preview_hash(cookie, workspace, build_id):
+    status, _, pdf = request(
+        "/api/studio/builds/" + build_id + "/preview.pdf",
+        {"Cookie": cookie, "X-DeepTutor-Workspace": workspace},
+    )
+    assert status == 200 and pdf.startswith(b"%PDF-"), "Compiled PDF could not be opened."
+    return hashlib.sha256(pdf).hexdigest()
+
+
 def review_fixture(cookie):
     workspace = json_api(cookie, "/api/settings/workspace/registrations", {"name": "Paper study"})[
         "workspace"
@@ -176,8 +186,11 @@ def review_fixture(cookie):
         detail = body[-1500:].decode(errors="replace") if status == 200 else str(status)
         raise AssertionError("Portable manuscript compilation failed: " + detail)
     assert "preview.pdf" in build["data"]["outputs"]
-    return {"id": review["id"], "workspace": workspace, "original": original + "/files/" + digest,
-            "writer": writer, "version": version["commit"]}
+    return {
+        "id": review["id"], "workspace": workspace, "original": original + "/files/" + digest,
+        "writer": writer, "version": version["commit"], "build_id": build["id"],
+        "preview_hash": preview_hash(cookie, workspace, build["id"]),
+    }
 
 
 def main():
@@ -207,6 +220,7 @@ def main():
         assert review["id"] == paper["id"] and page["text"].strip()
         versions = json_api(state["cookie"], paper["writer"] + "/versions", workspace=paper["workspace"])
         assert any(version["commit"] == paper["version"] for version in versions)
+        assert preview_hash(state["cookie"], paper["workspace"], paper["build_id"]) == paper["preview_hash"]
         print(
             "The session, saved study note, original PDF and review reopened on a fresh container."
         )
