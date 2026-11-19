@@ -10,8 +10,11 @@ import sys
 
 
 def wasm_compiler():
-    tool = shutil.which("deeptutor-tectonic")
-    bundle = Path(os.environ.get("DEEPTUTOR_TECTONIC_BUNDLE", "/opt/deeptutor-tectonic/bundle"))
+    local = Path(sys.prefix) / "bin" / "deeptutor-tectonic"
+    tool = shutil.which("deeptutor-tectonic") or (str(local) if os.access(local, os.X_OK) else None)
+    installed = Path(sys.prefix) / "share" / "deeptutor-tectonic" / "bundle"
+    default = installed if installed.is_dir() else Path("/opt/deeptutor-tectonic/bundle")
+    bundle = Path(os.environ.get("DEEPTUTOR_TECTONIC_BUNDLE", str(default)))
     if tool and bundle.is_absolute() and (bundle / "latex.fmt").is_file():
         return tool, str(bundle)
     return None
@@ -52,7 +55,7 @@ def engines():
         for name in ("pdflatex", "xelatex", "lualatex")
         if native_sandbox_ready() and shutil.which("latexmk") and shutil.which(name)
     ]
-    available = (["tectonic"] if wasm_compiler() else []) + native
+    available = native + (["tectonic"] if wasm_compiler() else [])
     return {"engines": available, "default": next(iter(available), "pdflatex")}
 
 

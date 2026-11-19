@@ -29,6 +29,20 @@ def change(store, mid, name, new):
     return ms.save_file(store, mid, FileEdit(path=name, base_hash=original["hash"], text=new))
 
 
+def test_compile_target_uses_current_manuscript_revision(paper):
+    store, mid = paper
+    before = store.get(mid)["revision"]
+    change(store, mid, "notes.md", "A new note.\n")
+    with pytest.raises(Conflict):
+        editor.configure(store, mid, "sections/method.tex", "tectonic", before)
+    fresh = store.get(mid)["revision"]
+    with pytest.raises(ValueError):
+        editor.configure(store, mid, "notes.md", "tectonic", fresh)
+    updated = editor.configure(store, mid, "sections/method.tex", "tectonic", fresh)
+    assert updated["data"]["engine"] == "tectonic"
+    assert ms.prepare_build(store, mid)["data"]["main_file"] == "sections/method.tex"
+
+
 def test_multifile_replace_preview_conflict_and_all_or_nothing(paper):
     store, mid = paper
     spec = editor.Search(query=r"p(il)ot", replacement=r"p\1ot-scale", regexp=True)

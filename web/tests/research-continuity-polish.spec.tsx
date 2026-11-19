@@ -35,8 +35,8 @@ vi.mock('@/components/quiz/StudyQuizViewer', () => ({ default: () => null }))
 vi.mock('@/components/studio/WritingTools', () => ({ default: () => null }))
 vi.mock('@/components/studio/WritingAssistant', () => ({ default: () => null }))
 vi.mock('@/components/reading/PdfDocumentView', () => ({ PdfDocumentView: () => null }))
-vi.mock('next/dynamic', () => ({ default: () => ({ value, onChange }: {value: string; onChange: (value: string) => void}) =>
-  <textarea aria-label="Manuscript source" value={value} onChange={event => onChange(event.target.value)} />,
+vi.mock('next/dynamic', () => ({ default: () => ({ file, text, onChange }: {file: unknown; text: string; onChange: (value: string) => void}) =>
+  file ? <textarea aria-label="Manuscript source" value={text} onChange={event => onChange(event.target.value)} /> : null,
 }))
 
 beforeEach(() => {

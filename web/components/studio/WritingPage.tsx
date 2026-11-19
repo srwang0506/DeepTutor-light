@@ -771,9 +771,11 @@ function WritingWorkspace({ workspace, principal }: { workspace: string; princip
                   {t('取消构建')}
                 </Action>
               )}
-              <button type="button" className="studio-link-button" onClick={() => {
-                setMainFile(active.data.main_file); setEngine(active.data.engine); setTargetOpen(true)
-              }}>{t('编译设置')}</button>
+              <button type="button" className="studio-link-button" disabled={op.busy} onClick={() => op.run(async () => {
+                await flush()
+                const fresh = await studio<StudioRecord<ManuscriptData>>(workspace, '/record/'+active.id)
+                setActive(fresh); setMainFile(fresh.data.main_file); setEngine(fresh.data.engine); setTargetOpen(true)
+              })}>{t('编译设置')}</button>
               {latest && ['failed', 'interrupted', 'cancelled'].includes(latest.data.status) && (
                 <Action
                   secondary
