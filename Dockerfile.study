@@ -53,6 +53,7 @@ RUN apt-get update -qq \
 # fonts and packages there without shipping the second, unusable toolchain.
 FROM hosted-base AS hosted-portable-tex
 COPY --from=hosted-native-tex /opt/deeptutor-tectonic/bundle/ /opt/deeptutor-tectonic/bundle/
+ENV DEEPTUTOR_DEFER_API_ROUTES=1
 
 FROM ${HOSTED_TEX_STAGE} AS hosted
 COPY --from=web /usr/local/bin/node /usr/local/bin/node

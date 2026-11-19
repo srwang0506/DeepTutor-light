@@ -85,6 +85,9 @@ keys. The runtime can also read the JSON from the secret `DEEPTUTOR_NEON_CONFIG`
 
 The published Render image compiles papers with the offline Tectonic engine.
 The default self-hosted Docker build also includes native TeX Live.
+The Render image prepares the sign-in, session and workspace routes during
+startup. Other indexed features load when opened. A stale index falls back
+to eager registration, and OpenAPI always expands the enabled routes.
 
 PostgreSQL holds the encrypted workspace manifest and database blocks. The
 private bucket holds encrypted file blocks. A successful edit and a completed

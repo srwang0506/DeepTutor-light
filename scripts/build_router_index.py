@@ -11,6 +11,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 os.environ["DEEPTUTOR_CHAT_ENGINE"] = "python"
+os.environ["DEEPTUTOR_DEFER_API_ROUTES"] = "0"
 
 from starlette.routing import WebSocketRoute  # noqa: E402
 

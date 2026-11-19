@@ -554,13 +554,25 @@ except Exception:
         user_dir.mkdir(parents=True)
 
 # Runtime settings must be initialized before a router module is imported.
-# The native profile defers unrelated feature schemas until their first request.
+# A small hosted instance prepares the password and navigation routes up front.
+# Other features retain their original routers and load on their first request.
 import os  # noqa: E402
 
 from deeptutor.api.router_loader import RouterLoader  # noqa: E402
 
+_defer_features = os.environ.get("DEEPTUTOR_DEFER_API_ROUTES") == "1"
 _router_loader = RouterLoader(
-    app, lazy=os.environ.get("DEEPTUTOR_CHAT_ENGINE") == "typescript-native"
+    app,
+    lazy=_defer_features or os.environ.get("DEEPTUTOR_CHAT_ENGINE") == "typescript-native",
+    warm_paths=(
+        "/api/auth/status",
+        "/api/sessions",
+        "/api/settings/ui",
+        "/api/settings/workspace/registrations",
+        "/api/modules",
+    )
+    if _defer_features
+    else (),
 )
 
 from deeptutor.api.module_routes import mount_module_routes

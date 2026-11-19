@@ -1,4 +1,4 @@
-"""Defer unrelated API schemas in the experimental native-engine profile.
+"""Defer unrelated API schemas in profiles that opt in to indexed routing.
 
 The generated index contains only routing patterns. Authentication, dependency
 injection and handlers always come from the original FastAPI router. A stale
@@ -90,8 +90,11 @@ class DeferredRouter(BaseRoute):
 
 
 class RouterLoader:
-    def __init__(self, app: FastAPI, *, lazy: bool = False) -> None:
+    def __init__(
+        self, app: FastAPI, *, lazy: bool = False, warm_paths: tuple[str, ...] = ()
+    ) -> None:
         self.app = app
+        self.warm_paths = frozenset(warm_paths)
         self.records: dict[str, APIRouter] = {}
         self.index: dict[str, list[dict]] = {}
         if lazy:
@@ -112,24 +115,29 @@ class RouterLoader:
     def include(
         self, reference: str, *, exclude_paths: tuple[str, ...] = (), **options: Any
     ) -> None:
-        if reference in self.index and not exclude_paths:
-            self.app.router.routes.append(
-                DeferredRouter(self.app, reference, options, self.index[reference])
-            )
+        prefix = options.get("prefix", "")
+
+        def excluded(path: str) -> bool:
+            full = prefix + path
+            return any(full == root or full.startswith(root + "/") for root in exclude_paths)
+
+        patterns = self.index.get(reference)
+        if patterns is not None and not (
+            exclude_paths and any(excluded(p["path"]) for p in patterns)
+        ):
+            deferred = DeferredRouter(self.app, reference, options, patterns)
+            if self.warm_paths and any(
+                route.path in self.warm_paths for route in deferred.patterns
+            ):
+                deferred.load()
+            self.app.router.routes.append(deferred)
         else:
             module, attribute = reference.split(":", 1)
             router = getattr(import_module(module), attribute)
             if exclude_paths:
                 router = copy(router)
-                prefix = options.get("prefix", "")
                 router.routes = [
-                    route
-                    for route in router.routes
-                    if not any(
-                        prefix + getattr(route, "path", "") == path
-                        or (prefix + getattr(route, "path", "")).startswith(path + "/")
-                        for path in exclude_paths
-                    )
+                    route for route in router.routes if not excluded(getattr(route, "path", ""))
                 ]
             self.records[reference] = router
             self.app.include_router(router, **options)

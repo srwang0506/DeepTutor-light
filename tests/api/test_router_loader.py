@@ -80,6 +80,31 @@ def test_lazy_route_authentication_is_original_dependency(fixture_router):
         assert client.get("/api/items/7").status_code == 200
 
 
+def test_navigation_warmup_and_disabled_module_boundaries(fixture_router):
+    ref, _ = fixture_router
+    app = FastAPI()
+    loader = module.RouterLoader(app, lazy=True, warm_paths=("/api/items/{item_id}",))
+    loader.include(ref, prefix="/api", exclude_paths=("/api/disabled",))
+    warm = app.routes[-1]
+    assert isinstance(warm, module.DeferredRouter) and warm.loaded is not None
+    cold_app = FastAPI()
+    module.RouterLoader(cold_app, lazy=True).include(
+        ref, prefix="/api", exclude_paths=("/api/unrelated",)
+    )
+    assert (
+        isinstance(cold_app.routes[-1], module.DeferredRouter)
+        and cold_app.routes[-1].loaded is None
+    )
+    hidden_app = FastAPI()
+    module.RouterLoader(hidden_app, lazy=True).include(
+        ref, prefix="/api", exclude_paths=("/api/items",)
+    )
+    with TestClient(hidden_app) as client:
+        assert client.get("/api/items/7").status_code == 404
+        with client.websocket_connect("/api/socket") as ws:
+            assert ws.receive_json() == {"ok": True}
+
+
 def test_lazy_and_eager_openapi_identical_and_stale_index_loads_eagerly(fixture_router):
     ref, path = fixture_router
     lazy, eager = FastAPI(), FastAPI()
