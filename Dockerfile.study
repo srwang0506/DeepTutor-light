@@ -3,16 +3,6 @@
 ARG NODE_IMAGE=node:24.19.0-bookworm-slim
 ARG PYTHON_IMAGE=python:3.12.9-slim-bookworm
 FROM restic/restic:0.19.1 AS backup-client
-FROM golang:1.26-bookworm AS paper-compiler
-WORKDIR /src
-COPY deployment/tex/go.mod deployment/tex/go.sum ./
-RUN go mod download
-COPY deployment/tex/main.go ./
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/deeptutor-tectonic . \
-    && cp "$(go list -m -f '{{.Dir}}' github.com/mgilbir/tecgonic)/testdata/minibundle.tar.gz" /out/format.tar.gz \
-    && mkdir -p /out/licenses \
-    && for module in github.com/mgilbir/tecgonic github.com/mgilbir/andsifr golang.org/x/sys; do \
-         cp "$(go list -m -f '{{.Dir}}' "$module")/LICENSE" "/out/licenses/$(basename "$module").txt"; done
 FROM ${NODE_IMAGE} AS web
 WORKDIR /app/web
 COPY web/package.json web/package-lock.json ./
@@ -39,10 +29,12 @@ CMD ["python", "-m", "uvicorn", "deeptutor.api.main:app", "--host", "0.0.0.0", "
 # check before reaching either Next.js or the API. The local api target below
 # remains the default for existing builds.
 FROM study-runtime AS hosted
-COPY --from=paper-compiler /out/deeptutor-tectonic /usr/local/bin/deeptutor-tectonic
-COPY --from=paper-compiler /out/format.tar.gz /opt/deeptutor-tectonic/format.tar.gz
-COPY --from=paper-compiler /out/licenses/ /opt/deeptutor-tectonic/licenses/
-RUN pip install --no-cache-dir 'psycopg[binary]==3.3.9'
+ADD --chmod=0444 --checksum=sha256:fd7b19842b2d465149051f091f2e80fdec08f200e4ff90bf0ac169e8ab207b23 https://raw.githubusercontent.com/mgilbir/tecgonic/b758df17ffa5453b2d2f255f55a6605b80a55a54/wasm/tectonic_wasi.wasm /opt/deeptutor-tectonic/engine.wasm
+ADD --chmod=0444 --checksum=sha256:6109880d8a31bbf1f692060ee388d70aac2e64b19031b50cbfce6c2949a4ae76 https://raw.githubusercontent.com/mgilbir/tecgonic/b758df17ffa5453b2d2f255f55a6605b80a55a54/testdata/minibundle.tar.gz /opt/deeptutor-tectonic/format.tar.gz
+ADD --chmod=0444 --checksum=sha256:4e9651455e1b761ed462c50f60c4618c8985f46404e8db467def14848e77725a https://raw.githubusercontent.com/mgilbir/tecgonic/b758df17ffa5453b2d2f255f55a6605b80a55a54/LICENSE /opt/deeptutor-tectonic/licenses/tecgonic.txt
+COPY --chmod=0755 deployment/tex/runtime.py /usr/local/bin/deeptutor-tectonic
+RUN pip install --no-cache-dir 'psycopg[binary]==3.3.9' 'wasmtime==50.0.1' \
+    && deeptutor-tectonic --prepare /opt/deeptutor-tectonic
 RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
     && apt-get update -qq \
     && apt-get install -y --no-install-recommends nginx-light supervisor ca-certificates git openssh-client poppler-utils libgomp1 latexmk texlive-xetex texlive-luatex texlive-lang-chinese bubblewrap \
@@ -55,12 +47,11 @@ COPY --from=backup-client /usr/bin/restic /usr/local/bin/restic
 COPY --from=web /app/web/.next-study/standalone/ /opt/deeptutor-web/
 RUN install -d -o tutor -g tutor -m 0700 /opt/deeptutor-web/.next-study/cache/images \
     && chown tutor:tutor /opt/deeptutor-web/.next-study/cache
-RUN install -d -o tutor -g tutor -m 0700 /opt/deeptutor-tectonic/cache
-ENV PORT=8080 PYTHONDONTWRITEBYTECODE=1 NODE_ENV=production DEEPTUTOR_TECTONIC_CACHE=/opt/deeptutor-tectonic/cache
+ENV PORT=8080 PYTHONDONTWRITEBYTECODE=1 NODE_ENV=production
 USER tutor
 RUN directory="$(mktemp -d)" && cd "$directory" \
     && printf '%s\n' '\documentclass{article}' '\usepackage{graphicx,amsmath}' '\begin{document}Paper $x=y$.\end{document}' > paper.tex \
-    && GOMEMLIMIT=90MiB GOMAXPROCS=1 /usr/local/bin/deeptutor-tectonic /opt/deeptutor-tectonic/bundle paper.tex \
+    && /usr/local/bin/deeptutor-tectonic /opt/deeptutor-tectonic/bundle paper.tex \
     && test -s paper.pdf && cd / && rm -r "$directory"
 EXPOSE 8080
 VOLUME ["/runtime"]

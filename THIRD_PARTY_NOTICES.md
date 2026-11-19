@@ -17,7 +17,9 @@ Copyright (c) 2026 Master-cai. The MIT license accompanies the [bundled skill](d
 The hosted manuscript compiler uses [tecgonic](https://github.com/mgilbir/tecgonic/tree/b758df17ffa5453b2d2f255f55a6605b80a55a54),
 including its packaged Tectonic WebAssembly engine and offline base format.
 Copyright (c) 2026 Miguel Eduardo Gil Biraud.
-The image includes the dependency license files alongside the compiler.
+The [Wasmtime Python runtime](https://github.com/bytecodealliance/wasmtime-py) executes
+the reactor. The hosted image keeps the engine license with the bundle and the
+runtime license in its installed Python distribution.
 
 ## CSSwitch
 
