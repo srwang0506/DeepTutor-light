@@ -1,5 +1,24 @@
 # Third-party notices
 
+## LaTeX Coder
+
+The personal manuscript editor integrates the bibliography, navigation, document structure,
+diagnostics and portable review formats from [EvoEvolver/LaTeXCoder](https://github.com/EvoEvolver/latexcoder/tree/a7f0dae9c1fb9c8c71162876282bc368cf93b00f).
+Copyright (c) 2026 Zijian Zhang. The MIT license accompanies the [shared editor code](web/lib/latexcoder/LICENSE).
+
+## Research Paper Writing Skills
+
+The writing assistant includes the full [Master-cai/Research-Paper-Writing-Skills](https://github.com/Master-cai/Research-Paper-Writing-Skills/tree/77e7c2c1ba06f7d71844873147665437a03aac1b)
+skill, curated from [Peng Sida's research notes](https://github.com/pengsida/learning_research).
+Copyright (c) 2026 Master-cai. The MIT license accompanies the [bundled skill](deeptutor/skills/builtin/research-paper-writing/LICENSE).
+
+## Portable TeX compilation
+
+The hosted manuscript compiler uses [tecgonic](https://github.com/mgilbir/tecgonic/tree/b758df17ffa5453b2d2f255f55a6605b80a55a54),
+including its packaged Tectonic WebAssembly engine and offline base format.
+Copyright (c) 2026 Miguel Eduardo Gil Biraud.
+The image includes the dependency license files alongside the compiler.
+
 ## CSSwitch
 
 - Project: [SuperJJ007/CSSwitch](https://github.com/SuperJJ007/CSSwitch)

@@ -3,6 +3,16 @@
 ARG NODE_IMAGE=node:24.19.0-bookworm-slim
 ARG PYTHON_IMAGE=python:3.12.9-slim-bookworm
 FROM restic/restic:0.19.1 AS backup-client
+FROM golang:1.26-bookworm AS paper-compiler
+WORKDIR /src
+COPY deployment/tex/go.mod deployment/tex/go.sum ./
+RUN go mod download
+COPY deployment/tex/main.go ./
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/deeptutor-tectonic . \
+    && cp "$(go list -m -f '{{.Dir}}' github.com/mgilbir/tecgonic)/testdata/minibundle.tar.gz" /out/format.tar.gz \
+    && mkdir -p /out/licenses \
+    && for module in github.com/mgilbir/tecgonic github.com/mgilbir/andsifr golang.org/x/sys; do \
+         cp "$(go list -m -f '{{.Dir}}' "$module")/LICENSE" "/out/licenses/$(basename "$module").txt"; done
 FROM ${NODE_IMAGE} AS web
 WORKDIR /app/web
 COPY web/package.json web/package-lock.json ./
@@ -29,10 +39,14 @@ CMD ["python", "-m", "uvicorn", "deeptutor.api.main:app", "--host", "0.0.0.0", "
 # check before reaching either Next.js or the API. The local api target below
 # remains the default for existing builds.
 FROM study-runtime AS hosted
+COPY --from=paper-compiler /out/deeptutor-tectonic /usr/local/bin/deeptutor-tectonic
+COPY --from=paper-compiler /out/format.tar.gz /opt/deeptutor-tectonic/format.tar.gz
+COPY --from=paper-compiler /out/licenses/ /opt/deeptutor-tectonic/licenses/
 RUN pip install --no-cache-dir 'psycopg[binary]==3.3.9'
 RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
     && apt-get update -qq \
-    && apt-get install -y --no-install-recommends nginx-light supervisor ca-certificates git openssh-client poppler-utils libgomp1 latexmk texlive-xetex bubblewrap \
+    && apt-get install -y --no-install-recommends nginx-light supervisor ca-certificates git openssh-client poppler-utils libgomp1 latexmk texlive-xetex texlive-luatex texlive-lang-chinese bubblewrap \
+    && python deployment/tex/bundle.py /opt/deeptutor-tectonic/format.tar.gz /usr/share/texlive/texmf-dist /opt/deeptutor-tectonic/bundle \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 1000 --shell /usr/sbin/nologin tutor \
     && install -d -o tutor -g tutor -m 0700 /runtime

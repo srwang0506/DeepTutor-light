@@ -10,7 +10,7 @@ import dynamic from 'next/dynamic'
 import { useRouter, useSearchParams } from 'next/navigation'
 import WritingTools from './WritingTools'
 import WritingAssistant from './WritingAssistant'
-import { ArrowLeft, Download, FileCode2, Play, Plus, Save } from 'lucide-react'
+import { ArrowLeft, Download, FileCode2, Play, Plus } from 'lucide-react'
 import { useActiveWorkspaceId } from '@/hooks/useActiveWorkspaceId'
 import { useRecoveryPrincipal } from '@/hooks/useRecoveryPrincipal'
 import { recoveryPrincipal } from '@/lib/recovery-principal'
@@ -33,7 +33,7 @@ import StudioLoading from './StudioLoading'
 import type { TextSelection } from './TexEditor'
 import { PdfDocumentView } from '@/components/reading/PdfDocumentView'
 import { Action, ErrorNotice, Field, StudioEmpty, StudioShell, useOperation } from './StudioShell'
-const TexEditor = dynamic(() => import('./TexEditor'), {
+const PersonalPaperEditor = dynamic(() => import('./PersonalPaperEditor'), {
   ssr: false,
   loading: () => <StudioLoading label="正在打开编辑器…" />,
 })
@@ -76,6 +76,15 @@ export default function WritingPage() {
 }
 function WritingWorkspace({ workspace, principal }: { workspace: string; principal: string }) {
   const { t, i18n } = useTranslation()
+  const [compilers, setCompilers] = useState({engines: ['pdflatex','xelatex','lualatex'], default:'pdflatex'})
+  const engineNames: Record<string, string> = {pdflatex:'pdfLaTeX',xelatex:'XeLaTeX',lualatex:'LuaLaTeX',tectonic:'Tectonic'}
+  const engineName = (id: string) => engineNames[id] || id
+  const [mobilePane, setMobilePane] = useState<'source'|'pdf'>('source')
+  useEffect(() => {
+    const abort = new AbortController()
+    void studio<typeof compilers>(workspace, '/writing/engines', {}, abort.signal).then(setCompilers).catch(() => {})
+    return () => abort.abort()
+  }, [workspace])
 
   const router = useRouter(),
     search = useSearchParams()
@@ -127,6 +136,9 @@ function WritingWorkspace({ workspace, principal }: { workspace: string; princip
     [newPath, setNewPath] = useState(''),
     [conflict, setConflict] = useState<OpenFile | null>(null)
   const [conflictView, setConflictView] = useState<{ base: OpenFile; disk: OpenFile } | null>(null)
+  const [autoCompile, setAutoCompile] = useState(false)
+  const autoRequest = useRef('')
+  const [targetOpen, setTargetOpen] = useState(false)
   const conflictState = useRef<{ base: OpenFile; disk: OpenFile } | null>(null)
   const current = useRef({ active, file, text, savedText })
   useLayoutEffect(() => {
@@ -151,10 +163,13 @@ function WritingWorkspace({ workspace, principal }: { workspace: string; princip
       ? ''
       : t('构建已中断或取消。可以重试当时的输入快照。'),
   )
-  const previewStale =
-    !!successful &&
-    !!file &&
-    (text !== savedText || successful.data.input_files[file.path] !== file.hash)
+  function matchesBuild(build?: StudioRecord<BuildData>) {
+    return !!build && !!active && build.data.engine === active.data.engine &&
+      build.data.main_file === active.data.main_file &&
+      files.length === Object.keys(build.data.input_files).length &&
+      files.every(f => build.data.input_files[f.path] === f.hash)
+  }
+  const previewStale = !!successful && (text !== savedText || !matchesBuild(successful))
   const building = !!latest && ['queued', 'running'].includes(latest.data.status)
   const localProposals = proposals.filter(
     (p) => p.data.manuscript_id === active?.id && p.data.status === 'pending',
@@ -218,6 +233,7 @@ function WritingWorkspace({ workspace, principal }: { workspace: string; princip
         ) {
           setFile((f) => (f ? { ...f, hash: result.hash, text: snapshot.text } : f))
           setSavedText(snapshot.text)
+          setFiles(list => list.map(f => f.path === snapshot.file!.path ? {...f, hash: result.hash} : f))
           current.current = {
             ...current.current,
             file: { ...snapshot.file!, hash: result.hash, text: snapshot.text },
@@ -358,6 +374,9 @@ function WritingWorkspace({ workspace, principal }: { workspace: string; princip
     const listing = await studio<{ files: SourceFile[] }>(workspace, `/manuscripts/${row.id}/files`)
     if (!mounted.current || recoveryPrincipal() !== principal) return
     setActive(row)
+    setMobilePane('source')
+    setAutoCompile(browserStorage.readRaw('local', 'writer-auto:' + principal + ':' + row.id) === 'on')
+    autoRequest.current = ''
     current.current = { ...current.current, active: row, file: null, text: '', savedText: '' }
     setFile(null)
     setText('')
@@ -412,6 +431,17 @@ function WritingWorkspace({ workspace, principal }: { workspace: string; princip
     setBuilds((current) => [row, ...current.filter((b) => b.id !== row.id)])
     setLog('')
   }
+  const autoKey = autoCompile && active && !building && !op.busy && !saveError &&
+    !recoveries.length && file && savedText === text && !matchesBuild(latest)
+    ? JSON.stringify([active.id, active.data.main_file, active.data.engine, files.map(f => [f.path, f.hash])]) : ''
+  useEffect(() => {
+    if (!autoKey || autoKey === autoRequest.current) return
+    const timer = window.setTimeout(() => {
+      autoRequest.current = autoKey
+      void op.run(compile)
+    }, 1800)
+    return () => window.clearTimeout(timer)
+  }, [autoKey]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!building) return
     const abort = new AbortController()
@@ -667,6 +697,8 @@ function WritingWorkspace({ workspace, principal }: { workspace: string; princip
             onClick={() => {
               setTitle('')
               setArchive(null)
+              setMainFile('main.tex')
+              setEngine(compilers.default)
               setCreate(true)
             }}
           >
@@ -739,6 +771,9 @@ function WritingWorkspace({ workspace, principal }: { workspace: string; princip
                   {t('取消构建')}
                 </Action>
               )}
+              <button type="button" className="studio-link-button" onClick={() => {
+                setMainFile(active.data.main_file); setEngine(active.data.engine); setTargetOpen(true)
+              }}>{t('编译设置')}</button>
               {latest && ['failed', 'interrupted', 'cancelled'].includes(latest.data.status) && (
                 <Action
                   secondary
@@ -850,65 +885,29 @@ function WritingWorkspace({ workspace, principal }: { workspace: string; princip
               ))}
             </section>
           )}
-          <div className="studio-split">
-            <section className="studio-editor">
-              <aside className="studio-file-tree">
-                {files.map((item) => (
-                  <button
-                    key={item.path}
-                    aria-current={file?.path === item.path}
-                    disabled={!item.editable || op.busy}
-                    onClick={() => op.run(() => openFile(active.id, item.path))}
-                  >
-                    {item.path}
-                  </button>
-                ))}
-                <button
-                  onClick={() => {
-                    setNewPath('')
-                    setNewFile(true)
-                  }}
-                >
-                  <Plus size={12} style={{ display: 'inline' }} /> {t('新建文件')}
-                </button>
-              </aside>
-              <div className="studio-editor-main">
-                <div className="studio-editor-toolbar">
-                  <span>{file?.path || t('选择文件')}</span>
-                  <span className="studio-muted" role="status">
-                    {saveStatus === 'saving'
-                      ? t('保存中…')
-                      : saveStatus === 'error'
-                        ? t('修改保留在编辑器')
-                        : text !== savedText
-                          ? t('等待保存')
-                          : t('已保存')}
-                  </span>
-                  <button
-                    className="studio-link-button"
-                    aria-label={t('保存源文件')}
-                    onClick={() => op.run(save)}
-                  >
-                    <Save size={12} />
-                  </button>
-                </div>
-                {file && (
-                  <TexEditor
-                    identity={`${active.id}:${file.path}`}
-                    value={text}
-                    onChange={changeText}
-                    onSelection={setSelection}
-                    jump={jump}
-                  />
-                )}
-              </div>
-            </section>
+          <div className="writer-mobile-switch"><button aria-pressed={mobilePane === 'source'} onClick={() => setMobilePane('source')}>{t('源码')}</button>
+            <button aria-pressed={mobilePane === 'pdf'} onClick={() => setMobilePane('pdf')}>{t('PDF 预览')}</button></div>
+          <div className="studio-split writer-workspace" data-pane={mobilePane}>
+            <PersonalPaperEditor key={active.id} workspace={workspace} manuscript={active.id} main={active.data.main_file}
+              file={file} files={files} text={text} log={log} selection={selection} jump={jump}
+              saved={saveStatus === 'saved' && text === savedText}
+              status={saveStatus === 'saving' ? t('保存中…') : saveStatus === 'error' ? t('修改保留在编辑器') :
+                text !== savedText ? t('等待保存') : t('已保存')}
+              onChange={changeText} onSelect={setSelection} flush={flush}
+              onOpen={async (path, line) => { await openFile(active.id, path); if (line) setJump({line,nonce:Date.now()}) }}
+              refresh={async (preferred) => {
+                const {files: listing} = await studio<{files: SourceFile[]}>(workspace, '/manuscripts/' + active.id + '/files')
+                setFiles(listing)
+                const target = [preferred, file?.path, active.data.main_file].find(name => listing.some(f => f.path === name && f.editable))
+                if (target) await openFile(active.id, target)
+              }}
+              add={() => {setNewPath('');setNewFile(true)}} />
             <section className="studio-preview">
               <header className="studio-editor-toolbar">
                 <span>{t('PDF 预览')}</span>
                 <button
                   className="studio-link-button"
-                  disabled={!successful || op.busy}
+                  disabled={!successful?.data.outputs?.['mapping.synctex.gz'] || op.busy}
                   onClick={() => op.run(() => sourceMap('forward'))}
                 >
                   {t('定位当前源码 ↗')}
@@ -1078,12 +1077,33 @@ function WritingWorkspace({ workspace, principal }: { workspace: string; princip
           </Field>
           <Field label={t("编译器")}>
             <select value={engine} onChange={(e) => setEngine(e.target.value)}>
-              <option value="pdflatex">{t('pdfLaTeX')}</option>
-              <option value="xelatex">{t('XeLaTeX')}</option>
-              <option value="lualatex">{t('LuaLaTeX')}</option>
+              {(compilers.engines.length ? compilers.engines : [engine]).map(id => <option key={id} value={id}>{engineName(id)}</option>)}
             </select>
           </Field>
         </div>
+      </Dialog>
+      <Dialog open={targetOpen && !!active} onClose={() => setTargetOpen(false)} title={t('编译设置')} size="sm" className="studio-dialog">
+        {active && <div className="studio-form">
+          <Field label={t('主 TeX 文件')}><select value={mainFile} onChange={e => setMainFile(e.target.value)}>
+            {files.filter(f => /\.tex$/i.test(f.path)).map(f => <option key={f.path}>{f.path}</option>)}
+          </select></Field>
+          <Field label={t('编译器')}><select value={engine} onChange={e => setEngine(e.target.value)}>
+            {[...new Set([engine, ...compilers.engines])].map(id => <option key={id} value={id}>{engineName(id)}{compilers.engines.includes(id) ? '' : ' · '+t('本机不可用')}</option>)}
+          </select></Field>
+          <label className="studio-check"><input type="checkbox" checked={autoCompile} onChange={e => {
+            setAutoCompile(e.target.checked); browserStorage.writeRaw('local','writer-auto:' + principal + ':' + active.id, e.target.checked ? 'on' : 'off')
+          }}/>{t('保存后自动编译')}</label>
+          <Action disabled={op.busy} onClick={() => op.run(async () => {
+            await flush()
+            if (active.data.main_file !== mainFile || active.data.engine !== engine) {
+              const result = await studio<StudioRecord<ManuscriptData>>(workspace, '/manuscripts/'+active.id+'/target', {
+                method:'PUT',body: JSON.stringify({main_file:mainFile,engine,expected_revision:active.revision})
+              })
+              setActive(result); await reload()
+            }
+            setTargetOpen(false)
+          })}>{t('完成')}</Action><ErrorNotice message={op.error}/>
+        </div>}
       </Dialog>
       <Dialog
         open={proposing}
@@ -1133,6 +1153,22 @@ function WritingWorkspace({ workspace, principal }: { workspace: string; princip
       >
         <ErrorNotice message={op.error} />
         <pre className="studio-diff">{accepting?.data.diff}</pre>
+        {accepting?.data.generation?.report && (
+          <div className="writer-report">
+            {[ [t('段落提纲'), accepting.data.generation.report.outline],
+               [t('段落作用'), accepting.data.generation.report.paragraph_roles],
+               [t('写作自查'), accepting.data.generation.report.checks] ] .map(([label, lines]) =>
+              <details key={String(label)}><summary>{label}</summary><ol>
+                {(lines as string[]).map((line, index) => <li key={index}>{line}</li>)}
+              </ol></details>)}
+            <details open><summary>{t('论据对照')}</summary>
+              {accepting.data.generation.report.claims.length ? accepting.data.generation.report.claims.map((item, index) =>
+                <p key={index}>{item.claim}<small>{item.source_ids.length
+                  ? t('已关联来源') + ' · ' + item.source_ids.join(', ') : t('待补证据')}</small></p>)
+                : <p>{t('本段没有提出需要单独核实的论断。')}</p>}
+            </details>
+          </div>
+        )}
         {accepting?.data.fact_changes.map((change) => (
           <div className="studio-card" key={change.kind} style={{ marginTop: 12 }}>
             <h3>{studioLabel(t, change.kind)}</h3>

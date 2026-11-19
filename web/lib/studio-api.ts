@@ -160,6 +160,8 @@ export interface ManuscriptData {
 }
 export interface BuildData {
   purpose?: string
+  main_file?: string
+  engine?: string
   manuscript_id: string
   status: string
   input_files: Record<string, string>
@@ -167,6 +169,13 @@ export interface BuildData {
   started: number
 }
 export interface ProposalData {
+  generation?: {
+    skill?: { name: string; section: string; commit: string; files: string[] }
+    report?: {
+      outline: string[]; paragraph_roles: string[]; checks: string[]
+      claims: { claim: string; source_ids: string[] }[]
+    }
+  }
   manuscript_id: string
   path: string
   before: string

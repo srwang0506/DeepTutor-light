@@ -155,7 +155,24 @@ def review_fixture(cookie):
         },
         workspace,
     )
-    return {"id": review["id"], "workspace": workspace, "original": original + "/files/" + digest}
+    choices = json_api(cookie, base + "/writing/engines", workspace=workspace)
+    assert "tectonic" in choices["engines"]
+    manuscript = json_api(cookie, base + "/manuscripts", {"title": "Writing fixture", "engine": "tectonic"}, workspace)
+    writer = base + "/manuscripts/" + manuscript["id"]
+    index = json_api(cookie, writer + "/editor", workspace=workspace)
+    assert index["main"] == "main.tex" and index["sources"]["main.tex"].strip()
+    version = json_api(cookie, writer + "/versions", {"title": "First draft"}, workspace)
+    assert version["created"] and version["commit"]
+    build = json_api(cookie, writer + "/compile", {}, workspace)
+    for _ in range(100):
+        build = json_api(cookie, base + "/record/" + build["id"], workspace=workspace)
+        if build["data"]["status"] not in {"queued", "running"}:
+            break
+        time.sleep(1)
+    assert build["data"]["status"] == "succeeded", "The portable compiler did not finish the manuscript."
+    assert "preview.pdf" in build["data"]["outputs"]
+    return {"id": review["id"], "workspace": workspace, "original": original + "/files/" + digest,
+            "writer": writer, "version": version["commit"]}
 
 
 def main():
@@ -183,6 +200,8 @@ def main():
             state["cookie"], paper["original"] + "/pages/1", workspace=paper["workspace"]
         )
         assert review["id"] == paper["id"] and page["text"].strip()
+        versions = json_api(state["cookie"], paper["writer"] + "/versions", workspace=paper["workspace"])
+        assert any(version["commit"] == paper["version"] for version in versions)
         print(
             "The session, saved study note, original PDF and review reopened on a fresh container."
         )

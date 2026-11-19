@@ -19,6 +19,7 @@ from deeptutor.studio import (
     experiments,
     integrations,
     manuscripts,
+    personal_editor,
     reviews,
     subscriptions,
     writing,
@@ -37,6 +38,7 @@ from deeptutor.studio.models import (
     ReviewInput,
     RunInput,
     ScreeningInput,
+    TexEngine,
     WorkInput,
 )
 
@@ -348,7 +350,7 @@ async def import_manuscript(
     file: UploadFile = File(...),
     title: str = Form(...),
     main_file: str = Form("main.tex"),
-    engine: Literal["pdflatex", "xelatex", "lualatex"] = Form("pdflatex"),
+    engine: TexEngine = Form("pdflatex"),
 ):
     return await operation(
         manuscripts.create_manuscript,
@@ -361,6 +363,184 @@ async def import_manuscript(
 @router.get("/manuscripts/{identifier}/files")
 async def manuscript_files(identifier: str):
     return {"files": await operation(manuscripts.file_list, Studio(), identifier)}
+
+
+@router.get("/manuscripts/{identifier}/editor")
+async def editor_index(identifier: str):
+    return await operation(personal_editor.project_index, Studio(), identifier)
+
+
+class CompileTarget(Command):
+    main_file: str = Field(min_length=1, max_length=500)
+    engine: TexEngine
+    expected_revision: int = Field(ge=1)
+
+
+@router.put("/manuscripts/{identifier}/target")
+async def editor_target(identifier: str, payload: CompileTarget):
+    return await operation(
+        personal_editor.configure,
+        Studio(),
+        identifier,
+        payload.main_file,
+        payload.engine,
+        payload.expected_revision,
+    )
+
+
+@router.get("/writing/engines")
+async def writing_engines():
+    from deeptutor.studio.tex_sandbox import engines
+
+    return engines()
+
+
+@router.post("/manuscripts/{identifier}/search")
+async def editor_search(identifier: str, payload: personal_editor.Search):
+    return await operation(
+        personal_editor.search, Studio(), identifier, payload, apply=payload.preview_id is not None
+    )
+
+
+class EditorFileChange(Command):
+    path: str = Field(min_length=1, max_length=500)
+    base_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
+    destination: str | None = Field(default=None, max_length=500)
+
+
+@router.post("/manuscripts/{identifier}/files/change")
+async def editor_file_change(identifier: str, payload: EditorFileChange):
+    return await operation(
+        personal_editor.manage_file,
+        Studio(),
+        identifier,
+        payload.path,
+        payload.base_hash,
+        payload.destination,
+    )
+
+
+@router.post("/manuscripts/{identifier}/files/upload")
+async def editor_upload(
+    identifier: str, file: UploadFile = File(...), path: str = Form(..., max_length=500)
+):
+    return await operation(
+        personal_editor.upload, Studio(), identifier, path, await file_bytes(file)
+    )
+
+
+@router.get("/manuscripts/{identifier}/asset")
+async def editor_asset(identifier: str, path: str = Query(..., max_length=500)):
+    from pathlib import Path
+    from urllib.parse import quote
+
+    def read():
+        store = Studio()
+        with manuscripts.lock(store, identifier):
+            manuscripts.recover_saves(store, identifier)
+            asset = manuscripts.project_file(store, identifier, path)
+            if not asset.is_file():
+                raise Missing("File not found.")
+            return manuscripts.read_bounded(asset)
+
+    raw = await operation(read)
+    mime = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".svg": "image/svg+xml",
+        ".pdf": "application/pdf",
+    }.get(Path(path).suffix.lower())
+    disposition = "inline" if mime else "attachment"
+    return Response(
+        raw,
+        media_type=mime or "application/octet-stream",
+        headers={
+            "Content-Disposition": f"{disposition}; filename*=UTF-8''{quote(Path(path).name, safe='')}",
+            "Cache-Control": "no-store",
+            "Content-Security-Policy": "sandbox; default-src 'none'; style-src 'unsafe-inline'",
+            "Referrer-Policy": "no-referrer",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
+
+
+@router.get("/manuscripts/{identifier}/trash")
+async def editor_trash(identifier: str):
+    return await operation(personal_editor.trash, Studio(), identifier)
+
+
+@router.post("/manuscripts/{identifier}/trash/{item}/restore")
+async def editor_undelete(identifier: str, item: str):
+    return await operation(personal_editor.restore_trash, Studio(), identifier, item)
+
+
+class CheckpointTitle(Command):
+    title: str = Field(min_length=1, max_length=250)
+
+
+@router.get("/manuscripts/{identifier}/versions")
+async def editor_versions(identifier: str):
+    return await operation(personal_editor.history, Studio(), identifier)
+
+
+@router.post("/manuscripts/{identifier}/versions")
+async def editor_checkpoint(identifier: str, payload: CheckpointTitle):
+    return await operation(personal_editor.checkpoint, Studio(), identifier, payload.title)
+
+
+@router.get("/manuscripts/{identifier}/versions/{commit}")
+async def editor_compare(identifier: str, commit: str):
+    return await operation(personal_editor.version, Studio(), identifier, commit)
+
+
+class RestoreVersion(Command):
+    restore_id: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+@router.post("/manuscripts/{identifier}/versions/{commit}/restore")
+async def editor_restore(identifier: str, commit: str, payload: RestoreVersion):
+    return await operation(
+        personal_editor.version, Studio(), identifier, commit, restore_id=payload.restore_id
+    )
+
+
+@router.get("/manuscripts/{identifier}/attribution")
+async def editor_attribution(identifier: str, path: str = Query(..., max_length=500)):
+    return await operation(personal_editor.blame, Studio(), identifier, path)
+
+
+@router.post("/manuscripts/{identifier}/versions/import")
+async def editor_git_import(
+    identifier: str,
+    file: UploadFile = File(...),
+    preview_id: str | None = Form(default=None, pattern=r"^[0-9a-f]{64}$"),
+):
+    return await operation(
+        personal_editor.import_bundle,
+        Studio(),
+        identifier,
+        await file_bytes(file, 48 * 1024 * 1024),
+        preview_id,
+    )
+
+
+@router.get("/manuscripts/{identifier}/source.zip")
+async def editor_archive(identifier: str):
+    return Response(
+        await operation(personal_editor.archive, Studio(), identifier),
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="paper.zip"'},
+    )
+
+
+@router.post("/manuscripts/{identifier}/history.bundle")
+async def editor_git_bundle(identifier: str):
+    return Response(
+        await operation(personal_editor.git_bundle, Studio(), identifier),
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": 'attachment; filename="paper.bundle"'},
+    )
 
 
 @router.get("/manuscripts/{identifier}/file")

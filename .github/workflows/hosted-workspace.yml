@@ -6,6 +6,7 @@ on:
     paths:
       - 'Dockerfile.study*'
       - 'deployment/hosted/**'
+      - 'deployment/tex/**'
       - 'deeptutor/runtime/backup.py'
       - 'tests/studio/test_hosted_cloud.py'
       - 'compose.hosted.yml'

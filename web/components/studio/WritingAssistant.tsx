@@ -33,11 +33,12 @@ export default function WritingAssistant({
   flush: () => Promise<void>
   proposed: (row: StudioRecord<ProposalData>) => Promise<void>
 }) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
 
   const [open, setOpen] = useState(false),
     [mode, setMode] = useState('polish'),
-    [instruction, setInstruction] = useState('')
+    [instruction, setInstruction] = useState(''),
+    [section, setSection] = useState('paragraph-flow')
   const [pref, setPref] = useState<{ revision: number; data: Preferences } | null>(null)
   const [originalPref, setOriginalPref] = useState(''),
     [options, setOptions] = useState<LLMOptionsResponse>({ options: [], active: null })
@@ -51,7 +52,7 @@ export default function WritingAssistant({
   } | null>(null)
   const op = useOperation()
   async function show() {
-    if (!file || !selection.text) return
+    if (!file) return
     const selected = { ...selection },
       path = file.path
     await flush()
@@ -69,6 +70,14 @@ export default function WritingAssistant({
     if (Array.from(saved.text).slice(selected.start, selected.end).join('') !== selected.text)
       throw new Error(t('选区已变化，请重新选择原文。'))
     setSnapshot({ path, hash: saved.hash, selection: selected })
+    const preceding = Array.from(saved.text).slice(0, selected.start).join('')
+    const heading = [...preceding.matchAll(/\\(?:begin\{(abstract)\}|(?:sub)*section\*?\{([^}]+)\})|^#{1,4}\s+(.+)$/gmi)].at(-1)
+    const currentHeading = heading?.slice(1).find(Boolean) || ''
+    const guides = [['abstract', /abstract|摘要/i], ['introduction', /introduction|引言|绪论/i],
+      ['related-work', /related work|相关工作/i], ['method', /method|approach|方法/i],
+      ['experiments', /experiment|evaluation|result|实验|结果/i], ['conclusion', /conclusion|结论/i]] as const
+    setSection(guides.find(([, pattern]) => pattern.test(currentHeading))?.[0] || 'paragraph-flow')
+    setInstruction('')
     setPref(settings)
     setOriginalPref(JSON.stringify(settings.data))
     setOptions(models)
@@ -98,6 +107,8 @@ export default function WritingAssistant({
         instruction,
         source_ids: sourceIds,
         llm_selection: model,
+        section: section || null,
+        language: i18n.language.startsWith('zh') ? 'zh' : 'en',
       },
     )
     await proposed(row)
@@ -107,10 +118,10 @@ export default function WritingAssistant({
     <>
       <Action
         secondary
-        disabled={op.busy || !file?.path.endsWith('.tex') || !selection.text}
+        disabled={op.busy || !file || !/\.(tex|md)$/i.test(file.path)}
         onClick={() => op.run(show)}
       >
-        <Sparkles size={13} /> {t('AI 修改选区')}
+        <Sparkles size={13} /> {t('论文写作助手')}
       </Action>
       {!open && <ErrorNotice message={op.error} />}
       <Dialog
@@ -118,12 +129,12 @@ export default function WritingAssistant({
         onClose={() => {
           if (!op.busy) setOpen(false)
         }}
-        title={t('逐段打磨 · 先审阅，再应用')}
+        title={t('论文写作助手')}
         size="lg"
         className="studio-dialog"
         footer={
           <Action
-            disabled={op.busy || !pref || !options.options.length}
+            disabled={op.busy || !pref || !options.options.length || (!snapshot?.selection.text && (!section || !instruction.trim()))}
             onClick={() => op.run(generate)}
           >
             {op.busy ? t('正在生成建议…') : t('生成修改建议')}
@@ -135,7 +146,19 @@ export default function WritingAssistant({
             '发送范围：当前选区、你勾选的来源摘要、稿件引用键及下方写作偏好。生成后会展示逐项差异与事实变化。',
           )}
         </p>
-        <pre className="studio-diff">{snapshot?.selection.text}</pre>
+        {snapshot?.selection.text ? <pre className="studio-diff">{snapshot.selection.text}</pre> :
+          <p className="studio-note">{t('草稿会插入当前光标处。请写下本段想说明的问题、方法或已有结果。')}</p>}
+        <Field label={t('章节指南')}>
+          <select value={section} onChange={(event) => setSection(event.target.value)}>
+            {[
+              ['paragraph-flow', t('段落衔接')], ['abstract', t('摘要')], ['introduction', t('引言')],
+              ['related-work', t('相关工作')], ['method', t('方法')], ['experiments', t('实验')],
+              ['conclusion', t('结论')], ['figures-tables', t('图表与说明')], ['self-review', t('投稿前自查')],
+              ['', t('仅按我的要求修改')],
+            ].map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select>
+        </Field>
+        {section && <p className="studio-note">{t('写作指南来自彭思达的公开笔记，由 Master-cai 整理。修改建议附有段落提纲、自查和论据对照。')}</p>}
         <div className="studio-form-grid">
           <Field label={t("修改目的")}>
             <select value={mode} onChange={(e) => setMode(e.target.value)}>
@@ -208,6 +231,13 @@ export default function WritingAssistant({
           </div>
         </details>
         {pref && (
+          <label className="studio-check">
+            <input type="checkbox" checked={pref.data.allow_cloud} onChange={(event) =>
+              setPref({ ...pref, data: { ...pref.data, allow_cloud: event.target.checked } })} />
+            {t('允许此项目使用云端写作模型（包括 Codex OAuth）')}
+          </label>
+        )}
+        {pref && (
           <details>
             <summary>{t('此项目的术语、风格与模型范围')}</summary>
             <Field label={t("个人术语表")}>
@@ -231,16 +261,6 @@ export default function WritingAssistant({
                 }
               />
             </Field>
-            <label className="studio-check">
-              <input
-                type="checkbox"
-                checked={pref.data.allow_cloud}
-                onChange={(e) =>
-                  setPref({ ...pref, data: { ...pref.data, allow_cloud: e.target.checked } })
-                }
-              />
-              {t('允许此项目使用云端写作模型（包括 Codex OAuth）')}
-            </label>
             <p className="studio-note">
               {t('关闭时只接受本机模型，调用失败会保留原文。偏好在点击生成时保存到当前项目。')}
             </p>

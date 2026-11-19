@@ -19,6 +19,7 @@ from filelock import FileLock
 
 from .database import Conflict, Missing, encoded, sha
 from .models import FileEdit, ManuscriptInput, ProposalInput, ReviewInput
+from .review_markup import note_definitions, printable
 
 SOURCE_EXTENSIONS = {
     ".tex",
@@ -122,6 +123,9 @@ def recover_saves(store, identifier):
     """Reconcile prepared saves after a crash without overwriting either version."""
     unresolved = []
     with lock(store, identifier):
+        from .personal_editor import recover_batch
+
+        recover_batch(store, identifier)
         root = tree(store, identifier)
         for journal in sorted(project_entries(root)):
             if not re.fullmatch(r"\.studio-save-[a-f0-9]+\.json", journal.name):
@@ -285,9 +289,15 @@ def create_manuscript(store, command: ManuscriptInput, data: bytes | None = None
         if command.main_file not in files:
             raise ValueError("Choose the main TeX file present in this archive.")
     else:
+        escapes = {c: "\\" + c for c in "#$%&_{}"} | {
+            "\\": r"\textbackslash{}", "^": r"\textasciicircum{}", "~": r"\textasciitilde{}",
+        }
+        title = "".join(escapes.get(c, c) for c in " ".join(command.title.split()))
         files[command.main_file] = (
-            b"\\documentclass{article}\n\\usepackage{graphicx}\n\\title{Research notes}\n\\begin{document}\n\\maketitle\n\\section{Introduction}\nWrite your evidence-grounded argument here.\n\\end{document}\n"
-        )
+            "\\documentclass{article}\n\\usepackage{graphicx}\n" + "\\title{" + title + "}\n"
+            "\\begin{document}\n\\maketitle\n\\begin{abstract}\n\n\\end{abstract}\n"
+            "\\section{Introduction}\n% Write your evidence-grounded argument here.\n\\end{document}\n"
+        ).encode("utf-8")
     with store.db(write=True) as db:
         row = store.put(db, "manuscript", {**command.model_dump(), "status": "ready"})
     root = tree(store, row["id"])
@@ -408,7 +418,7 @@ def factual_changes(before, after):
     ]
 
 
-def propose(store, identifier, command: ProposalInput, *, read_set=None):
+def propose(store, identifier, command: ProposalInput, *, read_set=None, generation=None):
     current = read_file(store, identifier, command.path)
     if current["hash"] != command.base_hash:
         raise Conflict("Reload this file before proposing a change.")
@@ -420,6 +430,7 @@ def propose(store, identifier, command: ProposalInput, *, read_set=None):
     read_set = read_set or ReadSet.capture(store, command.source_ids, rules={"writing_context": 1})
     payload = {
         **command.model_dump(),
+        **({"generation": generation} if generation else {}),
         "read_set": read_set.manifest(),
         "manuscript_id": identifier,
         "before": before,
@@ -583,6 +594,14 @@ def audit(store, identifier):
     }
 
 
+def project_note_definitions(store, snapshots):
+    macros = set()
+    for path, digest in snapshots.items():
+        if path.lower().endswith((".tex", ".cls", ".sty")):
+            macros.update(note_definitions(blob_bytes(store, digest)))
+    return macros
+
+
 def prepare_build(store, identifier):
     manuscript = store.get(identifier, "manuscript")
     with lock(store, identifier):
@@ -660,31 +679,33 @@ def execute_build(store, build, cancelled=None):
 
 def _execute_build(store, build, cancelled=None):
     from .connections import ProcessCancelled
+    from .tex_sandbox import wasm_compiler
 
     snapshots = build["data"]["input_files"]
     compiler = shutil.which("latexmk")
+    portable = build["data"]["engine"] == "tectonic"
+    runner = wasm_compiler() if portable else None
     try:
         if cancelled and cancelled():
             raise ProcessCancelled("Build cancelled before compilation.")
-        if not compiler:
+        if portable and not runner:
+            raise ValueError("Tectonic is unavailable on this host. Choose another compiler in the manuscript settings.")
+        if not portable and not compiler:
             raise ValueError(
                 "Isolated TeX compilation is unavailable. Install latexmk and an OS sandbox; source editing remains available."
             )
         with tempfile.TemporaryDirectory(prefix="deeptutor-tex-") as tmp:
             root = Path(tmp).resolve()
             source_root = str(root)
+            declared = project_note_definitions(store, snapshots)
             for path, digest in snapshots.items():
                 target = root / path
                 target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(blob_bytes(store, digest))
+                target.write_bytes(printable(path, blob_bytes(store, digest), declared))
             from .tex_sandbox import distribution_roots
 
-            tex_root = distribution_roots(compiler)
-            engine = {"pdflatex": "-pdf", "xelatex": "-xelatex", "lualatex": "-lualatex"}[
-                build["data"]["engine"]
-            ]
             env = {
-                "PATH": str(Path(compiler).parent) + ":/usr/bin:/bin",
+                "PATH": str(Path(runner[0] if portable else compiler).parent) + ":/usr/bin:/bin",
                 "HOME": str(root),
                 "TMPDIR": str(root),
                 "openin_any": "p",
@@ -703,6 +724,14 @@ def _execute_build(store, build, cancelled=None):
             from .connections import bounded_process
             from .tex_sandbox import command as sandbox_command
 
+            main = build["data"]["main_file"]
+            if portable:
+                env.update(TMPDIR=tempfile.gettempdir(), GOMEMLIMIT="90MiB", GOMAXPROCS="1")
+                invocation = [*runner, main]
+            else:
+                engine = {"pdflatex": "-pdf", "xelatex": "-xelatex", "lualatex": "-lualatex"}[build["data"]["engine"]]
+                invocation = sandbox_command(root, compiler, engine, main, distribution_roots(compiler))
+
             returncode, stdout, stderr = bounded_process(
                 [
                     sys.executable,
@@ -710,7 +739,7 @@ def _execute_build(store, build, cancelled=None):
                     "-c",
                     "import os,resource,sys;resource.setrlimit(resource.RLIMIT_FSIZE,(52428800,52428800));os.execv(sys.argv[1],sys.argv[1:])",
                 ]
-                + sandbox_command(root, compiler, engine, build["data"]["main_file"], tex_root),
+                + invocation,
                 cwd=root,
                 env=env,
                 timeout=90,
@@ -902,9 +931,14 @@ def submission(store, identifier, paths, build_id, kind="submission", confirm_dy
             )
     pdf_build = validation or build
     content = io.BytesIO()
+    exported = {}
+    declared = project_note_definitions(store, {p: snapshots[p] for p in paths}) if kind == "submission" else set()
     with zipfile.ZipFile(content, "w", zipfile.ZIP_DEFLATED) as archive:
         for path in paths:
-            archive.writestr(str(relative_path(path)), blob_bytes(store, snapshots[path]))
+            raw = blob_bytes(store, snapshots[path])
+            source = printable(path, raw, declared) if kind == "submission" else raw
+            exported[path] = store.save_blob(source) if source != raw else snapshots[path]
+            archive.writestr(str(relative_path(path)), source)
         archive.writestr(
             "submission.pdf" if kind == "submission" else "preview.pdf",
             store.blob_path(pdf_build["data"]["outputs"]["preview.pdf"]).read_bytes(),
@@ -919,7 +953,7 @@ def submission(store, identifier, paths, build_id, kind="submission", confirm_dy
                 "build_id": build_id,
                 "kind": kind,
                 "validation_build_id": validation["id"] if validation else None,
-                "files": {p: snapshots[p] for p in paths},
+                "files": exported,
                 "inclusion_reasons": {
                     p: (manifest["reasons"].get(p) or ["Explicitly selected attachment"])
                     if kind == "submission"

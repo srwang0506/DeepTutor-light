@@ -6,6 +6,8 @@ import { Compartment, EditorState } from '@codemirror/state'
 import { closeSearchPanel, getSearchQuery, openSearchPanel, searchPanelOpen, setSearchQuery } from '@codemirror/search'
 import { StreamLanguage } from '@codemirror/language'
 import { stex } from '@codemirror/legacy-modes/mode/stex'
+import { editorNavigation, type PaperNavigation } from './paper-navigation'
+import { paperAnnotations } from './paper-annotations'
 export interface TextSelection {
   start: number
   end: number
@@ -17,12 +19,14 @@ export default function TexEditor({
   onChange,
   onSelection,
   jump,
+  navigation,
 }: {
   identity: string
   value: string
   onChange: (text: string) => void
   onSelection: (selection: TextSelection) => void
   jump?: { line: number; nonce: number }
+  navigation?: PaperNavigation
 }) {
   const { t } = useTranslation()
   const phrases = useMemo(() => ({
@@ -45,12 +49,12 @@ export default function TexEditor({
 
   const parent = useRef<HTMLDivElement>(null),
     view = useRef<EditorView | null>(null),
-    callbacks = useRef({ onChange, onSelection }),
+    callbacks = useRef({ onChange, onSelection, navigation }),
     initial = useRef(value)
   useLayoutEffect(() => {
-    callbacks.current = { onChange, onSelection }
+    callbacks.current = { onChange, onSelection, navigation }
     initial.current = value
-  }, [onChange, onSelection, value])
+  }, [onChange, onSelection, value, navigation])
   useEffect(() => {
     if (!parent.current) return
     const editor = new EditorView({
@@ -61,6 +65,8 @@ export default function TexEditor({
           basicSetup,
           language.current.of(EditorState.phrases.of(initialPhrases.current)),
           StreamLanguage.define(stex),
+          editorNavigation(() => callbacks.current.navigation),
+          paperAnnotations(identity),
           EditorView.lineWrapping,
           EditorView.theme({
             '&': { backgroundColor: 'var(--background)', color: 'var(--foreground)' },

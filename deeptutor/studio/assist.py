@@ -9,7 +9,7 @@ from urllib.parse import urlsplit
 
 from pydantic import Field
 
-from . import manuscripts, writing
+from . import manuscripts, writing, writing_skill
 from .database import Conflict
 from .models import Command, ProposalInput
 from .read_set import ReadSet
@@ -25,12 +25,14 @@ class AssistInput(Command):
     path: str = Field(min_length=1, max_length=500)
     base_hash: str = Field(pattern=r"^[0-9a-f]{64}$")
     start: int = Field(ge=0)
-    end: int = Field(ge=1)
+    end: int = Field(ge=0)
     mode: Literal[
         "polish", "concise", "translate_en", "translate_zh", "abstract", "caption", "related_work"
     ] = "polish"
     instruction: str = Field(default="", max_length=4000)
     source_ids: list[str] = Field(default_factory=list, max_length=20)
+    section: writing_skill.Section | None = None
+    language: Literal["en", "zh"] = "en"
 
 
 def preferences(store):
@@ -72,12 +74,14 @@ def is_local(config):
 
 def context(store, manuscript, command, read_set=None):
     current = manuscripts.read_file(store, manuscript, command.path)
-    if not command.path.endswith(".tex"):
-        raise ValueError("Choose a passage in a TeX source file.")
+    if not command.path.lower().endswith((".tex", ".md")):
+        raise ValueError("Choose a passage in a TeX or Markdown file.")
     if current["hash"] != command.base_hash:
         raise Conflict("The source changed. Save and select the passage again.")
-    if not 0 <= command.start < command.end <= len(current["text"]):
-        raise ValueError("Select a nonempty passage first.")
+    if not 0 <= command.start <= command.end <= len(current["text"]):
+        raise ValueError("Selection is outside the file.")
+    if command.start == command.end and not (command.section and command.instruction.strip()):
+        raise ValueError("Select a passage or describe what to draft at the cursor.")
     selected = current["text"][command.start : command.end]
     if len(selected) > 16000:
         raise ValueError("Select at most 16,000 characters for one revision.")
@@ -135,25 +139,67 @@ async def propose(store, manuscript, command, config, complete):
         "style_examples": pref["data"]["style_examples"],
         **inputs,
     }
+    skill = writing_skill.guide(command.section) if command.section else None
+    report = None
+    if skill:
+        system = system.replace(
+            "Return only the replacement LaTeX, without markdown fences or commentary.", ""
+        )
+        system += (
+            "\nUse the following writing skill and its selected section guide.\n"
+            + skill["instructions"]
+        )
+        system += (
+            "\nReturn exactly one JSON object with replacement (the source text only), outline "
+            "(3–7 short strings), paragraph_roles (one string per paragraph), checks (short self-review "
+            "items), and claims (objects with claim and source_ids). Use only supplied source IDs. "
+            "When evidence is missing, use an empty list and flag the gap. Examples illustrate form, "
+            "never factual content. Write the notes in the requested interface language, keeping the "
+            "author's language for the revised passage unless asked to translate. Preserve the input "
+            "file format. Draft at the cursor if the passage is empty and an instruction was provided."
+        )
+        payload.update(
+            section=command.section,
+            notes_language=command.language,
+            format="markdown" if command.path.lower().endswith(".md") else "latex",
+        )
     replacement = await asyncio.wait_for(
         complete(json.dumps(payload, ensure_ascii=False), system_prompt=system, max_tokens=6000),
         timeout=180,
     )
-    if not isinstance(replacement, str) or not replacement.strip() or len(replacement) > 40000:
+    if (
+        not isinstance(replacement, str)
+        or not replacement.strip()
+        or len(replacement) > (96000 if skill else 40000)
+    ):
         raise ValueError("The model did not return a usable passage. The original remains saved.")
-    replacement = replacement.strip()
-    if replacement.startswith("```") and replacement.endswith("```"):
-        replacement = re.sub(r"^```[^\n]*\n|\n```$", "", replacement)
+    if skill:
+        replacement, report = writing_skill.parse_draft(replacement, inputs["sources"])
+    fenced = replacement.strip()
+    if fenced.startswith("```") and fenced.endswith("```"):
+        replacement = re.sub(r"^```[^\n]*\n|\n```$", "", fenced)
     selected = inputs["selected_tex"]
-    prefix = re.match(r"^\s*", selected).group()
-    suffix = re.search(r"\s*$", selected).group()
-    replacement = prefix + replacement.strip() + suffix
+    if selected:
+        prefix = re.match(r"^\s*", selected).group()
+        suffix = re.search(r"\s*$", selected).group()
+        replacement = prefix + replacement.strip() + suffix
+    else:
+        source = manuscripts.read_file(store, manuscript, command.path)["text"]
+        cursor = command.start
+        if cursor and not source[cursor - 1 : cursor].isspace() and not replacement[:1].isspace():
+            replacement = "\n\n" + replacement
+        if (
+            source[cursor : cursor + 1]
+            and not source[cursor].isspace()
+            and not replacement[-1:].isspace()
+        ):
+            replacement += "\n\n"
     # A setting change while the request was running prevents creating an outdated proposal.
     if preferences(store)["revision"] != pref["revision"]:
         raise Conflict(
             "Writing preferences changed during generation. Retry with the current settings."
         )
-    row = manuscripts.propose(
+    return manuscripts.propose(
         store,
         manuscript,
         ProposalInput(
@@ -167,23 +213,18 @@ async def propose(store, manuscript, command, config, complete):
             source_revisions={s["id"]: s["revision"] for s in inputs["sources"]},
         ),
         read_set=read_set,
+        generation={
+            "origin": "model_suggestion",
+            "model": config.model,
+            "provider": config.provider_name,
+            "local": is_local(config),
+            "mode": command.mode,
+            "context": inputs,
+            "preferences_revision": pref["revision"],
+            **(
+                {"skill": {k: v for k, v in skill.items() if k != "instructions"}, "report": report}
+                if skill
+                else {}
+            ),
+        },
     )
-    with store.db(write=True) as db:
-        return store.put(
-            db,
-            "proposal",
-            {
-                **row["data"],
-                "generation": {
-                    "origin": "model_suggestion",
-                    "model": config.model,
-                    "provider": config.provider_name,
-                    "local": is_local(config),
-                    "mode": command.mode,
-                    "context": inputs,
-                    "preferences_revision": pref["revision"],
-                },
-            },
-            identifier=row["id"],
-            expected=row["revision"],
-        )

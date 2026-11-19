@@ -1,9 +1,59 @@
 """OS isolation for TeX; unsupported hosts retain source editing and export."""
 
+from functools import lru_cache
 import json
+import os
 from pathlib import Path
 import shutil
+import subprocess
 import sys
+
+
+def wasm_compiler():
+    tool = shutil.which("deeptutor-tectonic")
+    bundle = Path(os.environ.get("DEEPTUTOR_TECTONIC_BUNDLE", "/opt/deeptutor-tectonic/bundle"))
+    if tool and bundle.is_absolute() and (bundle / "latex.fmt").is_file():
+        return tool, str(bundle)
+    return None
+
+
+@lru_cache(maxsize=1)
+def native_sandbox_ready():
+    if sys.platform == "darwin":
+        return bool(shutil.which("sandbox-exec"))
+    wrapper = shutil.which("bwrap")
+    if sys.platform.startswith("linux") and wrapper:
+        try:
+            probe = subprocess.run(
+                [
+                    wrapper,
+                    "--unshare-all",
+                    "--die-with-parent",
+                    "--ro-bind",
+                    "/",
+                    "/",
+                    "--",
+                    "/bin/true",
+                ],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=4,
+            )
+            return probe.returncode == 0
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    return False
+
+
+def engines():
+    native = [
+        name
+        for name in ("pdflatex", "xelatex", "lualatex")
+        if native_sandbox_ready() and shutil.which("latexmk") and shutil.which(name)
+    ]
+    available = (["tectonic"] if wasm_compiler() else []) + native
+    return {"engines": available, "default": next(iter(available), "pdflatex")}
 
 
 def narrow_root(value):
@@ -20,7 +70,9 @@ def distribution_roots(compiler):
     for parent in resolved.parents:
         if (parent / "texmf-dist").is_dir():
             return [narrow_root(parent)]
-    if resolved.is_relative_to("/usr/bin") or resolved.is_relative_to("/bin"):
+    if Path(compiler).parent in {Path("/usr/bin"), Path("/bin")} or resolved.is_relative_to(
+        "/usr/bin"
+    ):
         return [
             Path(p)
             for p in (

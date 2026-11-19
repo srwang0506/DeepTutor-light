@@ -223,10 +223,13 @@ class ProposalInput(FileEdit):
     source_ids: list[str] = Field(default_factory=list, max_length=100)
 
 
+TexEngine = Literal["pdflatex", "xelatex", "lualatex", "tectonic"]
+
+
 class ManuscriptInput(Command):
     title: str = Field(min_length=1, max_length=500)
     main_file: str = Field(default="main.tex", max_length=500)
-    engine: Literal["pdflatex", "xelatex", "lualatex"] = "pdflatex"
+    engine: TexEngine = "pdflatex"
 
 
 class ReviewInput(Command):

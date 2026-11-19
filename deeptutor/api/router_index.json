@@ -1,5 +1,5 @@
 {
-  "fingerprint": "a76ce0d6d37a3d93643aed6fba44217d74672087d19e70c8b89cf567784ca03c",
+  "fingerprint": "a21eb50e65a760e6d6e0c16102da99cb17ecc57debd8539e6225446dcee5d5fa",
   "routers": {
     "deeptutor.api.routers.auth:router": [
       {
@@ -1463,6 +1463,142 @@
         "kind": "http",
         "methods": [
           "GET"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/editor",
+        "name": "editor_index",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/target",
+        "name": "editor_target",
+        "kind": "http",
+        "methods": [
+          "PUT"
+        ]
+      },
+      {
+        "path": "/writing/engines",
+        "name": "writing_engines",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/search",
+        "name": "editor_search",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/files/change",
+        "name": "editor_file_change",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/files/upload",
+        "name": "editor_upload",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/asset",
+        "name": "editor_asset",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/trash",
+        "name": "editor_trash",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/trash/{item}/restore",
+        "name": "editor_undelete",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/versions",
+        "name": "editor_versions",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/versions",
+        "name": "editor_checkpoint",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/versions/{commit}",
+        "name": "editor_compare",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/versions/{commit}/restore",
+        "name": "editor_restore",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/attribution",
+        "name": "editor_attribution",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/versions/import",
+        "name": "editor_git_import",
+        "kind": "http",
+        "methods": [
+          "POST"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/source.zip",
+        "name": "editor_archive",
+        "kind": "http",
+        "methods": [
+          "GET"
+        ]
+      },
+      {
+        "path": "/manuscripts/{identifier}/history.bundle",
+        "name": "editor_git_bundle",
+        "kind": "http",
+        "methods": [
+          "POST"
         ]
       },
       {
