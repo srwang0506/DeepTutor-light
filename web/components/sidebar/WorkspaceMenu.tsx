@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import Link from 'next/link'
+import IntentLink from '@/shared/ui/IntentLink'
 import { useId, useState, type ReactNode } from 'react'
 import { Check, ChevronDown, Settings, Settings2, FolderOpen, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -41,8 +41,8 @@ export function WorkspaceChoiceList({ onChoose }: { onChoose?: () => void }) {
   const { active, choices, choose } = useWorkspaceChoices()
   return (
     <>
-      <Link role="menuitem" href="/project" prefetch={false} onClick={onChoose} className="dt-menu-item"><FolderOpen size={16} /><span>{zh ? '当前项目主页' : 'Current project'}</span></Link>
-      <Link role="menuitem" href="/projects" prefetch={false} onClick={onChoose} className="dt-menu-item"><Plus size={16} /><span>{zh ? '所有项目 · 新建项目' : 'All projects · New project'}</span></Link>
+      <IntentLink role="menuitem" href="/project" onClick={onChoose} className="dt-menu-item"><FolderOpen size={16} /><span>{zh ? '当前项目主页' : 'Current project'}</span></IntentLink>
+      <IntentLink role="menuitem" href="/projects" onClick={onChoose} className="dt-menu-item"><Plus size={16} /><span>{zh ? '所有项目 · 新建项目' : 'All projects · New project'}</span></IntentLink>
       <div className="dt-menu-divider" />
       <div className="dt-menu-label">{t('Workspace')}</div>
       {choices.map(row => (
@@ -62,10 +62,10 @@ export function WorkspaceChoiceList({ onChoose }: { onChoose?: () => void }) {
           {row.workspace_id === active && <Check size={15} strokeWidth={2} className="shrink-0" />}
         </button>
       ))}
-      <Link role="menuitem" href="/settings/workspace" prefetch={false} onClick={onChoose} className="dt-menu-item is-quiet">
+      <IntentLink role="menuitem" href="/settings/workspace" onClick={onChoose} className="dt-menu-item is-quiet">
         <Settings2 size={16} strokeWidth={1.6} />
         <span>{t('Manage workspaces')}</span>
-      </Link>
+      </IntentLink>
     </>
   )
 }
@@ -127,10 +127,10 @@ export function WorkspaceMenu({
         <div id={menuId} role="menu" aria-label={t('Manage workspaces')} className="dt-popover dt-workspace-panel">
           <WorkspaceChoiceList onChoose={close} />
           <div className="dt-menu-divider" />
-          <Link role="menuitem" href="/settings" prefetch={false} onClick={close} className="dt-menu-item">
+          <IntentLink role="menuitem" href="/settings" onClick={close} className="dt-menu-item">
             <Settings size={16} strokeWidth={1.6} />
             <span className="flex-1">{t('Settings')}</span>
-          </Link>
+          </IntentLink>
           {accountSlot ? <div className="dt-menu-slot">{accountSlot}</div> : null}
           <div className="dt-menu-divider" />
           <div className="dt-menu-footer">

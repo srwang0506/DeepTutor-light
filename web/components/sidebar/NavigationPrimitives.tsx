@@ -1,7 +1,7 @@
 'use client'
 import { isNavigationTargetActive } from '@/lib/navigation'
 import type { ReactNode } from 'react'
-import Link from 'next/link'
+import IntentLink from '@/shared/ui/IntentLink'
 import { usePathname, useSearchParams } from 'next/navigation'
 import type { LucideIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
@@ -32,9 +32,8 @@ export function NavigationRow({
     active ?? isNavigationTargetActive(href, pathname, new URLSearchParams(search.toString()))
   return (
     <Tooltip label={label} description={detail} as="div" side="right">
-      <Link
+      <IntentLink
         href={href}
-        prefetch={false}
         onClick={event => {
           if (!event.metaKey && !event.ctrlKey && !event.shiftKey) drawer?.close()
         }}
@@ -47,7 +46,7 @@ export function NavigationRow({
           (detail && (
             <span className="max-w-[34%] truncate text-[11px] text-muted-foreground">{detail}</span>
           ))}
-      </Link>
+      </IntentLink>
     </Tooltip>
   )
 }
@@ -74,9 +73,8 @@ export function OverviewRow({
     isNavigationTargetActive(href, pathname, new URLSearchParams(search.toString()))
   return (
     <div className={`dt-overview-row ${selected ? 'is-active' : ''}`}>
-      <Link
+      <IntentLink
         href={href}
-        prefetch={false}
         aria-current={selected ? 'page' : undefined}
         onClick={event => {
           if (!event.metaKey && !event.ctrlKey && !event.shiftKey) drawer?.close()
@@ -84,7 +82,7 @@ export function OverviewRow({
       >
         <Icon size={16} strokeWidth={1.6} />
         <span>{label}</span>
-      </Link>
+      </IntentLink>
       {action}
     </div>
   )

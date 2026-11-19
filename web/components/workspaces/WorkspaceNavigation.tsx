@@ -18,7 +18,6 @@ import {
  * A remembered workspace that no longer exists falls back to General once.
  */
 function ScopeCanonicalizer() {
-  const router = useRouter()
   const pathname = usePathname()
   const query = useSearchParams()
   const named = workspaceIdOf(query)
@@ -27,8 +26,11 @@ function ScopeCanonicalizer() {
       rememberWorkspaceId(named)
       return
     }
-    router.replace(scopedUrl(`${window.location.pathname}${window.location.search}${window.location.hash}`))
-  }, [named, pathname, router])
+    // The tab already renders this scope. Naming it in the current history
+    // entry should not fetch the same page again or interrupt a new draft.
+    const { pathname: current, search, hash } = window.location
+    window.history.replaceState(null, '', scopedUrl(`${current}${search}${hash}`))
+  }, [named, pathname])
   useEffect(() => {
     const remembered = activeWorkspaceId()
     if (!remembered) return
@@ -48,7 +50,24 @@ function ScopeCanonicalizer() {
 /** Cross-store navigation disposes client runtimes. Only a link that names a workspace leaves this one. */
 export function WorkspaceNavigation() {
   const router = useRouter()
-  useEffect(() => registerWorkspaceNavigator(router.push), [router])
+  useEffect(() => registerWorkspaceNavigator(href => {
+    const current = new URL(window.location.href)
+    const next = new URL(href, current)
+    const otherParams = (url: URL) => {
+      const params = new URLSearchParams(url.search)
+      params.delete('dt_workspace')
+      params.delete('workspace')
+      params.sort()
+      return params.toString()
+    }
+    if (current.pathname === next.pathname && otherParams(current) === otherParams(next)) {
+      // selectWorkspace has already flushed drafts. Next's native history
+      // integration rekeys the scoped runtime without refetching the same route.
+      window.history.pushState(null, '', href)
+    } else {
+      router.push(href)
+    }
+  }), [router])
   useEffect(() => {
     const follow = (event: MouseEvent) => {
       const anchor = (event.target as Element).closest?.('a[href]') as HTMLAnchorElement | null

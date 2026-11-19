@@ -11,6 +11,7 @@ const clientCache = new Map<string, CacheEntry<unknown>>();
 interface CacheOptions {
   ttlMs?: number;
   force?: boolean;
+  joinInFlight?: boolean;
 }
 
 /** A synchronous, workspace-scoped snapshot for views re-entered during SPA navigation. */
@@ -35,6 +36,7 @@ export async function withClientCache<T>(
   const now = Date.now();
   key = `${key}:workspace=${activeWorkspaceId()}`;
   const cached = clientCache.get(key) as CacheEntry<T> | undefined;
+  if (options.joinInFlight && cached?.promise) return cached.promise;
   if (!force && cached) {
     if (cached.data !== undefined && cached.expiresAt > now) {
       return cached.data;

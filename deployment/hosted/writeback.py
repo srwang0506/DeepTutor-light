@@ -18,6 +18,32 @@ from deployment.hosted.neon_store import CloudStore, FencedWriter
 log = logging.getLogger(__name__)
 SOCKET_ENV = "DEEPTUTOR_CLOUD_COMMIT_SOCKET"
 BOUNDARIES = {"session", "session_meta", "result", "wait_for_input", "done", "command_ack"}
+# These GETs project existing state or reconstructible indexes. Routes that
+# import legacy records, generate content, or consume tokens retain a full checkpoint.
+READ_ONLY_PATHS = {
+    "/api/auth/status",
+    "/api/calendar/events",
+    "/api/calendar/stream",
+    "/api/capabilities/registered",
+    "/api/knowledge-bases/list",
+    "/api/mastery-paths/topics/index",
+    "/api/modules",
+    "/api/partner-groups",
+    "/api/partners",
+    "/api/reading/workspaces/index",
+    "/api/sessions",
+    "/api/settings/chat-attachments",
+    "/api/settings/display",
+    "/api/settings/llm-options",
+    "/api/settings/page-customization",
+    "/api/settings/ui",
+    "/api/space/mcp/servers",
+    "/api/studio/library",
+    "/api/studio/writing/engines",
+    "/api/task-board",
+    "/api/task-board/events",
+    "/api/tools",
+}
 
 
 def read_settings():
@@ -34,12 +60,15 @@ class CommitRequest(socketserver.StreamRequestHandler):
     def handle(self):
         self.request.settimeout(5)
         mode = self.rfile.readline(16)
-        if mode not in {b"write\n", b"read\n"}:
+        if mode not in {b"write\n", b"read\n", b"owner\n"}:
             return
         try:
-            self.server.store.save(
-                self.server.home, acknowledge=mode == b"write\n", observe=mode == b"read\n"
-            )
+            if mode == b"owner\n":
+                self.server.store.check_reader()
+            else:
+                self.server.store.save(
+                    self.server.home, acknowledge=mode == b"write\n", observe=mode == b"read\n"
+                )
             reply = b"ok\n"
         except Exception as exc:
             # Database exceptions can include connection details.
@@ -130,17 +159,41 @@ class CommitMiddleware:
 
     def __init__(self, app, socket_path):
         self.app, self.socket_path = app, socket_path
+        self.reader_until = 0.0
+        self.reader_task = None
+
+    async def refresh_reader(self):
+        # Start the five-second lease before the round trip, so a queued
+        # check cannot extend how long a superseded reader may serve.
+        started = time.monotonic()
+        try:
+            await commit(self.socket_path, b"owner")
+            self.reader_until = started + 5
+        finally:
+            self.reader_task = None
+
+    async def confirm(self, mode):
+        if mode != b"owner":
+            await commit(self.socket_path, mode)
+            return
+        if time.monotonic() < self.reader_until:
+            return
+        if self.reader_task is None:
+            self.reader_task = asyncio.create_task(self.refresh_reader())
+        await asyncio.shield(self.reader_task)
 
     async def __call__(self, scope, receive, send):
         kind = scope["type"]
         if kind not in {"http", "websocket"} or scope.get("path") in {
             "/_hosted/ready",
+            "/_hosted/session",
             "/health/ready",
             "/health/live",
-            "/api/auth/profile",
         }:
             return await self.app(scope, receive, send)
         mode = b"read" if scope.get("method") in {"GET", "HEAD", "OPTIONS"} else b"write"
+        if kind == "http" and mode == b"read" and scope.get("path") in READ_ONLY_PATHS:
+            mode = b"owner"
         failed = False
         streaming = False
 
@@ -160,8 +213,9 @@ class CommitMiddleware:
                 check = data.get("type") in BOUNDARIES
             if check:
                 try:
-                    await commit(self.socket_path, mode)
+                    await self.confirm(mode)
                 except (OSError, TimeoutError):
+                    self.reader_until = 0.0
                     failed = True
                     if kind == "websocket":
                         await send({"type": "websocket.close", "code": 1013})

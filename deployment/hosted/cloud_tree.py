@@ -153,7 +153,7 @@ def relative(name):
     return path
 
 
-def restore_tree(home, manifest, fetch):
+def restore_tree(home, manifest, fetch=None, *, blocks=None):
     if manifest.get("schema") != 1:
         raise ValueError("Unsupported workspace manifest")
     home.mkdir(parents=True, exist_ok=True)
@@ -169,7 +169,7 @@ def restore_tree(home, manifest, fetch):
             checksum, size = sha256(), 0
             with target.open("xb") as output:
                 for digest in row["pieces"]:
-                    block = fetch(row["kind"], digest)
+                    block = next(blocks) if blocks is not None else fetch(row["kind"], digest)
                     checksum.update(block)
                     size += len(block)
                     output.write(block)

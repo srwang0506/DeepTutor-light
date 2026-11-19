@@ -44,7 +44,8 @@ let cachedAuthStatus: { value: AuthStatus | null; expiresAt: number } | null =
   null;
 
 export function invalidateAuthStatusCache(): void {
-  invalidateClientCache("navigation:");
+  // No cached projects or navigation data may follow a principal across sign-in.
+  invalidateClientCache("");
   authGeneration += 1;
   authStatusRequest = null;
   cachedAuthStatus = null;

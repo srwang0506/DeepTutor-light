@@ -2,6 +2,7 @@
 # Override these with registry digest-pinned references in your deployment.
 ARG NODE_IMAGE=node:24.19.0-bookworm-slim
 ARG PYTHON_IMAGE=python:3.12.9-slim-bookworm
+ARG HOSTED_TEX_STAGE=hosted-native-tex
 FROM restic/restic:0.19.1 AS backup-client
 FROM ${NODE_IMAGE} AS web
 WORKDIR /app/web
@@ -28,7 +29,7 @@ CMD ["python", "-m", "uvicorn", "deeptutor.api.main:app", "--host", "0.0.0.0", "
 # One public port for a cloud host. Public requests pass through the session
 # check before reaching either Next.js or the API. The local api target below
 # remains the default for existing builds.
-FROM study-runtime AS hosted
+FROM study-runtime AS hosted-base
 ADD --chmod=0444 --checksum=sha256:fd7b19842b2d465149051f091f2e80fdec08f200e4ff90bf0ac169e8ab207b23 https://raw.githubusercontent.com/mgilbir/tecgonic/b758df17ffa5453b2d2f255f55a6605b80a55a54/wasm/tectonic_wasi.wasm /opt/deeptutor-tectonic/engine.wasm
 ADD --chmod=0444 --checksum=sha256:6109880d8a31bbf1f692060ee388d70aac2e64b19031b50cbfce6c2949a4ae76 https://raw.githubusercontent.com/mgilbir/tecgonic/b758df17ffa5453b2d2f255f55a6605b80a55a54/testdata/minibundle.tar.gz /opt/deeptutor-tectonic/format.tar.gz
 ADD --chmod=0444 --checksum=sha256:4e9651455e1b761ed462c50f60c4618c8985f46404e8db467def14848e77725a https://raw.githubusercontent.com/mgilbir/tecgonic/b758df17ffa5453b2d2f255f55a6605b80a55a54/LICENSE /opt/deeptutor-tectonic/licenses/tecgonic.txt
@@ -37,11 +38,23 @@ RUN pip install --no-cache-dir 'psycopg[binary]==3.3.9' 'wasmtime==50.0.1' \
     && deeptutor-tectonic --prepare /opt/deeptutor-tectonic
 RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources \
     && apt-get update -qq \
-    && apt-get install -y --no-install-recommends nginx-light supervisor ca-certificates git openssh-client poppler-utils libgomp1 latexmk texlive-xetex texlive-luatex texlive-lang-chinese fonts-lmodern lmodern bubblewrap \
-    && python deployment/tex/bundle.py /opt/deeptutor-tectonic/format.tar.gz /usr/share/texlive/texmf-dist /opt/deeptutor-tectonic/bundle /usr/share/texmf \
+    && apt-get install -y --no-install-recommends nginx-light supervisor ca-certificates git openssh-client poppler-utils libgomp1 \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 1000 --shell /usr/sbin/nologin tutor \
     && install -d -o tutor -g tutor -m 0700 /runtime
+
+FROM hosted-base AS hosted-native-tex
+RUN apt-get update -qq \
+    && apt-get install -y --no-install-recommends latexmk texlive-xetex texlive-luatex texlive-lang-chinese fonts-lmodern lmodern bubblewrap \
+    && python deployment/tex/bundle.py /opt/deeptutor-tectonic/format.tar.gz /usr/share/texlive/texmf-dist /opt/deeptutor-tectonic/bundle /usr/share/texmf \
+    && rm -rf /var/lib/apt/lists/*
+
+# Render Free cannot start a native TeX sandbox. Keep the same offline format,
+# fonts and packages there without shipping the second, unusable toolchain.
+FROM hosted-base AS hosted-portable-tex
+COPY --from=hosted-native-tex /opt/deeptutor-tectonic/bundle/ /opt/deeptutor-tectonic/bundle/
+
+FROM ${HOSTED_TEX_STAGE} AS hosted
 COPY --from=web /usr/local/bin/node /usr/local/bin/node
 COPY --from=backup-client /usr/bin/restic /usr/local/bin/restic
 COPY --from=web /app/web/.next-study/standalone/ /opt/deeptutor-web/

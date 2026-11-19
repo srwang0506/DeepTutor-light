@@ -1,8 +1,9 @@
-import { render } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { expect, it, vi } from "vitest";
 import type { ComponentProps, ReactNode } from "react";
 
 import { SidebarShell } from "@/components/sidebar/SidebarShell";
+import IntentLink from "@/shared/ui/IntentLink";
 
 const fixture = vi.hoisted(() => ({
   collapsed: false,
@@ -91,4 +92,20 @@ it("disables viewport prefetch for collapsed sidebar navigation", () => {
   render(<SidebarShell />);
 
   expectSidebarLinksToDisablePrefetch();
+});
+
+it("only warms the focused destination and respects the current page", () => {
+  render(<>
+    <IntentLink href="/projects">Projects</IntentLink>
+    <IntentLink href="/chat" aria-current="page">Chat</IntentLink>
+  </>);
+  const link = screen.getByRole("link", { name: "Projects" });
+  const current = screen.getByRole("link", { name: "Chat" });
+  fireEvent.focus(link);
+  expect(link).toHaveAttribute("data-prefetch", "null");
+  expect(current).toHaveAttribute("data-prefetch", "false");
+  fireEvent.blur(link);
+  expect(link).toHaveAttribute("data-prefetch", "false");
+  fireEvent.focus(current);
+  expect(current).toHaveAttribute("data-prefetch", "false");
 });

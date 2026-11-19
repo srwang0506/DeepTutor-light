@@ -32,6 +32,7 @@ vi.mock('@/lib/workspaces-api', () => ({
   inheritedWorkspaceResources: () => ({ skills: null, mcp: null, knowledge_bases: null }),
   getWorkspaceResources: async () => ({ skills: [], mcp: [], knowledge_bases: [] }),
   listWorkspaces: fixtures.list,
+  readCachedWorkspaces: () => undefined,
   getWorkspaceCatalog: fixtures.catalog,
   migrateWorkspace: fixtures.migrate,
   getSystemWorkspaceSnapshot: fixtures.snapshot,

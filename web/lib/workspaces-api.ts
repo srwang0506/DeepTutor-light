@@ -1,5 +1,5 @@
 import { apiFetch, apiUrl } from '@/lib/api'
-import { invalidateClientCache, withClientCache } from '@/lib/client-cache'
+import { invalidateClientCache, readClientCache, withClientCache } from '@/lib/client-cache'
 import { notifySessionsChanged } from '@/lib/session-events'
 
 export interface WorkspaceResources {
@@ -72,14 +72,20 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
   return payload as T
 }
 
+const workspaceListKey = 'workspaces:list'
+
+export function readCachedWorkspaces() {
+  return readClientCache<ChatWorkspaceRegistration[]>(workspaceListKey)
+}
+
 export function listWorkspaces(force = false): Promise<ChatWorkspaceRegistration[]> {
   return withClientCache(
-    'workspaces:list',
+    workspaceListKey,
     async () => {
       const result = await request<{ workspaces: ChatWorkspaceRegistration[] }>(endpoint)
       return result.workspaces
     },
-    { force, ttlMs: 15_000 }
+    { force, joinInFlight: true, ttlMs: 15_000 }
   )
 }
 

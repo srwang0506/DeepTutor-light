@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
-import Link from 'next/link'
+import IntentLink from '@/shared/ui/IntentLink'
 import {
   ArrowLeft,
   ArrowRight,
@@ -27,6 +27,7 @@ import { displaySessionTitle } from '@/lib/session-title'
 import {
   getProjectOverview,
   listWorkspaces,
+  readCachedWorkspaces,
   recallProjectMemory,
   saveWorkspace,
   workspaceLabel,
@@ -55,9 +56,12 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
   const { t, i18n } = useTranslation(),
     zh = i18n.language.startsWith('zh')
   const active = useActiveWorkspaceId()
-  const [projects, setProjects] = useState<ChatWorkspaceRegistration[]>([])
+  const cachedProjects = readCachedWorkspaces()
+  const [projects, setProjects] = useState<ChatWorkspaceRegistration[]>(
+    () => cachedProjects?.filter(row => row.kind !== 'system') ?? []
+  )
   const [overview, setOverview] = useState<ProjectOverview | null>(null)
-  const [loading, setLoading] = useState(true),
+  const [loading, setLoading] = useState(detail || !cachedProjects),
     [error, setError] = useState('')
   const [filter, setFilter] = useState(''),
     [archived, setArchived] = useState(false)
@@ -69,10 +73,10 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
   const [saved, setSaved] = useState(false)
   const sequence = useRef(0),
     searchSequence = useRef(0)
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (force = false) => {
     const version = ++sequence.current
     return Promise.all([
-      listWorkspaces(true),
+      listWorkspaces(force),
       detail ? getProjectOverview(active) : Promise.resolve(null),
     ])
       .then(async ([rows, snapshot]) => {
@@ -90,7 +94,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
   const load = useCallback(() => {
     setLoading(true)
     setError('')
-    return loadData()
+    return loadData(true)
   }, [loadData])
 
   const invalidateRequests = useCallback(() => {
@@ -150,10 +154,10 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
     <FeaturePage className="projects-page">
       <div className="projects-shell">
         {detail && (
-          <Link href="/projects" className="project-back">
+          <IntentLink href="/projects" className="project-back">
             <ArrowLeft size={15} />
             {zh ? '所有项目' : 'All projects'}
-          </Link>
+          </IntentLink>
         )}
         <header className="projects-header">
           <div>
@@ -383,10 +387,10 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                       : 'Bring a question, an idea, or a new discovery.'}
                 </p>
               </div>
-              <Link className="project-button primary" href={scopedUrl('/chat', active)}>
+              <IntentLink className="project-button primary" href={scopedUrl('/chat', active)}>
                 <Plus size={16} />
                 {zh ? '开始新对话' : 'New conversation'}
-              </Link>
+              </IntentLink>
             </div>
             <div className="project-detail-grid">
               <div className="project-main-column">
@@ -400,7 +404,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                   </div>
                   {overview.sessions.length ? (
                     overview.sessions.map(s => (
-                      <Link
+                      <IntentLink
                         className="project-activity"
                         key={s.id}
                         href={scopedUrl(`/chat/${encodeURIComponent(s.id)}`, active)}
@@ -416,7 +420,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                           </small>
                         </div>
                         <ArrowRight size={15} />
-                      </Link>
+                      </IntentLink>
                     ))
                   ) : (
                     <div className="project-empty">
@@ -426,9 +430,9 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                           ? '第一段对话，是这个项目的起点。'
                           : 'The first conversation starts your project.'}
                       </p>
-                      <Link href={scopedUrl('/chat', active)}>
+                      <IntentLink href={scopedUrl('/chat', active)}>
                         {zh ? '聊聊你的想法' : 'Start with an idea'} →
-                      </Link>
+                      </IntentLink>
                     </div>
                   )}
                 </section>
@@ -438,13 +442,13 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                       <CheckCircle2 size={17} />
                       {zh ? '正在推进' : 'In progress'}
                     </h2>
-                    <Link href={scopedUrl('/kanban', active)}>
+                    <IntentLink href={scopedUrl('/kanban', active)}>
                       {zh ? '打开任务板' : 'Task board'} <ArrowRight size={13} />
-                    </Link>
+                    </IntentLink>
                   </div>
                   {overview.tasks.length ? (
                     overview.tasks.map(t => (
-                      <Link className="project-task" key={t.id} href={scopedUrl('/kanban', active)}>
+                      <IntentLink className="project-task" key={t.id} href={scopedUrl('/kanban', active)}>
                         {t.status === 'done' ? <CheckCircle2 size={16} /> : <Circle size={16} />}
                         <span>{t.title}</span>
                         <small>
@@ -460,14 +464,14 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                                 ? '待办'
                                 : 'To do'}
                         </small>
-                      </Link>
+                      </IntentLink>
                     ))
                   ) : (
                     <div className="project-empty compact">
                       <p>{zh ? '把接下来要做的事记下来。' : 'Capture your next steps.'}</p>
-                      <Link href={scopedUrl('/kanban', active)}>
+                      <IntentLink href={scopedUrl('/kanban', active)}>
                         {zh ? '添加第一个任务' : 'Add a first task'} →
-                      </Link>
+                      </IntentLink>
                     </div>
                   )}
                 </section>
@@ -528,10 +532,10 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                     <Plus size={14} />
                     {zh ? '选择记忆来源' : 'Choose memory sources'}
                   </button>
-                  <Link className="project-memory-manage" href={scopedUrl('/memory', active)}>
+                  <IntentLink className="project-memory-manage" href={scopedUrl('/memory', active)}>
                     {zh ? '查看和编辑本项目记忆' : 'View & edit this project’s memory'}{' '}
                     <ArrowRight size={14} />
-                  </Link>
+                  </IntentLink>
                 </section>
                 <section className="project-panel">
                   <div className="project-section-title">
@@ -540,7 +544,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                       {zh ? '项目资料' : 'Materials & research'}
                     </h2>
                   </div>
-                  <Link className="project-resource" href={scopedUrl('/learning/reading', active)}>
+                  <IntentLink className="project-resource" href={scopedUrl('/learning/reading', active)}>
                     <BookOpen size={18} />
                     <div>
                       <strong>{zh ? '阅读与资料' : 'Reading & materials'}</strong>
@@ -549,8 +553,8 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                       </small>
                     </div>
                     <ArrowRight size={15} />
-                  </Link>
-                  <Link className="project-resource" href={scopedUrl('/research', active)}>
+                  </IntentLink>
+                  <IntentLink className="project-resource" href={scopedUrl('/research', active)}>
                     <Sparkles size={18} />
                     <div>
                       <strong>{zh ? '科研工作台' : 'Research workbench'}</strong>
@@ -561,7 +565,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                       </small>
                     </div>
                     <ArrowRight size={15} />
-                  </Link>
+                  </IntentLink>
                 </section>
               </aside>
             </div>
@@ -609,7 +613,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                     </p>
                   )}
                   {recall.hits.map(hit => (
-                    <Link
+                    <IntentLink
                       key={`${hit.workspace_id}:${hit.key}`}
                       href={hit.url}
                       className="project-recall-result"
@@ -643,7 +647,7 @@ export default function ProjectsPage({ detail = false }: { detail?: boolean }) {
                       </div>
                       <strong>{hit.kind === 'chat' ? displaySessionTitle(hit.title, t('New conversation')) : hit.title}</strong>
                       <p>{hit.text}</p>
-                    </Link>
+                    </IntentLink>
                   ))}
                   {recall.truncated && (
                     <p className="project-help">

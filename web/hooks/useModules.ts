@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useSyncExternalStore } from 'react'
 import { apiFetch, apiUrl } from '@/lib/api'
 
 export interface ModuleStatus {
@@ -21,35 +21,41 @@ export function moduleRouteAvailable(path: string, modules: ModuleStatus[]): boo
 
 // One deployment inventory request serves the sidebar, route gate and runtimes.
 // A focus/retry refresh observes a server restarted with a different selection.
-let pending: Promise<ModuleStatus[]> | null = null
-function readModules() {
-  if (!pending) {
-    pending = apiFetch(apiUrl('/api/modules'))
-      .then(async response => {
-        if (!response.ok) throw new Error('Module inventory unavailable')
-        const result = await response.json() as { modules: ModuleStatus[] }
-        return result.modules
-      })
-  }
+type Inventory = { modules: ModuleStatus[] | null; error: boolean }
+const empty: Inventory = { modules: null, error: false }
+let inventory = empty
+let pending: Promise<void> | null = null
+const listeners = new Set<() => void>()
+
+function publish(next: Inventory) {
+  inventory = next
+  for (const notify of listeners) notify()
+}
+function reload() {
+  if (pending) return pending
+  if (inventory.error) publish({ ...inventory, error: false })
+  pending = apiFetch(apiUrl('/api/modules'))
+    .then(async response => {
+      if (!response.ok) throw new Error('Module inventory unavailable')
+      const result = await response.json() as { modules: ModuleStatus[] }
+      publish({ modules: result.modules, error: false })
+    })
+    .catch(() => { if (!inventory.modules) publish({ modules: null, error: true }) })
+    .finally(() => { pending = null })
   return pending
 }
-
-export function useModules() {
-  const [modules, setModules] = useState<ModuleStatus[] | null>(null)
-  const [error, setError] = useState(false)
-  const [revision, setRevision] = useState(0)
-  const reload = useCallback(() => {
-    pending = null
-    setError(false)
-    setRevision(value => value + 1)
-  }, [])
-  useEffect(() => {
-    let active = true
-    void readModules()
-      .then(result => { if (active) setModules(result) })
-      .catch(() => { if (active) setError(true) })
+function subscribe(notify: () => void) {
+  listeners.add(notify)
+  if (listeners.size === 1) {
+    if (!inventory.modules) void reload()
     window.addEventListener('focus', reload)
-    return () => { active = false; window.removeEventListener('focus', reload) }
-  }, [revision, reload])
+  }
+  return () => {
+    listeners.delete(notify)
+    if (!listeners.size) window.removeEventListener('focus', reload)
+  }
+}
+export function useModules() {
+  const { modules, error } = useSyncExternalStore(subscribe, () => inventory, () => empty)
   return { modules, error, reload, available: (path: string) => modules !== null && moduleRouteAvailable(path, modules) }
 }

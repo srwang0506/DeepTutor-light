@@ -1,7 +1,10 @@
 """Encrypted, fenced workspace revisions in PostgreSQL and a private S3 bucket."""
 
 import base64
+from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 from hashlib import sha256
+from itertools import islice
 import json
 import os
 from pathlib import Path
@@ -96,29 +99,54 @@ class CloudStore:
     def key(self, digest):
         return f"workspaces/{self.name}/{digest[:2]}/{digest}"
 
-    def read_block(self, db, kind, digest):
-        if not re.fullmatch("[a-f0-9]{64}", digest):
-            raise ValueError("Invalid cloud block digest")
-        if kind == "state":
-            row = db.execute(
-                "SELECT payload FROM dt_cloud_blocks WHERE workspace=%s AND digest=%s",
-                (self.name, digest),
-            ).fetchone()
-            if row is None:
-                raise ValueError("Cloud database block missing")
-            sealed = bytes(row[0])
-        elif kind == "file":
-            stream = self.objects.get_object(Bucket=self.bucket, Key=self.key(digest))["Body"]
-            try:
-                sealed = stream.read()
-            finally:
-                stream.close()
-        else:
-            raise ValueError("Unknown cloud block type")
+    def verified_block(self, kind, digest, sealed):
         block = self.open(sealed, kind + "/" + digest)
         if sha256(block).hexdigest() != digest:
             raise ValueError("Cloud block failed verification")
         return block
+
+    def download_file_block(self, digest):
+        with closing(
+            self.objects.get_object(Bucket=self.bucket, Key=self.key(digest))["Body"]
+        ) as stream:
+            return self.verified_block("file", digest, stream.read())
+
+    def read_blocks(self, db, keys):
+        # The main thread retains the transaction and row lock. Only independent
+        # object reads use threads. A window holds at most sixteen 1 MiB pieces.
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            while batch := list(islice(keys, 16)):
+                for kind, digest in batch:
+                    if kind not in {"state", "file"} or not re.fullmatch("[a-f0-9]{64}", digest):
+                        raise ValueError("Invalid cloud block reference")
+                distinct = dict.fromkeys(batch)
+                downloads = {
+                    d: pool.submit(self.download_file_block, d)
+                    for kind, d in distinct
+                    if kind == "file"
+                }
+                states = [d for kind, d in distinct if kind == "state"]
+                payloads = {}
+                if states:
+                    rows = db.execute(
+                        "SELECT digest,payload FROM dt_cloud_blocks WHERE workspace=%s AND digest=ANY(%s)",
+                        (self.name, states),
+                    )
+                    for digest, sealed in rows:
+                        payloads[digest] = self.verified_block("state", digest, bytes(sealed))
+                    if len(payloads) != len(states):
+                        raise ValueError("Cloud database block missing")
+                for kind, digest in batch:
+                    yield payloads[digest] if kind == "state" else downloads[digest].result()
+
+    def read_block(self, db, kind, digest):
+        with closing(self.read_blocks(db, iter([(kind, digest)]))) as blocks:
+            return next(blocks)
+
+    def restore(self, db, home, manifest):
+        keys = ((row["kind"], d) for row in manifest["files"].values() for d in row["pieces"])
+        with closing(self.read_blocks(db, keys)) as blocks:
+            restore_tree(home, manifest, blocks=blocks)
 
     def claim(self, home, *, seed=False):
         # The predecessor can finish its last write before we read the manifest.
@@ -139,7 +167,11 @@ class CloudStore:
             if seed and manifest:
                 raise ValueError("Import requires an empty cloud workspace")
             if manifest:
-                restore_tree(home, manifest, lambda kind, digest: self.read_block(db, kind, digest))
+                started = time.monotonic()
+                self.restore(db, home, manifest)
+                print(
+                    f"Verified workspace restore in {time.monotonic() - started:.2f}s", flush=True
+                )
             elif not seed and (home / "data").exists():
                 raise ValueError("Existing local workspace needs an explicit import")
             db.execute(
@@ -158,6 +190,17 @@ class CloudStore:
             self.fenced = True
             raise FencedWriter("A replacement instance owns this workspace")
         return revision, sealed
+
+    def check_reader(self):
+        if self.fenced:
+            raise FencedWriter("A replacement instance owns this workspace")
+        with self.connection() as db:
+            row = db.execute(
+                "SELECT writer FROM dt_cloud_workspaces WHERE name=%s FOR SHARE", (self.name,)
+            ).fetchone()
+            if not row or row[0] != self.writer:
+                self.fenced = True
+                raise FencedWriter("A replacement instance owns this workspace")
 
     def save(self, home, *, acknowledge=False, observe=False, source_home=None):
         if self.fenced:

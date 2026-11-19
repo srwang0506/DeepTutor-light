@@ -54,7 +54,7 @@ http {
             proxy_pass_request_body off;
             proxy_set_header Content-Length "";
             proxy_set_header Authorization "";
-            proxy_pass http://127.0.0.1:8001/api/auth/profile;
+            proxy_pass http://127.0.0.1:8001/_hosted/session;
         }
         location = /login { return 303 @PAGES@; }
         location @signin {

@@ -83,6 +83,9 @@ schema, and a base64-encoded random 32-byte encryption key. Keep a private
 copy of the key. Give test and production workspaces distinct namespaces and
 keys. The runtime can also read the JSON from the secret `DEEPTUTOR_NEON_CONFIG`.
 
+The published Render image compiles papers with the offline Tectonic engine.
+The default self-hosted Docker build also includes native TeX Live.
+
 PostgreSQL holds the encrypted workspace manifest and database blocks. The
 private bucket holds encrypted file blocks. A successful edit and a completed
 chat turn wait for a committed revision. In-progress background work also

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { subscribeSessionChanges } from "@/lib/session-events";
 import {
   listWorkspaces,
+  readCachedWorkspaces,
   type ChatWorkspaceRegistration,
 } from "@/lib/workspaces-api";
 
@@ -19,13 +20,15 @@ import {
  * each keeping its own idea of what exists.
  */
 export function useChatWorkspaces() {
-  const [workspaces, setWorkspaces] = useState<ChatWorkspaceRegistration[]>([]);
+  const [workspaces, setWorkspaces] = useState<ChatWorkspaceRegistration[]>(
+    () => readCachedWorkspaces()?.filter(row => row.kind === "workspace") ?? [],
+  );
   const [error, setError] = useState("");
 
   useEffect(() => {
     let alive = true;
-    const refresh = () =>
-      void listWorkspaces(true)
+    const refresh = (force = false) =>
+      void listWorkspaces(force)
         .then((rows) => {
           if (!alive) return;
           setWorkspaces(rows.filter((row) => row.kind === "workspace"));
@@ -35,7 +38,7 @@ export function useChatWorkspaces() {
           if (alive) setError(err instanceof Error ? err.message : String(err));
         });
     refresh();
-    const unsubscribe = subscribeSessionChanges(refresh);
+    const unsubscribe = subscribeSessionChanges(() => refresh(true));
     return () => {
       alive = false;
       unsubscribe();

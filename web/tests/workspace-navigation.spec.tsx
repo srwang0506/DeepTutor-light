@@ -41,9 +41,8 @@ it('waits for draft persistence and uses client navigation for cross-workspace l
   fireEvent.click(screen.getByText('Second workspace'))
   expect(fixture.push).not.toHaveBeenCalled()
   await act(async () => saved())
-  expect(fixture.push).toHaveBeenCalledWith('/chat?dt_workspace=second')
-  // A real document navigation would change location; only the router is called.
-  expect(window.location.search).toBe('?dt_workspace=first')
+  expect(fixture.push).not.toHaveBeenCalled()
+  expect(window.location.search).toBe('?dt_workspace=second')
   window.removeEventListener('deeptutor:before-workspace-switch', save)
 })
 
@@ -70,7 +69,17 @@ it('writes the tab workspace into a URL that arrived without one', () => {
   fixture.query = new URLSearchParams()
   fixture.replace.mockClear()
   render(<WorkspaceNavigation />)
-  expect(fixture.replace).toHaveBeenCalledWith('/learning/books?dt_workspace=first')
+  expect(window.location.pathname + window.location.search).toBe('/learning/books?dt_workspace=first')
+  expect(fixture.replace).not.toHaveBeenCalled()
+})
+
+it('uses the router when a destination also changes the selected conversation', async () => {
+  window.history.replaceState(null, '', '/chat?dt_workspace=first&session=previous')
+  fixture.query = new URLSearchParams(window.location.search)
+  fixture.push.mockClear()
+  render(<WorkspaceNavigation />)
+  await selectWorkspace('second', '/chat?session=next')
+  expect(fixture.push).toHaveBeenCalledExactlyOnceWith('/chat?session=next&dt_workspace=second')
 })
 
 it('falls back to General once when the workspace no longer exists', async () => {
@@ -146,7 +155,7 @@ it('does not let invalidated in-flight requests overwrite fresh cache entries', 
 it('keeps navigation snapshots during refresh and clears them on account changes', async () => {
   const { readClientCache } = await import('@/lib/client-cache')
   const { invalidateAuthStatusCache } = await import('@/lib/auth')
-  const key = 'navigation:retained-view'
+  const key = 'workspaces:list'
   window.history.replaceState(null, '', '/learning?dt_workspace=first')
   await withClientCache(key, async () => 'first account')
   let finish!: (value: string) => void

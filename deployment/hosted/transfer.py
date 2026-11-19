@@ -6,7 +6,6 @@ import os
 from pathlib import Path
 
 from deeptutor.runtime.backup import verify
-from deployment.hosted.cloud_tree import restore_tree
 from deployment.hosted.neon_store import CloudStore
 
 
@@ -35,7 +34,7 @@ def main():
         if not row or not row[1]:
             raise ValueError("No committed workspace")
         manifest = store.decode_manifest(*row)
-        restore_tree(directory, manifest, lambda kind, digest: store.read_block(db, kind, digest))
+        store.restore(db, directory, manifest)
         print(f"Verified and restored {len(manifest['files'])} files from revision {row[0]}.")
 
 

@@ -110,6 +110,79 @@ def test_corrupt_object_cannot_supersede_current_writer(tmp_path, cloud):
     first.save(home, acknowledge=True)
 
 
+def test_batched_restore_keeps_file_order_and_rejects_a_missing_state_block(tmp_path, cloud):
+    new_store, objects = cloud
+    first = new_store()
+    home = tmp_path / "active"
+    first.claim(home)
+    data = home / "data"
+    data.mkdir(parents=True)
+    for index in range(38):
+        (data / f"note-{index:02}.json").write_text(json.dumps({"note": index}))
+    (data / "large.pdf").write_bytes(
+        b"a" * (1024 * 1024) + b"b" * (1024 * 1024) + b"a" * (1024 * 1024)
+    )
+    first.save(home, acknowledge=True)
+    assert len(objects.blocks) == 2
+    replacement = new_store()
+    fresh = tmp_path / "restored"
+    replacement.claim(fresh)
+    assert (fresh / "data/large.pdf").read_bytes() == (data / "large.pdf").read_bytes()
+    assert (fresh / "data/note-37.json").read_bytes() == (data / "note-37.json").read_bytes()
+    replacement.check_reader()
+    with pytest.raises(FencedWriter):
+        first.check_reader()
+    digest = first.manifest["files"]["note-17.json"]["pieces"][0]
+    with replacement.connection() as db:
+        db.execute(
+            "DELETE FROM dt_cloud_blocks WHERE workspace=%s AND digest=%s", (first.name, digest)
+        )
+    failed = tmp_path / "failed"
+    with pytest.raises(ValueError, match="block missing"):
+        new_store().claim(failed)
+    assert not (failed / "data").exists()
+    replacement.check_reader()
+
+
+def test_navigation_shares_only_reader_checks_and_writes_still_wait(monkeypatch):
+    calls = []
+
+    async def exercise():
+        gate = asyncio.Event()
+
+        async def confirm(_socket, mode):
+            calls.append(mode)
+            await gate.wait()
+
+        monkeypatch.setattr("deployment.hosted.writeback.commit", confirm)
+
+        async def app(_scope, _receive, send):
+            await send({"type": "http.response.start", "status": 200, "headers": []})
+
+        middleware = CommitMiddleware(app, "unused")
+
+        async def visit(method, path):
+            async def send(event):
+                assert event["status"] == 200
+
+            await middleware({"type": "http", "path": path, "method": method}, None, send)
+
+        burst = asyncio.gather(*(visit("GET", "/api/sessions") for _ in range(25)))
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        assert calls == [b"owner"] and not burst.done()
+        gate.set()
+        await burst
+        await visit("GET", "/api/calendar/events")
+        await visit("POST", "/api/calendar/events")
+        await visit("GET", "/api/settings/workspace/registrations")
+        middleware.reader_until = 0
+        await visit("GET", "/api/sessions")
+        assert calls == [b"owner", b"write", b"read", b"owner"]
+
+    asyncio.run(exercise())
+
+
 @pytest.mark.parametrize(
     "scope,messages,expected",
     [

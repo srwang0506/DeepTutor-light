@@ -4,12 +4,12 @@ import logging
 import os
 from urllib.parse import parse_qs, urlsplit
 
-from fastapi import HTTPException, Request
+from fastapi import Depends, HTTPException, Request, Response
 import httpx
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import PlainTextResponse, RedirectResponse
 
-from deeptutor.api.routers.auth import AUTH_COOKIE_NAME
+from deeptutor.api.routers.auth import AUTH_COOKIE_NAME, require_auth
 from deeptutor.multi_user.context import user_from_token_payload
 from deeptutor.multi_user.paths import user_context
 from deeptutor.services import auth
@@ -94,11 +94,24 @@ def create_app():
         "/access/workspace", workspace_login, methods=["POST"], include_in_schema=False
     )
     app.add_api_route("/_hosted/ready", hosted_ready, methods=["GET"], include_in_schema=False)
+    app.add_api_route(
+        "/_hosted/session",
+        hosted_session,
+        methods=["GET"],
+        include_in_schema=False,
+    )
     if socket_path := os.environ.get("DEEPTUTOR_CLOUD_COMMIT_SOCKET"):
         from deployment.hosted.writeback import CommitMiddleware
 
         app.add_middleware(CommitMiddleware, socket_path=socket_path)
     return app
+
+
+async def hosted_session(identity=Depends(require_auth)):
+    # Nginx only needs the outcome of the same authenticated session guard.
+    if identity is None:
+        raise HTTPException(401, "Sign in to the workspace.")
+    return Response(status_code=204, headers={"Cache-Control": "no-store"})
 
 
 async def hosted_ready(request: Request):

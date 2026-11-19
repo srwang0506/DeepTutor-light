@@ -14,7 +14,7 @@ import { browserStorage } from "@/shared/storage";
  * rail keeps its own way to reach the folded ones.
  */
 
-import Link from "next/link";
+import IntentLink from "@/shared/ui/IntentLink";
 import { usePathname } from "next/navigation";
 import {
   Fragment,
@@ -275,10 +275,9 @@ export function SidebarNav({
                       <Lock size={11} strokeWidth={1.8} />
                     </span>
                   ) : (
-                    <Link
+                    <IntentLink
                       key={href}
                       href={href}
-                      prefetch={false}
                       onClick={(event) => {
                         closeMenus();
                         if (href === "/chat") onHomeClick(event);
@@ -291,7 +290,7 @@ export function SidebarNav({
                       <span className="min-w-0 flex-1 truncate">
                         {t(entry.label)}
                       </span>
-                    </Link>
+                    </IntentLink>
                   );
                 })}
               </FloatingPanel>,
@@ -370,10 +369,9 @@ export function SidebarNav({
             </div>
           </Tooltip>
         ) : (
-          <Link
+          <IntentLink
             key={`${href}-destination`}
             href={href}
-            prefetch={false}
             draggable={false}
             onClick={href === "/chat" ? onHomeClick : onNavigate}
             className={`${rowClass} ${
@@ -383,7 +381,7 @@ export function SidebarNav({
             }`}
           >
             {body}
-          </Link>
+          </IntentLink>
         )}
         <button
           key={`${href}-arrange`}
@@ -592,9 +590,8 @@ export function SidebarHome({
           </div>
         </Tooltip>
       ) : (
-        <Link
+        <IntentLink
           href="/chat"
-          prefetch={false}
           onClick={onHomeClick}
           className={`${className} ${
             active
@@ -603,7 +600,7 @@ export function SidebarHome({
           }`}
         >
           {content}
-        </Link>
+        </IntentLink>
       )}
     </div>
   );
@@ -654,9 +651,8 @@ function RailRow({
 
   return (
     <Tooltip label={label} description={description} side="right">
-      <Link
+      <IntentLink
         href={href}
-        prefetch={false}
         onClick={href === "/chat" ? onHomeClick : undefined}
         aria-label={label}
         className={`relative flex h-9 w-9 items-center justify-center rounded-xl transition-all duration-150 ${
@@ -666,7 +662,7 @@ function RailRow({
         }`}
       >
         <Icon size={18} strokeWidth={active ? 2 : 1.6} />
-      </Link>
+      </IntentLink>
     </Tooltip>
   );
 }

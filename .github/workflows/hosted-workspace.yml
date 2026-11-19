@@ -49,7 +49,7 @@ jobs:
           persist-credentials: false
       - name: Build the hosted workspace
         run: |
-          docker build -f Dockerfile.study --target hosted -t deeptutor-hosted-check \
+          docker build -f Dockerfile.study --target hosted --build-arg HOSTED_TEX_STAGE=hosted-portable-tex -t deeptutor-hosted-check \
             --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
             --label "org.opencontainers.image.revision=$GITHUB_SHA" .
           docker image inspect --format 'Uncompressed image size: {{.Size}} bytes' deeptutor-hosted-check
