@@ -55,8 +55,13 @@ COPY --from=backup-client /usr/bin/restic /usr/local/bin/restic
 COPY --from=web /app/web/.next-study/standalone/ /opt/deeptutor-web/
 RUN install -d -o tutor -g tutor -m 0700 /opt/deeptutor-web/.next-study/cache/images \
     && chown tutor:tutor /opt/deeptutor-web/.next-study/cache
-ENV PORT=8080 PYTHONDONTWRITEBYTECODE=1 NODE_ENV=production
+RUN install -d -o tutor -g tutor -m 0700 /opt/deeptutor-tectonic/cache
+ENV PORT=8080 PYTHONDONTWRITEBYTECODE=1 NODE_ENV=production DEEPTUTOR_TECTONIC_CACHE=/opt/deeptutor-tectonic/cache
 USER tutor
+RUN directory="$(mktemp -d)" && cd "$directory" \
+    && printf '%s\n' '\documentclass{article}' '\usepackage{graphicx,amsmath}' '\begin{document}Paper $x=y$.\end{document}' > paper.tex \
+    && GOMEMLIMIT=90MiB GOMAXPROCS=1 /usr/local/bin/deeptutor-tectonic /opt/deeptutor-tectonic/bundle paper.tex \
+    && test -s paper.pdf && cd / && rm -r "$directory"
 EXPOSE 8080
 VOLUME ["/runtime"]
 HEALTHCHECK --interval=20s --timeout=5s --start-period=120s CMD python -c "import os,urllib.request; assert urllib.request.urlopen('http://127.0.0.1:'+os.environ['PORT']+'/health/ready',timeout=3).status==200"

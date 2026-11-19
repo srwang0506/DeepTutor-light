@@ -727,6 +727,8 @@ def _execute_build(store, build, cancelled=None):
             main = build["data"]["main_file"]
             if portable:
                 env.update(TMPDIR=tempfile.gettempdir(), GOMEMLIMIT="90MiB", GOMAXPROCS="1")
+                if cache := os.environ.get("DEEPTUTOR_TECTONIC_CACHE"):
+                    env["DEEPTUTOR_TECTONIC_CACHE"] = cache
                 invocation = [*runner, main]
             else:
                 engine = {"pdflatex": "-pdf", "xelatex": "-xelatex", "lualatex": "-lualatex"}[build["data"]["engine"]]

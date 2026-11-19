@@ -93,7 +93,9 @@ jobs:
           python deployment/hosted/smoke.py --resume
       - name: Report startup diagnostics on failure
         if: failure()
-        run: docker logs --tail 100 hosted-check 2>&1 || true
+        run: |
+          docker logs --tail 100 hosted-check 2>&1 || true
+          docker exec hosted-check cat /sys/fs/cgroup/memory.peak /sys/fs/cgroup/memory.events || true
       - name: Publish the verified Linux image
         if: github.ref == 'refs/heads/codex/study-workbench'
         shell: bash

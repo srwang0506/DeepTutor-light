@@ -26,11 +26,15 @@ func run() error {
 	defer source.Close()
 	ctx, cancel := context.WithTimeout(context.Background(), 85*time.Second)
 	defer cancel()
+	cache := os.Getenv("DEEPTUTOR_TECTONIC_CACHE")
+	if cache == "" {
+		cache = filepath.Join(os.TempDir(), "deeptutor-tectonic-cache")
+	}
 	// The package supplies independent, read-only guest mounts for the bundle
 	// and manuscript. The guest receives no host network, environment or home.
 	compiler, err := tecgonic.New(ctx, tecgonic.WithDefaultBundleDir(bundle),
 		tecgonic.WithDefaultFontsDir(bundle), tecgonic.WithContextCancellation(),
-		tecgonic.WithCompilationCache(filepath.Join(os.TempDir(), "deeptutor-tectonic-cache")),
+		tecgonic.WithCompilationCache(cache),
 		tecgonic.WithMemoryLimitMiB(384))
 	if err != nil {
 		return err

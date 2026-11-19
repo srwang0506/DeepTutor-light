@@ -169,7 +169,12 @@ def review_fixture(cookie):
         if build["data"]["status"] not in {"queued", "running"}:
             break
         time.sleep(1)
-    assert build["data"]["status"] == "succeeded", "The portable compiler did not finish the manuscript."
+    if build["data"]["status"] != "succeeded":
+        status, _, body = request(base + "/builds/" + build["id"] + "/build.log",
+                                  {"Cookie": cookie, "X-DeepTutor-Workspace": workspace})
+        # This run creates its own public fixture. Log only the TeX job's output.
+        detail = body[-1500:].decode(errors="replace") if status == 200 else str(status)
+        raise AssertionError("Portable manuscript compilation failed: " + detail)
     assert "preview.pdf" in build["data"]["outputs"]
     return {"id": review["id"], "workspace": workspace, "original": original + "/files/" + digest,
             "writer": writer, "version": version["commit"]}
